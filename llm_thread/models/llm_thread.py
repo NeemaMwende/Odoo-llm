@@ -66,13 +66,21 @@ class LLMThread(models.Model):
             "target": "new",
         }
 
-    def get_thread_data(self):
+    def get_thread_data(self, order='asc'):
         """Get thread data for frontend"""
         self.ensure_one()
+        
+        # Order messages based on the order parameter
+        messages = self.message_ids
+        if order == 'asc':
+            messages = messages.sorted(key=lambda r: r.create_date)
+        elif order == 'desc':
+            messages = messages.sorted(key=lambda r: r.create_date, reverse=True)
+        
         return {
             "id": self.id,
             "name": self.name,
-            "messages": [msg.to_frontend_data() for msg in self.message_ids],
+            "messages": [msg.to_frontend_data() for msg in messages],
             "model": {
                 "id": self.model_id.id,
                 "name": self.model_id.name,
