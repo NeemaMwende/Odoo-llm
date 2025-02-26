@@ -13,6 +13,15 @@
         "views/llm_tool_views.xml",
         "views/llm_tool_server_action_views.xml",
     ],
+    "assets": {
+        "web.assets_backend": [
+            "static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
+            "static/src/components/llm_chat_thread_header/llm_chat_thread_header_patch.js",
+            "static/src/models/llm_chat.js",
+            "static/src/models/llm_thread.js",
+            "static/src/models/llm_tool.js",
+        ],
+    },
     "auto_install": False,
     "application": False,
     "installable": True,
