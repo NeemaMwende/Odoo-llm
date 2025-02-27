@@ -1,9 +1,8 @@
 import json
 import logging
-from odoo import api, fields, models, _
+from odoo import api, models, _
 from odoo.exceptions import AccessError
 from pydantic import BaseModel, Field, ConfigDict
-from langchain_core.utils.function_calling import convert_to_openai_tool
 _logger = logging.getLogger(__name__)
 
 class LLMToolServerAction(models.Model):
