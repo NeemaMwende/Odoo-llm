@@ -2,7 +2,7 @@
 
 import { registerPatch } from "@mail/model/model_core";
 import { attr } from "@mail/model/model_field";
-import { markdownToHtml } from "@mail/utils/common/format";
+import { markdownToHtml } from "@llm_thread/utils/markdown_utils";
 
 registerPatch({
   name: "ComposerView",
@@ -23,18 +23,9 @@ registerPatch({
     toolResult: attr({
       default: "",
     }),
-    // Streaming related fields
-    isStreaming: attr({
+    // Flag to track if the current streaming content is from a tool
+    isToolContent: attr({
       default: false,
-    }),
-    streamingContent: attr({
-      default: "",
-    }),
-    // computed field from streaming content
-    htmlStreamingContent: attr({
-      compute() {
-        return markdownToHtml(this.streamingContent);
-      },
     }),
   },
   recordMethods: {
@@ -83,22 +74,20 @@ registerPatch({
         threadView.addComponentHint("message-posted", { message });
       }
     },
-
+    
     /**
      * Stop streaming response for this thread
      */
-    async _stopStreaming() {
-      if (!this.isStreaming) {
-        return;
-      }
-      this.update({ 
-        isStreaming: false, 
+    _stopStreaming() {
+      this.update({
+        isStreaming: false,
         streamingContent: "",
         isToolActive: false,
         currentToolCallId: false,
         currentToolName: "",
         toolArguments: "",
-        toolResult: ""
+        toolResult: "",
+        isToolContent: false,
       });
     },
     
@@ -112,7 +101,12 @@ registerPatch({
       }
       const composer = this.composer;
 
-      this.update({ isStreaming: true, streamingContent: defaultContent });
+      this.update({ 
+        isStreaming: true, 
+        streamingContent: defaultContent,
+        isToolContent: false 
+      });
+      
       const eventSource = new EventSource(
         `/llm/thread/stream_response?thread_id=${composer.thread.id}`
       );
@@ -137,7 +131,8 @@ registerPatch({
               currentToolCallId: data.tool_call_id,
               currentToolName: data.function_name,
               toolArguments: data.arguments,
-              streamingContent: "" // Clear streaming content for tool
+              streamingContent: "", // Clear streaming content for tool
+              isToolContent: true   // Mark that we're now dealing with tool content
             });
             break;
           case "tool_end":
@@ -146,13 +141,10 @@ registerPatch({
               toolResult: data.content,
               isToolActive: false
             });
-            
+            console.log("Tool ended");
             // Post the tool message
             await this._postAIMessage(data.formatted_content, data.tool_call_id);
-            
-            // Start a new streaming session for interpretation if needed
-            // This is optional based on your requirements
-            // this.startInterpretationStreaming();
+            console.log("Posted message");
             break;
           case "error":
             console.error("Streaming error:", data.error);
@@ -164,8 +156,8 @@ registerPatch({
             });
             break;
           case "end":
-            // Only post content if we have some and we're not in the middle of a tool call
-            if (this.streamingContent && !this.isToolActive) {
+            // Only post content if we have some and it's not tool-related content
+            if (this.streamingContent && !this.isToolContent) {
               const htmlStreamingContent = this.htmlStreamingContent;
               await this._postAIMessage(htmlStreamingContent);
             }
@@ -206,7 +198,8 @@ registerPatch({
       });
       this.startStreaming();
     },
-
+    
+    
     onKeydownTextareaForAi(ev) {
       if (!this.exists()) {
         return;
