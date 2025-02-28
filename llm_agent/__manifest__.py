@@ -33,7 +33,6 @@
         "views/llm_thread_views.xml",
         "views/llm_tool_views.xml",
         "views/llm_tool_server_action_views.xml",
-        "data/mail_message_subtype.xml",
         "views/menu_views.xml",
     ],
     "assets": {
