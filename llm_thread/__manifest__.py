@@ -11,6 +11,8 @@ Key Features:
 - Real-Time Chat: Instant AI conversations integrated with Odoo's mail system
 - Multimodal Support: Go beyond text with advanced AI models
 - Full Odoo Integration: Link chats to any Odoo record for context
+- Tool Integration: Enable AI to execute custom tools and functions
+- Function Calling: Select specific tools for each thread to enhance AI capabilities
 
 Getting Started:
 1. Install this module and the "LLM Integration Base" dependency
@@ -18,13 +20,13 @@ Getting Started:
 3. Fetch available models with one click
 4. Start chatting from anywhere in Odoo
 
-Use cases include customer support automation, data analysis, training assistance, and custom AI workflows for your business.
+Use cases include customer support automation, data analysis, training assistance, custom AI workflows, and automated tool execution for your business.
 
 Contact: support@apexive.com
     """,
     "category": "Productivity, Discuss",
     "version": "16.0.1.0.0",
-    "depends": ["base", "mail", "web", "llm"],
+    "depends": ["base", "mail", "web", "llm", "llm_tool"],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "external_dependencies": {"python": ["emoji"]},
@@ -50,6 +52,9 @@ Contact: support@apexive.com
             "llm_thread/static/src/models/thread_view.js",
             "llm_thread/static/src/models/llm_chat_thread_header_view.js",
             "llm_thread/static/src/models/chatter.js",
+            "llm_thread/static/src/models/llm_tool.js",
+            "llm_thread/static/src/models/llm_tool_message.js",
+            "llm_thread/static/src/models/message.js",
             # Components
             "llm_thread/static/src/components/llm_chat/llm_chat.js",
             "llm_thread/static/src/components/llm_chat/llm_chat.xml",
@@ -78,6 +83,7 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_chatter_topbar/llm_chatter_topbar.xml",
             "llm_thread/static/src/components/llm_chatter_topbar/llm_chat_topbar.scss",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.xml",
+            "llm_thread/static/src/components/message/message.xml",
             # Client Actions
             "llm_thread/static/src/llm_chat_client_action.js",
             # Styles
@@ -93,6 +99,9 @@ Contact: support@apexive.com
             ),
         ],
     },
+    "images": [
+        "static/description/banner.jpeg",
+    ],
     "license": "LGPL-3",
     "installable": True,
     "application": True,

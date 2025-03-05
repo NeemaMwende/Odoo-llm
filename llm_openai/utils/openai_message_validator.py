@@ -3,18 +3,18 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
-class LLMToolMessageValidator:
+class OpenAIMessageValidator:
     """
     A dedicated class for validating and cleaning message structures
-    for LLM API compatibility.
+    for OpenAI API compatibility.
 
     This validator ensures that:
     1. All tool messages have a corresponding assistant message with matching tool_calls
     2. All assistant messages with tool_calls have corresponding tool responses
-    3. The message structure is valid and consistent for the LLM API
+    3. The message structure is valid and consistent for the OpenAI API
 
     Usage:
-        validator = LLMToolMessageValidator(messages)
+        validator = OpenAIMessageValidator(messages)
         cleaned_messages = validator.validate_and_clean()
     """
 

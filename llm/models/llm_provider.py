@@ -56,9 +56,9 @@ class LLMProvider(models.Model):
         """Hook method for registering provider services"""
         return []
 
-    def chat(self, messages, model=None, stream=False):
+    def chat(self, messages, model=None, stream=False, **kwargs):
         """Send chat messages using this provider"""
-        return self._dispatch("chat", messages, model=model, stream=stream)
+        return self._dispatch("chat", messages, model=model, stream=stream, **kwargs)
 
     def embedding(self, texts, model=None):
         """Generate embeddings using this provider"""
@@ -97,6 +97,35 @@ class LLMProvider(models.Model):
             raise ValueError(f"No {model_use} model found for provider {self.name}")
 
         return default_models[0]
+
+    def format_messages(self, messages):
+        """Format messages for this provider
+
+        Args:
+            messages: mail.message recordset to format
+
+        Returns:
+            List of formatted messages in provider-specific format
+        """
+        return self._dispatch("format_messages", messages)
+
+    @api.model
+    def _default_format_message(self, message):
+        """Default implementation for formatting message
+
+        This provides a basic implementation that can be overridden by provider-specific modules.
+
+        Args:
+            message: mail.message record to format
+
+        Returns:
+            Formatted message in a standard format
+        """
+
+        return {
+            "role": "user" if message.author_id else "assistant",
+            "content": message.body or "",  # Ensure content is never null
+        }
 
     @staticmethod
     def serialize_datetime(obj):

@@ -14,6 +14,7 @@ export class LLMChatThreadHeader extends Component {
       fieldName: "llmChatThreadNameInputRef",
       refName: "threadNameInput",
     });
+    this.onToolSelectChange = this.onToolSelectChange.bind(this);
   }
 
   get llmChatThreadHeaderView() {
@@ -85,8 +86,8 @@ export class LLMChatThreadHeader extends Component {
    * Toggle thread list visibility on mobile
    */
   _onToggleThreadList() {
-    this.thread.llmChat.llmChatView.update({
-      isThreadListVisible: !this.thread.llmChat.llmChatView.isThreadListVisible,
+    this.llmChat.llmChatView.update({
+      isThreadListVisible: !this.llmChat.llmChatView.isThreadListVisible,
     });
   }
 
@@ -113,6 +114,28 @@ export class LLMChatThreadHeader extends Component {
    */
   onInputThreadNameInput(ev) {
     this.llmChatThreadHeaderView.update({ pendingName: ev.target.value });
+  }
+
+  /**
+   * Handle tool selection change
+   * @param {Event} ev - The checkbox change event
+   * @param {Object} tool - The tool object being selected/deselected
+   */
+  async onToolSelectChange(ev, tool) {
+    const checked = ev.target.checked;
+
+    const newSelectedToolIds = checked
+      ? [...this.thread.selectedToolIds, tool.id]
+      : this.thread.selectedToolIds.filter((id) => id !== tool.id);
+
+    // Update the thread settings with the new tool IDs
+
+    await this.thread.updateLLMChatThreadSettings({
+      toolIds: newSelectedToolIds,
+    });
+    this.thread.update({
+      selectedToolIds: newSelectedToolIds,
+    });
   }
 }
 
