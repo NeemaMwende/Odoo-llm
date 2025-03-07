@@ -6,7 +6,7 @@
         Supports diverse AI models and custom model deployments.
     """,
     "category": "Technical",
-    "version": "16.0.1.0.0",
+    "version": "16.0.1.1.0",
     "depends": ["llm"],
     "external_dependencies": {
         "python": ["replicate"],
@@ -14,6 +14,8 @@
     "data": [
         "data/llm_publisher.xml",
     ],
+    "website": "https://github.com/apexive/odoo-llm",
+    "author": "Apexive Solutions LLC",
     "license": "LGPL-3",
     "installable": True,
 }

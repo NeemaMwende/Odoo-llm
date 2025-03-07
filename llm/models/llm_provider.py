@@ -56,9 +56,9 @@ class LLMProvider(models.Model):
         """Hook method for registering provider services"""
         return []
 
-    def chat(self, messages, model=None, stream=False):
+    def chat(self, messages, model=None, stream=False, **kwargs):
         """Send chat messages using this provider"""
-        return self._dispatch("chat", messages, model=model, stream=stream)
+        return self._dispatch("chat", messages, model=model, stream=stream, **kwargs)
 
     def embedding(self, texts, model=None):
         """Generate embeddings using this provider"""
@@ -134,4 +134,38 @@ class LLMProvider(models.Model):
             if isinstance(value, list)
             else value
             for key, value in data.items()
+        }
+
+    def format_tools(self, tools):
+        """Format tools for the specific provider"""
+        return self._dispatch("format_tools", tools)
+
+    def format_messages(self, messages, system_prompt=None):
+        """Format messages for this provider
+
+        Args:
+            messages: List of messages to format for specific provider, could be mail.message record set or similar data format
+            system_prompt: Optional system prompt to include at the beginning of the messages
+
+        Returns:
+            List of formatted messages in provider-specific format
+        """
+        return self._dispatch("format_messages", messages, system_prompt=system_prompt)
+
+    @api.model
+    def _default_format_message(self, message):
+        """Default implementation for formatting message
+
+        This provides a basic implementation that can be overridden by provider-specific modules.
+
+        Args:
+            message: mail.message record or similar data structure to format
+
+        Returns:
+            Formatted message in a standard format
+        """
+
+        return {
+            "role": "user" if message.author_id else "assistant",
+            "content": message.body or "",  # Ensure content is never null
         }
