@@ -29,7 +29,7 @@ class RAGSearchWizard(models.TransientModel):
     )
     similarity_cutoff = fields.Float(
         string="Similarity Cutoff",
-        default=0.7,
+        default=0.5,
         help="Minimum similarity score (0-1) for results",
     )
     state = fields.Selection(
@@ -83,22 +83,6 @@ class RAGSearchWizard(models.TransientModel):
                 "Embedding Error", f"Failed to generate embedding: {str(e)}"
             )
 
-    def _build_search_sql(self, domain):
-        """Build SQL query for vector search."""
-        sql = """
-            SELECT ch.id, ch.document_id, 1 - (ch.embedding <=> %s) AS similarity
-            FROM llm_document_chunk ch
-            JOIN llm_document doc ON ch.document_id = doc.id
-            WHERE ch.embedding IS NOT NULL
-        """
-        params = [None]  # Placeholder for vector
-        if domain:
-            if domain[0][0] == "document_id.id" and domain[0][1] == "in":
-                sql += " AND doc.id IN %s"
-                params.append(tuple(domain[0][2]))
-        sql += " AND 1 - (ch.embedding <=> %s) >= %s ORDER BY similarity DESC LIMIT %s"
-        return sql, params
-
     def _raise_error(self, title, message, message_type="warning"):
         """Raise a user-friendly error notification."""
         return {
@@ -123,52 +107,199 @@ class RAGSearchWizard(models.TransientModel):
             "context": self.env.context,
         }
 
-    # Main Action
-    def action_search(self):
-        """Execute vector search with the query."""
-        self.ensure_one()
-        _logger.debug(f"Search query: {self.query}")
+    def _prepare_query_vector(self, query_vector):
+        """
+        Prepare the query vector for similarity calculations.
 
-        # Get domain from context
-        active_ids = self.env.context.get("active_ids", [])
-        domain = [("document_id.id", "in", active_ids)] if active_ids else []
+        Args:
+            query_vector: The raw query vector from the embedding model
 
-        # Get embedding and vector
-        embedding_model = self._get_embedding_model()
-        query_vector = self._get_query_vector(embedding_model)
-        pg_vector = (
-            f"[{','.join(map(str, query_vector.tolist()))}]"
-            if isinstance(query_vector, np.ndarray)
-            else query_vector
-        )
+        Returns:
+            tuple: (flattened_vector, vector_norm)
+        """
+        if not isinstance(query_vector, np.ndarray):
+            return query_vector, None
 
-        # Prepare and execute SQL
-        from pgvector.psycopg2 import register_vector
+        # Flatten if needed
+        if len(query_vector.shape) > 1:
+            query_vector = query_vector.flatten()
 
-        register_vector(self.env.cr)
-        sql, params = self._build_search_sql(domain)
-        params[0] = pg_vector  # Set vector
-        params.extend([pg_vector, self.similarity_cutoff, self.top_n * self.top_k])
-        self.env.cr.execute(sql, params)
+        # Calculate norm
+        query_norm = np.linalg.norm(query_vector)
 
-        # Process results
-        results = self.env.cr.fetchall()
-        chunk_ids, result_lines, doc_chunk_count, processed_docs = [], [], {}, set()
-        for chunk_id, doc_id, similarity in results:
+        return query_vector, query_norm
+
+    def _prepare_chunk_vector(self, chunk_vector, query_vector_shape):
+        """
+        Prepare a chunk vector for similarity comparison.
+
+        Args:
+            chunk_vector: The chunk's embedding vector
+            query_vector_shape: Shape of the query vector to match
+
+        Returns:
+            numpy.ndarray or None: Prepared vector or None if incompatible
+        """
+        # Verify the array has elements
+        if chunk_vector.size == 0:
+            return None
+
+        # Check if dimensions match
+        if chunk_vector.shape != query_vector_shape:
+            # Flatten the chunk vector if needed
+            if len(chunk_vector.shape) > 1:
+                chunk_vector = chunk_vector.flatten()
+
+            # Final check to ensure sizes match
+            if chunk_vector.size != query_vector_shape[0]:
+                return None
+
+        return chunk_vector
+
+    def _calculate_similarity(self, query_vector, chunk_vector, query_norm=None):
+        """
+        Calculate similarity between query and chunk vectors.
+
+        Args:
+            query_vector: The prepared query vector
+            chunk_vector: The prepared chunk vector
+            query_norm: Pre-calculated query norm (optional)
+
+        Returns:
+            float: Similarity score between 0 and 1
+        """
+        # Calculate norms
+        if query_norm is None:
+            query_norm = np.linalg.norm(query_vector)
+
+        chunk_norm = np.linalg.norm(chunk_vector)
+
+        # Calculate similarity
+        if query_norm > 0 and chunk_norm > 0:
+            # Cosine similarity = dot product of normalized vectors
+            return np.dot(query_vector, chunk_vector) / (query_norm * chunk_norm)
+        else:
+            # Fallback for zero norm vectors
+            return 1 - np.linalg.norm(query_vector - chunk_vector) / (
+                np.linalg.norm(query_vector) + np.linalg.norm(chunk_vector) + 1e-10
+            )
+
+    def _process_search_results(self, chunks_with_similarity):
+        """
+        Process search results to get the top chunks per document.
+
+        Args:
+            chunks_with_similarity: List of (chunk, similarity) tuples
+
+        Returns:
+            tuple: (chunk_ids, result_lines) for wizard update
+        """
+        chunk_ids, result_lines = [], []
+        doc_chunk_count, processed_docs = {}, set()
+
+        for chunk, similarity in chunks_with_similarity:
+            doc_id = chunk.document_id.id
             doc_chunk_count.setdefault(doc_id, 0)
+
+            # Skip if we already have enough chunks for this document
             if doc_id in processed_docs and doc_chunk_count[doc_id] >= self.top_k:
                 continue
-            chunk_ids.append(chunk_id)
+
+            # Add this chunk to results
+            chunk_ids.append(chunk.id)
             doc_chunk_count[doc_id] += 1
             result_lines.append(
-                (0, 0, {"chunk_id": chunk_id, "similarity": similarity})
+                (0, 0, {"chunk_id": chunk.id, "similarity": similarity})
             )
+
+            # Mark document as processed if we have enough chunks
             if doc_chunk_count[doc_id] >= self.top_k:
                 processed_docs.add(doc_id)
+
+            # Stop if we have enough documents with enough chunks each
             if len(processed_docs) >= self.top_n and all(
                 c >= self.top_k for c in doc_chunk_count.values()
             ):
                 break
+
+        return chunk_ids, result_lines
+
+    def action_search(self):
+        """Execute vector search with the query."""
+        self.ensure_one()
+
+        # Get domain from context
+        active_ids = self.env.context.get("active_ids", [])
+
+        # Get embedding and vector
+        embedding_model = self._get_embedding_model()
+        original_query_vector = self._get_query_vector(embedding_model)
+
+        # Get all chunks or filter by documents if active_ids is provided
+        chunk_model = self.env["llm.document.chunk"]
+        domain = []
+
+        # If active_ids contains document IDs, filter chunks by those documents
+        if active_ids:
+            domain.append(("document_id", "in", active_ids))
+
+        # Get all chunks matching the domain
+        chunks_to_search = chunk_model.search(domain)
+
+        # If no chunks found, return empty results
+        if not chunks_to_search:
+            self.write(
+                {
+                    "state": "results",
+                    "result_ids": [(6, 0, [])],
+                    "result_lines": [],
+                }
+            )
+            return self._return_wizard()
+
+        # Execute vector search using the model's method
+        search_limit = (
+            self.top_n * self.top_k
+        )  # Get more results than needed for filtering
+        chunks = chunks_to_search.vector_search(
+            original_query_vector, limit=search_limit
+        )
+
+        # Prepare query vector once - outside the loop
+        query_vector, query_norm = self._prepare_query_vector(original_query_vector)
+
+        # Filter by similarity cutoff
+        chunks_with_similarity = []
+        for chunk in chunks:
+            try:
+                # Check if embedding attribute exists and has content
+                if hasattr(chunk, "embedding") and chunk.embedding is not None:
+                    # Convert to numpy array safely
+                    chunk_vector = np.array(chunk.embedding)
+
+                    # Prepare chunk vector
+                    prepared_chunk_vector = self._prepare_chunk_vector(
+                        chunk_vector, query_vector.shape
+                    )
+                    if prepared_chunk_vector is None:
+                        continue
+
+                    # Calculate similarity
+                    similarity = self._calculate_similarity(
+                        query_vector, prepared_chunk_vector, query_norm
+                    )
+
+                    # Add to results if above cutoff
+                    if similarity >= self.similarity_cutoff:
+                        chunks_with_similarity.append((chunk, similarity))
+            except Exception as e:
+                _logger.warning(
+                    f"Error processing chunk {chunk.id} embedding: {str(e)}"
+                )
+                continue
+
+        # Process results to get top chunks per document
+        chunk_ids, result_lines = self._process_search_results(chunks_with_similarity)
 
         # Update wizard
         self.write(
