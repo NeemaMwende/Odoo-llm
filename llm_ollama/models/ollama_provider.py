@@ -1,8 +1,12 @@
 import ollama
 import json
 import logging
+import uuid
 
 from odoo import api, models
+from ..utils.ollama_message_validator import OllamaMessageValidator
+from ..utils.tool_id_utils import ToolIdUtils
+
 _logger = logging.getLogger(__name__)
 
 class LLMProvider(models.Model):
@@ -218,9 +222,6 @@ class LLMProvider(models.Model):
         last_content = ""
 
         for chunk in response:
-            # Debug log the chunk structure
-            _logger.info(f"Ollama streaming chunk: {chunk}")
-            
             # Handle normal content
             if "message" in chunk and "content" in chunk["message"] and chunk["message"]["content"]:
                 content = chunk["message"]["content"]
@@ -238,13 +239,19 @@ class LLMProvider(models.Model):
                     # Use the index from the loop if not provided in the response
                     index = tool_call.get("index", i)
                     
+                    # Get the tool name
+                    tool_name = tool_call["function"]["name"]
+                    
+                    # Generate a unique ID that includes the tool name
+                    tool_id = ToolIdUtils.create_tool_id(tool_name, str(uuid.uuid4()))
+                    
                     # Initialize tool call data if it doesn't exist
                     if index not in tool_call_chunks:
                         tool_call_chunks[index] = {
-                            "id": tool_call.get("id", f"call_{index}"),
+                            "id": tool_id,
                             "type": "function",
                             "function": {
-                                "name": tool_call["function"]["name"],
+                                "name": tool_name,
                                 "arguments": "",
                             },
                         }
@@ -306,36 +313,45 @@ class LLMProvider(models.Model):
 
     def ollama_models(self):
         """List available Ollama models"""
-        response = self.client.list()
-
-        for model in response.get("models", []):
-            # Basic model info
+        models_response = self.client.list()
+        
+        # Get models from the response
+        if hasattr(models_response, 'models'):
+            models = models_response.models
+        else:
+            error_msg = f"Unexpected Ollama API response format: {models_response}"
+            _logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        for model in models:
+            model_name = model.model
+            
             model_info = {
-                "name": model["name"],
+                "name": model_name,
                 "details": {
-                    "id": model["name"],
+                    "id": model_name,
                     "capabilities": ["chat"],  # Default capability
-                    "modified_at": model.get("modified_at"),
-                    "size": model.get("size"),
-                    "digest": model.get("digest"),
-                },
+                    "modified_at": str(model.modified_at) if hasattr(model, 'modified_at') else None,
+                    "size": model.size if hasattr(model, 'size') else None,
+                    "digest": model.digest if hasattr(model, 'digest') else None,
+                }
             }
-
+            
             # Add embedding capability if model name suggests it
-            if "embedding" in model["name"].lower():
+            if "embedding" in model_name.lower():
                 model_info["details"]["capabilities"].append("embedding")
 
             yield model_info
 
     def ollama_format_messages(self, messages, system_prompt=None):
         """Format messages for Ollama API
-
+        
         Args:
-            messages: mail.message recordset to format
-            system_prompt: Optional system prompt to include at the beginning of the messages
-
+            messages: List of message records
+            system_prompt: Optional system prompt to prepend
+            
         Returns:
-            List of formatted messages in Ollama-compatible format
+            List of formatted messages in Ollama format
         """
         # First use the default implementation from the llm_tool module
         formatted_messages = []
@@ -344,21 +360,31 @@ class LLMProvider(models.Model):
         if system_prompt:
             formatted_messages.append({"role": "system", "content": system_prompt})
 
-        # Format the rest of the messages
+        # Add all other messages, properly formatted
         for message in messages:
-            formatted_messages.append(self._format_message_for_ollama(message))
+            formatted_msg = self._format_message_for_ollama(message)
+            if formatted_msg is not None:
+                formatted_messages.append(formatted_msg)
 
-        return formatted_messages
+        # Validate and clean messages
+        validator = OllamaMessageValidator(formatted_messages)
+        return validator.validate_and_clean()
 
     def _format_message_for_ollama(self, message):
         # Check if this is a tool message
         if message.subtype_id and message.tool_call_id:
             tool_message_subtype = self.env.ref("llm_tool.mt_tool_message")
-            _logger.info("Tool Message %s", message)
             if message.subtype_id.id == tool_message_subtype.id:
+                # Extract the tool name from the tool_call_id using the utility class
+                tool_name = ToolIdUtils.extract_tool_name_from_id(message.tool_call_id)
+                
+                # If we couldn't extract a tool name, return None
+                if not tool_name:
+                    return None
+                    
                 return {
                     "role": "tool",
-                    "name": "odoo_record_retriever",
+                    "name": tool_name,
                     "content": message.body or "",  # Ensure content is never null
                 }
 
@@ -366,7 +392,6 @@ class LLMProvider(models.Model):
         if not message.author_id and message.tool_calls:
             try:
                 tool_calls_data = json.loads(message.tool_calls)
-                _logger.info("Tool Calls %s", tool_calls_data)
                 
                 # Process each tool call to ensure arguments are properly formatted
                 for tool_call in tool_calls_data:
