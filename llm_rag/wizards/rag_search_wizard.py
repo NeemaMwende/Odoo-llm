@@ -40,12 +40,11 @@ class RAGSearchWizard(models.TransientModel):
         default="semantic",
         help="Method to use for searching documents",
     )
-    embedding_model_id = fields.Many2one(
-        "llm.model",
-        string="Embedding Model",
-        domain="[('model_use', '=', 'embedding')]",
+    collection_id = fields.Many2one(
+        "llm.document.collection",
+        string="Collection",
         required=True,
-        help="Embedding model to use for vector search (will only search documents using this model)",
+        help="Collection to search within",
     )
     state = fields.Selection(
         [("search", "Search"), ("results", "Results")],
@@ -78,16 +77,16 @@ class RAGSearchWizard(models.TransientModel):
 
     @api.model
     def default_get(self, fields_list):
-        """Set default embedding model if available"""
+        """Set default collection if available"""
         res = super().default_get(fields_list)
 
-        # Set default embedding model
-        if "embedding_model_id" in fields_list and "embedding_model_id" not in res:
-            model = self.env["llm.model"].search(
-                [("model_use", "=", "embedding")], limit=1
+        # Set default collection if there's only one
+        if "collection_id" in fields_list and "collection_id" not in res:
+            collection = self.env["llm.document.collection"].search(
+                [("active", "=", True)], limit=1
             )
-            if model:
-                res["embedding_model_id"] = model.id
+            if collection:
+                res["collection_id"] = collection.id
 
         return res
 
@@ -146,28 +145,32 @@ class RAGSearchWizard(models.TransientModel):
         """Execute vector search with the query."""
         self.ensure_one()
 
-        # Make sure embedding model is selected
-        if not self.embedding_model_id:
+        # Make sure collection is selected
+        if not self.collection_id:
             return self._raise_error(
-                "No Embedding Model",
-                "Please select an embedding model to use for searching.",
+                "No Collection Selected",
+                "Please select a collection to search within.",
             )
 
-        # Get domain from context
-        active_ids = self.env.context.get("active_ids", [])
+        # Get the collection's embedding model
+        embedding_model = self.collection_id.embedding_model_id
+        if not embedding_model:
+            return self._raise_error(
+                "No Embedding Model",
+                "The selected collection has no embedding model configured.",
+            )
 
-        # Get embedding and vector
-        embedding_model = self.embedding_model_id
+        # Get embedding vector for query
         query_vector = embedding_model.embedding(self.query.strip())[0]
 
-        # Get all chunks or filter by documents if active_ids is provided
+        # Set up domain to search only within the selected collection
         chunk_model = self.env["llm.document.chunk"]
         domain = [
-            # Only search chunks that use the same embedding model
-            ("embedding_model_id", "=", embedding_model.id)
+            ("document_id", "in", self.collection_id.document_ids.ids),
         ]
 
-        # If active_ids contains document IDs, filter chunks by those documents
+        # If active_ids contains document IDs, further filter chunks by those documents
+        active_ids = self.env.context.get("active_ids", [])
         if active_ids:
             domain.append(("document_id", "in", active_ids))
 
@@ -184,7 +187,7 @@ class RAGSearchWizard(models.TransientModel):
                 }
             )
             _logger.info(
-                f"No chunks found for model {embedding_model.name} with domain {domain}"
+                f"No chunks found for collection {self.collection_id.name} with domain {domain}"
             )
             return self._return_wizard()
 
@@ -238,9 +241,9 @@ class RAGSearchResultLine(models.TransientModel):
     document_name = fields.Char(related="document_id.name", readonly=True)
     chunk_name = fields.Char(related="chunk_id.name", readonly=True)
     content = fields.Text(related="chunk_id.content", readonly=True)
-    embedding_model_name = fields.Char(
-        related="chunk_id.embedding_model_id.name",
-        string="Embedding Model",
+    collection_id = fields.Many2one(
+        related="wizard_id.collection_id",
+        string="Collection",
         readonly=True,
     )
     similarity = fields.Float(digits=(5, 4), readonly=True)
