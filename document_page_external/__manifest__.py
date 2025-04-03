@@ -6,13 +6,12 @@
     "version": "16.0.1.0.0",
     "category": "Knowledge Management",
     "author": "Apexive Solutions LLC",
-    "website": "https://github.com/OCA/knowledge",
+    "website": "https://github.com/apexive/odoo-llm",
     "license": "AGPL-3",
     "depends": ["document_page"],
     "data": [
         "security/ir.model.access.csv",
         "views/document_page_view.xml",
-        "wizards/retrieve_url_wizard_view.xml",
     ],
     "demo": [],
     "external_dependencies": {
