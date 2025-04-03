@@ -38,12 +38,22 @@ class DocumentPage(models.Model):
             response.raise_for_status()
             content = response.text
 
+            # For draft records, populate the name and content directly
+            if not self.name:
+                # Extract title from content if possible (simple HTML title extraction)
+                import re
+                title_match = re.search(r'<title>(.*?)</title>', content, re.IGNORECASE)
+                if title_match:
+                    self.name = title_match.group(1)
+                else:
+                    self.name = "Content from " + self.external_url
+
             # Create a history entry with the new content
             history_vals = {
                 "page_id": self.id,
                 "name": self.draft_name or "1.0",
                 "summary": summary
-                or _("Retrieved from external URL: %s") % self.external_url,
+                           or _("Retrieved from external URL: %s") % self.external_url,
                 "content": content,
             }
             self._create_history(history_vals)
