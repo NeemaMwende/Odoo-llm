@@ -83,8 +83,8 @@ class LLMDocumentChunk(models.Model):
                     # Generate embedding for the search term
                     vector = embedding_model.embedding(search_term.strip())[0]
                     
-                    # Add collection filter to the domain
-                    collection_domain = [('collection_ids', '=', collection.id)]
+                    # # Add collection filter to the domain
+                    # collection_domain = [('collection_ids', '=', collection.id)]
                     
                     # Use the vector search
                     kwargs['query_vector'] = vector
@@ -92,6 +92,6 @@ class LLMDocumentChunk(models.Model):
                     kwargs['query_operator'] = '<=>'
                     
                     # Use the modified domain
-                    return super().search(collection_domain, offset=offset, limit=limit, order=order, count=count, **kwargs)
+                    return super().search([], offset=offset, limit=limit, order=order, count=count, **kwargs)
         
         return super().search(args, offset=offset, limit=limit, order=order, count=count, **kwargs)
