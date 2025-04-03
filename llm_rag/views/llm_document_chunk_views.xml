@@ -32,6 +32,21 @@
             </form>
         </field>
     </record>
+    <record id="view_llm_document_chunk_search" model="ir.ui.view">
+        <field name="name">llm.document.chunk.search</field>
+        <field name="model">llm.document.chunk</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="content"/>
+                <field name="document_id"/>
+                <field name="collection_ids"/>
+                <!-- Special filter for vector search -->
+                <filter string="Vector Search" name="vector_search" 
+                        context="{'search_view_vector_search': True}"/>
+            </search>
+        </field>
+    </record>
 
     <!-- Action -->
     <record id="action_llm_document_chunk" model="ir.actions.act_window">
