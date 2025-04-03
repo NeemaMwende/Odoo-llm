@@ -6,7 +6,6 @@ import requests
 
 from odoo import _, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import human_size
 
 _logger = logging.getLogger(__name__)
 
@@ -48,93 +47,6 @@ class DocumentPage(models.Model):
         summary = _("Retrieved from external URL: %s") % self.external_url
         return self.retrieve_from_external_url(summary)
 
-    def get_link_mime_info(self, url):
-        """Perform a HEAD request to get MIME type and content size."""
-        result = {
-            "mime_type": None,
-            "content_size": None,
-        }
-
-        # Skip for non-http links
-        if not url.startswith(('http://', 'https://', 'www.')):
-            # Try to guess mime type from extension
-            mime_type, _ = mimetypes.guess_type(url)
-            if mime_type:
-                result["mime_type"] = mime_type
-            return result
-
-        # Fix URLs starting with www.
-        if url.startswith('www.'):
-            url = 'http://' + url
-
-        try:
-            # Perform HEAD request with a timeout
-            response = requests.head(url, timeout=5, allow_redirects=True)
-
-            # Get content type from headers
-            if 'Content-Type' in response.headers:
-                content_type = response.headers['Content-Type']
-                # Strip parameters like charset
-                if ';' in content_type:
-                    content_type = content_type.split(';')[0].strip()
-                result["mime_type"] = content_type
-
-            # Get content length if available
-            if 'Content-Length' in response.headers:
-                try:
-                    size_bytes = int(response.headers['Content-Length'])
-                    result["content_size"] = size_bytes // 1024  # Convert to KB
-                except (ValueError, TypeError):
-                    pass
-
-        except requests.RequestException as e:
-            _logger.warning("Failed to get MIME info for %s: %s", url, e)
-
-        return result
-
-    def extract_links_from_content(self, content):
-        """Extract links from HTML content and create document.page.link records."""
-        self.ensure_one()
-
-        # Simple regex to extract links from HTML content
-        # This could be improved with BeautifulSoup if installed
-        links = []
-
-        # Extract <a href="..."> links
-        href_pattern = re.compile(r'<a\s+(?:[^>]*?\s+)?href="([^"]*)"(?:\s+[^>]*?)?(?:\s*>\s*(.*?)\s*</a>)', re.IGNORECASE | re.DOTALL)
-        for match in href_pattern.finditer(content):
-            url = match.group(1)
-            title = re.sub(r'<[^>]*>', '', match.group(2) or '').strip() or url
-
-            # Determine link type
-            link_type = "external"
-            if url.startswith("mailto:"):
-                link_type = "mailto"
-            elif url.startswith("/") or url.startswith("#") or (not url.startswith("http") and not url.startswith("www")):
-                link_type = "internal"
-
-            links.append({
-                "url": url,
-                "name": title,
-                "link_type": link_type,
-            })
-
-        # Create document.page.link records
-        existing_urls = set(self.link_ids.mapped('url'))
-        for link_data in links:
-            if link_data['url'] not in existing_urls:
-                # Get MIME type and size information for external links
-                if link_data['link_type'] == 'external':
-                    mime_info = self.get_link_mime_info(link_data['url'])
-                    link_data.update(mime_info)
-
-                self.env['document.page.link'].create({
-                    'page_id': self.id,
-                    **link_data,
-                })
-
-        return True
-
     def retrieve_from_external_url(self, summary=None):
         """Fetch content from external URL and create history entry."""
         self.ensure_one()
@@ -149,8 +61,6 @@ class DocumentPage(models.Model):
             # For draft records, populate the name and content directly
             if not self.name:
                 # Extract title from content if possible (simple HTML title extraction)
-                import re
-
                 title_match = re.search(r"<title>(.*?)</title>", content, re.IGNORECASE)
                 if title_match:
                     self.name = title_match.group(1)
@@ -167,8 +77,8 @@ class DocumentPage(models.Model):
             }
             self._create_history(history_vals)
 
-            # Extract and store links
-            self.extract_links_from_content(content)
+            # Extract and update links
+            self._update_page_links(content)
 
             return True
         except requests.RequestException as e:
@@ -176,6 +86,61 @@ class DocumentPage(models.Model):
             raise UserError(
                 _("Failed to retrieve content from URL: %s") % str(e)
             ) from e
+
+    def _update_page_links(self, content):
+        """Extract links from content, delete old links, and create new ones."""
+        self.ensure_one()
+
+        # Delete existing links for this page
+        self.link_ids.unlink()
+
+        # Extract new links
+        links = self._extract_links_from_content(content)
+
+        # Create new document.page.link records
+        for link_data in links:
+            self.env['document.page.link'].create({
+                'page_id': self.id,
+                **link_data,
+            })
+
+        return True
+
+    def _extract_links_from_content(self, content):
+        """Extract links from HTML content and return as a list of dictionaries."""
+        # Simple regex to extract links from HTML content
+        # This could be improved with BeautifulSoup if installed
+        links = []
+        unique_urls = set()  # Track unique URLs
+
+        # Extract <a href="..."> links
+        href_pattern = re.compile(r'<a\s+(?:[^>]*?\s+)?href="([^"]*)"(?:\s+[^>]*?)?(?:\s*>\s*(.*?)\s*</a>)', re.IGNORECASE | re.DOTALL)
+        for match in href_pattern.finditer(content):
+            url = match.group(1)
+
+            # Skip if we've already seen this URL
+            if url in unique_urls:
+                continue
+
+            unique_urls.add(url)
+            title = re.sub(r'<[^>]*>', '', match.group(2) or '').strip() or url
+
+            # Determine link type
+            link_type = "external"
+            if url.startswith("mailto:"):
+                link_type = "mailto"
+            elif url.startswith("/") or url.startswith("#") or (not url.startswith("http") and not url.startswith("www")):
+                link_type = "internal"
+
+            link_data = {
+                "url": url,
+                "name": title,
+                "link_type": link_type,
+            }
+
+            links.append(link_data)
+
+        return links
 
     def action_view_links(self):
         """Action to view the links associated with this page."""

@@ -12,7 +12,6 @@
     "data": [
         "security/ir.model.access.csv",
         "views/document_page_view.xml",
-        "views/document_page_link_view.xml",
     ],
     "demo": [],
     "external_dependencies": {

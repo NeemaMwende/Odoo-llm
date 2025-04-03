@@ -36,6 +36,13 @@
                                 string="Open Link"
                                 class="oe_stat_button"
                                 icon="fa-external-link"/>
+                        <button
+                                name="refresh_mime_info"
+                                type="object"
+                                string="Refresh MIME Info"
+                                class="oe_stat_button"
+                                icon="fa-refresh"
+                                attrs="{'invisible': [('link_type', '!=', 'external')]}"/>
                     </div>
                     <group>
                         <group>
@@ -115,4 +122,15 @@
         </field>
     </record>
 
+    <!-- Add action for refreshing MIME info on multiple records -->
+    <record id="action_refresh_mime_info" model="ir.actions.server">
+        <field name="name">Refresh MIME Info</field>
+        <field name="model_id" ref="model_document_page_link" />
+        <field name="binding_model_id" ref="model_document_page_link" />
+        <field name="binding_view_types">list,form</field>
+        <field name="state">code</field>
+        <field name="code">
+            records.filtered(lambda r: r.link_type == 'external').refresh_mime_info()
+        </field>
+    </record>
 </odoo>

@@ -1,7 +1,9 @@
 import logging
 import mimetypes
+import requests
 
-from odoo import fields, models
+from odoo import fields, models, api
+from odoo.tools import human_size
 
 _logger = logging.getLogger(__name__)
 
@@ -60,6 +62,65 @@ class DocumentPageLink(models.Model):
         ),
     ]
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Extend create to automatically retrieve MIME info for external links."""
+        records = super().create(vals_list)
+
+        # Process external links to retrieve MIME info
+        external_links = records.filtered(lambda r: r.link_type == 'external' and not r.mime_type)
+        for link in external_links:
+            mime_info = self._get_link_mime_info(link.url)
+            if mime_info.get('mime_type') or mime_info.get('content_size'):
+                link.write(mime_info)
+
+        return records
+
+    @api.model
+    def _get_link_mime_info(self, url):
+        """Perform a HEAD request to get MIME type and content size."""
+        result = {
+            "mime_type": None,
+            "content_size": None,
+        }
+
+        # Skip for non-http links
+        if not url.startswith(('http://', 'https://', 'www.')):
+            # Try to guess mime type from extension
+            mime_type, _ = mimetypes.guess_type(url)
+            if mime_type:
+                result["mime_type"] = mime_type
+            return result
+
+        # Fix URLs starting with www.
+        if url.startswith('www.'):
+            url = 'http://' + url
+
+        try:
+            # Perform HEAD request with a timeout
+            response = requests.head(url, timeout=5, allow_redirects=True)
+
+            # Get content type from headers
+            if 'Content-Type' in response.headers:
+                content_type = response.headers['Content-Type']
+                # Strip parameters like charset
+                if ';' in content_type:
+                    content_type = content_type.split(';')[0].strip()
+                result["mime_type"] = content_type
+
+            # Get content length if available
+            if 'Content-Length' in response.headers:
+                try:
+                    size_bytes = int(response.headers['Content-Length'])
+                    result["content_size"] = size_bytes // 1024  # Convert to KB
+                except (ValueError, TypeError):
+                    pass
+
+        except requests.RequestException as e:
+            _logger.warning("Failed to get MIME info for %s: %s", url, e)
+
+        return result
+
     def open_link(self):
         """Action to open the link in a new browser tab."""
         self.ensure_one()
@@ -68,3 +129,11 @@ class DocumentPageLink(models.Model):
             "url": self.url,
             "target": "new",
         }
+
+    def refresh_mime_info(self):
+        """Action to refresh MIME type and content size information."""
+        for link in self.filtered(lambda r: r.link_type == 'external'):
+            mime_info = self._get_link_mime_info(link.url)
+            if mime_info.get('mime_type') or mime_info.get('content_size'):
+                link.write(mime_info)
+        return True
