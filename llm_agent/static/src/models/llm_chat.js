@@ -12,6 +12,7 @@ const AGENT_THREAD_FIELDS = ["agent_id"];
 registerPatch({
   name: "LLMChat",
   fields: {
+    // Use attr instead of many for direct array access
     llmAgents: many("LLMAgent"),
   },
   recordMethods: {
@@ -23,7 +24,7 @@ registerPatch({
         model: "llm.agent",
         method: "search_read",
         kwargs: {
-          domain: [],
+          domain: [["active", "=", true]],
           fields: ["name"],
         },
       });
