@@ -32,6 +32,12 @@ class LLMDocument(models.Model):
         string="Content",
         help="Markdown representation of the document content",
     )
+    external_url = fields.Char(
+        string="External URL",
+        compute="_compute_external_url",
+        store=True,
+        help="External URL from the related record if available",
+    )
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -76,6 +82,40 @@ class LLMDocument(models.Model):
         column2="collection_id",
         string="Collections",
     )
+
+    @api.depends("res_model", "res_id")
+    def _compute_external_url(self):
+        """Compute external URL from related record if available"""
+        for document in self:
+            document.external_url = False
+            if not document.res_model or not document.res_id:
+                continue
+
+            try:
+                # Get the related record
+                if document.res_model in self.env:
+                    record = self.env[document.res_model].browse(document.res_id)
+                    if not record.exists():
+                        continue
+
+                    # Case 1: Handle ir.attachment with type 'url'
+                    if document.res_model == "ir.attachment" and hasattr(
+                        record, "type"
+                    ):
+                        if record.type == "url" and hasattr(record, "url"):
+                            document.external_url = record.url
+
+                    # Case 2: Check if record has an external_url field
+                    elif hasattr(record, "external_url"):
+                        document.external_url = record.external_url
+
+            except Exception as e:
+                _logger.warning(
+                    "Error computing external URL for document %s: %s",
+                    document.id,
+                    str(e),
+                )
+                continue
 
     @api.depends("chunk_ids")
     def _compute_chunk_count(self):
@@ -201,8 +241,12 @@ class LLMDocument(models.Model):
             if collection_chunks:
                 # Use embedding_model_id instead of collection_id
                 embedding_model_id = collection.embedding_model_id.id
+                sample_embedding = collection.embedding_model_id.embedding("")[0]
+                dimensions = len(sample_embedding) if sample_embedding else None
                 collection_chunks.create_embedding_index(
-                    embedding_model_id=embedding_model_id, force=True
+                    embedding_model_id=embedding_model_id,
+                    force=True,
+                    dimensions=dimensions,
                 )
 
         return {
@@ -236,6 +280,117 @@ class LLMDocument(models.Model):
                 "message": _(
                     f"Reindexing request submitted for {len(collections)} collections."
                 ),
+                "type": "success",
+                "sticky": False,
+            },
+        }
+
+    def action_embed(self):
+        """
+        Embed the document chunks in all collections that this document belongs to.
+        This will call the embed_documents method on each collection, but filtering
+        to only embed the current document.
+        """
+        self.ensure_one()
+
+        # Check if document is in chunked state
+        if self.state != "chunked":
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Embedding"),
+                    "message": _("Document must be in 'chunked' state to be embedded."),
+                    "type": "warning",
+                    "sticky": False,
+                },
+            }
+
+        # Check if document belongs to any collections
+        if not self.collection_ids:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Embedding"),
+                    "message": _(
+                        "Document doesn't belong to any collections. Add it to a collection first."
+                    ),
+                    "type": "warning",
+                    "sticky": False,
+                },
+            }
+
+        # Process each collection
+        embed_count = 0
+        for collection in self.collection_ids:
+            # We need to modify the embedding logic to only embed chunks from this document
+            # Get all chunks for this document
+            chunks = self.chunk_ids
+
+            if not chunks:
+                continue
+
+            # Apply the collection's embedding model
+            embedding_model = collection.embedding_model_id
+            if not embedding_model:
+                self._post_message(
+                    f"Collection {collection.name} has no embedding model configured.",
+                    "warning",
+                )
+                continue
+
+            # Process chunks in batches for efficiency
+            batch_size = 20
+            total_chunks = len(chunks)
+            processed_chunks = 0
+
+            # Process in batches
+            for i in range(0, total_chunks, batch_size):
+                batch = chunks[i : i + batch_size]
+                batch_contents = [chunk.content for chunk in batch]
+
+                # Generate embeddings for all content in the batch at once
+                batch_embeddings = embedding_model.embedding(batch_contents)
+
+                # Apply embeddings to each chunk in the batch and add to collection
+                for j, chunk in enumerate(batch):
+                    # Update with a single write operation per chunk
+                    chunk.write(
+                        {
+                            "embedding": batch_embeddings[j],
+                            "embedding_model_id": embedding_model.id,
+                            "collection_ids": [(4, collection.id)],
+                        }
+                    )
+
+                processed_chunks += len(batch)
+                _logger.info(
+                    f"Processed {processed_chunks}/{total_chunks} chunks for document {self.name}"
+                )
+
+                # Commit transaction after each batch to avoid timeout issues
+                self.env.cr.commit()
+
+            if processed_chunks > 0:
+                embed_count += 1
+                # Post message about successful embedding
+                self._post_message(
+                    f"Successfully embedded {processed_chunks} chunks in collection {collection.name}",
+                    "success",
+                )
+
+        # Update document state to ready if any embeddings were done
+        if embed_count > 0:
+            self.write({"state": "ready"})
+
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": _("Embedding"),
+                "message": _("Document embedded successfully in %s collection(s).")
+                % embed_count,
                 "type": "success",
                 "sticky": False,
             },
