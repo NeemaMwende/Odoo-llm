@@ -23,7 +23,8 @@ export class LLMChatComposer extends Component {
    * @returns {Boolean}
    */
   get isDisabled() {
-    return !this.composerView.composer.canPostMessage;
+    // Read the computed disabled state from the model.
+    return this.composerView.isSendDisabled;
   }
 
   // --------------------------------------------------------------------------
