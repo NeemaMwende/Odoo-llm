@@ -1,5 +1,7 @@
 import json
 import logging
+import time
+import uuid
 
 from openai import OpenAI
 
@@ -70,9 +72,38 @@ class LLMProvider(models.Model):
             }
             return self._create_openai_tool_from_schema(schema, tool)
 
-    def _create_openai_tool_from_schema(self, schema, tool):
-        """Helper method to create an OpenAI tool from a schema
 
+    def _recursively_patch_schema_items(self, schema_node):
+        """Recursively ensure 'items' dictionaries have a 'type' defined."""
+        if not isinstance(schema_node, dict):
+            return
+
+        # Handle 'items' for arrays
+        if "items" in schema_node and isinstance(schema_node["items"], dict):
+            items_dict = schema_node["items"]
+            if "type" not in items_dict:
+                items_dict["type"] = "string"  # Default patch type
+                _logger.debug(f"Recursively patched missing 'items.type'")
+            # Recurse into items
+            self._recursively_patch_schema_items(items_dict)
+
+        # Handle 'properties' for objects
+        if "properties" in schema_node and isinstance(schema_node["properties"], dict):
+            for prop_schema in schema_node["properties"].values():
+                self._recursively_patch_schema_items(prop_schema)
+
+        # Handle schema combiners (anyOf, allOf, oneOf)
+        for combiner in ["anyOf", "allOf", "oneOf"]:
+            if combiner in schema_node and isinstance(schema_node[combiner], list):
+                for sub_schema in schema_node[combiner]:
+                    self._recursively_patch_schema_items(sub_schema)
+
+        # Note: This doesn't handle every possible JSON schema structure,
+        # but covers common cases like nested arrays and objects.
+
+    def _create_openai_tool_from_schema(self, schema, tool):
+        """Convert a JSON schema dictionary to an OpenAI tool format,
+        patching missing item types recursively.
         Args:
             schema: JSON schema dictionary
             tool: llm.tool record
@@ -80,17 +111,28 @@ class LLMProvider(models.Model):
         Returns:
             Dictionary in OpenAI tool format
         """
+        if not schema:
+            _logger.warning(f"Could not generate schema for tool {tool.name}, skipping.")
+            return None
+
+        # --- Recursively Patch Schema --- START
+        # Ensure all nested 'items' have a 'type' for broader compatibility
+        parameters_schema = schema # Modify the schema directly before formatting
+        self._recursively_patch_schema_items(parameters_schema)
+        # --- Recursively Patch Schema --- END
+
+        # Format according to OpenAI requirements
         formatted_tool = {
             "type": "function",
             "function": {
                 "name": schema.get("title", tool.name),
                 "description": tool.description
                 if tool.override_tool_description
-                else schema.get("description", ""),
+                else schema.get("description", ""), # Use original schema desc
                 "parameters": {
                     "type": "object",
-                    "properties": schema.get("properties", {}),
-                    "required": schema.get("required", []),
+                    "properties": parameters_schema.get("properties", {}),
+                    "required": parameters_schema.get("required", []),
                 },
             },
         }
@@ -133,7 +175,6 @@ class LLMProvider(models.Model):
         # Add tools if specified
         if tools:
             formatted_tools = self.openai_format_tools(tools)
-
             if formatted_tools:
                 params["tools"] = formatted_tools
                 params["tool_choice"] = tool_choice
@@ -238,6 +279,10 @@ class LLMProvider(models.Model):
                             if not tool_name:
                                 _logger.warning(f"Empty tool name for index: {index}")
                                 continue
+
+                            # Generate a UUID for id if it's empty, google apis don't give tool call id for example
+                            if not tool_call_chunks[index].get("id"):
+                                tool_call_chunks[index]["id"] = str(uuid.uuid4())
 
                             # Yield the tool call without result
                             yield {
@@ -403,11 +448,13 @@ class LLMProvider(models.Model):
         if not message.author_id and message.tool_calls:
             try:
                 tool_calls_data = json.loads(message.tool_calls)
-                return {
+                result = {
                     "role": "assistant",
-                    "content": message.body or "",  # Ensure content is never null
                     "tool_calls": tool_calls_data,
                 }
+                if message.body:
+                    result["content"] = message.body
+                return result
             except (json.JSONDecodeError, ValueError):
                 # If JSON parsing fails, fall back to default behavior
                 pass
