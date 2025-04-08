@@ -55,6 +55,8 @@ registerPatch({
       // Assume disabled by default until computed
       default: true,
     }),
+    // Store the active EventSource connection
+    eventSource: attr(),
   },
   recordMethods: {
     /**
@@ -137,6 +139,8 @@ registerPatch({
      * Stop streaming response for this thread
      */
     _stopStreaming() {
+      this._closeEventSource();
+
       // Delete all pending tool messages
       for (const toolMessage of this.pendingToolMessages) {
         toolMessage.delete();
@@ -158,6 +162,9 @@ registerPatch({
      * Start streaming response for this thread
      */
     async startStreaming() {
+      // Close any existing connection before starting a new one
+      this._closeEventSource();
+
       const defaultContent = "Thinking...";
       if (this.isStreaming) {
         return;
@@ -175,11 +182,14 @@ registerPatch({
         isToolContent: false,
       });
 
-      const eventSource = new EventSource(
-        `/llm/thread/stream_response?thread_id=${composer.thread.id}`
-      );
+      // Store the EventSource instance on the model
+      this.update({
+        eventSource: new EventSource(
+          `/llm/thread/stream_response?thread_id=${composer.thread.id}`
+        ),
+      });
 
-      eventSource.onmessage = async (event) => {
+      this.eventSource.onmessage = async (event) => {
         const data = JSON.parse(event.data);
         switch (data.type) {
           case "start":
@@ -227,24 +237,25 @@ registerPatch({
             break;
           case "error":
             console.error("Streaming error:", data.error);
-            eventSource.close();
-            this.update({ isStreaming: false });
+            this.eventSource.close();
+            this.update({ isStreaming: false, eventSource: undefined });
             this.messaging.notify({
               message: data.error,
               type: "danger",
             });
             break;
           case "end":
-            eventSource.close();
+            this._closeEventSource(); // Close connection and clear reference
             this._handleStreamingEnd();
             break;
         }
       };
 
-      eventSource.onerror = (error) => {
+      this.eventSource.onerror = (error) => {
         console.error("EventSource failed:", error);
-        eventSource.close();
-        this._stopStreaming();
+        // Safely close if it exists
+        this._closeEventSource(); // Ensure reference is cleared
+        this._stopStreaming(); // Ensure state is fully stopped
       };
     },
 
@@ -408,6 +419,18 @@ registerPatch({
       }
 
       this._handleSendShortcuts(ev);
+    },
+
+    /**
+     * Safely closes the current EventSource connection and clears the reference.
+     * @private
+     */
+    _closeEventSource() {
+      if (this.eventSource) {
+        this.eventSource.close();
+        this.update({ eventSource: undefined });
+        console.log("EventSource connection closed and reference cleared.");
+      }
     },
   },
 });

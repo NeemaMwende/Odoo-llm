@@ -42,6 +42,14 @@ export class LLMChatComposer extends Component {
 
     this.composerView.postUserMessageForAi();
   }
+  /**
+   * Handles click on the stop button.
+   *
+   * @private
+   */
+  _onClickStop() {
+    this.composerView._stopStreaming();
+  }
 }
 
 Object.assign(LLMChatComposer, {
