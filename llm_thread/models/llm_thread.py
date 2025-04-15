@@ -193,7 +193,8 @@ class LLMThread(models.Model):
         Orchestrates the LLM interaction cycle synchronously.
         """
         self.ensure_one()
-        if self.llm_thread_state == 'streaming':
+        _logger.info(f"Thread {self.id} starting with user message: {user_message_body}")
+        if self.llm_thread_state == 'streaming' and user_message_body is not None:
             _logger.warning(f"Thread {self.id} is already processing, skipping.")
             return
 
@@ -206,7 +207,7 @@ class LLMThread(models.Model):
 
         try:
             # 1. Post User Message (Conditional)
-            if user_message_body:
+            if user_message_body is not None:
                 user_msg = self.post_llm_response( # Use the existing method name
                     subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
                     body=user_message_body,
