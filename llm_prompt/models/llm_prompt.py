@@ -1,5 +1,7 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
+import json
+import re
 
 
 class LLMPrompt(models.Model):
@@ -59,18 +61,7 @@ class LLMPrompt(models.Model):
         help="LLM publishers whose models work well with this prompt",
     )
 
-    # Arguments
-    argument_ids = fields.One2many(
-        "llm.prompt.argument",
-        "prompt_id",
-        string="Arguments",
-        help="Parameters that can be passed to this prompt",
-    )
-    argument_count = fields.Integer(
-        compute="_compute_argument_count",
-        string="Argument Count",
-    )
-
+    # Templates
     template_ids = fields.One2many(
         "llm.prompt.template",
         "prompt_id",
@@ -94,10 +85,31 @@ class LLMPrompt(models.Model):
         string="Resource Count",
     )
 
+    # Arguments JSON field
+    arguments_json = fields.Text(
+        string="Arguments Schema",
+        help="JSON object defining all arguments used in this prompt",
+        default="""{}""",
+        tracking=True,
+    )
+
+    # Computed fields for argument info
+    argument_count = fields.Integer(
+        compute="_compute_argument_count",
+        string="Argument Count",
+    )
+
+    undefined_arguments = fields.Char(
+        compute="_compute_argument_validation",
+        string="Undefined Arguments",
+        help="Arguments used in templates but not defined in schema",
+    )
+
     # Example invocation
     example_args = fields.Text(
         string="Example Arguments",
         help="Example arguments in JSON format to test this prompt",
+        default="""{}""",
     )
 
     # Usage tracking
@@ -121,11 +133,6 @@ class LLMPrompt(models.Model):
         ),
     ]
 
-    @api.depends("argument_ids")
-    def _compute_argument_count(self):
-        for prompt in self:
-            prompt.argument_count = len(prompt.argument_ids)
-
     @api.depends("template_ids")
     def _compute_template_count(self):
         for prompt in self:
@@ -136,29 +143,114 @@ class LLMPrompt(models.Model):
         for prompt in self:
             prompt.resource_count = len(prompt.resource_ids)
 
+    @api.depends("arguments_json")
+    def _compute_argument_count(self):
+        for prompt in self:
+            try:
+                arguments = json.loads(prompt.arguments_json or "{}")
+                prompt.argument_count = len(arguments)
+            except json.JSONDecodeError:
+                prompt.argument_count = 0
+
+    @api.depends("arguments_json", "template_ids.content", "resource_ids.content")
+    def _compute_argument_validation(self):
+        for prompt in self:
+            # Get defined arguments
+            try:
+                arguments = json.loads(prompt.arguments_json or "{}")
+                defined_args = set(arguments.keys())
+            except json.JSONDecodeError:
+                defined_args = set()
+
+            # Extract used arguments from templates and resources
+            used_args = set()
+
+            # Check templates
+            for template in prompt.template_ids:
+                if template.content:
+                    template_args = self._extract_arguments_from_template(template.content)
+                    used_args.update(template_args)
+
+            # Check resources
+            for resource in prompt.resource_ids:
+                if resource.content:
+                    resource_args = self._extract_arguments_from_template(resource.content)
+                    used_args.update(resource_args)
+
+            # Find undefined arguments
+            undefined_args = [name for name in used_args if name not in defined_args]
+
+            if undefined_args:
+                prompt.undefined_arguments = ", ".join(undefined_args)
+            else:
+                prompt.undefined_arguments = False
+
+    @api.constrains("arguments_json")
+    def _validate_json_syntax(self):
+        """Validate that the JSON is syntactically valid"""
+        for prompt in self:
+            if not prompt.arguments_json:
+                continue
+
+            try:
+                json.loads(prompt.arguments_json)
+            except json.JSONDecodeError as e:
+                raise ValidationError(_("Invalid JSON in arguments schema: %s") % str(e))
+
+    @api.constrains("example_args")
+    def _validate_example_args_syntax(self):
+        """Validate that the example args JSON is syntactically valid"""
+        for prompt in self:
+            if not prompt.example_args:
+                continue
+
+            try:
+                json.loads(prompt.example_args)
+            except json.JSONDecodeError as e:
+                raise ValidationError(_("Invalid JSON in example arguments: %s") % str(e))
+
     def get_prompt_data(self):
         """Returns the prompt data in the MCP format"""
         self.ensure_one()
+
+        # Parse arguments
+        try:
+            arguments = json.loads(self.arguments_json or "{}")
+        except json.JSONDecodeError:
+            arguments = {}
+
+        # Format arguments for MCP
+        formatted_args = []
+        for name, schema in arguments.items():
+            arg_data = {
+                "name": name,
+                "description": schema.get("description", ""),
+                "required": schema.get("required", False),
+            }
+            formatted_args.append(arg_data)
 
         return {
             "name": self.name,
             "description": self.description or "",
             "category": self.category_id.name if self.category_id else "",
-            "arguments": [arg.get_argument_data() for arg in self.argument_ids],
+            "arguments": formatted_args,
         }
 
     def get_messages(self, arguments=None):
         """
         Generate messages for this prompt with the given arguments
-        
+
         Args:
             arguments (dict): Dictionary of argument values
-            
+
         Returns:
             list: List of messages for this prompt
         """
         self.ensure_one()
         arguments = arguments or {}
+
+        # Validate arguments against schema
+        self._validate_arguments(arguments)
 
         messages = []
 
@@ -180,3 +272,92 @@ class LLMPrompt(models.Model):
         self.last_used = fields.Datetime.now()
 
         return messages
+
+    def _validate_arguments(self, arguments):
+        """
+        Validate provided arguments against the schema
+
+        Args:
+            arguments (dict): Dictionary of argument values
+
+        Raises:
+            ValidationError: If arguments are invalid
+        """
+        self.ensure_one()
+
+        try:
+            schema = json.loads(self.arguments_json or "{}")
+        except json.JSONDecodeError:
+            # If schema is invalid, skip validation
+            return
+
+        # Check for required arguments
+        for arg_name, arg_schema in schema.items():
+            if arg_schema.get("required", False) and arg_name not in arguments:
+                raise ValidationError(_("Missing required argument: %s") % arg_name)
+
+    @api.model
+    def _extract_arguments_from_template(self, template_content):
+        """
+        Extract argument names from a template string.
+
+        Args:
+            template_content (str): The template content to search
+
+        Returns:
+            set: Set of argument names found in the template
+        """
+        if not template_content:
+            return set()
+
+        # Find all {{argument}} placeholders
+        pattern = r"\{\{([a-zA-Z0-9_]+)\}\}"
+        matches = re.findall(pattern, template_content)
+
+        return set(matches)
+
+    def auto_detect_arguments(self):
+        """
+        Auto-detect arguments from templates and resources and add them to schema
+
+        Returns:
+            bool: True if successful
+        """
+        self.ensure_one()
+
+        # Get existing arguments
+        try:
+            arguments = json.loads(self.arguments_json or "{}")
+        except json.JSONDecodeError:
+            arguments = {}
+
+        # Extract used arguments from templates and resources
+        used_args = set()
+
+        # Check templates
+        for template in self.template_ids:
+            if template.content:
+                template_args = self._extract_arguments_from_template(template.content)
+                used_args.update(template_args)
+
+        # Check resources
+        for resource in self.resource_ids:
+            if resource.content:
+                resource_args = self._extract_arguments_from_template(resource.content)
+                used_args.update(resource_args)
+
+        # Add any missing arguments to schema
+        updated = False
+        for arg_name in used_args:
+            if arg_name not in arguments:
+                arguments[arg_name] = {
+                    "type": "string",
+                    "description": f"Auto-detected argument: {arg_name}",
+                    "required": False
+                }
+                updated = True
+
+        if updated:
+            self.arguments_json = json.dumps(arguments, indent=2)
+
+        return True

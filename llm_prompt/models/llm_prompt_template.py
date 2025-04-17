@@ -23,7 +23,7 @@ class LLMPromptTemplate(models.Model):
         required=True,
         ondelete="cascade",
     )
-    
+
     # Template role
     role = fields.Selection(
         [
@@ -36,40 +36,68 @@ class LLMPromptTemplate(models.Model):
         required=True,
         help="Role of this template in the conversation",
     )
-    
+
     # Content
     content = fields.Text(
         string="Content",
         required=True,
         help="Content of this template with placeholders for arguments (use {{argument_name}})",
     )
-    
+
     # Conditional execution
     condition = fields.Char(
         string="Execution Condition",
         help="Python expression determining whether to include this template (e.g., 'debug' in arguments)",
     )
-    
-    # Advanced options
-    wait_for_user_input = fields.Boolean(
-        string="Wait for User Input",
+
+    # Includes resources
+    include_resources = fields.Boolean(
+        string="Include Resources",
         default=False,
-        help="Whether this template should pause and wait for user input",
+        help="Whether to include resources with this template",
     )
+
+    # Resource association
+    resource_ids = fields.Many2many(
+        "llm.prompt.resource",
+        "llm_template_resource_rel",
+        "template_id",
+        "resource_id",
+        string="Resources",
+        help="Resources to include with this template",
+    )
+
+    # Computed field to show used arguments
+    used_arguments = fields.Char(
+        string="Used Arguments",
+        compute="_compute_used_arguments",
+        help="Arguments used in this template",
+    )
+
+    @api.depends('content')
+    def _compute_used_arguments(self):
+        """Compute arguments used in this template"""
+        for template in self:
+            if not template.content:
+                template.used_arguments = ""
+                continue
+
+            args = template.prompt_id._extract_arguments_from_template(template.content)
+            template.used_arguments = ", ".join(sorted(args)) if args else ""
 
     def get_template_message(self, arguments=None):
         """
         Generate a message for this template with the given arguments
-        
+
         Args:
             arguments (dict): Dictionary of argument values
-            
+
         Returns:
             dict: Message dictionary for this template
         """
         self.ensure_one()
         arguments = arguments or {}
-        
+
         # Check execution condition
         if self.condition:
             try:
@@ -81,12 +109,14 @@ class LLMPromptTemplate(models.Model):
                     body=_("Error evaluating condition for template %s: %s") % (self.name, str(e))
                 )
                 return None
-        
+
         # Replace argument placeholders in content
         content = self.content
         for arg_name, arg_value in arguments.items():
-            content = content.replace("{{" + arg_name + "}}", str(arg_value))
-        
+            placeholder = "{{{" + arg_name + "}}}"
+            if placeholder in content:
+                content = content.replace(placeholder, str(arg_value))
+
         # Create the message
         return {
             "role": self.role,
@@ -95,7 +125,7 @@ class LLMPromptTemplate(models.Model):
                 "text": content,
             },
         }
-    
+
     def _evaluate_condition(self, condition, arguments):
         """Evaluate the execution condition"""
         # Create a safe evaluation context with just the arguments
@@ -103,6 +133,6 @@ class LLMPromptTemplate(models.Model):
         # Add common operators
         for k in arguments:
             eval_context[k] = arguments[k]
-        
+
         # Evaluate the condition expression
         return eval(condition, {"__builtins__": {}}, eval_context)
