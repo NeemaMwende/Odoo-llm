@@ -24,7 +24,11 @@ export class LLMChatComposer extends Component {
    */
   get isDisabled() {
     // Read the computed disabled state from the model.
-    return this.composerView.isSendDisabled;
+    return this.composerView.composer.isSendDisabled;
+  }
+
+  get isStreaming(){
+    return this.composerView.composer.isStreaming;
   }
 
   // --------------------------------------------------------------------------
@@ -40,7 +44,7 @@ export class LLMChatComposer extends Component {
       return;
     }
 
-    this.composerView.postUserMessageForLLM();
+    this.composerView.composer.postUserMessageForLLM();
   }
   /**
    * Handles click on the stop button.
@@ -48,7 +52,7 @@ export class LLMChatComposer extends Component {
    * @private
    */
   _onClickStop() {
-    this.composerView._stopStreaming();
+    this.composerView.composer.stopLLMThreadLoop();
   }
 }
 

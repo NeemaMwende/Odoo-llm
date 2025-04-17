@@ -1,11 +1,14 @@
 import json
-import logging
 
-import emoji
+from odoo import _, api, fields, models
 
-from odoo import api, fields, models
+from odoo.exceptions import UserError
 
-_logger = logging.getLogger(__name__)
+from odoo.addons.llm_mail_message_subtypes.const import (
+    LLM_TOOL_RESULT_SUBTYPE_XMLID,
+    LLM_USER_SUBTYPE_XMLID,
+    LLM_ASSISTANT_SUBTYPE_XMLID,
+)
 
 
 class LLMThread(models.Model):
@@ -55,6 +58,8 @@ class LLMThread(models.Model):
         help="Tools that can be used by the LLM in this thread",
     )
 
+    # TODO: need a way to lock this llm.thread if it is already looping
+
     @api.model_create_multi
     def create(self, vals_list):
         """Set default title if not provided"""
@@ -63,63 +68,29 @@ class LLMThread(models.Model):
                 vals["name"] = f"Chat with {self.model_id.name}"
         return super().create(vals_list)
 
-    def post_llm_response(self, **kwargs):
-        """Post a message to the thread with support for tool messages"""
-        body = emoji.demojize(kwargs.get("body"))
-
-        # Handle tool messages
-        tool_call_id = kwargs.get("tool_call_id")
-        subtype_xmlid = kwargs.get("subtype_xmlid")
-        tool_calls = kwargs.get("tool_calls")
-        tool_name = kwargs.get("tool_name")
-
-        if tool_call_id and subtype_xmlid == "llm_tool.mt_tool_message":
-            # Use tool name in email_from if available
-            if tool_name:
-                email_from = f"{tool_name} <tool@{self.provider_id.name.lower()}.ai>"
-            else:
-                email_from = f"Tool <tool@{self.provider_id.name.lower()}.ai>"
-
-            message = self.message_post(
-                body=body,
-                message_type="comment",
-                author_id=False,  # No author for AI messages
-                email_from=email_from,
-                partner_ids=[],  # No partner notifications
-                subtype_xmlid=subtype_xmlid,
-            )
-
-            # Set the tool_call_id on the message
-            message.write({"tool_call_id": tool_call_id})
-
-            return message.message_format()[0]
-
-        # Handle assistant messages with tool calls
-        if tool_calls:
-            message = self.message_post(
-                body=body,
-                message_type="comment",
-                author_id=False,  # No author for AI messages
-                email_from=f"{self.model_id.name} <ai@{self.provider_id.name.lower()}.ai>",
-                partner_ids=[],  # No partner notifications
-            )
-
-            # Set the tool_calls on the message
-            message.write({"tool_calls": json.dumps(tool_calls)})
-
-            return message.message_format()[0]
-
-        message = self.message_post(
-            body=body,
-            message_type="comment",
-            author_id=False,  # No author for AI messages
-            email_from=f"{self.model_id.name} <ai@{self.provider_id.name.lower()}.ai>",
-            partner_ids=[],  # No partner notifications
+    def _post_message(self, **kwargs):
+        self.ensure_one()
+        Message = self.env['mail.message']
+        # if subtype_xmlid is not provided or wrong,message_post automatically
+        # uses the default subtype
+        subtype_xmlid = kwargs.get('subtype_xmlid')
+        author_id = kwargs.get('author_id')
+        body = kwargs.get('body', '')
+        email_from = Message.get_email_from(self.provider_id.name, self.model_id.name, subtype_xmlid, author_id, kwargs.get('tool_name'))
+        post_vals = Message.build_post_vals(subtype_xmlid, body, author_id, email_from)
+        message = self.message_post(**post_vals)
+        extra_vals = Message.build_update_vals(
+            subtype_xmlid,
+            tool_call_id=kwargs.get('tool_call_id'),
+            tool_calls=kwargs.get('tool_calls'),
+            tool_call_definition=kwargs.get('tool_call_definition'),
+            tool_call_result=kwargs.get('tool_call_result'),
         )
+        if extra_vals:
+            message.write(extra_vals)
+        return message
 
-        return message.message_format()[0]
-
-    def get_chat_messages(self, limit=None):
+    def _get_message_history_recordset(self, order='ASC', limit=None):
         """Get messages from the thread
 
         Args:
@@ -128,245 +99,116 @@ class LLMThread(models.Model):
         Returns:
             mail.message recordset containing the messages
         """
+        self.ensure_one()
+        subtypes_to_fetch = [
+            self.env.ref(LLM_USER_SUBTYPE_XMLID, raise_if_not_found=False),
+            self.env.ref(LLM_ASSISTANT_SUBTYPE_XMLID, raise_if_not_found=False),
+            self.env.ref(LLM_TOOL_RESULT_SUBTYPE_XMLID, raise_if_not_found=False),
+        ]       
+        subtype_ids = [st.id for st in subtypes_to_fetch if st]    
+        order_clause = f"create_date {order}, id {order}"
         domain = [
             ("model", "=", self._name),
             ("res_id", "=", self.id),
             ("message_type", "=", "comment"),
+            ("subtype_id", "in", subtype_ids),
         ]
         messages = self.env["mail.message"].search(
-            domain, order="create_date ASC", limit=limit
+            domain, order=order_clause, limit=limit
         )
         return messages
+    
 
-    def get_assistant_response(self, stream=True, system_prompt=None):
-        """
-        Get assistant response with tool handling.
+    def _get_last_message_from_history(self):
+        """Get the last message from the message history."""
+        self.ensure_one()
+        last_message = None
+        result = self._get_message_history_recordset(order='DESC', limit=1)
+        if result:
+            last_message = result[0]
+        if not last_message:
+            raise UserError("No message found to process.")
+        return last_message
 
-        This method processes the chat messages, validates them, and handles
-        the response from the LLM, including any tool calls and their results.
-
-        Args:
-            stream (bool): Whether to stream the response
-            system_prompt (str, optional): System prompt to include at the beginning of the messages
-
-        Yields:
-            dict: Response chunks with various types (content, tool_start, tool_end, error)
-        """
-        try:
-            messages = self.get_chat_messages()
-            tool_ids = self.tool_ids.ids if self.tool_ids else None
-
-            # Format messages using the provider (which will handle validation)
-            try:
-                formatted_messages = self.provider_id.format_messages(
-                    messages, system_prompt=system_prompt
-                )
-            except Exception:
-                formatted_messages = self._default_format_messages(
-                    messages, system_prompt=system_prompt
-                )
-
-            # Process response with possible tool calls
-            response_generator = self._chat_with_tools(
-                formatted_messages, tool_ids, stream
+    def _init_message(self, user_message_body):
+        """Initialize first message: user input or history."""
+        if user_message_body:
+            return self._post_message(
+                subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
+                body=user_message_body,
+                author_id=self.env.user.partner_id.id,
             )
+        return self._get_last_message_from_history()
 
-            # Process the response stream using the helper method
-            yield from self._process_llm_response(response_generator)
+    def _should_continue(self, last_message):
+        """Whether to keep looping on the last_message."""
+        if not last_message:
+            return False
+        if last_message.is_llm_user_message() or last_message.is_llm_tool_result_message():
+            return True
+        if last_message.is_llm_assistant_message() and last_message.tool_calls:
+            return True
+        return False
 
-        except Exception as e:
-            _logger.error("Error getting AI response: %s", str(e))
-            yield {"type": "error", "error": str(e)}
+    def _next_step(self, last_message):
+        """Dispatch to the next generator based on message type."""
+        if last_message.is_llm_user_message() or last_message.is_llm_tool_result_message():
+            return self._get_assistant_response()
+        if last_message.is_llm_assistant_message() and last_message.tool_calls:
+            return self._process_tool_calls(last_message)
+        return last_message
 
-    def _process_llm_response(self, response_generator):
-        """
-        Process the LLM response stream, handling content and tool calls.
+    def generate(self, user_message_body):
+        # orchestrate via hooks
+        self.ensure_one()
+        last = self._init_message(user_message_body)
+        if user_message_body:
+            yield {'type': 'message_create', 'message': last.message_format()[0]}
+        while self._should_continue(last):
+            last = yield from self._next_step(last)
+        return last
 
-        Args:
-            response_generator: Generator yielding response chunks from the LLM
+    def _process_tool_calls(self, assistant_msg):
+        self.ensure_one()
+        defs = json.loads(assistant_msg.tool_calls or "[]")
+        last_tool_msg = None
+        for tool_def in defs:
+            last_tool_msg = yield from self.env["mail.message"].stream_llm_tool_result(
+                thread=self,
+                tool_call_def=tool_def,
+            )
+        return last_tool_msg       
 
-        Yields:
-            dict: Processed response chunks with proper formatting
-        """
-        content = ""
-        assistant_tool_calls = []
-
-        try:
-            for response in response_generator:
-                # Handle content
-                if response.get("content") is not None:
-                    content += response.get("content", "")
-                    yield {
-                        "type": "content",
-                        "role": "assistant",
-                        "content": response.get("content", ""),
-                    }
-
-                # Handle tool calls - these come directly from the provider now
-                if response.get("tool_call"):
-                    tool_call = response.get("tool_call")
-                    assistant_tool_calls.append(
-                        {
-                            "id": tool_call["id"],
-                            "type": tool_call["type"],
-                            "function": tool_call["function"],
-                        }
-                    )
-
-                    # Signal tool call start
-                    yield {
-                        "type": "tool_start",
-                        "tool_call_id": tool_call["id"],
-                        "function_name": tool_call["function"]["name"],
-                        "arguments": tool_call["function"]["arguments"],
-                    }
-
-                    # Display raw tool output
-                    raw_output = f"**Arguments:**\n```json\n{tool_call['function']['arguments']}\n```\n\n"
-                    raw_output += (
-                        f"**Result:**\n```json\n{tool_call['result']}\n```\n\n"
-                    )
-
-                    # Signal tool call end with result
-                    yield {
-                        "type": "tool_end",
-                        "role": "tool",
-                        "tool_call_id": tool_call["id"],
-                        "content": tool_call["result"],
-                        "formatted_content": raw_output,
-                    }
-
-            # If we have tool calls, post the assistant message with tool_calls
-            if assistant_tool_calls:
-                self.post_llm_response(
-                    body=content or "", tool_calls=assistant_tool_calls
-                )
-
-        except Exception as e:
-            _logger.error("Error processing LLM response: %s", str(e))
-            yield {"type": "error", "error": str(e)}
-
-    def _default_format_messages(self, messages, system_prompt=None):
-        """Format messages generic to the provider
-
-        Args:
-            messages: mail.message recordset to format
-            system_prompt: Optional system prompt to include at the beginning of the messages
-
-        Returns:
-            List of formatted messages in OpenAI-compatible format
-        """
-        # First use the default implementation from the llm_tool module
-        formatted_messages = []
-
-        # Add system prompt if provided
-        if system_prompt:
-            formatted_messages.append({"role": "system", "content": system_prompt})
-
-        # Format the rest of the messages
-        for message in messages:
-            formatted_messages.append(self.provider_id._default_format_message(message))
-
-        # Then validate and clean the messages for OpenAI
-        return formatted_messages
-
-    def _chat_with_tools(self, messages, tool_ids=None, stream=True):
-        """Helper method to chat with tools"""
-        # Get available tools if tool_ids provided
-        tools = None
-        if tool_ids:
-            tools = self.env["llm.tool"].browse(tool_ids)
-
-        # Use the provider to handle the chat with tools
-        response_generator = self.model_id.chat(
-            messages=messages, stream=stream, tools=tools
+    def _get_assistant_response(self):
+        self.ensure_one()
+        message_history_rs = self._get_message_history_recordset()
+        tool_rs = self.tool_ids
+        stream_response = self.model_id.chat(
+            messages=message_history_rs,
+            tools=tool_rs,
+            stream=True
+        )
+        assistant_msg = yield from self.env["mail.message"].stream_llm_response(
+            self,
+            stream_response,
+            LLM_ASSISTANT_SUBTYPE_XMLID,
+            placeholder_text="Thinking..."
         )
 
-        # Process the response generator
-        for response in response_generator:
-            # If there's a tool call, execute it
-            if response.get("tool_calls"):
-                # For non-streaming responses, we get an array of tool calls
-                for tool_call in response.get("tool_calls", []):
-                    # Execute the tool
-                    tool_name = tool_call["function"]["name"]
-                    arguments_str = tool_call["function"]["arguments"]
-                    tool_id = tool_call["id"]
+        return assistant_msg
 
-                    # Execute the tool
-                    tool_result = self.execute_tool(tool_name, arguments_str, tool_id)
-
-                    # Update the tool call with the result
-                    tool_call.update(tool_result)
-
-            # If there's a single tool call (streaming case)
-            elif response.get("tool_call") and not response.get("tool_call").get(
-                "result"
-            ):
-                tool_call = response.get("tool_call")
-                tool_name = tool_call["function"]["name"]
-                arguments_str = tool_call["function"]["arguments"]
-                tool_id = tool_call["id"]
-
-                # Execute the tool
-                tool_result = self.execute_tool(tool_name, arguments_str, tool_id)
-
-                # Update the response with the tool result
-                response["tool_call"] = tool_result
-
-            yield response
-
-    def _create_tool_response(self, tool_name, arguments_str, tool_id, result_data):
-        """Create a standardized tool response structure
-
-        Args:
-            tool_name: Name of the tool
-            arguments_str: JSON string of arguments
-            tool_id: ID of the tool call
-            result_data: Result data to include (will be JSON serialized)
-
-        Returns:
-            Dictionary with standardized tool response format
-        """
-        return {
-            "id": tool_id,
-            "type": "function",
-            "function": {
-                "name": tool_name,
-                "arguments": arguments_str,
-            },
-            "result": json.dumps(result_data),
-        }
-
-    def execute_tool(self, tool_name, arguments_str, tool_id):
-        """Execute a tool and return the result
-
-        Args:
-            tool_name: Name of the tool to execute
-            arguments_str: JSON string of arguments for the tool
-            tool_id: ID of the tool call
-
-        Returns:
-            Dictionary with tool execution result
-        """
-
-        tool = self.env["llm.tool"].search([("name", "=", tool_name)], limit=1)
-
-        if not tool:
-            _logger.error(f"Tool '{tool_name}' not found")
-            return self._create_tool_response(
-                tool_name,
-                arguments_str,
-                tool_id,
-                {"error": f"Tool '{tool_name}' not found"},
-            )
-
+    def _execute_tool(self, tool_name, arguments_str, tool_call_id):
+        """Execute a tool and return the result."""
+        self.ensure_one()
+        LLMTool = self.env["llm.tool"]
         try:
+            tool = LLMTool.search([("name", "=", tool_name)], limit=1)
+            if not tool:
+                raise UserError(f"Tool '{tool_name}' not found")
             arguments = json.loads(arguments_str)
             result = tool.execute(arguments)
-            return self._create_tool_response(tool_name, arguments_str, tool_id, result)
+            return LLMTool.create_tool_response_from_signature(tool_name, arguments_str, tool_call_id, result)
         except Exception as e:
-            _logger.exception(f"Error executing tool {tool_name}: {str(e)}")
-            return self._create_tool_response(
-                tool_name, arguments_str, tool_id, {"error": str(e)}
+            return LLMTool.create_tool_response_from_signature(
+                tool_name, arguments_str, tool_call_id, {"error": str(e)}
             )
