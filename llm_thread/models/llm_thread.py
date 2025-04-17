@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime
+from tkinter import Y
 import emoji
 import markdown2
 
@@ -138,27 +139,8 @@ class LLMThread(models.Model):
         if extra_vals:
             message.write(extra_vals)
 
-        message_payload = message.message_format()[0]
-        self._notify_message_insert(message_payload)
-
         return message
 
-    def _notify_message_insert(self, message_payload):
-        self.ensure_one()
-        partner_id = self.env.user.partner_id.id
-        channel = (self.env.cr.dbname, 'res.partner', partner_id)
-        self._sendone_immediately(channel, 'mail.message/insert_custom', message_payload)
-    
-    def _notify_message_update(self, message):
-        """Sends updated message data immediately via bus."""
-        self.ensure_one() # Context: called from thread
-        if not message or not message.exists():
-            return
-        message_payload = message.message_format()[0] # Get latest data
-        partner_id = self.env.user.partner_id.id
-        channel = (self.env.cr.dbname, 'res.partner', partner_id) # Send to partner
-        self._sendone_immediately(channel, 'mail.message/update_custom', message_payload)
-    
     def _get_message_history_recordset(self, order='ASC', limit=None):
         """Get messages from the thread
 
@@ -214,31 +196,30 @@ class LLMThread(models.Model):
         else:
             last_message = self._get_last_message_from_history()
 
-        try:
-            while True:
-                if not last_message:
-                    raise UserError("No message found to process.")
-                
-                if last_message.is_llm_user_message() or last_message.is_llm_tool_result_message():
-                    # Process user message or tool result, in both cases we get assistant_msg
-                    # some assistant message has tool_calls, some don't
-                    assistant_msg = self._get_assistant_response()
-                    last_message = assistant_msg
-                    continue
-                
-                if last_message.is_llm_assistant_message():
-                    if last_message.tool_calls:
-                        # Process tool calls
-                        last_tool_msg = self._process_tool_calls(last_message)
-                        last_message = last_tool_msg
-                        continue
+        while True:
+            if not last_message:
+                raise UserError("No message found to process.")
+            
+            if last_message.is_llm_user_message() or last_message.is_llm_tool_result_message():
+                # Process user message or tool result, in both cases we get assistant_msg
+                # some assistant message has tool_calls, some don't
+                for ev in self._get_assistant_response():
+                    if ev.get('event') == 'message_finalize':
+                        last_message = ev.get('message')
                     else:
-                        break
-        except Exception as e:
-            raise
-        finally:
-            # TODO: test SSE end, for test purpose
-            yield f"data: {json.dumps({'type': 'end'})}\n\n".encode()
+                        yield ev
+                continue
+            
+            if last_message.is_llm_assistant_message():
+                if last_message.tool_calls:
+                    # Process tool calls
+                    for ev in self._process_tool_calls(last_message):
+                        if ev.get('event') == 'message_finalize':
+                            last_message = ev.get('message')
+                        yield ev
+                    continue
+                else:
+                    break
         
     def _process_tool_calls(self, assistant_msg):
         self.ensure_one()
@@ -253,15 +234,19 @@ class LLMThread(models.Model):
                 if not tool_call_id or not tool_name:
                     continue
                 
-                tool_msg = self._execute_tool_call(tool_call_def)
-                last_tool_msg = tool_msg
-            return last_tool_msg
+                for ev in self._execute_tool_call(tool_call_def):
+                    current_tool_msg = ev.get('event') == 'message_finalize' and ev.get('message')
+                    if current_tool_msg:
+                        last_tool_msg = current_tool_msg
+                    else:
+                        yield ev
+                
+            yield {'event': 'message_finalize', 'message': last_tool_msg}
                 
     def _get_assistant_response(self):
         self.ensure_one()
         message_history_rs = self._get_message_history_recordset()
         tool_rs = self.tool_ids
-        _logger.info(f"Starting streaming process... {message_history_rs}")
         stream_response = self.model_id.chat(
                 messages=message_history_rs,
                 tools=tool_rs,
@@ -269,9 +254,9 @@ class LLMThread(models.Model):
             )
         assistant_msg = None
         assistant_stream_id = None
-        # 4. Consume Stream & Handle Assistant Message
+        
         accumulated_content = ""
-        received_tool_calls = [] # List to store tool call definitions from LLM
+        received_tool_calls = []
 
         for chunk in stream_response:
             if assistant_msg is None and (chunk.get('content') or chunk.get('tool_calls')):
@@ -280,15 +265,14 @@ class LLMThread(models.Model):
                     body="Thinking...", # Start empty
                     author_id=False
                 )
-                assistant_stream_id = assistant_msg.stream_start(
-                    initial_data={'stream_type': 'llm_assistant_response'}
-                )
+                assistant_msg_payload = assistant_msg.message_format()[0]
+                yield {'event': 'message_create', 'message': assistant_msg_payload}
 
             # Process content chunks
             if assistant_stream_id and chunk.get('content'):
                 content_chunk = chunk.get('content')
                 accumulated_content += content_chunk
-                assistant_msg.stream_chunk(assistant_stream_id, content_chunk)
+                yield {'event': 'message_chunk', 'message': assistant_msg_payload, 'accumulated_content': accumulated_content}
 
             # Process tool call definitions
             if chunk.get('tool_calls'):
@@ -303,25 +287,19 @@ class LLMThread(models.Model):
 
             # Handle error directly from stream chunk
             if chunk.get('error'):
-                error_msg = f"LLM Provider stream error: {chunk['error']}"
-                if assistant_msg and assistant_stream_id:
-                    assistant_msg.stream_done(assistant_stream_id, error=error_msg)
                 raise UserError(_("Error from Language Model: %s", chunk['error']))
-
-        # 5. Finalize Assistant Message Stream and Update Record
-        if assistant_stream_id:
-            assistant_msg.stream_done(assistant_stream_id)
+        
         update_vals = {}
         if accumulated_content:
             update_vals['body'] = markdown2.markdown(accumulated_content)
         if received_tool_calls:
-            update_vals['tool_calls'] = json.dumps(received_tool_calls) # Save validated JSON
+            update_vals['tool_calls'] = json.dumps(received_tool_calls)
 
         if accumulated_content or received_tool_calls: # Check if update needed
             assistant_msg.write(update_vals)
-            self._notify_message_update(assistant_msg)
-        
-        return assistant_msg
+            
+        assistant_msg_payload = assistant_msg.message_format()[0]
+        yield {'event': 'message_finalize', 'message': assistant_msg_payload}
 
     def _create_tool_response(self, tool_name, arguments_str, tool_call_id, result_data):
         """Create a standardized tool response structure."""
@@ -364,14 +342,13 @@ class LLMThread(models.Model):
     def _execute_tool_call(self, tool_call_def):
         """Executes a single tool call, creates tool message, and streams updates."""
         tool_msg = None
-        tool_stream_id = None
         tool_call_id = tool_call_def.get('id')
         tool_function = tool_call_def.get('function', {})
         tool_name = tool_function.get('name', 'unknown_tool')
 
         if not tool_call_id or not tool_name:
             _logger.warning(f"Thread {self.id}: Skipping tool call due to missing id or name: {tool_call_def}")
-            return None
+            yield None
 
         try:
             # 1. Create Placeholder Message
@@ -385,12 +362,9 @@ class LLMThread(models.Model):
                 tool_name=tool_name
             )
 
-            # 2. Start Stream
-            tool_stream_id = tool_msg.stream_start(
-                initial_data={'tool_call_id': tool_call_id, 'definition': tool_call_def}
-            )
+            tool_msg_payload = tool_msg.message_format()[0]
+            yield {'event': 'message_create', 'message': tool_msg_payload}
             
-            # 3. Execute Tool
             args_str = tool_function.get('arguments')
             tool_response_dict = self._execute_tool(tool_name, args_str, tool_call_id)
 
@@ -403,19 +377,10 @@ class LLMThread(models.Model):
             }
             tool_msg.write(tool_msg_vals)
             
-            tool_msg.stream_done(
-                tool_stream_id,
-                final_data={'message': tool_msg.message_format()[0]},
-            )
-
-            # 6. Notify
-            self._notify_message_update(tool_msg)
-            return tool_msg
+            tool_msg_payload = tool_msg.message_format()[0]
+            yield {'event': 'message_finalize', 'message': tool_msg_payload}
 
         except Exception as tool_err:
             error_msg = f"Error processing tool call {tool_call_id} ({tool_name}): {tool_err}"
-            if tool_msg and tool_stream_id:
-                tool_msg.write({'tool_call_result': json.dumps({'error': error_msg}), 'body': f"Error executing {tool_name}"})
-                tool_msg.stream_done(tool_stream_id, error=str(tool_err))
-                self._notify_message_update(tool_msg)
-            raise UserError(_("An error occurred while executing tool '%(tool_name)s': %(error)s", tool_name=tool_name, error=tool_err))
+            tool_msg.write({'tool_call_result': json.dumps({'error': error_msg}), 'body': f"Error executing {tool_name}"})
+            yield {'event': 'message_finalize', 'message': tool_msg.message_format()[0]}

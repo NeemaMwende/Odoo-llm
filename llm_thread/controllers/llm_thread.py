@@ -22,22 +22,25 @@ class LLMThreadController(http.Controller):
         except Exception as e:
             return {'status': 'error', 'error': str(e)}
         
-    def _run(self, dbname, env, thread_id, user_message_body):
+    def _llm_thread_generate(self, dbname, env, thread_id, user_message_body):
         """Override generate method to handle tool messages"""
         # Use a cursor block to ensure the cursor remains open for the duration of the generator
         with registry(dbname).cursor() as cr:
             env = api.Environment(cr, env.uid, env.context)
             # Stream responses
-            thread = env["llm.thread"].browse(int(thread_id))
-            for response in thread.generate(
+            llmThread = env["llm.thread"].browse(int(thread_id))
+            if not llmThread.exists():
+                yield f"data: {json.dumps({'type': 'error', 'error': 'LLM Thread not found.'})}\n\n".encode()
+                return
+            for response in llmThread.generate(
                 user_message_body
             ):
-                # TODO: need to just yield data
-                yield f"data: {json.dumps(response)}\n\n".encode()  
-            yield f"data: {json.dumps({'type': 'end'})}\n\n".encode()
+                json_data = json.dumps(response)
+                yield f"data: {json_data}\n\n".encode()
+            yield f"data: {json.dumps({'type': 'done'})}\n\n".encode()
 
-    @http.route('/llm/thread/run', type="http", auth='user', csrf=True)
-    def run(self, thread_id, message=None, **kwargs):
+    @http.route('/llm/thread/generate', type="http", auth='user', csrf=True)
+    def llm_thread_generate(self, thread_id, message=None, **kwargs):
         headers = {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
@@ -45,7 +48,7 @@ class LLMThreadController(http.Controller):
         }
         user_message_body = message
         return Response(
-            self._run(request.cr.dbname, request.env, thread_id, user_message_body),
+            self._llm_thread_generate(request.cr.dbname, request.env, thread_id, user_message_body),
             direct_passthrough=True,
             headers=headers,
         )
