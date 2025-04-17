@@ -150,7 +150,7 @@ class LLMThread(models.Model):
         """Sends updated message data immediately via bus."""
         self.ensure_one() # Context: called from thread
         if not message or not message.exists():
-             return
+            return
         message_payload = message.message_format()[0] # Get latest data
         partner_id = self.env.user.partner_id.id
         channel = (self.env.cr.dbname, 'res.partner', partner_id) # Send to partner
@@ -206,12 +206,8 @@ class LLMThread(models.Model):
         if not last_message:
             raise UserError("No message found to process.")
 
-        current_iteration = 0
-        MAX_ITERATION = 10
-
         try:
-            while current_iteration < MAX_ITERATION:
-                current_iteration += 1
+            while True:
 
                 if not last_message:
                     raise UserError("No message found to process.")
