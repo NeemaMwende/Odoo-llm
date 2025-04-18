@@ -40,14 +40,17 @@ class LLMThread(models.Model):
             return False
 
         # Update the thread with the agent and related fields
-        return self.write(
-            {
-                "agent_id": agent_id,
-                "provider_id": agent.provider_id.id if agent.provider_id else False,
-                "model_id": agent.model_id.id if agent.model_id else False,
-                "tool_ids": [(6, 0, agent.tool_ids.ids)],
-            }
-        )
+        update_vals = {
+            "agent_id": agent_id,
+            "tool_ids": [(6, 0, agent.tool_ids.ids)],
+        }
+        if agent.provider_id.id:
+            update_vals["provider_id"] = agent.provider_id.id
+        
+        if agent.model_id.id:
+            update_vals["model_id"] = agent.model_id.id
+        
+        return self.write(update_vals)
 
     def action_open_thread(self):
         """Open the thread in the chat client interface
