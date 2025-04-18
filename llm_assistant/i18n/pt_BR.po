@@ -1,6 +1,6 @@
 # Translation of Odoo Server.
 # This file contains the translation of the following modules:
-# 	* llm_agent
+# 	* llm_assistant
 #
 msgid ""
 msgstr ""
@@ -15,334 +15,334 @@ msgstr ""
 "Content-Transfer-Encoding: \n"
 "Plural-Forms: \n"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_needaction
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_needaction
 msgid "Action Needed"
 msgstr "Ação Necessária"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__active
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__active
 msgid "Active"
 msgstr "Ativo"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_thread__agent_id
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_thread_search_inherit_agent
-msgid "Agent"
-msgstr "Agente"
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_thread__assistant_id
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_thread_search_inherit_assistant
+msgid "Assistant"
+msgstr "Assistante"
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
-msgid "Agent Configuration"
-msgstr "Configuração do Agente"
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
+msgid "Assistant Configuration"
+msgstr "Configuração do Assistante"
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
-msgid "Agent Name"
-msgstr "Nome do Agente"
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
+msgid "Assistant Name"
+msgstr "Nome do Assistante"
 
-#. module: llm_agent
-#: model:ir.actions.act_window,name:llm_agent.action_llm_agent
-#: model:ir.ui.menu,name:llm_agent.menu_llm_agent
-msgid "Agents"
-msgstr "Agentes"
+#. module: llm_assistant
+#: model:ir.actions.act_window,name:llm_assistant.action_llm_assistant
+#: model:ir.ui.menu,name:llm_assistant.menu_llm_assistant
+msgid "Assistants"
+msgstr "Assistantes"
 
-#. module: llm_agent
-#: model_terms:ir.actions.act_window,help:llm_agent.action_llm_agent
+#. module: llm_assistant
+#: model_terms:ir.actions.act_window,help:llm_assistant.action_llm_assistant
 msgid ""
-"Agents can be configured with specific roles, goals, and tools to enhance "
+"Assistants can be configured with specific roles, goals, and tools to enhance "
 "your AI interactions."
-msgstr "Os agentes podem ser configurados com funções, objetivos e ferramentas específicas para aprimorar suas interações com a IA."
+msgstr "Os assistantes podem ser configurados com funções, objetivos e ferramentas específicas para aprimorar suas interações com a IA."
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_search
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_search
 msgid "Archived"
 msgstr "Arquivado"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_attachment_count
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_attachment_count
 msgid "Attachment Count"
 msgstr "Contagem de anexos"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__background
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__background
 msgid "Background"
 msgstr ""
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__background
-msgid "Background information for the agent to understand its context"
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__background
+msgid "Background information for the assistant to understand its context"
 msgstr ""
 
-#. module: llm_agent
-#: model_terms:ir.actions.act_window,help:llm_agent.action_llm_agent
-msgid "Create your first AI Agent!"
+#. module: llm_assistant
+#: model_terms:ir.actions.act_window,help:llm_assistant.action_llm_assistant
+msgid "Create your first AI Assistant!"
 msgstr ""
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__create_uid
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__create_uid
 msgid "Created by"
 msgstr "Criado Por"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__create_date
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__create_date
 msgid "Created on"
 msgstr "Criado em"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__display_name
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__display_name
 msgid "Display Name"
 msgstr "Nome Exibido"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_follower_ids
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_follower_ids
 msgid "Followers"
 msgstr "Seguidores"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_partner_ids
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_partner_ids
 msgid "Followers (Partners)"
 msgstr "Seguidores (Parceiros)"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__goal
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__goal
 msgid "Goal"
 msgstr "Objetivo"
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_search
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_search
 msgid "Group By"
 msgstr "Agrupar por"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__has_message
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__has_message
 msgid "Has Message"
 msgstr "Tem Mensagem"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__id
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__id
 msgid "ID"
 msgstr "ID"
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__message_needaction
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__message_needaction
 msgid "If checked, new messages require your attention."
 msgstr "Se marcado, novas mensagens requerem sua atenção."
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__message_has_error
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__message_has_error
 msgid "If checked, some messages have a delivery error."
 msgstr "Se marcado, algumas mensagens apresentaram erro de entrega."
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__instructions
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__instructions
 msgid "Instructions"
 msgstr "Instruções"
 
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_is_follower
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_is_follower
 msgid "Is Follower"
 msgstr "É Seguidor"
 
-#. module: llm_agent
-#: model:ir.model,name:llm_agent.model_llm_agent
-msgid "LLM Agent"
-msgstr "Agente LLM"
+#. module: llm_assistant
+#: model:ir.model,name:llm_assistant.model_llm_assistant
+msgid "LLM Assistant"
+msgstr "Assistante LLM"
 
-#. module: llm_agent
-#: model:ir.model,name:llm_agent.model_llm_thread
+#. module: llm_assistant
+#: model:ir.model,name:llm_assistant.model_llm_thread
 msgid "LLM Chat Thread"
 msgstr "Tópico de Chat LLM"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent____last_update
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant____last_update
 msgid "Last Modified on"
 msgstr "Última Modificação em"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__write_uid
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__write_uid
 msgid "Last Updated by"
 msgstr "Última Atualização por"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__write_date
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__write_date
 msgid "Last Updated on"
 msgstr "Última Atualização em"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_main_attachment_id
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_main_attachment_id
 msgid "Main Attachment"
 msgstr "Anexo Principal"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_has_error
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_has_error
 msgid "Message Delivery error"
 msgstr "Erro na Entrega da Mensagem"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_ids
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_ids
 msgid "Messages"
 msgstr "Mensagens"
 
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__model_id
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_search
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__model_id
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_search
 msgid "Model"
 msgstr "Modelo"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__name
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__name
 msgid "Name"
 msgstr "Nome"
 
-#. module: llm_agent
+#. module: llm_assistant
 #. odoo-javascript
-#: code:addons/llm_agent/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml:0
+#: code:addons/llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml:0
 #, python-format
-msgid "No Agent"
-msgstr "Nenhum Agente"
+msgid "No Assistant"
+msgstr "Nenhum Assistante"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_needaction_counter
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_needaction_counter
 msgid "Number of Actions"
 msgstr "Número de Ações"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__message_has_error_counter
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__message_has_error_counter
 msgid "Number of errors"
 msgstr "Número de Erros"
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__message_needaction_counter
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__message_needaction_counter
 msgid "Number of messages requiring action"
 msgstr "Número de mensagens que exigem ação"
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__message_has_error_counter
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__message_has_error_counter
 msgid "Number of messages with delivery error"
 msgstr "Número de mensagens com erro de entrega"
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__thread_count
-msgid "Number of threads using this agent"
-msgstr "Número de tópicos usando este agente"
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__thread_count
+msgid "Number of threads using this assistant"
+msgstr "Número de tópicos usando este assistante"
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
 msgid "Open"
 msgstr "Abrir"
 
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__tool_ids
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__tool_ids
 msgid "Preferred Tools"
 msgstr "Ferramentas Preferidas"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__provider_id
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_search
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__provider_id
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_search
 msgid "Provider"
 msgstr "Provedor"
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
 msgid "Related Threads"
 msgstr "Tópicos Relacionados"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__role
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__role
 msgid "Role"
 msgstr "Função"
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_search
-msgid "Search Agents"
-msgstr "Buscar Agentes"
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_search
+msgid "Search Assistants"
+msgstr "Buscar Assistantes"
 
-#. module: llm_agent
+#. module: llm_assistant
 #. odoo-javascript
-#: code:addons/llm_agent/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml:0
+#: code:addons/llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml:0
 #, python-format
-msgid "Select Agent"
-msgstr "Selecionar Agente"
+msgid "Select Assistant"
+msgstr "Selecionar Assistante"
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
 msgid ""
-"Select the tools this agent may need. These tools will be auto selected when"
-" you assign this agent on LLM Chat Thread"
-msgstr "Selecione as ferramentas que este agente pode precisar. Essas ferramentas serão selecionadas automaticamente quando você atribuir este agente a um Tópico de Chat LLM."
+"Select the tools this assistant may need. These tools will be auto selected when"
+" you assign this assistant on LLM Chat Thread"
+msgstr "Selecione as ferramentas que este assistante pode precisar. Essas ferramentas serão selecionadas automaticamente quando você atribuir este assistante a um Tópico de Chat LLM."
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
-msgid "Select tools for this agent..."
-msgstr "Selecione ferramentas para este agente..."
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
+msgid "Select tools for this assistant..."
+msgstr "Selecione ferramentas para este assistante..."
 
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__instructions
-msgid "Specific instructions for the agent to follow"
-msgstr "Instruções específicas que o agente deve seguir"
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__instructions
+msgid "Specific instructions for the assistant to follow"
+msgstr "Instruções específicas que o assistante deve seguir"
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
 msgid "System Prompt"
 msgstr "Prompt do Sistema"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__system_prompt
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__system_prompt
 msgid "System Prompt Template"
 msgstr "Modelo de Prompt do Sistema"
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__system_prompt
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__system_prompt
 msgid ""
 "Template for the system prompt. Use {{ field_name }} placeholders for "
 "variable substitution."
 msgstr "Modelo para o prompt do sistema. Use {{ field_name }} como espaço reservado para substituição de variáveis."
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_thread__agent_id
-msgid "The agent used for this thread"
-msgstr "O agente usado para este tópico"
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_thread__assistant_id
+msgid "The assistant used for this thread"
+msgstr "O assistante usado para este tópico"
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__goal
-msgid "The primary goal or objective of this agent"
-msgstr "O objetivo principal deste agente"
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__goal
+msgid "The primary goal or objective of this assistant"
+msgstr "O objetivo principal deste assistante"
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__role
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__role
 msgid ""
-"The role of the agent (e.g., 'Assistant', 'Customer Support', 'Data "
+"The role of the assistant (e.g., 'Assistant', 'Customer Support', 'Data "
 "Analyst')"
-msgstr "O papel do agente (ex.: 'Assistente', 'Suporte ao Cliente', 'Analista de Dados')"
+msgstr "O papel do assistante (ex.: 'Assistente', 'Suporte ao Cliente', 'Analista de Dados')"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__thread_count
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__thread_count
 msgid "Thread Count"
 msgstr "Contagem de Tópicos"
 
-#. module: llm_agent
-#: model:ir.model.fields,field_description:llm_agent.field_llm_agent__thread_ids
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
+#. module: llm_assistant
+#: model:ir.model.fields,field_description:llm_assistant.field_llm_assistant__thread_ids
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
 msgid "Threads"
 msgstr "Tópicos"
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__thread_ids
-msgid "Threads using this agent"
-msgstr "Tópicos que usam este agente"
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__thread_ids
+msgid "Threads using this assistant"
+msgstr "Tópicos que usam este assistante"
 
-#. module: llm_agent
-#: model_terms:ir.ui.view,arch_db:llm_agent.view_llm_agent_form
+#. module: llm_assistant
+#: model_terms:ir.ui.view,arch_db:llm_assistant.view_llm_assistant_form
 msgid "Tools"
 msgstr "Ferramentas"
 
-#. module: llm_agent
-#: model:ir.model.fields,help:llm_agent.field_llm_agent__tool_ids
-msgid "Tools that this agent can use"
-msgstr "Ferramentas que este agente pode usar"
+#. module: llm_assistant
+#: model:ir.model.fields,help:llm_assistant.field_llm_assistant__tool_ids
+msgid "Tools that this assistant can use"
+msgstr "Ferramentas que este assistante pode usar"

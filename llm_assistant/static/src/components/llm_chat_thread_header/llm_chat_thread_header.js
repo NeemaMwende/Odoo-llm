@@ -3,32 +3,32 @@
 import { LLMChatThreadHeader } from "@llm_thread/components/llm_chat_thread_header/llm_chat_thread_header";
 import { patch } from "@web/core/utils/patch";
 
-patch(LLMChatThreadHeader.prototype, "llm_agent.llm_agent_dropdown_patch", {
+patch(LLMChatThreadHeader.prototype, "llm_assistant.llm_assistant_dropdown_patch", {
   /**
-   * Get all available agents
+   * Get all available assistants
    */
-  get llmAgents() {
+  get llmAssistants() {
     // Make sure we have a valid llmChat reference
     if (!this.llmChat) {
       return [];
     }
 
-    // Return the agents array
-    return this.llmChat.llmAgents || [];
+    // Return the assistants array
+    return this.llmChat.llmAssistants || [];
   },
 
   /**
-   * Handle agent selection
-   * @param {Object} agent - The selected agent
+   * Handle assistant selection
+   * @param {Object} assistant - The selected assistant
    */
-  onSelectAgent(agent) {
-    this.llmChatThreadHeaderView.saveSelectedAgent(agent.id);
+  onSelectAssistant(assistant) {
+    this.llmChatThreadHeaderView.saveSelectedAssistant(assistant.id);
   },
 
   /**
-   * Clear the selected agent
+   * Clear the selected assistant
    */
-  onClearAgent() {
-    this.llmChatThreadHeaderView.saveSelectedAgent(false);
+  onClearAssistant() {
+    this.llmChatThreadHeaderView.saveSelectedAssistant(false);
   },
 });

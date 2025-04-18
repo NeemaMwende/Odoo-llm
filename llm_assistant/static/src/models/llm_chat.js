@@ -3,25 +3,25 @@
 import { many } from "@mail/model/model_field";
 import { registerPatch } from "@mail/model/model_core";
 
-// Define agent-related fields to fetch from server
-const AGENT_THREAD_FIELDS = ["agent_id"];
+// Define assistant-related fields to fetch from server
+const ASSISTANT_THREAD_FIELDS = ["assistant_id"];
 
 /**
- * Patch the LLMChat model to add agents
+ * Patch the LLMChat model to add assistants
  */
 registerPatch({
   name: "LLMChat",
   fields: {
     // Use attr instead of many for direct array access
-    llmAgents: many("LLMAgent"),
+    llmAssistants: many("LLMAssistant"),
   },
   recordMethods: {
     /**
-     * Load agents from the server
+     * Load assistants from the server
      */
-    async loadAgents() {
+    async loadAssistants() {
       const result = await this.messaging.rpc({
-        model: "llm.agent",
+        model: "llm.assistant",
         method: "search_read",
         kwargs: {
           domain: [["active", "=", true]],
@@ -29,22 +29,22 @@ registerPatch({
         },
       });
 
-      const agentData = result.map((agent) => ({
-        id: agent.id,
-        name: agent.name,
+      const assistantData = result.map((assistant) => ({
+        id: assistant.id,
+        name: assistant.name,
       }));
 
-      this.update({ llmAgents: agentData });
+      this.update({ llmAssistants: assistantData });
     },
 
     /**
-     * Override ensureThread to load agents as well
+     * Override ensureThread to load assistants as well
      * @override
      */
     async ensureThread(options) {
-      // Load agents if not already loaded
-      if (!this.llmAgents || this.llmAgents.length === 0) {
-        await this.loadAgents();
+      // Load assistants if not already loaded
+      if (!this.llmAssistants || this.llmAssistants.length === 0) {
+        await this.loadAssistants();
       }
 
       // Call the original method
@@ -52,7 +52,7 @@ registerPatch({
     },
 
     /**
-     * Override initializeLLMChat to include agent loading
+     * Override initializeLLMChat to include assistant loading
      * @override
      */
     async initializeLLMChat(
@@ -60,47 +60,47 @@ registerPatch({
       initActiveId,
       postInitializationPromises = []
     ) {
-      // Pass our loadAgents promise to the original method
+      // Pass our loadAssistants promise to the original method
       return this._super(action, initActiveId, [
         ...postInitializationPromises,
-        this.loadAgents(),
+        this.loadAssistants(),
       ]);
     },
 
     /**
-     * Override loadThreads to include agent_id field
+     * Override loadThreads to include assistant_id field
      * @override
      */
     async loadThreads(additionalFields = []) {
       // Call the super method with our additional fields
-      return this._super([...additionalFields, ...AGENT_THREAD_FIELDS]);
+      return this._super([...additionalFields, ...ASSISTANT_THREAD_FIELDS]);
     },
 
     /**
-     * Override refreshThread to include agent_id field
+     * Override refreshThread to include assistant_id field
      * @override
      */
     async refreshThread(threadId, additionalFields = []) {
       // Call the super method with our additional fields
       return this._super(threadId, [
         ...additionalFields,
-        ...AGENT_THREAD_FIELDS,
+        ...ASSISTANT_THREAD_FIELDS,
       ]);
     },
 
     /**
-     * Override _mapThreadDataFromServer to add agent information
+     * Override _mapThreadDataFromServer to add assistant information
      * @override
      */
     _mapThreadDataFromServer(threadData) {
       // Get the base mapped data from super
       const mappedData = this._super(threadData);
 
-      // Add agent information if present
-      if (threadData.agent_id) {
-        mappedData.llmAgent = {
-          id: threadData.agent_id[0],
-          name: threadData.agent_id[1],
+      // Add assistant information if present
+      if (threadData.assistant_id) {
+        mappedData.llmAssistant = {
+          id: threadData.assistant_id[0],
+          name: threadData.assistant_id[1],
         };
       }
 

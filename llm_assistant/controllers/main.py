@@ -2,14 +2,14 @@ from odoo import http
 from odoo.http import request
 
 
-class LLMAgentController(http.Controller):
-    @http.route("/llm/thread/set_agent", type="json", auth="user")
-    def set_thread_agent(self, thread_id, agent_id=False):
-        """Set the agent for a thread
+class LLMAssistantController(http.Controller):
+    @http.route("/llm/thread/set_assistant", type="json", auth="user")
+    def set_thread_assistant(self, thread_id, assistant_id=False):
+        """Set the assistant for a thread
 
         Args:
             thread_id (int): ID of the thread to update
-            agent_id (int, optional): ID of the agent to set, or False to clear
+            assistant_id (int, optional): ID of the assistant to set, or False to clear
 
         Returns:
             dict: Result of the operation
@@ -18,9 +18,9 @@ class LLMAgentController(http.Controller):
         if not thread.exists():
             return {"success": False, "error": "Thread not found"}
 
-        result = thread.set_agent(agent_id)
+        result = thread.set_assistant(assistant_id)
         return {
             "success": bool(result),
             "thread_id": thread_id,
-            "agent_id": agent_id,
+            "assistant_id": assistant_id,
         }

@@ -1,21 +1,21 @@
 {
-    "name": "LLM Agent",
+    "name": "LLM Assistant",
     "summary": """
-        LLM/AI Agent module for Odoo
+        LLM/AI Assistant module for Odoo
     """,
     "description": """
-Agentic AI (LLM) Agent for Odoo
+Assistantic AI (LLM) Assistant for Odoo
 ==================
-Configure AI agents with specific roles, goals, and tools to enhance your AI interactions.
+Configure AI assistants with specific roles, goals, and tools to enhance your AI interactions.
 
 Key Features:
-- Create and configure AI agents with specific roles and goals
-- Assign preferred tools to each agent
-- Automatically generate system prompts based on agent configuration
-- Attach agents to chat threads for consistent behavior
+- Create and configure AI assistants with specific roles and goals
+- Assign preferred tools to each assistant
+- Automatically generate system prompts based on assistant configuration
+- Attach assistants to chat threads for consistent behavior
 - Full integration with the LLM chat system
 
-Use cases include creating specialized agents for customer support, data analysis, training assistance, and more.
+Use cases include creating specialized assistants for customer support, data analysis, training assistance, and more.
     """,
     "category": "Productivity, Discuss",
     "version": "16.0.1.0.1",
@@ -25,8 +25,8 @@ Use cases include creating specialized agents for customer support, data analysi
     "data": [
         "security/ir.model.access.csv",
         "data/llm_prompt_data.xml",
-        "data/llm_agent_data.xml",
-        "views/llm_agent_views.xml",
+        "data/llm_assistant_data.xml",
+        "views/llm_assistant_views.xml",
         "views/llm_thread_views.xml",
         "views/llm_menu_views.xml",
     ],
@@ -35,15 +35,15 @@ Use cases include creating specialized agents for customer support, data analysi
     ],
     "assets": {
         "web.assets_backend": [
-            "llm_agent/static/src/models/main.js",
+            "llm_assistant/static/src/models/main.js",
             # Models
-            "llm_agent/static/src/models/llm_agent.js",
-            "llm_agent/static/src/models/llm_chat.js",
-            "llm_agent/static/src/models/thread.js",
-            "llm_agent/static/src/models/llm_chat_thread_header_view.js",
+            "llm_assistant/static/src/models/llm_assistant.js",
+            "llm_assistant/static/src/models/llm_chat.js",
+            "llm_assistant/static/src/models/thread.js",
+            "llm_assistant/static/src/models/llm_chat_thread_header_view.js",
             # Components
-            "llm_agent/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
-            "llm_agent/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
+            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
+            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
         ],
     },
     "license": "LGPL-3",
