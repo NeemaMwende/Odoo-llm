@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { markup, useEffect, useRef } from "@odoo/owl";
+import { useRef, useEffect } from "@odoo/owl";
 
 import { MessageList } from "@mail/components/message_list/message_list";
 import { registerMessagingComponent } from "@mail/utils/messaging_component";
@@ -10,24 +10,27 @@ export class LLMChatMessageList extends MessageList {
   setup() {
     super.setup();
     this.rootRef = useRef("root");
+    // TODO check if we can do this also when chunks updates
     useEffect(
       () => {
-        if (this.composerView.isStreaming && this.htmlStreamingContent) {
+        if (this.thread) {
           this._scrollToEnd();
         }
       },
-      () => [this.htmlStreamingContent]
+      () => [this.thread, this.isStreaming]
     );
   }
 
-  get htmlStreamingContent() {
-    return this.composerView.htmlStreamingContent
-      ? markup(this.composerView.htmlStreamingContent)
-      : "";
+  get thread() {
+    return this.composerView.composer.thread;
   }
 
   get composerView() {
     return this.props.composerView;
+  }
+
+  get isStreaming() {
+    return this.composerView.composer.isStreaming;
   }
 
   _scrollToEnd() {
