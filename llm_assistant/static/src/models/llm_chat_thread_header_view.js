@@ -8,23 +8,27 @@ registerPatch({
   name: "LLMChatThreadHeaderView",
   fields: {
     /**
-     * Selected agent ID
+     * Selected assistant ID
      */
-    selectedAgentId: attr(),
+    selectedAssistantId: attr(),
 
     /**
-     * Selected agent record
+     * Selected assistant record
      */
-    selectedAgent: one("LLMAgent", {
+    selectedAssistant: one("LLMAssistant", {
       compute() {
-        if (!this.selectedAgentId) {
+        if (!this.selectedAssistantId) {
           return clear();
         }
-        // This now searches within a collection of LLMAgent records
+        // This now searches within a collection of LLMAssistant records
         // and returns a record instance, which is correct.
-        return this.threadView.thread.llmChat.llmAgents.find(
-          (agentRecord) => agentRecord.id === this.selectedAgentId
-        );
+        const assistants = this.threadView?.thread?.llmChat?.llmAssistants;
+        if (!assistants || !Array.isArray(assistants)) {
+            return clear();
+        }
+        return assistants.find(
+          (assistantRecord) => assistantRecord && assistantRecord.id === this.selectedAssistantId
+        ) || clear();
       },
     }),
   },
@@ -36,31 +40,39 @@ registerPatch({
      */
     _initializeState() {
       this._super();
+      const currentThread = this.threadView?.thread;
+      if (!currentThread) {
+          this.update({
+              selectedAssistantId: clear(),
+          });
+          return;
+      }
+
       this.update({
-        selectedAgentId: this.threadView.thread.llmAgent?.id || false,
+        selectedAssistantId: currentThread.llmAssistant?.id || clear(),
       });
     },
 
     /**
-     * Save selected agent to the thread using the dedicated endpoint
-     * @param {Number|false} agentId - ID of the selected agent or false to clear
+     * Save selected assistant to the thread using the dedicated endpoint
+     * @param {Number|false} assistantId - ID of the selected assistant or false to clear
      */
-    async saveSelectedAgent(agentId) {
-      if (agentId === this.selectedAgentId) {
+    async saveSelectedAssistant(assistantId) {
+      if (assistantId === this.selectedAssistantId) {
         return;
       }
 
       // Update the local state immediately for responsive UI
       this.update({
-        selectedAgentId: agentId || false,
+        selectedAssistantId: assistantId || clear(),
       });
 
-      // Call the dedicated endpoint to set the agent
+      // Call the dedicated endpoint to set the assistant
       const result = await this.messaging.rpc({
-        route: "/llm/thread/set_agent",
+        route: "/llm/thread/set_assistant",
         params: {
           thread_id: this.threadView.thread.id,
-          agent_id: agentId,
+          assistant_id: assistantId,
         },
       });
 
@@ -69,9 +81,9 @@ registerPatch({
         await this.threadView.thread.llmChat.refreshThread(
           this.threadView.thread.id
         );
-        if (agentId === false) {
+        if (assistantId === false) {
           this.update({
-            selectedAgentId: false,
+            selectedAssistantId: clear(),
           });
         } else {
           this.update({
@@ -83,13 +95,13 @@ registerPatch({
       } else {
         // Revert the local state if the server call failed
         this.update({
-          selectedAgentId: this.threadView.thread.llmAgent?.id || false,
+          selectedAssistantId: this.threadView.thread.llmAssistant?.id || clear(),
         });
 
         // Show error message
         this.messaging.notify({
           type: "warning",
-          message: "Failed to update agent",
+          message: "Failed to update assistant",
         });
       }
     },

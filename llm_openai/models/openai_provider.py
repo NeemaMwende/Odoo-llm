@@ -134,8 +134,8 @@ class LLMProvider(models.Model):
         model = self.get_model(model, "chat")
 
         # Prepare request parameters
-        params = self._prepare_openai_chat_params(
-            model, messages, stream, tools=tools, tool_choice=tool_choice, system_prompt=system_prompt
+        params = self._prepare_chat_params(
+            model, messages, stream, tools=tools,system_prompt=system_prompt, tool_choice=tool_choice
         )
 
         # Make the API call
@@ -146,54 +146,6 @@ class LLMProvider(models.Model):
             return self._openai_process_non_streaming_response(response)
         else:
             return self._openai_process_streaming_response(response)
-
-    def _prepare_openai_chat_params(self, model, messages, stream, tools, tool_choice, system_prompt):
-        """Prepare parameters for OpenAI API call"""
-        params = {
-            "model": model.name,
-            "stream": stream,
-        }
-
-        messages = messages or []
-        system_prompt = system_prompt or None
-
-        if messages or system_prompt:
-            formatted_messages = self.openai_format_messages(messages, system_prompt)
-            params["messages"] = formatted_messages
-
-        if tools:
-            formatted_tools = self.openai_format_tools(tools)
-            if formatted_tools:
-                params["tools"] = formatted_tools
-                params["tool_choice"] = tool_choice
-
-                consent_required_tools = tools.filtered(
-                    lambda t: t.requires_user_consent
-                )
-
-                if consent_required_tools:
-                    consent_tool_names = ", ".join(
-                        [f"'{t.name}'" for t in consent_required_tools]
-                    )
-
-                    config = self.env["llm.tool.consent.config"].get_active_config()
-                    consent_instruction = config.system_message_template.format(
-                        tool_names=consent_tool_names
-                    )
-
-                    has_system_message = False
-                    for msg in params["messages"]:
-                        if msg.get("role") == "system":
-                            msg["content"] += f"\n\n{consent_instruction}"
-                            has_system_message = True
-                            break
-
-                    if not has_system_message:
-                        params["messages"].insert(
-                            0, {"role": "system", "content": consent_instruction}
-                        )
-
-        return params
 
     def _openai_process_non_streaming_response(self, response):
         """Processes OpenAI non-streamed response and returns ONE standardized dict."""
@@ -258,7 +210,7 @@ class LLMProvider(models.Model):
                     call_counter = 0
                     for tool_call_chunk in delta.tool_calls:
                         index = tool_call_chunk.index or call_counter
-                        assembled_tool_calls = self._update_tool_call_chunk(
+                        assembled_tool_calls = self._update_openai_tool_call_chunk(
                             assembled_tool_calls, tool_call_chunk, index
                         )
                         call_counter += 1
@@ -290,7 +242,7 @@ class LLMProvider(models.Model):
         except Exception as e:
             yield {'error': f"Internal error processing stream: {e}"}
 
-    def _update_tool_call_chunk(self, tool_call_chunks, tool_call_chunk, index):
+    def _update_openai_tool_call_chunk(self, tool_call_chunks, tool_call_chunk, index):
         """
         Helper to assemble fragmented tool calls from OpenAI stream chunks.
         (Keep this helper as it's essential for stream processing)
@@ -317,13 +269,10 @@ class LLMProvider(models.Model):
             if func_chunk.arguments:
                 current_call["function"]["arguments"] += func_chunk.arguments
 
-        if (current_call["function"].get("name") and
-            current_call["function"]["arguments"].strip().endswith('}')):
-            try:
-                json.loads(current_call["function"]["arguments"])
-                current_call["_complete"] = True
-            except json.JSONDecodeError:
-                current_call["_complete"] = False
+        # Use the common helper to determine completeness for OpenAI
+        current_call["_complete"] = self._is_tool_call_complete(
+            current_call["function"], expected_endings=(']', '}')
+        )
 
         return tool_call_chunks
 
@@ -354,24 +303,6 @@ class LLMProvider(models.Model):
                     **model.model_dump(),
                 },
             }
-
-    def chat(
-        self,
-        messages,
-        model=None,
-        stream=False,
-        tools=None,
-        tool_choice="auto",
-    ):
-        """Send chat messages using this provider"""
-        return self._dispatch(
-            "chat",
-            messages,
-            model=model,
-            stream=stream,
-            tools=tools,
-            tool_choice=tool_choice,
-        )
 
     def _validate_and_clean_messages(self, messages):
         """

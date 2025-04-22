@@ -6,9 +6,9 @@ from odoo import api, fields, models
 _logger = logging.getLogger(__name__)
 
 
-class LLMAgent(models.Model):
-    _name = "llm.agent"
-    _description = "LLM Agent"
+class LLMAssistant(models.Model):
+    _name = "llm.assistant"
+    _description = "LLM Assistant"
     _inherit = ["mail.thread"]
     _order = "name"
 
@@ -19,7 +19,7 @@ class LLMAgent(models.Model):
     )
     active = fields.Boolean(default=True, tracking=True)
 
-    # Agent configuration
+    # Assistant configuration
     provider_id = fields.Many2one(
         "llm.provider",
         string="Provider",
@@ -57,7 +57,7 @@ class LLMAgent(models.Model):
     tool_ids = fields.Many2many(
         "llm.tool",
         string="Preferred Tools",
-        help="Tools that this agent can use",
+        help="Tools that this assistant can use",
         tracking=True,
     )
 
@@ -65,13 +65,13 @@ class LLMAgent(models.Model):
     thread_count = fields.Integer(
         string="Thread Count",
         compute="_compute_thread_count",
-        help="Number of threads using this agent",
+        help="Number of threads using this assistant",
     )
     thread_ids = fields.One2many(
         "llm.thread",
-        "agent_id",
+        "assistant_id",
         string="Threads",
-        help="Threads using this agent",
+        help="Threads using this assistant",
     )
 
     system_prompt_preview = fields.Text(
@@ -83,24 +83,24 @@ class LLMAgent(models.Model):
     @api.depends('prompt_id', 'default_values')
     def _compute_system_prompt_preview(self):
         """Compute preview of the formatted system prompt"""
-        for agent in self:
-            agent.system_prompt_preview = agent.get_formatted_system_prompt()
+        for assistant in self:
+            assistant.system_prompt_preview = assistant.get_formatted_system_prompt()
 
 
     @api.depends("thread_ids")
     def _compute_thread_count(self):
-        """Compute the number of threads using this agent"""
-        for agent in self:
-            agent.thread_count = len(agent.thread_ids)
+        """Compute the number of threads using this assistant"""
+        for assistant in self:
+            assistant.thread_count = len(assistant.thread_ids)
 
     def action_view_threads(self):
-        """Open the threads using this agent"""
+        """Open the threads using this assistant"""
         self.ensure_one()
         action = self.env["ir.actions.actions"]._for_xml_id(
             "llm_thread.llm_thread_action"
         )
-        action["domain"] = [("agent_id", "=", self.id)]
-        action["context"] = {"default_agent_id": self.id}
+        action["domain"] = [("assistant_id", "=", self.id)]
+        action["context"] = {"default_assistant_id": self.id}
         return action
 
     @api.model
@@ -111,7 +111,7 @@ class LLMAgent(models.Model):
                 json.loads(vals['default_values'])
             except json.JSONDecodeError:
                 vals['default_values'] = "{}"
-        return super(LLMAgent, self).create(vals)
+        return super(LLMAssistant, self).create(vals)
 
     @api.onchange('prompt_id')
     def _onchange_prompt_id(self):

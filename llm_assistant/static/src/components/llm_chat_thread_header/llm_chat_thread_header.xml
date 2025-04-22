@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
     <t
-    t-name="llm_agent.LLMChatThreadHeader"
+    t-name="llm_assistant.LLMChatThreadHeader"
     t-inherit="llm_thread.LLMChatThreadHeader"
     t-inherit-mode="extension"
   >
@@ -9,7 +9,7 @@
       expr="//div[hasclass('o_ThreadDropdowns')]/div[hasclass('dropdown')][1]"
       position="before"
     >
-            <!-- LLM Agent Dropdown -->
+            <!-- LLM Assistant Dropdown -->
             <div class="dropdown me-2">
                 <button
           class="btn btn-light dropdown-toggle d-flex align-items-center gap-2"
@@ -19,13 +19,13 @@
           style="max-width: 200px;"
         >
                     <div class="text-truncate">
-                        <t t-if="llmChatThreadHeaderView.selectedAgent">
+                        <t t-if="llmChatThreadHeaderView.selectedAssistant">
                             <t
-                t-esc="llmChatThreadHeaderView.selectedAgent.name"
+                t-esc="llmChatThreadHeaderView.selectedAssistant.name"
               />
                         </t>
                         <t t-else="">
-                            Select Agent
+                            Select Assistant
                         </t>
                     </div>
                 </button>
@@ -34,23 +34,23 @@
                         <a
               class="dropdown-item text-truncate"
               href="#"
-              t-on-click="onClearAgent"
-              t-attf-class="{{ !llmChatThreadHeaderView.selectedAgent ? 'active' : '' }}"
+              t-on-click="onClearAssistant"
+              t-attf-class="{{ !llmChatThreadHeaderView.selectedAssistant ? 'active' : '' }}"
             >
-                            <i class="fa fa-times me-1" /> No Agent
+                            <i class="fa fa-times me-1" /> No Assistant
                         </a>
                     </li>
                     <li><hr class="dropdown-divider" /></li>
-                    <t t-foreach="llmAgents" t-as="agent" t-key="agent.id">
+                    <t t-foreach="llmAssistants" t-as="assistant" t-key="assistant.id">
                         <li>
                             <a
                 class="dropdown-item text-truncate"
                 href="#"
-                t-on-click="() => this.onSelectAgent(agent)"
-                t-att-title="agent.name"
-                t-attf-class="{{ llmChatThreadHeaderView.selectedAgent and llmChatThreadHeaderView.selectedAgent.id === agent.id ? 'active' : '' }}"
+                t-on-click="() => this.onSelectAssistant(assistant)"
+                t-att-title="assistant.name"
+                t-attf-class="{{ llmChatThreadHeaderView.selectedAssistant and llmChatThreadHeaderView.selectedAssistant.id === assistant.id ? 'active' : '' }}"
               >
-                                <t t-esc="agent.name" />
+                                <t t-esc="assistant.name" />
                             </a>
                         </li>
                     </t>

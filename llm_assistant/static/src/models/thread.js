@@ -4,34 +4,34 @@ import { one } from "@mail/model/model_field";
 import { registerPatch } from "@mail/model/model_core";
 
 /**
- * Patch the Thread model to add llmAgent field
+ * Patch the Thread model to add llmAssistant field
  */
 registerPatch({
   name: "Thread",
   fields: {
     /**
-     * The LLM agent associated with this thread
+     * The LLM assistant associated with this thread
      */
-    llmAgent: one("LLMAgent", {
+    llmAssistant: one("LLMAssistant", {
       inverse: "threads",
     }),
   },
   recordMethods: {
     /**
-     * Override updateLLMChatThreadSettings to handle agent
+     * Override updateLLMChatThreadSettings to handle assistant
      * @override
      * @param {Object} settings - Settings object
-     * @param {Number|false} [settings.agentId] - Agent ID to set, or false to clear
+     * @param {Number|false} [settings.assistantId] - Assistant ID to set, or false to clear
      */
     async updateLLMChatThreadSettings(settings = {}) {
-      const { agentId, ...otherSettings } = settings;
+      const { assistantId, ...otherSettings } = settings;
 
-      // Prepare additional values for the agent_id field
+      // Prepare additional values for the assistant_id field
       const additionalValues = {};
 
-      // Handle agent_id if provided
-      if (agentId !== undefined) {
-        additionalValues.agent_id = agentId || false;
+      // Handle assistant_id if provided
+      if (assistantId !== undefined) {
+        additionalValues.assistant_id = assistantId || false;
       }
 
       // Call super with our additional values
