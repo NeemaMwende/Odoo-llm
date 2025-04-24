@@ -1,9 +1,9 @@
 import logging
-import json
 from urllib.parse import urlparse
-import numpy as np
 
-from odoo import api, fields, models, _
+import re
+
+from odoo import api, models, _
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -62,67 +62,66 @@ class LLMStoreChroma(models.Model):
     # Collection Management
     # -------------------------------------------------------------------------
 
-    def chroma_collection_exists(self, collection_id):
+    def chroma_collection_exists(self, collection_id, **kwargs):
         """Check if a collection exists in Chroma"""
         self.ensure_one()
+
+        collection_name = kwargs.get('collection_name')
         
         client = self._get_chroma_client()
-        if not client:
-            return False
-            
-        try:
+
+        if not collection_name:
             # Get collection from Odoo to retrieve the name
             collection = self.env['llm.knowledge.collection'].browse(collection_id)
             if not collection.exists():
                 return False
-                
-            # Check if collection exists in Chroma
-            collections = client.list_collections()
-            return any(c.name == collection.name for c in collections)
-        except Exception as e:
-            _logger.error(f"Error checking collection existence: {str(e)}")
-            return False
+            collection_name = collection.name
+            
+        # Check if collection exists in Chroma
+        collections = client.list_collections()
+        sanitized_collection_name = self._sanitize_collection_name(collection_name)
+        return any(c.name == sanitized_collection_name for c in collections)
 
-    def chroma_create_collection(self, collection_id):
+    def chroma_create_collection(self, collection_id, dimension=None, metadata=None, **kwargs):
         """Create a collection in Chroma"""
         self.ensure_one()
         
         client = self._get_chroma_client()
         if not client:
-            return False
+            raise UserError(_("Failed to connect to Chroma server"))
             
         # Get collection from Odoo
         collection = self.env['llm.knowledge.collection'].browse(collection_id)
         if not collection.exists():
-            _logger.warning(f"Collection {collection_id} does not exist in Odoo")
-            return False
+            raise UserError(_("Collection not found: %s") % collection_id)
+        collection_name = collection.name
+
+        # Check if collection already exists
+        if self.chroma_collection_exists(collection_id, collection_name=collection_name):
+            _logger.info(f"Collection {collection.name} already exists in Chroma")
+            return
             
+        # Create collection in Chroma
+        metadata = {
+            "source": "odoo",
+            "collection_id": str(collection_id),
+            "description": collection.description or ""
+        }
+        # Use the default embedding function
         try:
-            # Check if collection already exists
-            if self.chroma_collection_exists(collection_id):
-                _logger.info(f"Collection {collection.name} already exists in Chroma")
-                return True
-                
-            # Create collection in Chroma
-            metadata = {
-                "source": "odoo",
-                "collection_id": str(collection_id),
-                "description": collection.description or ""
-            }
-            
-            # Use the default embedding function
+            sanitized_collection_name = self._sanitize_collection_name(collection_name)
+            _logger.info(f"Creating collection {sanitized_collection_name} in Chroma")
             client.create_collection(
-                name=collection.name,
+                name=sanitized_collection_name,
                 metadata=metadata
             )
-            
-            _logger.info(f"Created collection {collection.name} in Chroma")
-            return True
         except Exception as e:
-            _logger.error(f"Error creating collection: {str(e)}")
-            return False
+            _logger.exception(f"Failed to create collection {collection.name} in Chroma: {str(e)}")
+            raise UserError(_("Failed to create collection in Chroma: %s") % str(e))
+        
+        _logger.info(f"Created collection {collection.name} in Chroma")
 
-    def chroma_delete_collection(self, collection_id):
+    def chroma_delete_collection(self, collection_id, **kwargs):
         """Delete a collection from Chroma"""
         self.ensure_one()
         
@@ -143,8 +142,9 @@ class LLMStoreChroma(models.Model):
                 return True  # Nothing to delete
                 
             # Delete collection in Chroma
-            client.delete_collection(collection.name)
-            _logger.info(f"Deleted collection {collection.name} from Chroma")
+            sanitized_collection_name = self._sanitize_collection_name(collection.name)
+            client.delete_collection(name=sanitized_collection_name)
+            _logger.info(f"Deleted collection {sanitized_collection_name} from Chroma")
             return True
         except Exception as e:
             _logger.error(f"Error deleting collection: {str(e)}")
@@ -207,7 +207,8 @@ class LLMStoreChroma(models.Model):
             
         try:
             # Get collection from Chroma
-            return client.get_collection(name=name)
+            sanitized_collection_name = self._sanitize_collection_name(name)
+            return client.get_collection(name=sanitized_collection_name)
         except Exception as e:
             _logger.error(f"Error getting collection {name}: {str(e)}")
             return None
@@ -240,18 +241,13 @@ class LLMStoreChroma(models.Model):
                     else:
                         clean_meta[key] = str(value)
                 metadatas.append(clean_meta)
-                
-        try:
-            # Add vectors to collection
-            collection.add(
-                embeddings=vectors,
-                metadatas=metadatas,
-                ids=string_ids
-            )
-            return True
-        except Exception as e:
-            _logger.error(f"Error inserting vectors: {str(e)}")
-            return False
+
+        # Add vectors to collection
+        collection.add(
+            embeddings=vectors,
+            metadatas=metadatas,
+            ids=string_ids
+        )
 
     def chroma_delete_vectors(self, collection_name, ids, **kwargs):
         """Delete vectors from a Chroma collection"""
@@ -301,7 +297,7 @@ class LLMStoreChroma(models.Model):
             # Process results
             for i, id_val in enumerate(results['ids'][0]):
                 formatted_results.append({
-                    'id': id_val,
+                    'id': int(id_val),  # Convert string ID to integer
                     'score': 1.0 - float(results['distances'][0][i]) if 'distances' in results and results['distances'][0] else 0.0,
                     'metadata': results['metadatas'][0][i] if 'metadatas' in results and results['metadatas'][0] else {}
                 })
@@ -345,3 +341,28 @@ class LLMStoreChroma(models.Model):
         # Chroma manages its own indices, so this is a no-op
         _logger.info("Chroma manages its own indices, no explicit index creation needed")
         return True
+    
+
+    def _sanitize_collection_name(self, name):
+        """Sanitize a collection name for Chroma"""
+        # 1. Lowercase everything
+        s = name.lower()
+
+        # 2. Replace invalid chars with hyphens
+        s = re.sub(r'[^a-z0-9._-]', '-', s)
+
+        # 3. Collapse consecutive dots
+        s = re.sub(r'\.{2,}', '.', s)
+
+        # 4. Trim to max 63 chars
+        s = s[:63]
+
+        # 5. Strip non-alphanumeric from ends
+        s = re.sub(r'^[^a-z0-9]+', '', s)
+        s = re.sub(r'[^a-z0-9]+$', '', s)
+
+        # 6. If too short, pad with 'a'
+        if len(s) < 3:
+            s = s.ljust(3, 'a')
+
+        return s
