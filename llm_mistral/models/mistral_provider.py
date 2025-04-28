@@ -4,7 +4,8 @@ from urllib.parse import urlparse
 
 from mistralai import Mistral
 
-from odoo import api, models
+from odoo import _, api, models
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -18,21 +19,33 @@ class LLMProvider(models.Model):
         return services + [("mistral", "Mistral AI")]
 
     def _dispatch(self, method, *args, **kwargs):
-        return super()._dispatch(
-            method,
-            *args,
-            service_override=("openai" if self.service == "mistral" else None),
-            **kwargs,
-        )
+        if not self.service:
+            raise UserError(_("Provider service not configured"))
+        if self.service == "mistral":
+            service_method = f"openai_{method}"
+            if not hasattr(self, service_method):
+                raise NotImplementedError(
+                    _("Method %s not implemented for service %s") % (method, self.service)
+                )
+
+            return getattr(self, service_method)(*args, **kwargs)
+        else:
+            return super()._dispatch(method, *args, **kwargs)
 
     def _dispatch_on_message(self, message_record, method, *args, **kwargs):
-        return super()._dispatch_on_message(
-            message_record,
-            method,
-            *args,
-            service_override=("openai" if self.service == "mistral" else None),
-            **kwargs,
-        )
+        """Dispatch method call to appropriate service implementation"""
+        if not self.service:
+            raise UserError(_("Provider service not configured"))
+        if self.service == "mistral":
+            service_method = f"openai_{method}"
+            if not hasattr(message_record, service_method):
+                raise NotImplementedError(
+                    _("Method %s not implemented for service %s") % (method, self.service)
+                )
+
+            return getattr(message_record, service_method)(*args, **kwargs)
+        else:
+            return super()._dispatch_on_message(message_record, method, *args, **kwargs)
 
     def openai_models(self):
         
@@ -63,23 +76,7 @@ class LLMProvider(models.Model):
                     },
                 }
         else:
-            # TODO: Check why the super call is not working
-            for model in models.data:
-                # Map model capabilities based on model ID patterns
-                capabilities = ["chat"]  # default
-                if "text-embedding" in model.id:
-                    capabilities = ["embedding"]
-                elif "gpt-4-vision" in model.id:
-                    capabilities = ["chat", "multimodal"]
-
-                yield {
-                    "name": model.id,
-                    "details": {
-                        "id": model.id,
-                        "capabilities": capabilities,
-                        **model.model_dump(),
-                    },
-                }
+            yield from super().openai_models()
 
     def _get_mistral_client(self):
         self.ensure_one()
