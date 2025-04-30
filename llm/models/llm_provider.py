@@ -46,16 +46,16 @@ class LLMProvider(models.Model):
             raise UserError(_("Provider service not configured"))
 
         service_method = f"{self.service}_{method}"
-        target_obj = record if record else self
-        target_name = record._name if record else self._name
+        record = record if record else self
+        record_name = record._name
 
-        if not hasattr(target_obj, service_method):
+        if not hasattr(record, service_method):
             raise NotImplementedError(
                 _("Method '%s' not implemented for service '%s' on target '%s'")
-                % (method, self.service, target_name)
+                % (method, self.service, record_name)
             )
 
-        return getattr(target_obj, service_method)(*args, **kwargs)
+        return getattr(record, service_method)(*args, **kwargs)
 
     @api.model
     def _selection_service(self):

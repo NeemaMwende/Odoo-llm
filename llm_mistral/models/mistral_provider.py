@@ -24,15 +24,15 @@ class LLMProvider(models.Model):
         if self.service == "mistral":
             # Mistral uses OpenAI compatible API for many things
             service_method = f"openai_{method}"
-            target_obj = record if record else self
-            target_name = record._name if record else self._name
-            if not hasattr(target_obj, service_method):
+            record = record if record else self
+            record_name = record._name
+            if not hasattr(record, service_method):
                 raise NotImplementedError(
                     _("Method '%s' (via '%s') not implemented for service '%s' on target '%s'")
-                    % (method, service_method, self.service, target_name)
+                    % (method, service_method, self.service, record_name)
                 )
 
-            return getattr(target_obj, service_method)(*args, **kwargs)
+            return getattr(record, service_method)(*args, **kwargs)
         else:
             return super()._dispatch(method, *args, record=record, **kwargs)
 
