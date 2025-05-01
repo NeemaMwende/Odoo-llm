@@ -6,6 +6,10 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
+# Define default values as constants
+DEFAULT_CHUNK_SIZE = 200
+DEFAULT_CHUNK_OVERLAP = 20
+
 
 class LLMKnowledgeChunker(models.Model):
     _inherit = "llm.resource"
@@ -112,13 +116,13 @@ class LLMKnowledgeChunker(models.Model):
                         # Mark as chunked
                         resource.write({"state": "chunked"})
                     else:
-                        resource._post_message(
+                        resource._post_styled_message(
                             "Failed to create chunks - no content or empty result",
                             "warning",
                         )
 
                 except Exception as e:
-                    resource._post_message(
+                    resource._post_styled_message(
                         f"Error chunking resource: {str(e)}", "error"
                     )
                     resource._unlock()
@@ -222,7 +226,7 @@ class LLMKnowledgeChunker(models.Model):
             chunks.append(chunk)
 
         # Post success message
-        self._post_message(
+        self._post_styled_message(
             f"Created {len(chunks)} chunks (target size: {chunk_size}, overlap: {chunk_overlap})",
             "success",
         )
@@ -391,6 +395,26 @@ class LLMKnowledgeChunker(models.Model):
 
         # Return True only if resources were actually embedded
         return any_embedded
+
+    def action_reset_chunk_settings(self):
+        """Reset chunk settings to system defaults"""
+
+        # Reset all selected resources to default values
+        self.write(
+            {
+                "target_chunk_size": DEFAULT_CHUNK_SIZE,
+                "target_chunk_overlap": DEFAULT_CHUNK_OVERLAP,
+            }
+        )
+
+        # Return action to reload the form view
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": self._name,
+            "res_id": self.id if len(self) == 1 else False,
+            "view_mode": "form" if len(self) == 1 else "tree,form",
+            "target": "current",
+        }
 
     @api.model
     def action_mass_process_resources(self):

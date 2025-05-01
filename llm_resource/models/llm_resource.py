@@ -120,28 +120,6 @@ class LLMResource(models.Model):
         for record in self:
             record.kanban_state = "blocked" if record.lock_date else "normal"
 
-    def _post_message(self, message, message_type="info"):
-        """
-        Post a message to the resource's chatter with appropriate styling.
-
-        Args:
-            message (str): The message to post
-            message_type (str): Type of message (error, warning, success, info)
-        """
-        if message_type == "error":
-            body = f"<p class='text-danger'><strong>Error:</strong> {message}</p>"
-        elif message_type == "warning":
-            body = f"<p class='text-warning'><strong>Warning:</strong> {message}</p>"
-        elif message_type == "success":
-            body = f"<p class='text-success'><strong>Success:</strong> {message}</p>"
-        else:  # info
-            body = f"<p><strong>Info:</strong> {message}</p>"
-
-        return self.message_post(
-            body=body,
-            message_type="comment",
-        )
-
     def _lock(self, state_filter=None, stale_lock_minutes=10):
         """Lock resources for processing and return the ones successfully locked"""
         now = fields.Datetime.now()
@@ -235,5 +213,58 @@ class LLMResource(models.Model):
                 "message": _("%s resources have been unlocked") % len(self),
                 "sticky": False,
                 "type": "success",
+            },
+        }
+
+    def action_mass_reset(self):
+        """
+        Mass reset action for the server action.
+        Resets all non-draft resources back to draft state.
+        """
+        # Get active IDs from context
+        active_ids = self.env.context.get("active_ids", [])
+        if not active_ids:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("No Resources Selected"),
+                    "message": _("Please select resources to reset."),
+                    "type": "warning",
+                    "sticky": False,
+                },
+            }
+
+        resources = self.browse(active_ids)
+        # Filter resources that are not in draft state
+        non_draft_resources = resources.filtered(lambda r: r.state != "draft")
+
+        if not non_draft_resources:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("No Resources Reset"),
+                    "message": _("No resources found that need resetting."),
+                    "type": "warning",
+                    "sticky": False,
+                },
+            }
+
+        # Reset resources to draft state and unlock them
+        non_draft_resources.write(
+            {
+                "state": "draft",
+                "lock_date": False,
+            }
+        )
+
+        # Reload the view to reflect changes
+        return {
+            "type": "ir.actions.client",
+            "tag": "reload",
+            "params": {
+                "menu_id": self.env.context.get("menu_id"),
+                "action": self.env.context.get("action"),
             },
         }

@@ -4,6 +4,8 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools.safe_eval import safe_eval
 
+from .llm_resource import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
+
 _logger = logging.getLogger(__name__)
 
 
@@ -65,11 +67,19 @@ class LLMKnowledgeCollection(models.Model):
         help="Chunks belonging to the resources included in this collection.",
     )
 
-    store_id = fields.Many2one(
-        "llm.store",
-        string="Vector Store",
+    # Default chunking settings for resources in this collection
+    default_chunk_size = fields.Integer(
+        string="Default Chunk Size",
+        default=DEFAULT_CHUNK_SIZE,
         required=True,
-        ondelete="cascade",
+        help="Default target size of chunks in tokens for resources in this collection",
+        tracking=True,
+    )
+    default_chunk_overlap = fields.Integer(
+        string="Default Chunk Overlap",
+        default=DEFAULT_CHUNK_OVERLAP,
+        required=True,
+        help="Default number of tokens to overlap between chunks for resources in this collection",
         tracking=True,
     )
 
@@ -96,6 +106,12 @@ class LLMKnowledgeCollection(models.Model):
             # Initialize the store if one is assigned
             if collection.store_id:
                 collection._initialize_store()
+            # Apply default chunk settings to resources if they exist
+            if collection.resource_ids:
+                collection._apply_chunk_settings_to_resources(
+                    update_size=True,
+                    update_overlap=True,
+                )
         return collections
 
     def write(self, vals):
@@ -134,16 +150,23 @@ class LLMKnowledgeCollection(models.Model):
                         collection._initialize_store()
 
                     collection._reset_ready_resources(
-                        message=_(
+                        success_message=_(
                             "Store changed. Reset {count} resources for re-embedding into the new store."
                         )
                     )
                 if embedding_model_changed:
                     collection._reset_ready_resources(
-                        message=_(
+                        success_message=_(
                             "Embedding model changed. Reset {count} resources for re-embedding."
                         )
                     )
+
+        # Check if chunk settings were updated
+        if "default_chunk_size" in vals or "default_chunk_overlap" in vals:
+            self._apply_chunk_settings_to_resources(
+                update_size="default_chunk_size" in vals,
+                update_overlap="default_chunk_overlap" in vals,
+            )
 
         return result
 
@@ -188,7 +211,7 @@ class LLMKnowledgeCollection(models.Model):
             return False
 
     def _reset_ready_resources(
-        self, message="Reset {{count}} resources for re-embedding."
+        self, success_message="Reset {{count}} resources for re-embedding."
     ):
         """Finds ready resources, resets their state to 'chunked', and posts a message."""
         self.ensure_one()
@@ -196,9 +219,8 @@ class LLMKnowledgeCollection(models.Model):
         if ready_resources:
             count = len(ready_resources)
             ready_resources.write({"state": "chunked"})
-            self.message_post(
-                body=message.format(count=count),
-                message_type="notification",
+            self._post_styled_message(
+                success_message.format(count=count), message_type="info"
             )
             return count
         else:
@@ -252,9 +274,9 @@ class LLMKnowledgeCollection(models.Model):
                 model_name = domain_filter.model_name
                 # Validate model exists
                 if model_name not in self.env:
-                    collection.message_post(
-                        body=_(f"Model '{model_name}' not found. Skipping."),
-                        message_type="notification",
+                    collection._post_styled_message(
+                        _(f"Model '{model_name}' not found. Skipping."),
+                        message_type="warning",
                     )
                     continue
 
@@ -266,11 +288,11 @@ class LLMKnowledgeCollection(models.Model):
                 records = model.search(domain)
 
                 if not records:
-                    collection.message_post(
-                        body=_(
+                    collection._post_styled_message(
+                        _(
                             f"No records found for model '{domain_filter.model_id.name}' with given domain."
                         ),
-                        message_type="notification",
+                        message_type="info",
                     )
                     continue
 
@@ -343,20 +365,18 @@ class LLMKnowledgeCollection(models.Model):
 
             # Post summary message
             if created_count > 0 or linked_count > 0 or removed_count > 0:
-                collection.message_post(
-                    body=_(
+                collection._post_styled_message(
+                    _(
                         f"Synchronization complete: Created {created_count} new resources, "
                         f"linked {linked_count} existing resources, "
                         f"removed {removed_count} resources no longer matching domains."
                     ),
-                    message_type="notification",
+                    message_type="success",
                 )
             else:
-                collection.message_post(
-                    body=_(
-                        "No changes made - collection is already in sync with domains."
-                    ),
-                    message_type="notification",
+                collection._post_styled_message(
+                    _("No changes made - collection is already in sync with domains."),
+                    message_type="info",
                 )
 
     def process_resources(self):
@@ -383,32 +403,37 @@ class LLMKnowledgeCollection(models.Model):
 
                     # Mark resources for re-embedding
                     reset_count = collection._reset_ready_resources(
-                        message=_(
+                        success_message=_(
                             f"Reset {{count}} resources for re-embedding with model {collection.embedding_model_id.name}."
                         )
                     )
                     if not reset_count:
-                        collection.message_post(
-                            body=_("No resources found to reindex."),
-                            message_type="notification",
+                        collection._post_styled_message(
+                            _("No resources found to reindex."), message_type="info"
                         )
 
                 except Exception as e:
-                    collection.message_post(
-                        body=_(f"Error reindexing collection: {str(e)}"),
+                    collection._post_styled_message(
+                        _(f"Error reindexing collection: {str(e)}"),
                         message_type="error",
                     )
             else:
                 # For collections without a store, just reset resource states
                 reset_count = collection._reset_ready_resources(
-                    message=_(
+                    success_message=_(
                         f"Reset {{count}} resources for re-embedding with model {collection.embedding_model_id.name}."
                     )
                 )
                 if not reset_count:
-                    collection.message_post(
-                        body=_("No resources found to reindex."),
-                        message_type="notification",
+                    collection._post_styled_message(
+                        _("No resources found to reindex."), message_type="info"
+                    )
+                else:
+                    collection._post_styled_message(
+                        message=_(
+                            f"Reset {reset_count} resources for re-embedding with model {collection.embedding_model_id.name}."
+                        ),
+                        message_type="info",
                     )
 
     def action_open_upload_wizard(self):
@@ -437,16 +462,16 @@ class LLMKnowledgeCollection(models.Model):
         """
         for collection in self:
             if not collection.embedding_model_id:
-                collection.message_post(
-                    body=_("No embedding model configured for this collection."),
+                collection._post_styled_message(
+                    _("No embedding model configured for this collection."),
                     message_type="warning",
                 )
                 continue
 
             # Ensure we have a store to use
             if not collection.store_id:
-                collection.message_post(
-                    body=_("No vector store configured for this collection."),
+                collection._post_styled_message(
+                    _("No vector store configured for this collection."),
                     message_type="warning",
                 )
                 continue
@@ -466,43 +491,56 @@ class LLMKnowledgeCollection(models.Model):
                 chunk_domain.append(("resource_id.state", "=", "chunked"))
 
             # Get all relevant chunks in one query
-            chunks = self.env["llm.knowledge.chunk"].search(chunk_domain)
+            # Fetch chunks and build the target map simultaneously
+            chunks_to_process = self.env["llm.knowledge.chunk"].search(chunk_domain)
 
-            if not chunks:
+            if not chunks_to_process:
                 message = _("No chunks found for resources in chunked state")
                 if specific_resource_ids:
                     message += _(" for the specified resource IDs")
-                collection.message_post(
-                    body=message,
-                    message_type="notification",
-                )
+                collection._post_styled_message(message, message_type="info")
                 continue
+            _logger.info(
+                f"Collection '{collection.name}': Starting embedding for {len(chunks_to_process)} chunks from {len(chunks_to_process.mapped('resource_id'))} resources."
+            )
 
-            embedding_model_id = collection.embedding_model_id.id
+            # Map resource ID to the set of its chunk IDs we intend to process
+            resource_target_chunks = {}
+            for chunk in chunks_to_process:
+                res_id = chunk.resource_id.id
+                if res_id not in resource_target_chunks:
+                    resource_target_chunks[res_id] = set()
+                resource_target_chunks[res_id].add(chunk.id)
 
             # Process chunks in batches for efficiency
-            total_chunks = len(chunks)
-            processed_chunks = 0
-            processed_resource_ids = (
+            total_chunks = len(chunks_to_process)
+            processed_chunks_count = 0
+            # Track which resource IDs had chunks processed
+            successfully_processed_chunk_ids = (
                 set()
-            )  # Track which resource IDs had chunks processed
-
+            )  # Track successfully processed chunk IDs
             if not total_chunks:
                 message = _("All chunks already have embeddings for the selected model")
-                collection.message_post(
-                    body=message,
-                    message_type="notification",
-                )
+                collection._post_styled_message(message, message_type="info")
                 continue
+            _logger.info(
+                f"Collection '{collection.name}': Starting embedding for {total_chunks} chunks from {len(resource_target_chunks)} resources."
+            )
 
             # Process in batches
-            for i in range(0, total_chunks, batch_size):
-                batch = chunks[i : i + batch_size]
+            for batch_num, i in enumerate(range(0, total_chunks, batch_size)):
+                batch = chunks_to_process[i : i + batch_size]
+                batch_start_index = i
+                batch_end_index = i + len(batch) - 1
+                _logger.info(
+                    f"Processing batch {batch_num + 1}/{ (total_chunks + batch_size - 1)//batch_size } (chunks {batch_start_index}-{batch_end_index})..."
+                )
 
                 # Prepare chunked data for the store
                 texts = []
                 metadata_list = []
-                chunk_ids = []
+                chunk_ids_in_batch = []  # IDs for this specific batch
+                resource_ids_in_batch = set()  # Resources touched in this batch
 
                 for chunk in batch:
                     texts.append(chunk.content)
@@ -517,69 +555,117 @@ class LLMKnowledgeCollection(models.Model):
                         metadata.update(chunk.metadata)
 
                     metadata_list.append(metadata)
-                    chunk_ids.append(chunk.id)
-                    processed_resource_ids.add(chunk.resource_id.id)
+                    chunk_ids_in_batch.append(chunk.id)
+                    resource_ids_in_batch.add(chunk.resource_id.id)
 
                 try:
                     # Generate embeddings using the collection's embedding model
                     embeddings = collection.embedding_model_id.embedding(texts)
-                    # TODO: should it belong here?
-                    # Create chunk embedding records
-                    embedding_vals_list = []
-                    for _i, (chunk_id, vector) in enumerate(
-                        zip(chunk_ids, embeddings)  # noqa: B905
-                    ):
-                        embedding_vals_list.append(
-                            {
-                                "chunk_id": chunk_id,
-                                "embedding_model_id": embedding_model_id,
-                                "embedding": vector,
-                            }
-                        )
                     # Insert vectors into the store
                     collection.insert_vectors(
-                        vectors=embeddings, metadata=metadata_list, ids=chunk_ids
+                        vectors=embeddings,
+                        metadata=metadata_list,
+                        ids=chunk_ids_in_batch,
                     )
 
-                    processed_chunks += len(batch)
+                    # Mark chunks in this batch as successfully processed
+                    successfully_processed_chunk_ids.update(chunk_ids_in_batch)
+                    processed_chunks_count += len(batch)
 
-                    # Commit transaction after each batch to avoid timeout issues
+                    _logger.info(
+                        f"Batch {batch_num + 1} successful. Committing transaction."
+                    )
+                    # Commit transaction after each successful batch
                     self.env.cr.commit()
                 except Exception as e:
-                    _logger.error(f"Error processing batch: {str(e)}")
-                    # Continue with next batch
+                    # Format resource IDs for the message
+                    resource_ids_str = ", ".join(
+                        map(str, sorted(list(resource_ids_in_batch)))
+                    )
+                    error_msg = _(
+                        "Error processing batch %d (chunks %d-%d, resources [%s]): %s"
+                    ) % (
+                        batch_num + 1,
+                        batch_start_index,
+                        batch_end_index,
+                        resource_ids_str,
+                        str(e),
+                    )
+                    _logger.error(error_msg)
+                    collection._post_styled_message(error_msg, message_type="error")
+                    # Continue with the next batch
 
             # Update resource states to ready - only update resources that had chunks processed
-            if processed_resource_ids:
-                self.env["llm.resource"].browse(list(processed_resource_ids)).write(
-                    {"state": "ready"}
-                )
-                self.env.cr.commit()
+            # Determine which resources are fully processed
+            fully_processed_resource_ids = set()
+            for res_id, target_chunks in resource_target_chunks.items():
+                if target_chunks.issubset(successfully_processed_chunk_ids):
+                    fully_processed_resource_ids.add(res_id)
 
-                # Prepare message with resource details for clarity
-                doc_count = len(processed_resource_ids)
-                msg = _(
-                    f"Embedded {processed_chunks} chunks from {doc_count} resources using {collection.embedding_model_id.name}"
-                )
+            return collection._finalize_embedding(
+                fully_processed_resource_ids, processed_chunks_count
+            )
 
-                collection.message_post(
-                    body=msg,
-                    message_type="notification",
-                )
+    def _finalize_embedding(self, fully_processed_resource_ids, processed_chunks_count):
+        # Update states only for fully processed resources
+        if fully_processed_resource_ids:
+            _logger.info(
+                f"Updating state to 'ready' for {len(fully_processed_resource_ids)} fully processed resources."
+            )
+            self.env["llm.resource"].browse(list(fully_processed_resource_ids)).write(
+                {"state": "ready"}
+            )
+            # Final commit after state updates
+            self.env.cr.commit()
 
-                return {
-                    "success": True,
-                    "processed_chunks": processed_chunks,
-                    "processed_resources": len(processed_resource_ids),
-                }
+            # Prepare message with resource details for clarity
+            doc_count = len(fully_processed_resource_ids)
+            msg = _(
+                f"Successfully embedded {processed_chunks_count} chunks from {doc_count} resources using {self.embedding_model_id.name}."
+            )
+
+            self._post_styled_message(msg, message_type="success")
+
+            return {
+                "success": True,
+                "processed_chunks": processed_chunks_count,
+                "processed_resources": doc_count,
+            }
+        else:
+            # Check if any chunks were processed at all, even if no resource was fully completed
+            if processed_chunks_count > 0:
+                message = (
+                    _(
+                        "Processed %d chunks, but no resources were fully completed due to errors in some batches."
+                    )
+                    % processed_chunks_count
+                )
             else:
-                collection.message_post(
-                    body=_("No chunks were successfully embedded"),
-                    message_type="warning",
+                message = _(
+                    "No chunks were successfully embedded. Check logs for errors."
                 )
 
-                return {
-                    "success": False,
-                    "processed_chunks": 0,
-                    "processed_resources": 0,
-                }
+            _logger.warning(f"Collection '{self.name}': {message}")
+            self._post_styled_message(message, message_type="warning")
+
+            return {
+                "success": False,
+                "processed_chunks": processed_chunks_count,
+                "processed_resources": 0,
+            }
+
+    def _apply_chunk_settings_to_resources(self, update_size=True, update_overlap=True):
+        """Apply collection chunk settings to all resources in this collection"""
+        for collection in self:
+            if not collection.resource_ids:
+                continue
+
+            # Only update the fields that were changed
+            update_vals = {}
+            if update_size:
+                update_vals["target_chunk_size"] = collection.default_chunk_size
+            if update_overlap:
+                update_vals["target_chunk_overlap"] = collection.default_chunk_overlap
+
+            if update_vals:
+                collection.resource_ids.write(update_vals)
