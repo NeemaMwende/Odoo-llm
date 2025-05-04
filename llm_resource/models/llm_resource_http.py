@@ -156,7 +156,7 @@ class IrAttachmentExtension(models.Model):
                     )
 
             # Convert HTML to markdown if it's HTML content
-            if content_type.startswith(("text/html", "application/xhtml+xml")):
+            if "html" in content_type:
                 markdown_content = md(text_content)
             else:
                 # For plain text or already markdown, keep as is

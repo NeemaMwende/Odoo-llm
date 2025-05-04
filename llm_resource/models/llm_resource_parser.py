@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+from markdownify import markdownify as md
 
 try:
     import pymupdf
@@ -93,6 +94,8 @@ class LLMResourceParser(models.Model):
         # special case, as odoo detects markdowns as application/octet-stream
         elif mimetype == "application/octet-stream" and is_markdown:
             return self._parse_text
+        elif "html" in mimetype:
+            return self._parse_html
         elif mimetype.startswith("text/"):
             return self._parse_text
         elif mimetype.startswith("image/"):
@@ -278,6 +281,10 @@ class LLMResourceParser(models.Model):
 
     def _parse_text(self, _, field):
         self.content = field["rawcontent"]
+        return True
+
+    def _parse_html(self, _, field):
+        self.content = md(field["rawcontent"])
         return True
 
     def _parse_image(self, record, _):
