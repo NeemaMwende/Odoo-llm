@@ -124,3 +124,33 @@ class LLMTrainingDataset(models.Model):
                 'message': f'All {total_valid_lines} non-empty lines in attached files are valid JSON.',
                 'example_count': total_valid_lines
             }
+
+    def _get_combined_content_bytes(self):
+        """Reads and combines the raw content of all attachments.
+
+        Returns:
+            bytes: Combined content of all attachments, separated by newlines.
+        Raises:
+            UserError: If no attachments are found or decoding fails.
+        """
+        self.ensure_one()
+        if not self.attachment_ids:
+            raise UserError("No attachments found for this dataset.")
+
+        all_content_bytes = []
+        for attachment in self.attachment_ids:
+            if not attachment.raw:
+                _logger.warning(f"Attachment '{attachment.name}' is empty, skipping.")
+                continue
+            
+            # Ensure content ends with a newline before potentially adding the next file's content
+            content_bytes = attachment.raw
+            if not content_bytes.endswith(b'\n'):
+                content_bytes += b'\n'
+            all_content_bytes.append(content_bytes)
+            
+        
+        if not all_content_bytes:
+             raise UserError("All attachments were empty.")
+
+        return b''.join(all_content_bytes)

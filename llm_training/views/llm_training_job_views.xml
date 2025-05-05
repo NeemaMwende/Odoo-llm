@@ -49,6 +49,7 @@
                             <field name="estimated_cost" widget="monetary"/>
                             <field name="final_cost" widget="monetary" attrs="{'invisible': [('state', '!=', 'completed')]}"/>
                             <field name="external_job_id" attrs="{'invisible': [('external_job_id', '=', False)]}"/>
+                            <field name="training_file_id" attrs="{'invisible': [('training_file_id', '=', False)]}"/>
                         </group>
                     </group>
                     <notebook>

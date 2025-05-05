@@ -1,3 +1,4 @@
+import io
 import logging
 
 from odoo import api, fields, models
@@ -100,6 +101,15 @@ class LLMTrainingJob(models.Model):
         help="The fine-tuned model created by this job"
     )
     
+    # Provider-specific identifiers
+    training_file_id = fields.Char(
+        string="Training File ID", 
+        readonly=True, 
+        copy=False, 
+        tracking=True,
+        help="The File ID returned by the provider after dataset upload."
+    )
+
     @api.depends('dataset_ids', 'base_model_id')
     def _compute_estimated_cost(self):
         """Calculate estimated cost based on dataset size and model"""
@@ -136,22 +146,52 @@ class LLMTrainingJob(models.Model):
                      raise UserError(f"Validation failed for job '{job.name}':\nDataset '{dataset.name}': {result['message']}")
             job.write({'state': 'validating'})
 
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Validation Complete',
-                'message': 'All datasets validated successfully.',
-                'type': 'success',
-                'sticky': False,
-            },
-        }
+        return True
     
     def action_prepare(self):
         """Prepare datasets for training"""
         self.ensure_one()
-        self.write({'state': 'preparing'})
-        # Preparation logic would go here
+        if self.provider_id.service != 'openai':
+            raise UserError(f"Job '{self.name}': Preparation currently only supported for OpenAI.")
+
+        if not self.dataset_ids:
+            raise UserError(f"Job '{self.name}': No datasets linked for preparation.")
+        
+        all_datasets_bytes = []
+        dataset_names = []
+        for dataset in self.dataset_ids:
+            content_bytes = dataset._get_combined_content_bytes()
+            if content_bytes:
+                all_datasets_bytes.append(content_bytes)
+                dataset_names.append(dataset.name)
+            else:
+                _logger.warning(f"Dataset '{dataset.name}' for job '{self.name}' resulted in empty content, skipping.")
+            
+ 
+        if not all_datasets_bytes:
+            raise UserError(f"Job '{self.name}': No valid content found in any linked dataset.")
+        
+        final_combined_bytes = b''.join(all_datasets_bytes)
+        
+        if not final_combined_bytes:
+             raise UserError(f"Job '{self.name}': Combined content from all datasets is empty after processing.")
+         
+         # Create a filename for the upload (e.g., based on job name or dataset name)
+        upload_filename = f"{self.name or 'job'}_combined_datasets.jsonl"
+         
+        file_obj = io.BytesIO(final_combined_bytes)
+        file_tuple = (upload_filename, file_obj)
+
+        response = self.provider_id.upload_file(
+            file_tuple,
+            purpose='fine-tune'
+        )
+        
+        self.write({
+            'state': 'preparing', 
+            'training_file_id': response.id
+        })
+
         return True
     
     def action_submit(self):
