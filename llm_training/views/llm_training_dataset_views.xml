@@ -21,7 +21,7 @@
                             />
                         </button>
                         <button
-                            name="validate_dataset"
+                            name="action_validate_dataset"
                             type="object"
                             string="Validate"
                             class="oe_stat_button"
