@@ -93,7 +93,6 @@ class LLMTrainingDataset(models.Model):
             try:
                 _logger.info(f"Validating file: {attachment.name} {attachment.mimetype}")
                 content = attachment.raw.decode('utf-8')
-                _logger.info(f"File content: {content}")
                 lines = [line for line in content.splitlines() if line.strip()]
                 if not lines:
                     _logger.info(f"Dataset validation: File '{attachment.name}' is empty or contains only whitespace.")

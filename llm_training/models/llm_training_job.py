@@ -1,5 +1,7 @@
-from odoo import api, fields, models
 import logging
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -119,11 +121,31 @@ class LLMTrainingJob(models.Model):
             record.estimated_cost = base_cost
     
     def action_validate(self):
-        """Validate datasets before training"""
-        self.ensure_one()
-        self.write({'state': 'validating'})
-        # Validation logic would go here
-        return True
+        """Validate associated datasets. Set state to 'validating' if all pass.
+        
+        Raises:
+            UserError: If no datasets are selected or if the first invalid dataset is found.
+        """
+        for job in self:
+            if not job.dataset_ids:
+                raise UserError(f"Job '{job.name}': Please select at least one dataset before validating.")
+
+            for dataset in job.dataset_ids:
+                result = dataset.validate_dataset()
+                if not result['valid']:
+                     raise UserError(f"Validation failed for job '{job.name}':\nDataset '{dataset.name}': {result['message']}")
+            job.write({'state': 'validating'})
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Validation Complete',
+                'message': 'All datasets validated successfully.',
+                'type': 'success',
+                'sticky': False,
+            },
+        }
     
     def action_prepare(self):
         """Prepare datasets for training"""
