@@ -207,15 +207,22 @@ class LLMKnowledgeChunker(models.Model):
 
         resources = self.browse(active_ids)
         # Process all selected resources
-        resources.process_resource()
+        result = resources.process_resource()
 
-        return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {
-                "title": _("Resource Processing"),
-                "message": _("%s resources processing started") % len(resources),
-                "sticky": False,
-                "type": "success",
-            },
-        }
+        if result:
+            return {
+                "type": "ir.actions.client",
+                "tag": "reload",
+            }
+
+        else:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Processing Failed"),
+                    "message": _("Mass processing resources failed"),
+                    "sticky": False,
+                    "type": "danger",
+                },
+            }
