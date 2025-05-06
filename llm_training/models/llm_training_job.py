@@ -113,6 +113,7 @@ class LLMTrainingJob(models.Model):
     @api.depends('dataset_ids', 'base_model_id')
     def _compute_estimated_cost(self):
         """Calculate estimated cost based on dataset size and model"""
+        # TODO: Think about it later
         for record in self:
             # This would use provider-specific pricing information
             # For demonstration, using a simplified calculation
@@ -131,7 +132,7 @@ class LLMTrainingJob(models.Model):
             record.estimated_cost = base_cost
     
     def _validate(self):
-        """Validate associated datasets. Set state to 'validating' if all pass.
+        """Initial validation of associated datasets.
         
         Raises:
             UserError: If no datasets are selected or if the first invalid dataset is found.
@@ -243,6 +244,7 @@ class LLMTrainingJob(models.Model):
     
     def _check_status(self):
         self.ensure_one()
+        # TODO: For now it supports openai format but it should be uniform structure
         response = self.provider_id.retrieve_fine_tuning_job(
             job_id=self.external_job_id
         )
