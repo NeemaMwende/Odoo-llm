@@ -7,14 +7,10 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_validate" type="object" string="Validate" class="oe_highlight"
-                            attrs="{'invisible': [('state', '!=', 'draft')]}"/>
-                    <button name="action_prepare" type="object" string="Prepare" class="oe_highlight"
-                            attrs="{'invisible': [('state', '!=', 'validating')]}"/>
                     <button name="action_submit" type="object" string="Submit" class="oe_highlight"
-                            attrs="{'invisible': [('state', '!=', 'preparing')]}"/>
+                            attrs="{'invisible': [('state', '!=', 'draft')]}"/>
                     <button name="action_check_status" type="object" string="Check Status"
-                            attrs="{'invisible': [('state', 'not in', ('queued', 'training'))]}"/>
+                            attrs="{'invisible': [('state', 'in', ('draft', 'cancelled', 'failed'))]}"/>
                     <button name="action_cancel" type="object" string="Cancel"
                             attrs="{'invisible': [('state', 'in', ('completed', 'failed', 'cancelled'))]}"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,validating,preparing,queued,training,completed"/>
@@ -70,7 +66,7 @@
                             />
                         </page>
                         <page string="Hyperparameters" name="hyperparameters">
-                            <field name="hyperparameters" widget="json_inline" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                            <field name="hyperparameters" widget="ace" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
                         </page>
                         <page string="Results" name="results" attrs="{'invisible': [('state', 'not in', ('completed', 'failed'))]}">
                             <group>

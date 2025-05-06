@@ -37,7 +37,6 @@ class LLMTrainingDataset(models.Model):
     example_count = fields.Integer(
         string="Number of Examples",
         compute="_compute_example_count",
-        store=False
     )
     file_count = fields.Integer(
         compute="_compute_file_count",
@@ -53,8 +52,12 @@ class LLMTrainingDataset(models.Model):
     def _compute_example_count(self):
         """Count examples across all attached JSON files"""
         for record in self:
+            if not record.attachment_ids:
+                record.example_count = 0
+                continue
             result = record.validate_dataset()
-            record.example_count = result['example_count'] if result['valid'] else 0
+            count = result['example_count'] if result['valid'] else 0
+            record.example_count = count
     
     def action_validate_dataset(self):
         """Validate the dataset"""

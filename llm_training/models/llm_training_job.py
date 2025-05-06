@@ -130,7 +130,7 @@ class LLMTrainingJob(models.Model):
             
             record.estimated_cost = base_cost
     
-    def action_validate(self):
+    def _validate(self):
         """Validate associated datasets. Set state to 'validating' if all pass.
         
         Raises:
@@ -144,13 +144,14 @@ class LLMTrainingJob(models.Model):
                 result = dataset.validate_dataset()
                 if not result['valid']:
                      raise UserError(f"Validation failed for job '{job.name}':\nDataset '{dataset.name}': {result['message']}")
-            job.write({'state': 'validating'})
 
         return True
     
-    def action_prepare(self):
+    def _prepare(self):
         """Prepare datasets for training"""
         self.ensure_one()
+        if self.training_file_id:
+            return True
         if self.provider_id.service != 'openai':
             raise UserError(f"Job '{self.name}': Preparation currently only supported for OpenAI.")
 
@@ -187,33 +188,104 @@ class LLMTrainingJob(models.Model):
             purpose='fine-tune'
         )
         
-        self.write({
-            'state': 'preparing', 
+        self.write({ 
             'training_file_id': response.id
         })
+        self.env.cr.commit()
+
 
         return True
     
     def action_submit(self):
         """Submit job to the provider"""
         self.ensure_one()
-        self.write({'state': 'queued'})
-        # Submission logic would call the provider's API
-        # This would be provider-specific
+        self._submit()
         return True
+    
+    def _submit(self):
+        self._validate()
+        self._prepare()
+        if not self.training_file_id:
+            raise UserError(f"Job '{self.name}': No training file ID found. Please prepare the dataset first.")
+            
+        if not self.base_model_id:
+            raise UserError(f"Job '{self.name}': No base model selected.")
+        
+        response = self.provider_id.create_fine_tuning_job(
+            training_file_id=self.training_file_id,
+            model_name=self.base_model_id.name,
+            hyperparameters=self.hyperparameters
+        )
+        
+        self.write({
+            'state': 'queued',
+            'external_job_id': response.id if hasattr(response, 'id') else None
+        })
+        
+        _logger.info(f"Fine-tuning job '{self.name}' submitted successfully. External job ID: {response.id if hasattr(response, 'id') else 'unknown'}")
     
     def action_cancel(self):
         """Cancel the training job"""
         self.ensure_one()
-        self.write({'state': 'cancelled'})
-        # Cancellation logic would call the provider's API
+        self.provider_id.cancel_fine_tuning_job(
+            job_id=self.external_job_id
+        )
+        self.write({
+            'state': 'cancelled'
+        })
         return True
     
     def action_check_status(self):
         """Check the status of the job with the provider"""
+        result =  self._check_status()
+        
+        return result
+    
+    def _check_status(self):
         self.ensure_one()
-        # This would call the provider's API to check status
-        # and update the record accordingly
+        response = self.provider_id.retrieve_fine_tuning_job(
+            job_id=self.external_job_id
+        )
+        
+        if response.status == 'succeeded':
+            model_details = self.provider_id.retrieve_model(response.fine_tuned_model)
+            result = self.env['llm.model'].create({
+                "name": model_details.id,
+                "provider_id": self.provider_id.id,
+                "model_use": 'chat',
+                "details": model_details.model_dump(),
+                "active": True,
+            })
+            self.write({
+                'state': 'completed',
+                'result_model_id': result.id,
+                'trained_model_name': response.fine_tuned_model,
+            })
+            self.update_training_metrics(
+                self.provider_id.format_fine_tune_metrics(response)
+            )
+        elif response.status == 'failed':
+            self.write({
+                'state': 'failed'
+            })
+        elif response.status == 'cancelled':
+            self.write({
+                'state': 'cancelled'
+            })
+        elif response.status == 'running':
+            self.write({
+                'state': 'training'
+            })
+        elif response.status == 'queued':
+            self.write({
+                'state': 'queued'
+            })
+
+        elif response.status == 'validating_files':
+            self.write({
+                'state': 'validating'
+            })
+        
         return True
     
     def update_training_metrics(self, metrics):
