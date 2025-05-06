@@ -218,7 +218,7 @@ class LLMTrainingJob(models.Model):
         )
         
         self.write({
-            'state': 'queued',
+            'state': 'validating',
             'external_job_id': response.id if hasattr(response, 'id') else None
         })
         

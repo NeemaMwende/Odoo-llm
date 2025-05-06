@@ -10,9 +10,9 @@
                     <button name="action_submit" type="object" string="Submit" class="oe_highlight"
                             attrs="{'invisible': [('state', '!=', 'draft')]}"/>
                     <button name="action_check_status" type="object" string="Check Status"
-                            attrs="{'invisible': [('state', 'in', ('draft', 'cancelled', 'failed'))]}"/>
+                            attrs="{'invisible': [('state', 'in', ('draft', 'cancelled', 'failed', 'completed'))]}"/>
                     <button name="action_cancel" type="object" string="Cancel"
-                            attrs="{'invisible': [('state', 'in', ('completed', 'failed', 'cancelled'))]}"/>
+                            attrs="{'invisible': [('state', 'in', ('completed', 'failed', 'cancelled', 'draft'))]}"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,validating,preparing,queued,training,completed"/>
                 </header>
                 <sheet>
