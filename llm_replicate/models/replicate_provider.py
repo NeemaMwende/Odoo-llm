@@ -94,63 +94,48 @@ class LLMProvider(models.Model):
             "capabilities": capabilities,
         }
         
-    def _extract_endpoint_schema(self, openapi_schema, path, method, response_code='200', request_or_response='response'):
-        """Extract schema from a specific endpoint path and method
+    def _extract_schema_by_name(self, openapi_schema, schema_name):
+        """Extract a schema by name from the components section
         
         Args:
             openapi_schema (dict): The OpenAPI schema dictionary
-            path (str): The endpoint path (e.g., '/predictions')
-            method (str): The HTTP method (e.g., 'post', 'get')
-            response_code (str): The response code to extract (default: '200')
-            request_or_response (str): Whether to extract request or response schema (default: 'response')
+            schema_name (str): The name of the schema to extract (e.g., 'Input', 'Output')
             
         Returns:
             dict: The extracted schema or empty dict if not found
         """
-        if not openapi_schema or 'paths' not in openapi_schema or path not in openapi_schema['paths']:
+        if not openapi_schema or 'components' not in openapi_schema or 'schemas' not in openapi_schema['components']:
             return {}
             
-        endpoint = openapi_schema['paths'][path]
-        if method not in endpoint:
-            return {}
+        # Check if the schema exists directly
+        schemas = openapi_schema['components']['schemas']
+        if schema_name in schemas:
+            schema = schemas[schema_name]
             
-        method_data = endpoint[method]
-        
-        # Extract request schema
-        if request_or_response == 'request':
-            if 'requestBody' not in method_data:
-                return {}
+            # Resolve any references in the schema
+            if '$ref' in schema:
+                schema = self._resolve_schema_reference(openapi_schema, schema['$ref'])
                 
-            request_body = method_data['requestBody']
-            if 'content' not in request_body or 'application/json' not in request_body['content']:
-                return {}
-                
-            content = request_body['content']['application/json']
-            if 'schema' not in content:
-                return {}
-                
-            schema = content['schema']
+            return schema
             
-        # Extract response schema
-        else:  # response
-            if 'responses' not in method_data or response_code not in method_data['responses']:
-                return {}
+        # If not found directly, look for it in PredictionRequest/Response
+        if schema_name == 'Input' and 'PredictionRequest' in schemas:
+            pred_request = schemas['PredictionRequest']
+            if 'properties' in pred_request and 'input' in pred_request['properties']:
+                input_prop = pred_request['properties']['input']
+                if '$ref' in input_prop:
+                    return self._resolve_schema_reference(openapi_schema, input_prop['$ref'])
+                return input_prop
                 
-            response = method_data['responses'][response_code]
-            if 'content' not in response or 'application/json' not in response['content']:
-                return {}
+        elif schema_name == 'Output' and 'PredictionResponse' in schemas:
+            pred_response = schemas['PredictionResponse']
+            if 'properties' in pred_response and 'output' in pred_response['properties']:
+                output_prop = pred_response['properties']['output']
+                if '$ref' in output_prop:
+                    return self._resolve_schema_reference(openapi_schema, output_prop['$ref'])
+                return output_prop
                 
-            content = response['content']['application/json']
-            if 'schema' not in content:
-                return {}
-                
-            schema = content['schema']
-        
-        # Resolve schema reference if needed
-        if '$ref' in schema:
-            schema = self._resolve_schema_reference(openapi_schema, schema['$ref'])
-            
-        return schema
+        return {}
     
     def _resolve_schema_reference(self, openapi_schema, ref):
         """Resolve a schema reference to its actual schema
@@ -335,7 +320,7 @@ class LLMProvider(models.Model):
             'fields': fields
         }
     
-    def replicate_get_config_from_raw_schema(self, raw_schema_components, model_record):
+    def replicate_get_config_from_raw_schema(self, model_record):
         """Generate a configuration from Replicate model details
         
         Args:
@@ -356,72 +341,46 @@ class LLMProvider(models.Model):
         
         # Extract OpenAPI schema from details
         openapi_schema = None
-        if raw_schema_components:
-            openapi_schema = raw_schema_components
-        elif details.get('latest_version', {}).get('openapi_schema'):
+        if details.get('latest_version', {}).get('openapi_schema'):
             openapi_schema = details['latest_version']['openapi_schema']
         
-        # Extract and flatten the schema for input
+        # Extract and process input schema
         input_schema = {}
         if openapi_schema:
-            # First check the /predictions POST endpoint request body
-            prediction_request_schema = self._extract_endpoint_schema(
-                openapi_schema, 
-                '/predictions', 
-                'post', 
-                request_or_response='request'
-            )
+            # Extract the Input schema
+            raw_input_schema = self._extract_schema_by_name(openapi_schema, 'Input')
             
-            if prediction_request_schema:
-                # Flatten the request schema for form rendering
-                input_schema = self._process_input_schema(prediction_request_schema, openapi_schema)
-                _logger.info(f"Extracted input schema from /predictions endpoint: {input_schema}")
+            if raw_input_schema:
+                # Process the input schema for form rendering
+                input_schema = self._process_input_schema(raw_input_schema, openapi_schema)
+                _logger.info(f"Extracted and processed Input schema: {input_schema}")
             else:
-                # Fallback to the old method
-                input_schema = self._extract_flattened_schema(openapi_schema)
-                _logger.info(f"Extracted input schema from components: {input_schema}")
+                _logger.warning(f"Could not find Input schema for model {model_name}")
+                # Create a minimal schema
+                input_schema = {
+                    'title': 'Model Input Parameters',
+                    'description': 'Parameters for generating content with this model',
+                    'fields': []
+                }
         else:
             _logger.warning(f"No OpenAPI schema found for model {model_name}")
         
-        # Extract output schema from prediction endpoints
+        # Extract output schema
         output_schema = {}
         if openapi_schema:
-            # First check the /predictions POST endpoint response
-            prediction_response_schema = self._extract_endpoint_schema(
-                openapi_schema, 
-                '/predictions', 
-                'post', 
-                response_code='200', 
-                request_or_response='response'
-            )
+            # Extract the Output schema
+            output_schema = self._extract_schema_by_name(openapi_schema, 'Output')
             
-            # If we got a response schema, look for the output field
-            if prediction_response_schema and 'properties' in prediction_response_schema:
-                if 'output' in prediction_response_schema['properties']:
-                    output_schema = prediction_response_schema['properties']['output']
-                    # Resolve any references in the output schema
-                    if output_schema and '$ref' in output_schema:
-                        output_schema = self._resolve_schema_reference(openapi_schema, output_schema['$ref'])
-                    _logger.info(f"Found output schema from /predictions endpoint: {output_schema}")
-            
-            # Fallback: If we couldn't find it in the endpoint, look in components
-            if not output_schema and 'components' in openapi_schema and 'schemas' in openapi_schema['components']:
-                # Try to find the Output schema
-                if 'Output' in openapi_schema['components']['schemas']:
-                    output_schema = openapi_schema['components']['schemas']['Output']
-                    # Resolve any references in the output schema
-                    if output_schema and '$ref' in output_schema:
-                        output_schema = self._resolve_schema_reference(openapi_schema, output_schema['$ref'])
-                    _logger.info(f"Found Output schema in components: {output_schema}")
-                # If not found, look for PredictionResponse
-                elif 'PredictionResponse' in openapi_schema['components']['schemas']:
-                    pred_response = openapi_schema['components']['schemas']['PredictionResponse']
-                    if 'properties' in pred_response and 'output' in pred_response['properties']:
-                        output_schema = pred_response['properties']['output']
-                        # Resolve any references in the output schema
-                        if output_schema and '$ref' in output_schema:
-                            output_schema = self._resolve_schema_reference(openapi_schema, output_schema['$ref'])
-                        _logger.info(f"Found output in PredictionResponse schema: {output_schema}")
+            if output_schema:
+                _logger.info(f"Extracted Output schema: {output_schema}")
+            else:
+                _logger.warning(f"Could not find Output schema for model {model_name}")
+                # Create a minimal schema
+                output_schema = {
+                    'type': 'object',
+                    'title': 'Output',
+                    'description': 'Model output'
+                }
         _logger.info(f"Input schema: {input_schema}")
         _logger.info(f"Output schema: {output_schema}")
         
@@ -450,3 +409,17 @@ class LLMProvider(models.Model):
             _logger.info(f"Created new generation config for {model_name}")
         
         return generation_config
+
+    def replicate_generate_media(self, inputs, model_record=None):
+        """Generate media content using this provider"""
+        
+
+        result = self.client.run(
+            model_record.name,
+            input=inputs
+        )
+
+        _logger.info(f"Generated media content using {model_record.name} with inputs {inputs}")
+        _logger.info(f"Generated media content result: {result}")
+
+        return result
