@@ -424,17 +424,29 @@ class LLMProvider(models.Model):
                         _logger.info(f"Found output in PredictionResponse schema: {output_schema}")
         _logger.info(f"Input schema: {input_schema}")
         _logger.info(f"Output schema: {output_schema}")
-        return True
-        # # Create a generation config
-        # generation_config = self.env['llm.generation.config'].create({
-        #     'name': f"{model_name} Generation Config",
-        #     'model_id': model_record.id,
-        #     'description': f"Generated configuration for {model_name}",
-        #     'input_schema': input_schema,
-        #     'output_schema_raw': output_schema
-        # })
         
-        # # Link the config back to the model
-        # model_record.write({'generation_config_id': generation_config.id})
+        # Check if the model already has a generation config
+        if model_record.generation_config_id:
+            # Update the existing config
+            model_record.generation_config_id.write({
+                'input_schema': input_schema,
+                'output_schema_raw': output_schema,
+                'description': f"Updated configuration for {model_name}"
+            })
+            generation_config = model_record.generation_config_id
+            _logger.info(f"Updated existing generation config for {model_name}")
+        else:
+            # Create a new generation config
+            generation_config = self.env['llm.generation.config'].create({
+                'name': f"{model_name} Generation Config",
+                'model_id': model_record.id,
+                'description': f"Generated configuration for {model_name}",
+                'input_schema': input_schema,
+                'output_schema_raw': output_schema
+            })
+            
+            # Link the config back to the model
+            model_record.write({'generation_config_id': generation_config.id})
+            _logger.info(f"Created new generation config for {model_name}")
         
-        # return generation_config
+        return generation_config
