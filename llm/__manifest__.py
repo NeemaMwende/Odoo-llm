@@ -21,6 +21,7 @@
         "views/llm_provider_views.xml",
         "views/llm_model_views.xml",
         "views/llm_publisher_views.xml",
+        "views/llm_generation_config_views.xml",
         "views/llm_menu_views.xml",
     ],
     "license": "LGPL-3",

@@ -1,7 +1,10 @@
+import logging
+
 import replicate
 
 from odoo import api, models
 
+_logger = logging.getLogger(__name__)
 
 class LLMProvider(models.Model):
     _inherit = "llm.provider"
@@ -90,3 +93,22 @@ class LLMProvider(models.Model):
             "details": details,
             "capabilities": capabilities,
         }
+        
+    def replicate_get_config_from_raw_schema(self, raw_schema_components, model_record):
+        """Generate a configuration from Replicate model details
+        
+        Args:
+            raw_schema_components (dict): Raw schema components from the provider
+            model_record (llm.model): The model record to generate config for
+            
+        Returns:
+            llm.generation.config record created from the schema
+        """
+        self.ensure_one()
+        
+        # Get model details
+        details = model_record.details or {}
+        model_name = model_record.name
+        
+        # Print the details for debugging
+        _logger.info(f"Model details for {model_name}: {details}")

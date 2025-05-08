@@ -167,3 +167,39 @@ class LLMProvider(models.Model):
             List of formatted messages in provider-specific format
         """
         return self._dispatch("format_messages", messages, system_prompt=system_prompt)
+        
+    def get_config_from_raw_schema(self, raw_schema_components, model_record):
+        """Generate a configuration from raw schema components
+        
+        Args:
+            raw_schema_components (dict): Raw schema components from the provider
+            model_record (llm.model): The model record to generate config for
+            
+        Returns:
+            llm.generation.config record created from the schema
+        """
+        return self._dispatch("get_config_from_raw_schema", raw_schema_components, model_record=model_record)
+        
+    def generate_media(self, inputs, model_record=None):
+        """Generate media content using the specified model and inputs
+        
+        Args:
+            inputs (dict): Input parameters according to the input schema
+            model_record (llm.model): The model to use for generation
+            
+        Returns:
+            Generated content in the format specified by the output processing config
+        """
+        return self._dispatch("generate_media", inputs, model_record=model_record)
+        
+    def format_generation_response(self, raw_response, output_processing_config):
+        """Format the raw generation response according to the output processing config
+        
+        Args:
+            raw_response: The raw response from the provider
+            output_processing_config (dict): Configuration for processing the output
+            
+        Returns:
+            Processed response in the format specified by the config
+        """
+        return self._dispatch("format_generation_response", raw_response, output_processing_config=output_processing_config)
