@@ -101,13 +101,40 @@ class LLMModel(models.Model):
         # Dispatch to provider-specific implementation
         self.provider_id._dispatch(
             "get_config_from_raw_schema",
-            raw_schema_components={},
             model_record=self
         )
 
         return True
     
-    def generate_content(self, inputs):
+    def action_generate_media(self):
+        self.ensure_one()
+        
+        # Check if we have a generation config
+        if not self.generation_config_id and self._is_generative_task_model():
+            return self.action_generate_llm_generation_config()
+        
+        # Prepare inputs based on the model type
+        if self._is_generative_task_model():
+            # For media generation models, we need to structure the input according to Replicate's API
+            inputs = {
+                "input": {
+                    "prompt": "A beautiful sunset over mountains"
+                }
+            }
+        else:
+            raise ValueError(f"Model {self.name} is not configured for media generation")
+        
+        # Dispatch to provider-specific implementation
+        result = self.provider_id._dispatch(
+            "generate_media",
+            inputs=inputs,
+            model_record=self
+        )
+        
+        # Log the result
+        return result
+    
+    def generate_media(self, inputs):
         """Generate content using this model with the specified inputs.
         
         Args:

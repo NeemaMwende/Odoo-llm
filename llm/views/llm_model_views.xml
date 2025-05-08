@@ -21,6 +21,12 @@
             type="object"
             help="Generate a configuration for this model based on its details."
           />
+                    <button
+            name="action_generate_media"
+            string="Test Generate"
+            type="object"
+            help="Test the model generation with sample inputs."
+          />
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">

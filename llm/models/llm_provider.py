@@ -168,17 +168,16 @@ class LLMProvider(models.Model):
         """
         return self._dispatch("format_messages", messages, system_prompt=system_prompt)
         
-    def get_config_from_raw_schema(self, raw_schema_components, model_record):
+    def get_config_from_raw_schema(self, model_record):
         """Generate a configuration from raw schema components
         
         Args:
-            raw_schema_components (dict): Raw schema components from the provider
             model_record (llm.model): The model record to generate config for
             
         Returns:
             llm.generation.config record created from the schema
         """
-        return self._dispatch("get_config_from_raw_schema", raw_schema_components, model_record=model_record)
+        return self._dispatch("get_config_from_raw_schema", model_record=model_record)
         
     def generate_media(self, inputs, model_record=None):
         """Generate media content using the specified model and inputs
