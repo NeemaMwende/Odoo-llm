@@ -15,18 +15,6 @@
             attrs="{'invisible': [('id', '=', False)]}"
             help="Fetch the latest information for this specific model from the provider."
           />
-                    <button
-            name="action_generate_llm_generation_config"
-            string="Generate Config"
-            type="object"
-            help="Generate a configuration for this model based on its details."
-          />
-                    <button
-            name="action_generate_media"
-            string="Test Generate"
-            type="object"
-            help="Test the model generation with sample inputs."
-          />
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -54,7 +42,6 @@
                             <field name="publisher_id" />
                             <field name="model_use" />
                             <field name="default" />
-                            <field name="generation_config_id" attrs="{'invisible': [('model_use', 'not in', ['image_generation', 'audio_generation', 'video_generation'])]}" />
                         </group>
                         <group>
                             <field name="details" widget="json_inline" />

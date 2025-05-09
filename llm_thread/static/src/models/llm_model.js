@@ -31,7 +31,7 @@ registerModel({
     }),
     isMediaGenerationModel: attr({
       compute() {
-        const result = ['image_generation', 'audio_generation', 'video_generation'].includes(this.modelUse);
+        const result = ['image_generation'].includes(this.modelUse);
         // console.log("isMediaGenerationModel computed:", this.modelUse, result);
         return result;
       },

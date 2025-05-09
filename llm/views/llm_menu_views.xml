@@ -42,13 +42,4 @@
     parent="menu_llm_config"
     sequence="20"
   />
-
-    <!-- Menu Item -->
-    <menuitem
-    id="menu_llm_generation_config"
-    name="Generation Configs"
-    parent="menu_llm_config"
-    action="llm_generation_config_action"
-    sequence="30"
-    />
 </odoo>

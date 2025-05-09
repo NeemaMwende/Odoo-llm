@@ -7,5 +7,3 @@ access_llm_publisher_user,llm.publisher.user,model_llm_publisher,base.group_user
 access_llm_publisher_manager,llm.publisher.manager,model_llm_publisher,group_llm_manager,1,1,1,1
 access_llm_fetch_models_wizard_manager,llm.fetch.models.wizard.manager,model_llm_fetch_models_wizard,group_llm_manager,1,1,1,1
 access_llm_fetch_models_line_manager,llm.fetch.models.line.manager,model_llm_fetch_models_line,group_llm_manager,1,1,1,1
-access_llm_generation_config_user,llm.generation.config.user,model_llm_generation_config,base.group_user,1,0,0,0
-access_llm_generation_config_manager,llm.generation.config.manager,model_llm_generation_config,group_llm_manager,1,1,1,1
