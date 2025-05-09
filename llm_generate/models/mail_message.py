@@ -1,4 +1,9 @@
+import base64
 import logging
+import os
+from urllib.parse import urlparse
+
+import requests
 
 from odoo import api, fields, models
 
@@ -103,15 +108,6 @@ class MailMessage(models.Model):
             int: attachment ID if successful, False otherwise
         """
         try:
-            import base64
-            import logging
-            import os
-            from urllib.parse import urlparse
-
-            import requests
-            
-            _logger = logging.getLogger(__name__)
-            
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
                 # Try to get filename from URL or use generic name
@@ -144,7 +140,5 @@ class MailMessage(models.Model):
                 _logger.warning(f"Failed to download media from URL {url}: HTTP status {response.status_code}")
                 return False
         except Exception as e:
-            import logging
-            _logger = logging.getLogger(__name__)
             _logger.warning(f"Failed to download media from URL {url}: {e}")
             return False
