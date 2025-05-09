@@ -1,38 +1,14 @@
 /** @odoo-module **/
 
-import { attr } from "@mail/model/model_field";
 import { registerPatch } from "@mail/model/model_core";
 
 registerPatch({
   name: "Composer",
-  fields: {
-    placeholderLLMChat: attr({
-      default: "Ask anything...",
-    }),
-    isSendDisabled: attr({
-      compute() {
-        return !this.canPostMessage;
-      },
-      default: true,
-    }),
-    eventSource: attr({
-      default: null,
-    }),
-    isStreaming: attr({
-      compute() {
-        return this.eventSource !== null;
-      },
-    }),
-  },
   recordMethods: {
-    stopLLMThreadLoop() {
-      // This should close event source
-      this._closeEventSource();
-    },
-    async postUserMessageForLLM() {
+    postUserMediaGenMessageForLLM(inputs){
       const thread = this.thread;
 
-      const messageBody = this.textInputContent.trim();
+      const messageBody = inputs["prompt"]
       if (!messageBody || !thread) {
         this.messaging.notify({
           message: this.env._t("Please enter a message."),
@@ -45,7 +21,7 @@ registerPatch({
 
       try {
         const eventSource = new EventSource(
-          `/llm/thread/generate?thread_id=${thread.id}&message=${messageBody}`
+          `/llm/thread/generate-media?thread_id=${thread.id}&message=${messageBody}&generation_inputs=${JSON.stringify(inputs)}`
         );
         this.update({ eventSource });
 
@@ -100,30 +76,6 @@ registerPatch({
           composerView.update({ doFocus: true });
         }
       }
-    },
-  
-    _closeEventSource() {
-      if (this.eventSource) {
-        this.eventSource.close();
-        this.update({ eventSource: null });
-      }
-    },
-
-    _handleMessageCreate(message) {
-      const result = this.messaging.models.Message.insert(
-        this.messaging.models.Message.convertData(message)
-      );
-      return result;
-    },
-
-    _handleMessageUpdate(message) {
-      const result = this.messaging.models.Message.findFromIdentifyingData({
-        id: message.id,
-      });
-      if (result) {
-        result.update(this.messaging.models.Message.convertData(message));
-      }
-      return result;
     },
   },
 });
