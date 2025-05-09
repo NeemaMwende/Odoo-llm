@@ -1,5 +1,6 @@
 import json
 import logging
+
 import markdown2
 
 from odoo import _, api, fields, models

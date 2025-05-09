@@ -1,6 +1,10 @@
 import functools
 import json
 import logging
+
+import emoji
+import markdown2
+
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
@@ -9,8 +13,6 @@ from odoo.addons.llm_mail_message_subtypes.const import (
     LLM_TOOL_RESULT_SUBTYPE_XMLID,
     LLM_USER_SUBTYPE_XMLID,
 )
-
-from .llm_thread_utils import LLMThreadUtils
 
 _logger = logging.getLogger(__name__)
 
@@ -103,27 +105,24 @@ class LLMThread(models.Model):
         subtype_xmlid = kwargs.get("subtype_xmlid")
         author_id = kwargs.get("author_id")
         body = kwargs.get("body", "")
-        email_from = LLMThreadUtils.get_email_from(
+        email_from = self.get_email_from(
             self.provider_id.name,
             self.model_id.name,
             subtype_xmlid,
             author_id,
             kwargs.get("tool_name"),
         )
-        post_vals = LLMThreadUtils.build_post_vals(
+        post_vals = self.build_post_vals(
             subtype_xmlid, body, author_id, email_from
         )
         message = self.message_post(**post_vals)
-        extra_vals = LLMThreadUtils.build_update_vals(
+        extra_vals = self.build_update_vals(
             subtype_xmlid,
             tool_call_id=kwargs.get("tool_call_id"),
             tool_calls=kwargs.get("tool_calls"),
             tool_call_definition=kwargs.get("tool_call_definition"),
             tool_call_result=kwargs.get("tool_call_result"),
-            generation_inputs=kwargs.get("generation_inputs"),
-            attachment_ids=kwargs.get("attachment_ids"),
         )
-        _logger.info(f"extra_vals: {extra_vals}")
         if extra_vals:
             message.write(extra_vals)
         return message
@@ -167,16 +166,13 @@ class LLMThread(models.Model):
             raise UserError("No message found to process.")
         return last_message
 
-    def _init_message(self, user_message_body, generation_inputs=None):
+    def _init_message(self, user_message_body):
         """Initialize first message: user input or history."""
-        _logger.info(f"_init_message: {user_message_body}, {generation_inputs}")
-        if user_message_body or generation_inputs:
-            _logger.info("_init_message: posting user message")
+        if user_message_body:
             return self._post_message(
                 subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
                 body=user_message_body,
                 author_id=self.env.user.partner_id.id,
-                generation_inputs=generation_inputs,
             )
         return self._get_last_message_from_history()
 
@@ -195,8 +191,6 @@ class LLMThread(models.Model):
 
     def _next_step(self, last_message):
         """Dispatch to the next generator based on message type."""
-        if last_message.is_llm_user_media_gen_message():
-            return self._get_media_gen_response(last_message)
         if (
             last_message.is_llm_user_message()
             or last_message.is_llm_tool_result_message()
@@ -206,7 +200,7 @@ class LLMThread(models.Model):
             return self._process_tool_calls(last_message)
         return last_message
 
-    def generate(self, user_message_body, generation_inputs=None):
+    def generate(self, user_message_body):
         self.ensure_one()
         if self.is_locked:
             raise UserError(
@@ -216,7 +210,7 @@ class LLMThread(models.Model):
 
         try:
             # orchestrate via hooks
-            last = self._init_message(user_message_body, generation_inputs)
+            last = self._init_message(user_message_body)
             if user_message_body:
                 yield {"type": "message_create", "message": last.message_format()[0]}
             while self._should_continue(last):
@@ -257,21 +251,6 @@ class LLMThread(models.Model):
             stream_response,
             LLM_ASSISTANT_SUBTYPE_XMLID,
             placeholder_text="Thinking...",
-        )
-        return assistant_msg
-
-    def _get_media_gen_response(self, user_message):
-        self.ensure_one()
-        
-        generation_inputs = user_message.generation_inputs
-        user_message_body = user_message.body
-        stream_response = self.model_id.generate_media(json.loads(generation_inputs), stream=True)
-        
-        assistant_msg = yield from self.env["mail.message"].create_message_from_media_gen_stream(
-            self,
-            stream_response,
-            LLM_ASSISTANT_SUBTYPE_XMLID,
-            placeholder_text=f"Generated media for: {user_message_body}",
         )
         return assistant_msg
 
@@ -317,3 +296,47 @@ class LLMThread(models.Model):
         self.env["bus.bus"]._sendone(
             self.env.user.partner_id, "llm.thread/delete", {"ids": unlink_ids}
         )
+    
+    @api.model
+    def get_email_from(
+        self, provider_name, provider_model_name, subtype_xmlid, author_id, tool_name=None
+    ):
+        if not author_id:
+            if subtype_xmlid == LLM_TOOL_RESULT_SUBTYPE_XMLID:
+                name = tool_name or "Tool"
+                return f"{name} <tool@{provider_name.lower().replace(' ', '')}.ai>"
+            elif subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID:
+                model = provider_model_name or "Assistant"
+                provider = provider_name.lower().replace(" ", "")
+                return f"{model} <ai@{provider}.ai>"
+        return None
+
+    @api.model
+    def build_post_vals(self, subtype_xmlid, body, author_id, email_from):
+        return {
+            "body": markdown2.markdown(emoji.demojize(body)),
+            "message_type": "comment",
+            "subtype_xmlid": subtype_xmlid,
+            "author_id": author_id,
+            "email_from": email_from or None,
+            "partner_ids": [],
+        }
+
+    @api.model
+    def build_update_vals(
+        self,
+        subtype_xmlid,
+        tool_call_id=None,
+        tool_calls=None,
+        tool_call_definition=None,
+        tool_call_result=None,
+    ):
+        if subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID and tool_calls:
+            return {"tool_calls": tool_calls}
+        if subtype_xmlid == LLM_TOOL_RESULT_SUBTYPE_XMLID:
+            vals = {
+                "tool_call_id": tool_call_id,
+                "tool_call_definition": tool_call_definition,
+                "tool_call_result": tool_call_result,
+            }
+            return {k: v for k, v in vals.items() if v is not None}
