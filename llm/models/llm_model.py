@@ -30,13 +30,6 @@ class LLMModel(models.Model):
     parameters = fields.Text()
     template = fields.Text()
 
-    generation_config_id = fields.Many2one(
-        "llm.generation.config",
-        string="Generation Configuration",
-        tracking=True,
-        help="Defines input/output schemas for non-chat generation tasks using this model."
-    )
-
     @api.model
     def _get_available_model_usages(self):
         return [
