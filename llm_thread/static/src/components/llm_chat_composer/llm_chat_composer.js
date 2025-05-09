@@ -2,7 +2,7 @@
 
 import { registerMessagingComponent } from "@mail/utils/messaging_component";
 import { useComponentToModel } from "@mail/component_hooks/use_component_to_model";
-const { Component } = owl;
+const { Component, useState } = owl;
 
 export class LLMChatComposer extends Component {
   /**
@@ -11,12 +11,31 @@ export class LLMChatComposer extends Component {
   setup() {
     super.setup();
     useComponentToModel({ fieldName: "component" });
+    this.state = useState({
+      isMediaFormVisible: false,
+    });
   }
+
   /**
    * @returns {ComposerView}
    */
   get composerView() {
     return this.props.record;
+  }
+
+  /**
+   * @returns {Thread}
+   */
+  get thread() {
+    return this.composerView?.composer?.activeThread;
+  }
+
+  /**
+   * @returns {Boolean}
+   */
+  get isMediaGenerationModel() {
+    console.log("isMediaGenerationModel:", this.thread?.llmModel?.isMediaGenerationModel);
+    return this.thread?.llmModel?.isMediaGenerationModel === true;
   }
 
   /**
@@ -46,6 +65,7 @@ export class LLMChatComposer extends Component {
 
     this.composerView.composer.postUserMessageForLLM();
   }
+
   /**
    * Handles click on the stop button.
    *
@@ -53,6 +73,13 @@ export class LLMChatComposer extends Component {
    */
   _onClickStop() {
     this.composerView.composer.stopLLMThreadLoop();
+  }
+
+  /**
+   * Method to toggle the visibility of the media form
+   */
+  toggleMediaForm() {
+    this.state.isMediaFormVisible = !this.state.isMediaFormVisible;
   }
 }
 

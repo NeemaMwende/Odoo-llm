@@ -1,9 +1,11 @@
 import json
+import logging
 
 from odoo import _, api, http, registry
 from odoo.exceptions import MissingError
 from odoo.http import Response, request
 
+_logger = logging.getLogger(__name__)
 
 class LLMThreadController(http.Controller):
     @http.route(
@@ -108,3 +110,113 @@ class LLMThreadController(http.Controller):
             return {"error": _("Invalid message ID or vote value format.")}
         except Exception as e:
             return {"error": str(e)}
+            
+    @http.route('/llm_thread/get_generation_config', type='json', auth='user')
+    def get_generation_config(self, model_id):
+        """Get the generation config for a model
+        
+        Args:
+            model_id: ID of the LLM model
+            
+        Returns:
+            dict: The generation config data
+        """
+        try:
+            model = request.env['llm.model'].browse(int(model_id))
+            
+            if not model.exists():
+                return {'error': 'Model not found'}
+            
+            if not model.generation_config_id:
+                return {'error': 'No generation config found for this model'}
+
+            input_schema_str = model.generation_config_id.input_schema
+            output_schema_str = model.generation_config_id.output_schema_raw
+            parsed_input_schema = None
+            parsed_output_schema = None
+
+            try:
+                if input_schema_str:
+                    parsed_input_schema = json.loads(input_schema_str)
+            except json.JSONDecodeError as e:
+                _logger.error(f"Failed to parse input_schema for model {model_id}: {e}")
+                return {'error': f"Invalid input schema format: {e}"}
+
+            try:
+                if output_schema_str:
+                    parsed_output_schema = json.loads(output_schema_str)
+            except json.JSONDecodeError as e:
+                _logger.error(f"Failed to parse output_schema for model {model_id}: {e}")
+                return {'error': f"Invalid output schema format: {e}"}
+            
+            return {
+                'input_schema': parsed_input_schema,
+                'output_schema': parsed_output_schema,
+                'model_id': model.id,
+                'model_name': model.name
+            }
+        except Exception as e:
+            _logger.error(f"Error in get_generation_config for model {model_id}: {e}", exc_info=True)
+            return {'error': str(e)}
+
+    @http.route('/llm_thread/generate_media', type='json', auth='user')
+    def generate_media(self, thread_id, model_id, inputs):
+        """Generate media content using an LLM model
+        
+        Args:
+            thread_id: ID of the thread to post the generated media to
+            model_id: ID of the LLM model to use for generation
+            inputs: Input parameters for the model
+            
+        Returns:
+            dict: Information about the generated media and created message
+        """
+        try:
+            thread = request.env['llm.thread'].browse(int(thread_id))
+            if not thread.exists():
+                return {'error': 'Thread not found'}
+                
+            model = request.env['llm.model'].browse(int(model_id))
+            if not model.exists():
+                return {'error': 'Model not found'}
+            
+            # Generate the media
+            result = model.action_generate_media(inputs)
+            
+            # Create attachments for the generated media
+            attachments = []
+            if isinstance(result, list):
+                for i, url in enumerate(result):
+                    attachment = request.env['ir.attachment'].create({
+                        'name': f'Generated Media {i+1}',
+                        'type': 'url',
+                        'url': url,
+                        'res_model': thread._name,
+                        'res_id': thread.id,
+                    })
+                    attachments.append(attachment.id)
+            elif isinstance(result, str):
+                attachment = request.env['ir.attachment'].create({
+                    'name': 'Generated Media',
+                    'type': 'url',
+                    'url': result,
+                    'res_model': thread._name,
+                    'res_id': thread.id,
+                })
+                attachments.append(attachment.id)
+            
+            # Post a message with the attachments
+            message = thread.message_post(
+                body="Generated media content",
+                message_type='comment',
+                subtype_xmlid='mail.mt_comment',
+                attachment_ids=attachments,
+            )
+            
+            return {
+                'message_id': message.id,
+                'attachments': attachments,
+                'result': result
+            }
+        except Exception as e:
+            return {'error': str(e)}

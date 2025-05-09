@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="llm_thread.LLMMediaForm" owl="1">
+        <div class="o_LLMMediaForm p-3 border rounded bg-light">
+            <form t-on-submit.prevent="onSubmit">
+                <h5 class="mt-0 mb-3">Generate Media</h5>
+
+                <t t-if="state.isLoading">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fa fa-spinner fa-spin me-1"/> Loading configuration...
+                    </div>
+                </t>
+
+                <t t-if="state.error">
+                    <div class="alert alert-danger" role="alert">
+                        <t t-esc="state.error"/>
+                    </div>
+                </t>
+
+                <t t-if="state.success">
+                    <div class="alert alert-success" role="alert">
+                        <t t-esc="state.success"/>
+                    </div>
+                </t>
+
+                <div t-if="!state.isLoading and !inputSchema?.error and formFields.length === 0" class="alert alert-warning">
+                    No input fields defined for this model, or schema is missing properties.
+                </div>
+
+                <t t-foreach="formFields" t-as="field" t-key="field.name">
+                    <div class="mb-3">
+                        <label t-attf-for="media_form_field_{{field.name}}" class="form-label">
+                            <t t-esc="field.label"/>
+                            <t t-if="field.required" class="text-danger">*</t>
+                        </label>
+                        
+                        <!-- Text Input -->
+                        <input t-if="field.type === 'string' and !field.choices" 
+                               t-attf-id="media_form_field_{{field.name}}" 
+                               type="text" 
+                               class="form-control" 
+                               t-att-name="field.name" 
+                               t-att-value="state.formValues[field.name] || field.default"
+                               t-on-input="(ev) => this.onInputChange(field.name, ev)" 
+                               t-att-required="field.required ? 'required' : null" />
+
+                        <!-- Textarea (for longer strings, e.g. if schema indicates a specific format or UI hint) -->
+                        <!-- Add logic here if you want to differentiate string inputs for textarea, e.g. based on a custom schema property -->
+
+                        <!-- Number Input -->
+                        <input t-if="field.type === 'integer' or field.type === 'number'" 
+                               t-attf-id="media_form_field_{{field.name}}" 
+                               type="number" 
+                               class="form-control" 
+                               t-att-name="field.name" 
+                               t-att-value="state.formValues[field.name] || field.default"
+                               t-on-input="(ev) => this.onInputChange(field.name, ev)" 
+                               t-att-required="field.required ? 'required' : null"
+                               t-att-min="field.minimum"
+                               t-att-max="field.maximum"
+                               t-att-step="field.type === 'integer' ? 1 : 'any'" />
+
+                        <!-- Checkbox for Boolean -->
+                        <div t-if="field.type === 'boolean'" class="form-check">
+                            <input t-attf-id="media_form_field_{{field.name}}" 
+                                   type="checkbox" 
+                                   class="form-check-input" 
+                                   t-att-name="field.name" 
+                                   t-att-checked="state.formValues[field.name] || field.default"
+                                   t-on-change="(ev) => this.onInputChange(field.name, ev)" />
+                            <label t-attf-for="media_form_field_{{field.name}}" class="form-check-label">
+                                <t t-esc="field.description || 'Enable this option'"/>
+                            </label>
+                        </div>
+
+                        <!-- Select for Enum -->
+                        <select t-if="field.type === 'enum' and field.choices" 
+                                t-attf-id="media_form_field_{{field.name}}" 
+                                class="form-select" 
+                                t-att-name="field.name" 
+                                t-on-change="(ev) => this.onInputChange(field.name, ev)" 
+                                t-att-required="field.required ? 'required' : null">
+                            <option value="" t-if="!field.required and !field.default">Select an option...</option>
+                            <t t-foreach="field.choices" t-as="choice" t-key="choice.value">
+                                <option t-att-value="choice.value" 
+                                        t-esc="choice.label || choice.value" 
+                                        t-att-selected="(state.formValues[field.name] || field.default) === choice.value ? 'selected' : null"/>
+                            </t>
+                        </select>
+                        
+                        <small t-if="field.description and field.type !== 'boolean'" class="form-text text-muted">
+                            <t t-esc="field.description"/>
+                        </small>
+                    </div>
+                </t>
+
+                <div class="d-flex justify-content-end mt-4">
+                    <button type="submit" class="btn btn-primary" t-att-disabled="state.isLoading ? 'disabled' : null">
+                        <i t-if="state.isLoading" class="fa fa-spinner fa-spin me-1"/>
+                        Generate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </t>
+</templates>
