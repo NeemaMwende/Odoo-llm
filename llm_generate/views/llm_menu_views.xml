@@ -4,7 +4,7 @@
     <menuitem
     id="menu_llm_generation_config"
     name="Generation Configs"
-    parent="menu_llm_config"
+    parent="llm.menu_llm_config"
     action="llm_generation_config_action"
     sequence="30"
     />

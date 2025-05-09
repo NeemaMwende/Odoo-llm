@@ -11,9 +11,6 @@ export class LLMChatComposer extends Component {
   setup() {
     super.setup();
     useComponentToModel({ fieldName: "component" });
-    this.state = useState({
-      isMediaFormVisible: false,
-    });
   }
 
   /**
@@ -21,21 +18,6 @@ export class LLMChatComposer extends Component {
    */
   get composerView() {
     return this.props.record;
-  }
-
-  /**
-   * @returns {Thread}
-   */
-  get thread() {
-    return this.composerView?.composer?.activeThread;
-  }
-
-  /**
-   * @returns {Boolean}
-   */
-  get isMediaGenerationModel() {
-    console.log("isMediaGenerationModel:", this.thread?.llmModel?.isMediaGenerationModel);
-    return this.thread?.llmModel?.isMediaGenerationModel === true;
   }
 
   /**
@@ -75,12 +57,6 @@ export class LLMChatComposer extends Component {
     this.composerView.composer.stopLLMThreadLoop();
   }
 
-  /**
-   * Method to toggle the visibility of the media form
-   */
-  toggleMediaForm() {
-    this.state.isMediaFormVisible = !this.state.isMediaFormVisible;
-  }
 }
 
 Object.assign(LLMChatComposer, {
