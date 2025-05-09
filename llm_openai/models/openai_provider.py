@@ -378,3 +378,82 @@ class LLMProvider(models.Model):
 
         # Then validate and clean the messages for OpenAI
         return self._validate_and_clean_messages(formatted_messages)
+
+    def openai_upload_file(self, file_tuple, purpose="fine-tune"):
+        """Upload a file to OpenAI"""
+        response = self.client.files.create(file=file_tuple, purpose=purpose)
+        return response
+
+    def openai_create_fine_tuning_job(
+        self, training_file_id, model_name, hyperparameters=None
+    ):
+        """Create an OpenAI fine-tuning job."""
+        self.ensure_one()
+
+        hyperparameters = hyperparameters or {}
+        hyperparams_cleaned = {
+            k: v for k, v in hyperparameters.items() if v is not None
+        }
+
+        response = self.client.fine_tuning.jobs.create(
+            training_file=training_file_id,
+            model=model_name,
+            # Pass None if cleaned dict is empty, otherwise pass the dict
+            hyperparameters=hyperparams_cleaned if hyperparams_cleaned else None,
+        )
+        _logger.info(
+            f"Fine-tuning job created successfully for provider '{self.name}'. Job ID: {response.id}"
+        )
+        return response
+
+    def openai_retrieve_fine_tuning_job(self, job_id):
+        """Retrieve an OpenAI fine-tuning job."""
+        self.ensure_one()
+        response = self.client.fine_tuning.jobs.retrieve(job_id)
+        return response
+
+    def openai_cancel_fine_tuning_job(self, job_id):
+        """Cancel an OpenAI fine-tuning job."""
+        self.ensure_one()
+        response = self.client.fine_tuning.jobs.cancel(job_id)
+        return response
+
+    def openai_format_fine_tune_metrics(self, response):
+        """Format OpenAI fine-tuning metrics to a standardized format.
+
+        Args:
+            response: OpenAI fine-tuning response object
+
+        Returns:
+            dict: Standardized metrics dictionary
+        """
+        metrics = {}
+
+        # Extract basic job information
+        for field in [
+            "id",
+            "model",
+            "status",
+            "created_at",
+            "finished_at",
+            "trained_tokens",
+        ]:
+            if hasattr(response, field):
+                metrics[field] = getattr(response, field)
+
+        # Extract file information
+        for field in ["training_file", "validation_file", "result_files"]:
+            if hasattr(response, field) and getattr(response, field):
+                metrics[field] = getattr(response, field)
+
+        # Calculate training duration if available
+        if (
+            hasattr(response, "created_at")
+            and hasattr(response, "finished_at")
+            and response.finished_at
+        ):
+            metrics["training_duration_seconds"] = (
+                response.finished_at - response.created_at
+            )
+
+        return metrics
