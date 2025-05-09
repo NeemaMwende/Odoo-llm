@@ -22,7 +22,8 @@
             "llm_generate/static/src/components/llm_media_form/llm_media_form.js",
             "llm_generate/static/src/components/llm_media_form/llm_media_form.xml",
             "llm_generate/static/src/models/composer.js",
-            "llm_generate/static/src/models/llm_model.js"
+            "llm_generate/static/src/models/llm_model.js",
+            "llm_generate/static/src/models/llm_chat.js",
         ],
     },
     "installable": True,

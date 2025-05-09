@@ -208,7 +208,7 @@ registerModel({
         method: "search_read",
         kwargs: {
           domain: [],
-          fields: ["name", "id", "provider_id", "default", "model_use", "generation_config_id"],
+          fields: ["name", "id", "provider_id", "default"],
         },
       });
 
@@ -219,8 +219,6 @@ registerModel({
           ? { id: model.provider_id[0], name: model.provider_id[1] }
           : undefined,
         default: model.default,
-        modelUse: model.model_use,
-        generationConfigId: model.generation_config_id ? model.generation_config_id[0] : undefined,
       }));
 
       this.update({ llmModels: llmModelData });
