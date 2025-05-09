@@ -1,3 +1,4 @@
+import json
 import logging
 
 import replicate
@@ -388,8 +389,8 @@ class LLMProvider(models.Model):
         if model_record.generation_config_id:
             # Update the existing config
             model_record.generation_config_id.write({
-                'input_schema': input_schema,
-                'output_schema_raw': output_schema,
+                'input_schema': json.dumps(input_schema) if input_schema else None,
+                'output_schema_raw': json.dumps(output_schema) if output_schema else None,
                 'description': f"Updated configuration for {model_name}"
             })
             generation_config = model_record.generation_config_id
@@ -400,8 +401,8 @@ class LLMProvider(models.Model):
                 'name': f"{model_name} Generation Config",
                 'model_id': model_record.id,
                 'description': f"Generated configuration for {model_name}",
-                'input_schema': input_schema,
-                'output_schema_raw': output_schema
+                'input_schema': json.dumps(input_schema) if input_schema else None,
+                'output_schema_raw': json.dumps(output_schema) if output_schema else None
             })
             
             # Link the config back to the model
