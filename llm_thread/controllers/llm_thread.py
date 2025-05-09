@@ -35,7 +35,7 @@ class LLMThreadController(http.Controller):
         except Exception:
             return False
 
-    def _llm_thread_generate(self, dbname, env, thread_id, user_message_body, generation_inputs=None):
+    def _llm_thread_generate(self, dbname, env, thread_id, user_message_body):
         """Generate LLM responses with streaming and safe yielding."""
         with registry(dbname).cursor() as cr:
             env = api.Environment(cr, env.uid, env.context)
@@ -48,7 +48,7 @@ class LLMThreadController(http.Controller):
 
             client_connected = True
             try:
-                for response in llmThread.generate(user_message_body, generation_inputs):
+                for response in llmThread.generate(user_message_body):
                     json_data = json.dumps(response, default=str)
                     success = yield from self._safe_yield(
                         f"data: {json_data}\n\n".encode()
@@ -97,22 +97,6 @@ class LLMThreadController(http.Controller):
             direct_passthrough=True,
             headers=headers,
         )
-    
-    @http.route("/llm/thread/generate-media", type="http", auth="user", csrf=True)
-    def llm_thread_generate_media(self, thread_id, message=None, generation_inputs=None, **kwargs):
-        headers = {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering
-        }
-        user_message_body = message
-        return Response(
-            self._llm_thread_generate(
-                request.cr.dbname, request.env, thread_id, user_message_body, generation_inputs
-            ),
-            direct_passthrough=True,
-            headers=headers,
-        )
 
     @http.route("/llm/message/vote", type="json", auth="user", methods=["POST"])
     def llm_message_vote(self, message_id, vote_value):
@@ -127,51 +111,3 @@ class LLMThreadController(http.Controller):
             return {"error": _("Invalid message ID or vote value format.")}
         except Exception as e:
             return {"error": str(e)}
-            
-    @http.route('/llm_thread/get_generation_config', type='json', auth='user')
-    def get_generation_config(self, model_id):
-        """Get the generation config for a model
-        
-        Args:
-            model_id: ID of the LLM model
-            
-        Returns:
-            dict: The generation config data
-        """
-        try:
-            model = request.env['llm.model'].browse(int(model_id))
-            
-            if not model.exists():
-                return {'error': 'Model not found'}
-            
-            if not model.generation_config_id:
-                return {'error': 'No generation config found for this model'}
-
-            input_schema_str = model.generation_config_id.input_schema
-            output_schema_str = model.generation_config_id.output_schema_raw
-            parsed_input_schema = None
-            parsed_output_schema = None
-
-            try:
-                if input_schema_str:
-                    parsed_input_schema = json.loads(input_schema_str)
-            except json.JSONDecodeError as e:
-                _logger.error(f"Failed to parse input_schema for model {model_id}: {e}")
-                return {'error': f"Invalid input schema format: {e}"}
-
-            try:
-                if output_schema_str:
-                    parsed_output_schema = json.loads(output_schema_str)
-            except json.JSONDecodeError as e:
-                _logger.error(f"Failed to parse output_schema for model {model_id}: {e}")
-                return {'error': f"Invalid output schema format: {e}"}
-            
-            return {
-                'input_schema': parsed_input_schema,
-                'output_schema': parsed_output_schema,
-                'model_id': model.id,
-                'model_name': model.name
-            }
-        except Exception as e:
-            _logger.error(f"Error in get_generation_config for model {model_id}: {e}", exc_info=True)
-            return {'error': str(e)}
