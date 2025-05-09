@@ -102,7 +102,6 @@ class LLMResource(models.Model):
         :param res_id: The record ID
         :return: The external URL or False
         """
-        self.ensure_one()
         try:
             # Get the related record
             if res_model in self.env:
@@ -177,6 +176,17 @@ class LLMResource(models.Model):
             retrieved_docs.parse()
 
         return True
+
+    def action_open_resource(self):
+        """Open the resource in form view."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "llm.resource",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "current",
+        }
 
     @api.model
     def action_mass_process_resources(self):
