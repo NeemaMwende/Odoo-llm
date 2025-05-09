@@ -1,4 +1,5 @@
 import io
+import json
 import logging
 
 from odoo import api, fields, models
@@ -216,10 +217,19 @@ class LLMTrainingJob(models.Model):
         if not self.base_model_id:
             raise UserError(f"Job '{self.name}': No base model selected.")
 
+        hyperparameters = self.hyperparameters
+        if isinstance(hyperparameters, str):
+            try:
+                hyperparameters = json.loads(hyperparameters)
+            except (json.JSONDecodeError, ValueError):
+                hyperparameters = {}
+        elif not isinstance(hyperparameters, dict):
+            hyperparameters = {}
+
         response = self.provider_id.create_fine_tuning_job(
             training_file_id=self.training_file_id,
             model_name=self.base_model_id.name,
-            hyperparameters=self.hyperparameters,
+            hyperparameters=hyperparameters,
         )
 
         self.write(
@@ -254,26 +264,42 @@ class LLMTrainingJob(models.Model):
         )
 
         if response.status == "succeeded":
-            model_details = self.provider_id.retrieve_model(response.fine_tuned_model)
-            result = self.env["llm.model"].create(
-                {
-                    "name": model_details.id,
+            models_data = self.provider_id.list_models(
+                model_id=response.fine_tuned_model
+            )
+            for model_data in models_data:
+                details = model_data.get("details", {})
+                name = model_data.get("name") or details.get("id")
+
+                if not name:
+                    continue
+
+                # Determine model use and capabilities
+                capabilities = details.get("capabilities", ["chat"])
+                model_use = self.env["llm.fetch.models.wizard"]._determine_model_use(
+                    name, capabilities
+                )
+
+                vals = {
+                    "name": name,
+                    "model_use": model_use,
+                    "details": details,
                     "provider_id": self.provider_id.id,
-                    "model_use": "chat",
-                    "details": model_details.model_dump(),
                     "active": True,
                 }
-            )
-            self.write(
-                {
-                    "state": "completed",
-                    "result_model_id": result.id,
-                    "trained_model_name": response.fine_tuned_model,
-                }
-            )
-            self.update_training_metrics(
-                self.provider_id.format_fine_tune_metrics(response)
-            )
+                result = self.env["llm.model"].create(vals)
+                self.write(
+                    {
+                        "state": "completed",
+                        "result_model_id": result.id,
+                        "trained_model_name": response.fine_tuned_model,
+                    }
+                )
+                self.update_training_metrics(
+                    self.provider_id.format_fine_tune_metrics(response)
+                )
+                return True
+
         elif response.status == "failed":
             self.write({"state": "failed"})
         elif response.status == "cancelled":
@@ -291,5 +317,12 @@ class LLMTrainingJob(models.Model):
     def update_training_metrics(self, metrics):
         """Update training metrics from the provider"""
         self.ensure_one()
-        self.write({"training_metrics": metrics})
+
+        # Convert metrics dict to JSON string due to lack of widget support
+        if isinstance(metrics, dict):
+            metrics_str = json.dumps(metrics, indent=2)
+        else:
+            metrics_str = str(metrics)
+
+        self.write({"training_metrics": metrics_str})
         return True
