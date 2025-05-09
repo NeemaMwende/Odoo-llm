@@ -411,7 +411,7 @@ class LLMProvider(models.Model):
         
         return generation_config
 
-    def replicate_generate_media(self, inputs, model_record=None):
+    def replicate_generate_media(self, inputs, model_record=None, stream=False):
         """Generate media content using this provider"""
         _logger.info(f"Generating media content using {model_record.name} with inputs {inputs}")
 
@@ -420,7 +420,63 @@ class LLMProvider(models.Model):
             input=inputs
         )
 
-        _logger.info(f"Generated media content using {model_record.name} with inputs {inputs}")
-        _logger.info(f"Generated media content result: {result}")
+        
+        # Extract URLs from FileOutput objects
+        urls = []
+        if isinstance(result, list):
+            for item in result:
+                if hasattr(item, 'url'):
+                    urls.append(item.url)
+                else:
+                    urls.append(str(item))
+        else:
+            if hasattr(result, 'url'):
+                urls.append(result.url)
+            else:
+                urls.append(str(result))
+        
+        # TODO: Need to properly check how to detect if some model has streaming/or not
+        if stream:
+            yield {"content": urls}
+        else:
+            return urls
+            
+    def replicate_format_generation_response(self, raw_response, output_schema):
+        """Format the raw generation response according to the output processing config
+        
+        Args:
+            raw_response: The raw response from the provider (e.g., Replicate client.run()).
+                          Typically a list of URLs or a single URL string for images.
+            output_schema (dict): Schema of the output.
+            
+        Returns:
+            list: A list of strings (e.g., URLs) extracted from the raw_response.
+                  Returns an empty list if no suitable strings are found or
+                  if the raw_response format is unexpected.
+        """
+        _logger.debug(f"Formatting Replicate raw_response: {raw_response} with schema: {output_schema}")
+        
+        extracted_strings = []
 
-        return result
+        # output_schema example: {"type": "array", "items": {"type": "string", "format": "uri"}}
+        # This implies the raw_response should ideally be a list of strings, or a single string.
+        
+        if isinstance(raw_response, list):
+            for item in raw_response:
+                if isinstance(item, str):
+                    extracted_strings.append(item)
+                else:
+                    # Log if an item in the list is not a string, but continue processing
+                    _logger.warning(f"Replicate: Item in raw_response list is not a string: {item} (type: {type(item)}). Output schema: {output_schema}")
+        elif isinstance(raw_response, str):
+            # If the raw_response is a single string, assume it's the URL/data itself.
+            extracted_strings.append(raw_response)
+        elif raw_response is None:
+            _logger.info(f"Replicate: Raw response is None for schema {output_schema}. Returning empty list.")
+        else:
+            _logger.warning(f"Replicate: Unexpected raw_response type: {type(raw_response)}. Full response: {raw_response}. Output schema: {output_schema}")
+            # For now, we return an empty list. More sophisticated parsing based on 
+            # output_schema could be added here if needed for complex objects.
+
+        _logger.info(f"Replicate: Extracted strings: {extracted_strings} for schema {output_schema}")
+        return extracted_strings

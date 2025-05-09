@@ -37,7 +37,7 @@
             <t t-if="isMediaGenerationModel and state.isMediaFormVisible">
                 <div class="o_LLMChatComposer_mediaFormContainer mx-auto mt-2" style="max-width: 1200px;">
                     <!-- Pass the llmModel from the thread to the LLMMediaForm -->
-                    <LLMMediaForm model="thread.llmModel" />
+                    <LLMMediaForm model="thread" />
                 </div>
             </t>
         </div>

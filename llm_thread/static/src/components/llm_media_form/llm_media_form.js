@@ -23,6 +23,10 @@ export class LLMMediaForm extends Component {
     }
 
     get llmModel() {
+        return this.thread?.llmModel;
+    }
+
+    get thread() {
         return this.props.model;
     }
 
@@ -112,7 +116,8 @@ export class LLMMediaForm extends Component {
 
         try {
             // Placeholder for actual media generation call
-            // const result = await this.llmModel.generateMedia(this.state.formValues);
+            const composer = this.thread.composer;
+            composer.postUserMediaGenMessageForLLM(this.state.formValues);
             // For now, simulate a call and log
             console.log("Form submitted with values:", this.state.formValues);
             console.log("Would call this.llmModel.generateMedia() here.");

@@ -126,13 +126,14 @@ class LLMModel(models.Model):
         result = self.provider_id._dispatch(
             "generate_media",
             inputs=inputs,
-            model_record=self
+            model_record=self,
+            stream=False
         )
         
         # Log the result
         return result
     
-    def generate_media(self, inputs):
+    def generate_media(self, inputs, stream=False):
         """Generate content using this model with the specified inputs.
         
         Args:
@@ -154,5 +155,27 @@ class LLMModel(models.Model):
         return self.provider_id._dispatch(
             "generate_media",
             inputs=inputs,
-            model_record=self
+            model_record=self,
+            stream=stream
+        )
+
+    def format_generation_response(self, raw_response):
+        """Format the raw generation response according to the output processing config
+        
+        Args:
+            raw_response: The raw response from the provider
+            
+        Returns:
+            Processed response in the format specified by the config
+        """
+        self.ensure_one()
+        
+        if not self.generation_config_id:
+            raise ValueError(f"Model {self.name} requires a generation configuration")
+        
+        # Dispatch to provider-specific implementation
+        return self.provider_id._dispatch(
+            "format_generation_response",
+            raw_response=raw_response,
+            output_schema=self.generation_config_id.output_schema_raw
         )

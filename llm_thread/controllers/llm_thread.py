@@ -35,7 +35,7 @@ class LLMThreadController(http.Controller):
         except Exception:
             return False
 
-    def _llm_thread_generate(self, dbname, env, thread_id, user_message_body):
+    def _llm_thread_generate(self, dbname, env, thread_id, user_message_body, generation_inputs=None):
         """Generate LLM responses with streaming and safe yielding."""
         with registry(dbname).cursor() as cr:
             env = api.Environment(cr, env.uid, env.context)
@@ -48,7 +48,7 @@ class LLMThreadController(http.Controller):
 
             client_connected = True
             try:
-                for response in llmThread.generate(user_message_body):
+                for response in llmThread.generate(user_message_body, generation_inputs):
                     json_data = json.dumps(response, default=str)
                     success = yield from self._safe_yield(
                         f"data: {json_data}\n\n".encode()
@@ -65,6 +65,7 @@ class LLMThreadController(http.Controller):
                 return
 
             except Exception as e:
+                _logger.exception(f"Error in llm_thread_generate for thread {thread_id}: {e}")
                 if llmThread.exists() and llmThread._read_is_locked_decorated():
                     llmThread._unlock()
 
@@ -92,6 +93,22 @@ class LLMThreadController(http.Controller):
         return Response(
             self._llm_thread_generate(
                 request.cr.dbname, request.env, thread_id, user_message_body
+            ),
+            direct_passthrough=True,
+            headers=headers,
+        )
+    
+    @http.route("/llm/thread/generate-media", type="http", auth="user", csrf=True)
+    def llm_thread_generate_media(self, thread_id, message=None, generation_inputs=None, **kwargs):
+        headers = {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        }
+        user_message_body = message
+        return Response(
+            self._llm_thread_generate(
+                request.cr.dbname, request.env, thread_id, user_message_body, generation_inputs
             ),
             direct_passthrough=True,
             headers=headers,
@@ -157,66 +174,4 @@ class LLMThreadController(http.Controller):
             }
         except Exception as e:
             _logger.error(f"Error in get_generation_config for model {model_id}: {e}", exc_info=True)
-            return {'error': str(e)}
-
-    @http.route('/llm_thread/generate_media', type='json', auth='user')
-    def generate_media(self, thread_id, model_id, inputs):
-        """Generate media content using an LLM model
-        
-        Args:
-            thread_id: ID of the thread to post the generated media to
-            model_id: ID of the LLM model to use for generation
-            inputs: Input parameters for the model
-            
-        Returns:
-            dict: Information about the generated media and created message
-        """
-        try:
-            thread = request.env['llm.thread'].browse(int(thread_id))
-            if not thread.exists():
-                return {'error': 'Thread not found'}
-                
-            model = request.env['llm.model'].browse(int(model_id))
-            if not model.exists():
-                return {'error': 'Model not found'}
-            
-            # Generate the media
-            result = model.action_generate_media(inputs)
-            
-            # Create attachments for the generated media
-            attachments = []
-            if isinstance(result, list):
-                for i, url in enumerate(result):
-                    attachment = request.env['ir.attachment'].create({
-                        'name': f'Generated Media {i+1}',
-                        'type': 'url',
-                        'url': url,
-                        'res_model': thread._name,
-                        'res_id': thread.id,
-                    })
-                    attachments.append(attachment.id)
-            elif isinstance(result, str):
-                attachment = request.env['ir.attachment'].create({
-                    'name': 'Generated Media',
-                    'type': 'url',
-                    'url': result,
-                    'res_model': thread._name,
-                    'res_id': thread.id,
-                })
-                attachments.append(attachment.id)
-            
-            # Post a message with the attachments
-            message = thread.message_post(
-                body="Generated media content",
-                message_type='comment',
-                subtype_xmlid='mail.mt_comment',
-                attachment_ids=attachments,
-            )
-            
-            return {
-                'message_id': message.id,
-                'attachments': attachments,
-                'result': result
-            }
-        except Exception as e:
             return {'error': str(e)}

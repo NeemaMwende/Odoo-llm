@@ -44,6 +44,8 @@ class LLMThreadUtils:
         tool_calls=None,
         tool_call_definition=None,
         tool_call_result=None,
+        generation_inputs=None,
+        attachment_ids=None,
     ):
         if subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID and tool_calls:
             return {"tool_calls": tool_calls}
@@ -53,5 +55,10 @@ class LLMThreadUtils:
                 "tool_call_definition": tool_call_definition,
                 "tool_call_result": tool_call_result,
             }
-            return {k: v for k, v in vals.items() if v is not None}
-        return {}
+        else:
+            vals = {
+                "generation_inputs": generation_inputs,
+                "attachment_ids": attachment_ids,
+            }
+        
+        return {k: v for k, v in vals.items() if v is not None}
