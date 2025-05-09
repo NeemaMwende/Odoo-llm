@@ -117,9 +117,7 @@ class LLMModel(models.Model):
         if self._is_generative_task_model():
             # For media generation models, we need to structure the input according to Replicate's API
             inputs = {
-                "input": {
-                    "prompt": "A beautiful sunset over mountains"
-                }
+                "prompt": "A beautiful sunset over mountains"
             }
         else:
             raise ValueError(f"Model {self.name} is not configured for media generation")

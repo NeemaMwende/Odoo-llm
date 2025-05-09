@@ -412,7 +412,7 @@ class LLMProvider(models.Model):
 
     def replicate_generate_media(self, inputs, model_record=None):
         """Generate media content using this provider"""
-        
+        _logger.info(f"Generating media content using {model_record.name} with inputs {inputs}")
 
         result = self.client.run(
             model_record.name,
