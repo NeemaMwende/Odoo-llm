@@ -17,6 +17,12 @@
         "views/llm_model_views.xml",
         "views/llm_menu_views.xml",
     ],
+    "assets": {
+        "web.assets_backend": [
+            "llm_generate/static/src/components/llm_media_form/llm_media_form.js",
+            "llm_generate/static/src/components/llm_media_form/llm_media_form.xml",
+        ],
+    },
     "installable": True,
     "application": False,
     "auto_install": False,

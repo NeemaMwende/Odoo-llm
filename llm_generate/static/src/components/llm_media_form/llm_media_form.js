@@ -115,20 +115,11 @@ export class LLMMediaForm extends Component {
         }
 
         try {
-            // Placeholder for actual media generation call
             const composer = this.thread.composer;
             composer.postUserMediaGenMessageForLLM(this.state.formValues);
-            // For now, simulate a call and log
             console.log("Form submitted with values:", this.state.formValues);
             console.log("Would call this.llmModel.generateMedia() here.");
-            // TODO: Implement generateMedia on LLMModel and call it
-            // if (result && result.error) {
-            //     this.state.error = result.error;
-            // } else {
-            //     this.state.success = "Media generation started successfully!"; // Or some other relevant message
-            //     this.state.formValues = {}; // Optionally reset form
-            // }
-            this.state.success = "Form submitted (simulation). Check console."; // Temporary feedback
+            this.state.success = "Form submitted";
         } catch (error) {
             console.error("Error submitting media generation form:", error);
             this.state.error = error.message || "An unexpected error occurred during submission.";
