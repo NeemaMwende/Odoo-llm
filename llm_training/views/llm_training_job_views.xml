@@ -80,10 +80,6 @@
                 name="external_job_id"
                 attrs="{'invisible': [('external_job_id', '=', False)]}"
               />
-                            <field
-                name="training_file_id"
-                attrs="{'invisible': [('training_file_id', '=', False)]}"
-              />
                         </group>
                     </group>
                     <notebook>

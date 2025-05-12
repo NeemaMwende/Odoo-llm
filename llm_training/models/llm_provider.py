@@ -16,14 +16,26 @@ class LLMProvider(models.Model):
             "create_fine_tuning_job", training_file_id, model_name, hyperparameters
         )
 
-    def retrieve_fine_tuning_job(self, job_id):
+    def retrieve_training_job(self, job_id):
         """Retrieve a fine-tuning job with the provider."""
-        return self._dispatch("retrieve_fine_tuning_job", job_id)
+        return self._dispatch("retrieve_training_job", job_id)
 
-    def cancel_fine_tuning_job(self, job_id):
+    def cancel_training_job(self, job_id):
         """Cancel a fine-tuning job with the provider."""
-        return self._dispatch("cancel_fine_tuning_job", job_id)
+        return self._dispatch("cancel_training_job", job_id)
 
-    def format_fine_tune_metrics(self, response):
+    def format_training_metrics(self, response):
         """Format fine-tuning metrics to a standardized format."""
-        return self._dispatch("format_fine_tune_metrics", response)
+        return self._dispatch("format_training_metrics", response)
+
+    def start_training_job(self, job_record):
+        """Start a training job with the provider."""
+        return self._dispatch("start_training_job", job_record)
+
+    def check_training_job_status(self, job_record):
+        """Check the status of a training job with the provider."""
+        return self._dispatch("check_training_job_status", job_record)
+
+    def validate_datasets(self, job_record):
+        """Validate datasets for training"""
+        return self._dispatch("validate_datasets", job_record)
