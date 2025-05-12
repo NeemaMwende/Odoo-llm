@@ -9,7 +9,6 @@ export class LLMMediaForm extends Component {
             formValues: {},
             isLoading: false,
             error: null,
-            success: null,
             showAdvancedSettings: false,
         });
 
@@ -96,7 +95,6 @@ export class LLMMediaForm extends Component {
         if (!this.llmModel.inputSchema || this.llmModel.inputSchema.error) {
             this.state.isLoading = true;
             this.state.error = null;
-            this.state.success = null;
             try {
                 await this.llmModel.fetchGenerationConfig();
                 if (this.llmModel.inputSchema?.error) { // Check for error after fetch attempt
@@ -128,7 +126,6 @@ export class LLMMediaForm extends Component {
         event.preventDefault();
         this.state.isLoading = true;
         this.state.error = null;
-        this.state.success = null;
 
         if (!this.llmModel) {
             this.state.error = "Model not available.";
@@ -139,9 +136,8 @@ export class LLMMediaForm extends Component {
         try {
             const composer = this.thread.composer;
             composer.postUserMediaGenMessageForLLM(this.state.formValues);
-            console.log("Form submitted with values:", this.state.formValues);
-            console.log("Would call this.llmModel.generateMedia() here.");
-            this.state.success = "Form submitted";
+            // Reset form values after successful submission
+            this.state.formValues = {};
         } catch (error) {
             console.error("Error submitting media generation form:", error);
             this.state.error = error.message || "An unexpected error occurred during submission.";
@@ -152,7 +148,7 @@ export class LLMMediaForm extends Component {
 }
 
 LLMMediaForm.props = {
-    model: { type: Object, optional: false }, // Expects an LLMModel instance
+    model: { type: Object, optional: false },
 };
 
 LLMMediaForm.template = "llm_thread.LLMMediaForm";
