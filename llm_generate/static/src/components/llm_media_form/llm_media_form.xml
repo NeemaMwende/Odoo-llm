@@ -193,9 +193,10 @@
                 </t>
 
                 <div class="d-flex justify-content-end mt-4">
-                    <button type="submit" class="btn btn-primary" t-att-disabled="state.isLoading ? 'disabled' : null">
+                    <button type="submit" class="btn btn-primary" t-att-disabled="state.isLoading || isStreaming() ? 'disabled' : null">
                         <i t-if="state.isLoading" class="fa fa-spinner fa-spin me-1"/>
-                        Generate
+                        <t t-if="!isStreaming()">Generate</t>
+                        <t t-else="">Processing...</t>
                     </button>
                 </div>
             </form>

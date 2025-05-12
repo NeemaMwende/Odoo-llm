@@ -136,14 +136,17 @@ export class LLMMediaForm extends Component {
         try {
             const composer = this.thread.composer;
             composer.postUserMediaGenMessageForLLM(this.state.formValues);
-            // Reset form values after successful submission
-            this.state.formValues = {};
+            // We don't reset the form to allow users to make minor adjustments for subsequent generations
         } catch (error) {
             console.error("Error submitting media generation form:", error);
             this.state.error = error.message || "An unexpected error occurred during submission.";
         } finally {
             this.state.isLoading = false;
         }
+    }
+
+    isStreaming() {
+        return this.thread.composer.isStreaming;
     }
 }
 
