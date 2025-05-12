@@ -8,12 +8,12 @@ class LLMProvider(models.Model):
         """Upload a file to the provider"""
         return self._dispatch("upload_file", file_tuple, purpose)
 
-    def create_fine_tuning_job(
+    def create_training_job(
         self, training_file_id, model_name, hyperparameters=None
     ):
         """Create a fine-tuning job with the provider."""
         return self._dispatch(
-            "create_fine_tuning_job", training_file_id, model_name, hyperparameters
+            "create_training_job", training_file_id, model_name, hyperparameters
         )
 
     def retrieve_training_job(self, job_id):
@@ -29,7 +29,7 @@ class LLMProvider(models.Model):
         return self._dispatch("format_training_metrics", response)
 
     def start_training_job(self, job_record):
-        """Start a training job with the provider."""
+        """Start a training job full process with the provider."""
         return self._dispatch("start_training_job", job_record)
 
     def check_training_job_status(self, job_record):
