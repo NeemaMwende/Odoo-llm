@@ -29,7 +29,7 @@ class LLMThread(models.Model):
             self,
             stream_response,
             LLM_ASSISTANT_SUBTYPE_XMLID,
-            placeholder_text=f"<strong>Generated media for:</strong>\n{user_message_body}",
+            placeholder_text=f"<em>\"{user_message_body}\"</em>",
         )
         return assistant_msg
 
