@@ -7,5 +7,5 @@
     parent="llm.menu_llm_config"
     action="llm_generation_config_action"
     sequence="30"
-    />
+  />
 </odoo>

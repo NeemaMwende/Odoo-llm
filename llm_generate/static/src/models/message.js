@@ -40,20 +40,20 @@ registerPatch({
     generationInputs: attr({}),
     generationInputsFormatted: attr({
       compute() {
-        const jsonVal =safeJsonParse(this.generationInputs);
+        const jsonVal = safeJsonParse(this.generationInputs);
         if (jsonVal === undefined || jsonVal === null) {
           return {};
         }
 
         try {
-            // Only pretty print if it's likely an object/array
-            return typeof jsonVal === "object"
-              ? JSON.stringify(jsonVal, null, 2)
-              : String(jsonVal);
-          } catch (e) {
-            console.error("Error formatting tool call result:", e);
-            return String(jsonVal);
-          }
+          // Only pretty print if it's likely an object/array
+          return typeof jsonVal === "object"
+            ? JSON.stringify(jsonVal, null, 2)
+            : String(jsonVal);
+        } catch (e) {
+          console.error("Error formatting tool call result:", e);
+          return String(jsonVal);
+        }
       },
     }),
   },

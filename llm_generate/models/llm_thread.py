@@ -9,6 +9,7 @@ from odoo.addons.llm_mail_message_subtypes.const import (
 
 _logger = logging.getLogger(__name__)
 
+
 class LLMThread(models.Model):
     _inherit = "llm.thread"
 
@@ -20,16 +21,20 @@ class LLMThread(models.Model):
 
     def _get_media_gen_response(self, user_message):
         self.ensure_one()
-        
+
         generation_inputs = user_message.generation_inputs
         user_message_body = user_message.body
-        stream_response = self.model_id.generate_media(json.loads(generation_inputs), stream=True)
-        
-        assistant_msg = yield from self.env["mail.message"].create_message_from_media_gen_stream(
+        stream_response = self.model_id.generate_media(
+            json.loads(generation_inputs), stream=True
+        )
+
+        assistant_msg = yield from self.env[
+            "mail.message"
+        ].create_message_from_media_gen_stream(
             self,
             stream_response,
             LLM_ASSISTANT_SUBTYPE_XMLID,
-            placeholder_text=f"<em>\"{user_message_body}\"</em>",
+            placeholder_text=f'<em>"{user_message_body}"</em>',
         )
         return assistant_msg
 
@@ -44,7 +49,7 @@ class LLMThread(models.Model):
         **kwargs,
     ):
         base_vals = super().build_update_vals(
-            subtype_xmlid, 
+            subtype_xmlid,
             tool_call_id=tool_call_id,
             tool_calls=tool_calls,
             tool_call_definition=tool_call_definition,
@@ -59,4 +64,3 @@ class LLMThread(models.Model):
             "attachment_ids": attachment_ids,
         }
         return {k: v for k, v in vals.items() if v is not None}
-

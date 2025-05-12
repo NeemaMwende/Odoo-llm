@@ -56,7 +56,6 @@ export class LLMChatComposer extends Component {
   _onClickStop() {
     this.composerView.composer.stopLLMThreadLoop();
   }
-
 }
 
 Object.assign(LLMChatComposer, {

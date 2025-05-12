@@ -7,6 +7,7 @@ from odoo.http import Response, request
 
 _logger = logging.getLogger(__name__)
 
+
 class LLMThreadController(http.Controller):
     @http.route(
         "/llm/thread/<int:thread_id>/update",
@@ -65,7 +66,9 @@ class LLMThreadController(http.Controller):
                 return
 
             except Exception as e:
-                _logger.exception(f"Error in llm_thread_generate for thread {thread_id}: {e}")
+                _logger.exception(
+                    f"Error in llm_thread_generate for thread {thread_id}: {e}"
+                )
                 if llmThread.exists() and llmThread._read_is_locked_decorated():
                     llmThread._unlock()
 

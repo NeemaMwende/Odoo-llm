@@ -76,4 +76,3 @@ class LLMModel(models.Model):
                 "default_model_to_fetch": self.name,
             },
         }
-    

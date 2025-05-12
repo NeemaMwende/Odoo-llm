@@ -16,27 +16,33 @@ registerPatch({
     }),
     isMediaGenerationModel: attr({
       compute() {
-        const result = ['image_generation'].includes(this.modelUse);
-        // console.log("isMediaGenerationModel computed:", this.modelUse, result);
+        const result = ["image_generation"].includes(this.modelUse);
+        // Console.log("isMediaGenerationModel computed:", this.modelUse, result);
         return result;
       },
     }),
   },
   recordMethods: {
     async fetchGenerationConfig() {
-      if (!this.id) { // Check if model ID is available
-        console.error("LLMModel: Cannot fetch generation config without model ID.");
+      if (!this.id) {
+        // Check if model ID is available
+        console.error(
+          "LLMModel: Cannot fetch generation config without model ID."
+        );
         return null;
       }
       // Ensure messaging service is available
       if (!this.messaging) {
-          console.error("Messaging service not available for LLMModel.");
-          this.update({ inputSchema: { error: "Messaging unavailable" }, outputSchema: { error: "Messaging unavailable" } });
-          return null;
+        console.error("Messaging service not available for LLMModel.");
+        this.update({
+          inputSchema: { error: "Messaging unavailable" },
+          outputSchema: { error: "Messaging unavailable" },
+        });
+        return null;
       }
 
       const result = await this.messaging.rpc({
-        route: '/llm/model/gen_config',
+        route: "/llm/model/gen_config",
         params: {
           model_id: this.id, // Use the LLMModel's own ID
         },
@@ -52,12 +58,12 @@ registerPatch({
         });
         return null;
       }
-      
+
       this.update({
         inputSchema: result.input_schema,
         outputSchema: result.output_schema,
       });
-      
+
       return result; // Return the raw result for potential further use
     },
   },

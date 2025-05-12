@@ -101,7 +101,7 @@ registerPatch({
         }
       }
     },
-  
+
     _closeEventSource() {
       if (this.eventSource) {
         this.eventSource.close();

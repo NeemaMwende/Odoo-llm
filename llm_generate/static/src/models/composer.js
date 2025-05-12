@@ -5,10 +5,10 @@ import { registerPatch } from "@mail/model/model_core";
 registerPatch({
   name: "Composer",
   recordMethods: {
-    postUserMediaGenMessageForLLM(inputs){
+    postUserMediaGenMessageForLLM(inputs) {
       const thread = this.thread;
 
-      const messageBody = inputs["prompt"]
+      const messageBody = inputs.prompt;
       if (!messageBody || !thread) {
         this.messaging.notify({
           message: this.env._t("Please enter a message."),
@@ -21,7 +21,9 @@ registerPatch({
 
       try {
         const eventSource = new EventSource(
-          `/llm/thread/generate-media?thread_id=${thread.id}&message=${messageBody}&generation_inputs=${JSON.stringify(inputs)}`
+          `/llm/thread/generate-media?thread_id=${
+            thread.id
+          }&message=${messageBody}&generation_inputs=${JSON.stringify(inputs)}`
         );
         this.update({ eventSource });
 

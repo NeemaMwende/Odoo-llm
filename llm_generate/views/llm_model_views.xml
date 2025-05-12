@@ -4,22 +4,25 @@
     <record id="llm_model_view_form_inherit_generate" model="ir.ui.view">
         <field name="name">llm.model.form.inherit.generate</field>
         <field name="model">llm.model</field>
-        <field name="inherit_id" ref="llm.llm_model_view_form"/>
+        <field name="inherit_id" ref="llm.llm_model_view_form" />
         <field name="arch" type="xml">
             <!-- Add the Generate Config button -->
             <xpath expr="//header" position="inside">
                 <button
-                    name="action_generate_llm_generation_config"
-                    string="Generate Config"
-                    type="object"
-                    help="Generate a configuration for this model based on its details."
-                    attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}"
-                />
+          name="action_generate_llm_generation_config"
+          string="Generate Config"
+          type="object"
+          help="Generate a configuration for this model based on its details."
+          attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}"
+        />
             </xpath>
-            
+
             <!-- Add the generation_config_id field -->
             <xpath expr="//field[@name='default']" position="after">
-                <field name="generation_config_id" attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}" />
+                <field
+          name="generation_config_id"
+          attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}"
+        />
             </xpath>
         </field>
     </record>

@@ -112,9 +112,7 @@ class LLMThread(models.Model):
             author_id,
             kwargs.get("tool_name"),
         )
-        post_vals = self.build_post_vals(
-            subtype_xmlid, body, author_id, email_from
-        )
+        post_vals = self.build_post_vals(subtype_xmlid, body, author_id, email_from)
         message = self.message_post(**post_vals)
         extra_vals = self.build_update_vals(**kwargs)
         if extra_vals:
@@ -291,10 +289,15 @@ class LLMThread(models.Model):
         self.env["bus.bus"]._sendone(
             self.env.user.partner_id, "llm.thread/delete", {"ids": unlink_ids}
         )
-    
+
     @api.model
     def get_email_from(
-        self, provider_name, provider_model_name, subtype_xmlid, author_id, tool_name=None
+        self,
+        provider_name,
+        provider_model_name,
+        subtype_xmlid,
+        author_id,
+        tool_name=None,
     ):
         if not author_id:
             if subtype_xmlid == LLM_TOOL_RESULT_SUBTYPE_XMLID:
