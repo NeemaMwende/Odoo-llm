@@ -104,9 +104,13 @@
                         <span class="text-muted ms-2 small">(Optional)</span>
                     </div>
                     
-                    <!-- Optional Fields Section - Conditionally Visible with Two-Column Layout -->
-                    <div t-if="state.showAdvancedSettings" class="mb-4 ps-2 border-start">
-                        <div class="row">
+                    <!-- Optional Fields Section - Conditionally Visible with Two-Column Layout and Max Height -->
+                    <div t-if="state.showAdvancedSettings" class="mb-4 ps-2 border-start position-relative">
+                        <!-- Bottom scroll indicator with gradient -->
+                        <div class="position-absolute w-100" style="height: 20px; bottom: 0; left: 0; background: linear-gradient(to top, rgba(248,249,250,1) 0%, rgba(248,249,250,0.8) 40%, rgba(248,249,250,0) 100%); pointer-events: none; z-index: 1;"></div>
+                        
+                        <!-- Scrollable content -->
+                        <div class="row overflow-auto pe-2" style="max-height: 350px; scrollbar-width: thin; -webkit-overflow-scrolling: touch;">
                             <t t-foreach="optionalFields" t-as="field" t-key="field.name">
                                 <div class="col-md-6 mb-3">
                                     <label t-attf-for="media_form_field_{{field.name}}" class="form-label d-flex justify-content-between">
