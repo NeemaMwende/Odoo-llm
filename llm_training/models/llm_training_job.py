@@ -75,6 +75,7 @@ class LLMTrainingJob(models.Model):
     training_metrics = fields.Json(
         string="Training Metrics",
         help="Metrics from the training job (loss, accuracy, etc.)",
+        tracking=True,
     )
     training_logs = fields.Text(
         string="Training Logs", help="Logs from the training process"
@@ -169,10 +170,9 @@ class LLMTrainingJob(models.Model):
                     "trained_model_name": result.get("trained_model_name"),
                 }
             )
-            self.update_training_metrics(result.get("response"))
-            return True
-
-        self.write({"state": result.get("state")})
+        else:
+            self.write({"state": result.get("state")})
+        self.update_training_metrics(result.get("response"))
         return True
 
     def update_training_metrics(self, metrics):
