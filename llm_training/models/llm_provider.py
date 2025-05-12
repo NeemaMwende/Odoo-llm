@@ -8,9 +8,7 @@ class LLMProvider(models.Model):
         """Upload a file to the provider"""
         return self._dispatch("upload_file", file_tuple, purpose)
 
-    def create_training_job(
-        self, training_file_id, model_name, hyperparameters=None
-    ):
+    def create_training_job(self, training_file_id, model_name, hyperparameters=None):
         """Create a fine-tuning job with the provider."""
         return self._dispatch(
             "create_training_job", training_file_id, model_name, hyperparameters
