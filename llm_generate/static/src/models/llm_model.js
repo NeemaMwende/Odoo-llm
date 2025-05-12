@@ -17,7 +17,6 @@ registerPatch({
     isMediaGenerationModel: attr({
       compute() {
         const result = ["image_generation"].includes(this.modelUse);
-        // Console.log("isMediaGenerationModel computed:", this.modelUse, result);
         return result;
       },
     }),
@@ -48,7 +47,6 @@ registerPatch({
         },
       });
 
-      console.log("fetchGenerationConfig result:", result);
       if (!result || result.error) {
         console.error("Error fetching generation config:", result.error);
         // Update schemas to reflect the error, so UI can react

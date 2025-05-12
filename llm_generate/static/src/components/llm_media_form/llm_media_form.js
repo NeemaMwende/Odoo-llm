@@ -14,15 +14,39 @@ export class LLMMediaForm extends Component {
 
     onWillStart(async () => {
       await this.loadGenerationConfig();
+      // Initialize form values with defaults after loading config
+      this._initializeFormValues();
     });
 
     // Watch for changes in the model prop to reload config if necessary
     useEffect(
       () => {
         this.loadGenerationConfig();
+        // Re-initialize form values when model changes
+        this._initializeFormValues();
       },
       () => [this.llmModel]
     );
+  }
+  
+  // Initialize form values with defaults from schema
+  _initializeFormValues() {
+    if (!this.formFields || !Array.isArray(this.formFields)) {
+      return;
+    }
+    
+    // Create a new object to hold the initial values
+    const initialValues = {};
+    
+    // Set default values from schema
+    this.formFields.forEach(field => {
+      if (field.default !== undefined) {
+        initialValues[field.name] = field.default;
+      }
+    });
+    
+    // Update state with initial values
+    this.state.formValues = initialValues;
   }
 
   get llmModel() {
@@ -34,7 +58,6 @@ export class LLMMediaForm extends Component {
   }
 
   get inputSchema() {
-    console.log("Found inputSchema:", this.llmModel?.inputSchema);
     return this.llmModel?.inputSchema;
   }
 
@@ -61,22 +84,27 @@ export class LLMMediaForm extends Component {
     }
 
     // Map over the 'fields' array directly
-    return this.inputSchema.fields.map((field) => ({
-      name: field.name, // Use field.name directly
-      label:
-        field.label ||
-        field.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-      type: field.type,
-      required: field.required, // Assuming 'required' is directly on the field object
-      description: field.description,
-      default: field.default,
-      // For 'enum' type, use 'field.options' directly as it matches the expected structure
-      choices: field.type === "enum" ? field.options : undefined,
-      minimum: field.minimum,
-      maximum: field.maximum,
-      format: field.format, // If present for strings, e.g. 'uri'
-      // Add any other properties from your schema's field definition
-    }));
+    return this.inputSchema.fields.map((field) => {
+      // Check if field name is 'prompt' (case insensitive)
+      const isPromptField = field.name.toLowerCase() === 'prompt';
+      
+      return {
+        name: field.name,
+        label:
+          field.label ||
+          field.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        type: field.type,
+        // Make 'prompt' field required by default
+        required: isPromptField ? true : field.required,
+        description: field.description,
+        default: field.default,
+        // For 'enum' type, use 'field.options' directly as it matches the expected structure
+        choices: field.type === "enum" ? field.options : undefined,
+        minimum: field.minimum,
+        maximum: field.maximum,
+        format: field.format, // If present for strings, e.g. 'uri'
+      };
+    });
   }
 
   // Getter to filter required fields
@@ -139,7 +167,15 @@ export class LLMMediaForm extends Component {
     } else {
       value = target.value;
     }
-    this.state.formValues[fieldName] = value;
+    
+    // Create a new object with the updated value to ensure reactivity
+    this.state.formValues = {
+      ...this.state.formValues,
+      [fieldName]: value,
+    };
+    
+    console.log(`Field ${fieldName} updated to:`, value);
+    console.log("Current form values:", this.state.formValues);
   }
 
   async onSubmit(event) {
@@ -155,6 +191,7 @@ export class LLMMediaForm extends Component {
 
     try {
       const composer = this.thread.composer;
+      console.log(this.state.formValues)
       composer.postUserMediaGenMessageForLLM(this.state.formValues);
       // We don't reset the form to allow users to make minor adjustments for subsequent generations
     } catch (error) {
