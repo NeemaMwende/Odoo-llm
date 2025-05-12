@@ -36,7 +36,7 @@ registerPatch({
       }
 
       const result = await this.messaging.rpc({
-        route: '/llm_thread/get_generation_config',
+        route: '/llm/model/gen_config',
         params: {
           model_id: this.id, // Use the LLMModel's own ID
         },
