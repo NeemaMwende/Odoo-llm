@@ -23,7 +23,7 @@ class LLMThreadControllerExtended(LLMThreadController):
 
             client_connected = True
             try:
-                for response in llmThread.generate(user_message_body, generation_inputs):
+                for response in llmThread.generate(user_message_body, generation_inputs=generation_inputs):
                     json_data = json.dumps(response, default=str)
                     success = yield from self._safe_yield(
                         f"data: {json_data}\n\n".encode()

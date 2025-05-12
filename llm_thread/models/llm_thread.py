@@ -116,13 +116,7 @@ class LLMThread(models.Model):
             subtype_xmlid, body, author_id, email_from
         )
         message = self.message_post(**post_vals)
-        extra_vals = self.build_update_vals(
-            subtype_xmlid,
-            tool_call_id=kwargs.get("tool_call_id"),
-            tool_calls=kwargs.get("tool_calls"),
-            tool_call_definition=kwargs.get("tool_call_definition"),
-            tool_call_result=kwargs.get("tool_call_result"),
-        )
+        extra_vals = self.build_update_vals(**kwargs)
         if extra_vals:
             message.write(extra_vals)
         return message
@@ -166,13 +160,14 @@ class LLMThread(models.Model):
             raise UserError("No message found to process.")
         return last_message
 
-    def _init_message(self, user_message_body):
+    def _init_message(self, user_message_body, **kwargs):
         """Initialize first message: user input or history."""
         if user_message_body:
             return self._post_message(
                 subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
                 body=user_message_body,
                 author_id=self.env.user.partner_id.id,
+                **kwargs,
             )
         return self._get_last_message_from_history()
 
@@ -200,7 +195,7 @@ class LLMThread(models.Model):
             return self._process_tool_calls(last_message)
         return last_message
 
-    def generate(self, user_message_body):
+    def generate(self, user_message_body, **kwargs):
         self.ensure_one()
         if self.is_locked:
             raise UserError(
@@ -210,7 +205,7 @@ class LLMThread(models.Model):
 
         try:
             # orchestrate via hooks
-            last = self._init_message(user_message_body)
+            last = self._init_message(user_message_body, **kwargs)
             if user_message_body:
                 yield {"type": "message_create", "message": last.message_format()[0]}
             while self._should_continue(last):
@@ -330,6 +325,7 @@ class LLMThread(models.Model):
         tool_calls=None,
         tool_call_definition=None,
         tool_call_result=None,
+        **kwargs,
     ):
         if subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID and tool_calls:
             return {"tool_calls": tool_calls}
