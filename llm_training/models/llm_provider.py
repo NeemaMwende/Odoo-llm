@@ -22,10 +22,6 @@ class LLMProvider(models.Model):
         """Cancel a fine-tuning job with the provider."""
         return self._dispatch("cancel_training_job", job_id)
 
-    def format_training_metrics(self, response):
-        """Format fine-tuning metrics to a standardized format."""
-        return self._dispatch("format_training_metrics", response)
-
     def start_training_job(self, job_record):
         """Start a training job full process with the provider."""
         return self._dispatch("start_training_job", job_record)

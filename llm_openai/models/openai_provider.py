@@ -430,46 +430,6 @@ class LLMProvider(models.Model):
         response = self.client.fine_tuning.jobs.cancel(job_id)
         return response
 
-    def openai_format_training_metrics(self, response):
-        """Format OpenAI fine-tuning metrics to a standardized format.
-
-        Args:
-            response: OpenAI fine-tuning response object
-
-        Returns:
-            dict: Standardized metrics dictionary
-        """
-        metrics = {}
-
-        # Extract basic job information
-        for field in [
-            "id",
-            "model",
-            "status",
-            "created_at",
-            "finished_at",
-            "trained_tokens",
-        ]:
-            if hasattr(response, field):
-                metrics[field] = getattr(response, field)
-
-        # Extract file information
-        for field in ["training_file", "validation_file", "result_files"]:
-            if hasattr(response, field) and getattr(response, field):
-                metrics[field] = getattr(response, field)
-
-        # Calculate training duration if available
-        if (
-            hasattr(response, "created_at")
-            and hasattr(response, "finished_at")
-            and response.finished_at
-        ):
-            metrics["training_duration_seconds"] = (
-                response.finished_at - response.created_at
-            )
-
-        return metrics
-
     def openai_validate_datasets(self, job):
         """Validate datasets for training"""
         if not job.dataset_ids:
