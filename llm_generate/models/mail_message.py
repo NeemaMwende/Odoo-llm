@@ -142,3 +142,13 @@ class MailMessage(models.Model):
         except Exception as e:
             _logger.warning(f"Failed to download media from URL {url}: {e}")
             return False
+
+    def _get_llm_message_format_fields(self):
+        """Extend the list of fields fetched by the base message_format."""
+        fields_list = super()._get_llm_message_format_fields()
+        fields_list.extend(
+            [
+                "generation_inputs",
+            ]
+        )
+        return fields_list
