@@ -83,3 +83,20 @@ class LLMModel(models.Model):
             raw_response=raw_response,
             output_schema=self.generation_config_id.output_schema_raw
         )
+
+    @api.model
+    def get_model_gen_config_by_id(self, model_id):
+        model = self.browse(int(model_id))
+        if not model.exists():
+            raise ValueError(f"Model {model_id} not found")
+        
+        if not model.generation_config_id:
+            raise ValueError(f"Model {model.name} requires a generation configuration")
+        
+        return {
+            'input_schema': model.generation_config_id.input_schema,
+            'output_schema': model.generation_config_id.output_schema_raw,
+            'model_id': model.id,
+            'model_name': model.name
+        }
+        
