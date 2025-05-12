@@ -10,6 +10,7 @@ export class LLMMediaForm extends Component {
             isLoading: false,
             error: null,
             success: null,
+            showAdvancedSettings: false,
         });
 
         onWillStart(async () => {
@@ -62,6 +63,27 @@ export class LLMMediaForm extends Component {
             format: field.format // if present for strings, e.g. 'uri'
             // Add any other properties from your schema's field definition
         }));
+    }
+    
+    // Getter to filter required fields
+    get requiredFields() {
+        if (!this.formFields || !Array.isArray(this.formFields)) {
+            return [];
+        }
+        return this.formFields.filter(field => field.required);
+    }
+    
+    // Getter to filter optional fields
+    get optionalFields() {
+        if (!this.formFields || !Array.isArray(this.formFields)) {
+            return [];
+        }
+        return this.formFields.filter(field => !field.required);
+    }
+    
+    // Toggle advanced settings visibility
+    toggleAdvancedSettings() {
+        this.state.showAdvancedSettings = !this.state.showAdvancedSettings;
     }
 
     async loadGenerationConfig() {

@@ -4,7 +4,7 @@
        t-inherit="llm_thread.LLMChatComposer"
        t-inherit-mode="extension">
         
-        <!-- Add the Media Form container below the composer bar -->
+        <!-- Replace the composer container with our enhanced version -->
         <xpath expr="//div[hasclass('o_LLMChatComposer_container')]" position="replace">
             <div class="o_LLMChatComposer_container d-flex align-items-end gap-3 mx-auto" style="max-width: 1200px;">
                 <!-- Standard Chat Composer -->
@@ -28,20 +28,23 @@
                         </button>
                     </t>
                 </t>
-
-                <!-- Media Generation Composer -->
-                <t t-if="isMediaGenerationModel">
-                    <button class="btn btn-secondary w-100" t-on-click="toggleMediaForm">
-                        <i class="fa fa-paint-brush me-1" /> Create Media...
-                    </button>
-                </t>
             </div>
 
-            <!-- Media Form (conditionally rendered below the composer bar) -->
-            <t t-if="isMediaGenerationModel and state.isMediaFormVisible">
-                <div class="o_LLMChatComposer_mediaFormContainer mx-auto mt-2" style="max-width: 1200px;">
-                    <!-- Pass the llmModel from the thread to the LLMMediaForm -->
-                    <LLMMediaForm model="thread" />
+            <!-- Media Generation Form - Always visible for media generation models -->
+            <t t-if="isMediaGenerationModel">
+                <div class="o_LLMChatComposer_mediaFormContainer mx-auto mt-3" style="max-width: 1200px;">
+                    <div class="card border shadow-sm">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                            <h6 class="m-0 d-flex align-items-center">
+                                <i class="fa fa-image me-2 text-primary"></i>
+                                <span>Media Generation</span>
+                            </h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Pass the llmModel from the thread to the LLMMediaForm -->
+                            <LLMMediaForm model="thread" />
+                        </div>
+                    </div>
                 </div>
             </t>
         </xpath>
