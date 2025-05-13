@@ -103,8 +103,19 @@ export class LLMMediaForm extends Component {
       let fieldType = fieldDef.type;
       
       if (fieldDef.allOf && fieldDef.allOf[0] && fieldDef.allOf[0].enum) {
-        choices = fieldDef.allOf[0].enum;
-        fieldType = fieldDef.allOf[0].type || 'enum';
+        // Format enum values as objects with value and label properties
+        choices = fieldDef.allOf[0].enum.map(value => ({
+          value: value,
+          label: value
+        }));
+        fieldType = 'enum';
+      } else if (fieldDef.enum) {
+        // Handle direct enum property
+        choices = fieldDef.enum.map(value => ({
+          value: value,
+          label: value
+        }));
+        fieldType = 'enum';
       }
       
       return {

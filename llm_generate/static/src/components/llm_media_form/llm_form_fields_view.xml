@@ -79,7 +79,7 @@
 
                             <!-- Select for Enum -->
                             <select
-                                t-if="field.type === 'enum' and field.choices"
+                                t-if="field.type === 'enum' and field.choices and field.choices.length > 0"
                                 t-attf-id="media_form_field_{{field.name}}"
                                 class="form-select"
                                 t-att-name="field.name"
@@ -93,7 +93,7 @@
                                 <t
                                     t-foreach="field.choices"
                                     t-as="choice"
-                                    t-key="choice.value"
+                                    t-key="choice_index"
                                 >
                                     <option
                                         t-att-value="choice.value"
@@ -250,7 +250,7 @@
 
                                 <!-- Select for Enum -->
                                 <select
-                                    t-if="field.type === 'enum' and field.choices"
+                                    t-if="field.type === 'enum' and field.choices and field.choices.length > 0"
                                     t-attf-id="media_form_field_{{field.name}}"
                                     class="form-select"
                                     t-att-name="field.name"
@@ -263,7 +263,7 @@
                                     <t
                                         t-foreach="field.choices"
                                         t-as="choice"
-                                        t-key="choice.value"
+                                        t-key="choice_index"
                                     >
                                         <option
                                             t-att-value="choice.value"
