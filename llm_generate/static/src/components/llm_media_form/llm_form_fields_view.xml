@@ -107,7 +107,7 @@
                                 t-if="field.description and field.type !== 'boolean'"
                                 class="form-text text-muted"
                             >
-                                <t t-esc="field.description" />
+                                <t t-out="field.description" />
                             </small>
                         </div>
                     </t>
@@ -277,7 +277,7 @@
                                     t-if="field.description and field.type !== 'boolean'"
                                     class="form-text text-muted"
                                 >
-                                    <t t-esc="field.description" />
+                                    <t t-out="field.description" />
                                 </small>
                             </div>
                         </t>

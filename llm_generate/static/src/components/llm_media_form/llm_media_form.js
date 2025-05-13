@@ -4,7 +4,7 @@ import { registerMessagingComponent } from "@mail/utils/messaging_component";
 import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor"; 
 import { LLMFormFieldsView } from "./llm_form_fields_view"; 
 const { Component, useState, onWillStart, useEffect } = owl;
-
+import { markup } from "@odoo/owl";
 export class LLMMediaForm extends Component {
   setup() {
     this.state = useState({
@@ -74,48 +74,55 @@ export class LLMMediaForm extends Component {
   }
 
   get formFields() {
-    let inputSchema = this.inputSchema;
-    if (
-      !inputSchema ||
-      inputSchema.error ||
-      !Array.isArray(inputSchema.fields)
-    ) {
-      if (inputSchema && inputSchema.error) {
-        console.error(
-          "LLMMediaForm: Error in input schema:",
-          inputSchema.error
-        );
-      } else if (!inputSchema || !inputSchema.fields) {
-        console.warn(
-          "LLMMediaForm: inputSchema or inputSchema.fields is not yet available or not an array.",
-          inputSchema
-        );
-      }
+    const inputSchema = this.inputSchema;
+
+    if (!inputSchema) {
+      console.warn("LLMMediaForm: inputSchema is not available", inputSchema);
       return [];
     }
 
-    // Map over the 'fields' array directly
-    return inputSchema.fields.map((field) => {
+    // Check if we have a valid JSON Schema object with properties
+    if (!inputSchema.properties || typeof inputSchema.properties !== 'object') {
+      console.warn(
+        "LLMMediaForm: inputSchema doesn't contain properties object",
+        inputSchema
+      );
+      return [];
+    }
+
+    // Extract required fields array
+    const requiredFields = Array.isArray(inputSchema.required) ? inputSchema.required : [];
+
+    // Convert properties object to array of field definitions
+    return Object.entries(inputSchema.properties).map(([name, fieldDef]) => {
       // Check if field name is 'prompt' (case insensitive)
-      const isPromptField = field.name.toLowerCase() === 'prompt';
+      const isPromptField = name.toLowerCase() === 'prompt';
+      
+      // Handle enum types (could be in allOf[0].enum structure)
+      let choices;
+      let fieldType = fieldDef.type;
+      
+      if (fieldDef.allOf && fieldDef.allOf[0] && fieldDef.allOf[0].enum) {
+        choices = fieldDef.allOf[0].enum;
+        fieldType = fieldDef.allOf[0].type || 'enum';
+      }
       
       return {
-        name: field.name,
-        label:
-          field.label ||
-          field.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-        type: field.type,
-        // Make 'prompt' field required by default
-        required: isPromptField ? true : field.required,
-        description: field.description,
-        default: field.default,
-        // For 'enum' type, use 'field.options' directly as it matches the expected structure
-        choices: field.type === "enum" ? field.options : undefined,
-        minimum: field.minimum,
-        maximum: field.maximum,
-        format: field.format, // If present for strings, e.g. 'uri'
+        name: name,
+        label: fieldDef.title || name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        type: fieldType,
+        // Field is required if in required array or if it's the prompt field
+        required: isPromptField || requiredFields.includes(name),
+        description: this.formatDescription(fieldDef.description),
+        default: fieldDef.default,
+        choices: choices,
+        minimum: fieldDef.minimum,
+        maximum: fieldDef.maximum,
+        format: fieldDef.format,
+        // Use x-order for sorting if available
+        order: fieldDef['x-order'] !== undefined ? fieldDef['x-order'] : 999
       };
-    });
+    }).sort((a, b) => a.order - b.order); // Sort by order field
   }
 
   // Getter to filter required fields
@@ -268,6 +275,29 @@ export class LLMMediaForm extends Component {
       return { isValid: false, errors: errors, values: currentFormValues };
     }
     return { isValid: true, errors: [], values: validatedValues };
+  }
+
+  /**
+   * Format field descriptions to properly display HTML-like content
+   * @param {string} description - The raw description text
+   * @returns {Markup} - Safely formatted description
+   */
+  formatDescription(description) {
+    if (!description) return '';
+    
+    // Format special syntax patterns
+    let formattedDesc = description
+      // Format code-like elements with monospace font
+      .replace(/<([^>]+)>/g, '<code>$1</code>')
+      // Format examples with italics
+      .replace(/'([^']+)'/g, '<em>$1</em>')
+      // Add line breaks for better readability
+      .replace(/\. /g, '. <br/>')
+      // Format URLs as links
+      .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+    
+    // Return as safe markup that won't be escaped
+    return markup(formattedDesc);
   }
 
   async onSubmit(event) {
