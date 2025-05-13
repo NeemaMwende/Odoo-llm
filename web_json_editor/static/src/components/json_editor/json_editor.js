@@ -1,7 +1,7 @@
 /** @odoo-module */
 
 import { registry } from "@web/core/registry";
-import { Component, onMounted, onWillUnmount, useRef } from "@odoo/owl";
+import { Component, onMounted, onWillUnmount, useRef, useEffect } from "@odoo/owl";
 
 /**
  * Generic JSON Editor Component
@@ -15,6 +15,25 @@ export class JsonEditorComponent extends Component {
 
     onMounted(() => this.initEditor());
     onWillUnmount(() => this.destroyEditor());
+
+    useEffect(
+      () => {
+        if (this.editor && this.props.value !== undefined) {
+          try {
+            const currentValue = this.editor.get();
+            // Avoid re-setting if the editor's current value is already what's in props.value
+            // This helps prevent potential cursor jumps or loss of intermediate (invalid) user input.
+            if (JSON.stringify(currentValue) !== JSON.stringify(this.props.value)) {
+              this.setValue(this.props.value);
+            }
+          } catch (e) {
+            // If editor.get() fails (e.g. invalid JSON in 'code' mode), still try to set value from props.
+            this.setValue(this.props.value);
+          }
+        }
+      },
+      () => [this.props.value] // Dependency array: rerun effect if props.value changes
+    );
   }
 
   initEditor() {
@@ -22,11 +41,12 @@ export class JsonEditorComponent extends Component {
 
     // Generate autocomplete options from schema if available
     const autocompleteOptions = this.generateAutocompleteOptions();
-
+    console.log("props: ###: ", this.props);
     // Default options
+    const mode = this.props.mode || "code";
     const options = {
-      mode: this.props.mode || "code",
-      modes: ["code", "tree", "form", "view"],
+      mode: mode,
+      modes: [mode],
       search: true,
       autocomplete: autocompleteOptions,
       onChange: () => {
@@ -35,8 +55,13 @@ export class JsonEditorComponent extends Component {
             const json = this.editor.get();
             this.props.onChange({ value: json, isValid: true });
           } catch (e) {
+            let textValue = "";
+            // Attempt to get raw text if editor.get() fails, useful for invalid JSON feedback
+            if (this.editor && typeof this.editor.getText === 'function') {
+                textValue = this.editor.getText();
+            }
             this.props.onChange({
-              value: null,
+              value: textValue, // Send raw text on error
               isValid: false,
               error: e.message,
             });
