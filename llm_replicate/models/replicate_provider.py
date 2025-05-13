@@ -119,6 +119,7 @@ class LLMProvider(models.Model):
 
         # Extract and process input schema
         input_schema = {}
+        output_schema = {}
         if openapi_schema:
             resolved_openapi_schema = jsonref.replace_refs(openapi_schema)
             input_schema = resolved_openapi_schema['components']['schemas']['Input']
