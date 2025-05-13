@@ -109,13 +109,17 @@ export class JsonEditorField extends Component {
      * Handle changes from the JSON editor
      */
     onEditorChange() {
-        try {
-            // Get value from JSONEditor
-            const value = this.editor.get();
-            this.props.update(value);
-        } catch (e) {
-            // Invalid JSON, don't update
-            console.warn('Error getting JSON from editor:', e);
+        // Get value from JSONEditor as a JavaScript object
+        const jsonValue = this.editor.get();
+        
+        // Handle different field types
+        if (this.props.record.fields[this.props.name].type === 'json') {
+            // For JSON fields, pass the object directly
+            this.props.update(jsonValue);
+        } else {
+            // For text and char fields, convert to a JSON string
+            const stringValue = JSON.stringify(jsonValue);
+            this.props.update(stringValue);
         }
     }
     
@@ -135,6 +139,9 @@ JsonEditorField.props = {
     ...standardFieldProps,
     readonly: { type: Boolean, optional: true },
 };
+
+// Define supported field types
+JsonEditorField.supportedFieldTypes = ['text', 'char', 'json'];
 
 // Register the field widget
 registry.category("fields").add('json_editor', JsonEditorField);
