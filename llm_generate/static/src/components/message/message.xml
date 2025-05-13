@@ -17,7 +17,7 @@
                 <div class="o_llm_media_gen_params mt-2 small border-top pt-2">
                     <details>
                         <summary class="text-muted" style="cursor: pointer;">
-                            <strong>Media Generation Parameters</strong>
+                            <strong>JSON Input</strong>
                         </summary>
                         <pre class="bg-light p-1 rounded small mt-1"><code
                 t-esc="messageView.message.generationInputsFormatted || {}"
