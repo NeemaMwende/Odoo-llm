@@ -21,7 +21,8 @@ registerPatch({
             "provider_id",
             "default",
             "model_use",
-            "generation_config_id",
+            "input_schema",
+            "output_schema",
           ],
         },
       });
@@ -34,9 +35,8 @@ registerPatch({
           : undefined,
         default: model.default,
         modelUse: model.model_use,
-        generationConfigId: model.generation_config_id
-          ? model.generation_config_id[0]
-          : undefined,
+        inputSchema: model.input_schema,
+        outputSchema: model.output_schema,
       }));
 
       this.update({ llmModels: llmModelData });

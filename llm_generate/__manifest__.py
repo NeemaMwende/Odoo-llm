@@ -12,10 +12,7 @@
         "llm_mail_message_subtypes",
     ],
     "data": [
-        "security/ir.model.access.csv",
-        "views/llm_generation_config_views.xml",
         "views/llm_model_views.xml",
-        "views/llm_menu_views.xml",
     ],
     "assets": {
         "web.assets_backend": [

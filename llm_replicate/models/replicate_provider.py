@@ -345,15 +345,11 @@ class LLMProvider(models.Model):
             "fields": fields,
         }
 
-    def replicate_get_config_from_raw_schema(self, model_record):
+    def replicate_generate_io_schema(self, model_record):
         """Generate a configuration from Replicate model details
 
         Args:
-            raw_schema_components (dict): Raw schema components from the provider
             model_record (llm.model): The model record to generate config for
-
-        Returns:
-            llm.generation.config record created from the schema
         """
         self.ensure_one()
 
@@ -411,39 +407,12 @@ class LLMProvider(models.Model):
         _logger.info(f"Input schema: {input_schema}")
         _logger.info(f"Output schema: {output_schema}")
 
-        # Check if the model already has a generation config
-        if model_record.generation_config_id:
-            # Update the existing config
-            model_record.generation_config_id.write(
-                {
-                    "input_schema": json.dumps(input_schema) if input_schema else None,
-                    "output_schema_raw": json.dumps(output_schema)
-                    if output_schema
-                    else None,
-                    "description": f"Updated configuration for {model_name}",
-                }
-            )
-            generation_config = model_record.generation_config_id
-            _logger.info(f"Updated existing generation config for {model_name}")
-        else:
-            # Create a new generation config
-            generation_config = self.env["llm.generation.config"].create(
-                {
-                    "name": f"{model_name} Generation Config",
-                    "model_id": model_record.id,
-                    "description": f"Generated configuration for {model_name}",
-                    "input_schema": json.dumps(input_schema) if input_schema else None,
-                    "output_schema_raw": json.dumps(output_schema)
-                    if output_schema
-                    else None,
-                }
-            )
-
-            # Link the config back to the model
-            model_record.write({"generation_config_id": generation_config.id})
-            _logger.info(f"Created new generation config for {model_name}")
-
-        return generation_config
+        model_record.write(
+            {
+                "input_schema": json.dumps(input_schema) if input_schema else None,
+                "output_schema": json.dumps(output_schema) if output_schema else None,
+            }
+        )
 
     def replicate_generate_media(self, inputs, model_record=None, stream=False):
         """Generate media content using this provider"""

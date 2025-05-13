@@ -9,7 +9,7 @@
             <!-- Add the Generate Config button -->
             <xpath expr="//header" position="inside">
                 <button
-          name="action_generate_llm_generation_config"
+          name="action_generate_io_schema"
           string="Generate Config"
           type="object"
           help="Generate a configuration for this model based on its details."
@@ -17,12 +17,16 @@
         />
             </xpath>
 
-            <!-- Add the generation_config_id field -->
-            <xpath expr="//field[@name='default']" position="after">
-                <field
-          name="generation_config_id"
-          attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}"
-        />
+            <!-- Add Input/Output Schema notebook after the main group of fields -->
+            <xpath expr="//sheet/group[1]" position="after">
+                <notebook attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}">
+                    <page string="Input Schema" name="input_schema_page">
+                        <field name="input_schema" widget="ace" options="{'mode': 'json'}" />
+                    </page>
+                    <page string="Output Schema" name="output_schema_page">
+                        <field name="output_schema" widget="ace" options="{'mode': 'json'}" />
+                    </page>
+                </notebook>
             </xpath>
         </field>
     </record>

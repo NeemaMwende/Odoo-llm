@@ -4,11 +4,15 @@ from odoo import api, fields, models
 class LLMModel(models.Model):
     _inherit = "llm.model"
 
-    generation_config_id = fields.Many2one(
-        "llm.generation.config",
-        string="Generation Configuration",
+    input_schema = fields.Text(
+        string="Input Schema",
+        help="JSON Schema defining the input parameters for this generation task",
         tracking=True,
-        help="Defines input/output schemas for non-chat generation tasks using this model.",
+    )
+    output_schema = fields.Text(
+        string="Output Schema",
+        help="JSON Schema defining the output parameters for this generation task",
+        tracking=True,
     )
 
     @api.model
@@ -23,14 +27,14 @@ class LLMModel(models.Model):
         self.ensure_one()
         return self.model_use in ["image_generation"]
 
-    def action_generate_llm_generation_config(self):
+    def action_generate_io_schema(self):
         """Generate a generation configuration from the model's details.
         This reads from self.details and dispatches to the provider.
         """
         self.ensure_one()
 
         # Dispatch to provider-specific implementation
-        self.provider_id._dispatch("get_config_from_raw_schema", model_record=self)
+        self.provider_id._dispatch("generate_io_schema", model_record=self)
 
         return True
 
@@ -51,9 +55,6 @@ class LLMModel(models.Model):
                 f"Model {self.name} is not configured for generation tasks"
             )
 
-        if not self.generation_config_id:
-            raise ValueError(f"Model {self.name} requires a generation configuration")
-
         # Dispatch to provider-specific implementation
         return self.provider_id._dispatch(
             "generate_media", inputs=inputs, model_record=self, stream=stream
@@ -70,28 +71,22 @@ class LLMModel(models.Model):
         """
         self.ensure_one()
 
-        if not self.generation_config_id:
-            raise ValueError(f"Model {self.name} requires a generation configuration")
-
         # Dispatch to provider-specific implementation
         return self.provider_id._dispatch(
             "format_generation_response",
             raw_response=raw_response,
-            output_schema=self.generation_config_id.output_schema_raw,
+            output_schema=self.output_schema,
         )
 
     @api.model
-    def get_model_gen_config_by_id(self, model_id):
+    def get_model_gen_io_by_id(self, model_id):
         model = self.browse(int(model_id))
         if not model.exists():
             raise ValueError(f"Model {model_id} not found")
 
-        if not model.generation_config_id:
-            raise ValueError(f"Model {model.name} requires a generation configuration")
-
         return {
-            "input_schema": model.generation_config_id.input_schema,
-            "output_schema": model.generation_config_id.output_schema_raw,
+            "input_schema": model.input_schema,
+            "output_schema": model.output_schema,
             "model_id": model.id,
             "model_name": model.name,
         }

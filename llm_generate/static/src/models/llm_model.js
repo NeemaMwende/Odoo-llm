@@ -7,7 +7,6 @@ registerPatch({
   name: "LLMModel",
   fields: {
     modelUse: attr(), // Field to store the model's use case, e.g., 'chat', 'image_generation'
-    generationConfigId: attr(), // Field to store the ID of the llm.generation.config record
     inputSchema: attr({
       default: null, // Stores the JSON schema for input parameters
     }),

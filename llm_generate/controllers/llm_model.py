@@ -8,6 +8,7 @@ _logger = logging.getLogger(__name__)
 
 
 class LLMModelController(http.Controller):
+    # TODO: this should belong to the FE LLMModel model
     @http.route("/llm/model/gen_config", type="json", auth="user")
     def get_llm_model_gen_config(self, model_id):
         """Get the generation config for a model
@@ -19,7 +20,7 @@ class LLMModelController(http.Controller):
             dict: The generation config data
         """
         try:
-            model = request.env["llm.model"].get_model_gen_config_by_id(model_id)
+            model = request.env["llm.model"].get_model_gen_io_by_id(model_id)
 
             input_schema_str = model["input_schema"]
             output_schema_str = model["output_schema"]
