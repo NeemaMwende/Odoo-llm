@@ -34,6 +34,7 @@ This module provides functionality for managing LLM fine-tuning jobs across diff
 ### Monitoring Job Status
 
 1. The job will progress through several states:
+
    - **Draft**: Initial state
    - **Validating**: Validating datasets
    - **Preparing**: Preparing data for training
@@ -64,6 +65,7 @@ After successful training, the fine-tuned model will be automatically added to y
 ## Security
 
 The module follows the standard two-tier security model:
+
 - Regular users (base.group_user) have read-only access
 - LLM Managers (llm.group_llm_manager) have full CRUD access
 
@@ -77,6 +79,7 @@ The module follows the standard two-tier security model:
 ### Provider Integration
 
 The module uses a standardized interface for provider integration:
+
 - `start_training_job`: Initiates the training process
 - `check_training_job_status`: Checks the current status
 - `cancel_training_job`: Cancels an ongoing job
@@ -88,10 +91,12 @@ Providers implement these methods to handle provider-specific logic.
 ### Common Issues
 
 1. **Job stuck in validating state**:
+
    - Check that datasets are properly formatted
    - Verify provider credentials
 
 2. **Failed jobs**:
+
    - Check the Results tab for error details
    - Verify hyperparameters are correctly formatted
 
