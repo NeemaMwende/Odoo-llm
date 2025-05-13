@@ -182,10 +182,109 @@ export class LLMMediaForm extends Component {
     };
   }
 
+  _validateFormValues() {
+    const errors = [];
+    const validatedValues = {}; // This will hold values that conform to the schema
+    const currentFormValues = this.state.formValues;
+    const schemaFieldNames = new Set(this.formFields.map(f => f.name)); // For quick lookup
+
+    // Step 1: Check schema-defined fields: required, presence, and type
+    for (const schemaField of this.formFields) {
+      const fieldName = schemaField.name;
+      const label = schemaField.label || fieldName;
+      let value = currentFormValues[fieldName];
+
+      if (value === undefined && schemaField.default !== undefined) {
+        value = schemaField.default;
+      }
+
+      if (schemaField.required) {
+        const isMissingOrEmpty = value === undefined || value === null ||
+                                 (typeof value === 'string' && value.trim() === '') ||
+                                 (Array.isArray(value) && value.length === 0);
+        if (isMissingOrEmpty) {
+          errors.push(`Field "${label}" is required.`);
+          continue; 
+        }
+      }
+
+      if (value !== undefined) {
+        let processedValue = value;
+        let typeValidationError = null;
+
+        switch (schemaField.type) {
+          case 'integer':
+            const intValue = parseFloat(value);
+            if (isNaN(intValue) || !Number.isInteger(intValue)) {
+              typeValidationError = `must be an integer. Received: "${value}"`;
+            } else {
+              processedValue = intValue;
+            }
+            break;
+          case 'number':
+            const floatValue = parseFloat(value);
+            if (isNaN(floatValue)) {
+              typeValidationError = `must be a number. Received: "${value}"`;
+            } else {
+              processedValue = floatValue;
+            }
+            break;
+          case 'boolean':
+            if (typeof value === 'string') {
+              if (value.toLowerCase() === 'true') processedValue = true;
+              else if (value.toLowerCase() === 'false') processedValue = false;
+              else typeValidationError = `expects a boolean (true/false). Received: "${value}"`;
+            } else if (typeof value !== 'boolean') {
+              typeValidationError = `expects a boolean. Received: ${typeof value}`;
+            }
+            break;
+          case 'string':
+            if (value !== null && value !== undefined) {
+              processedValue = String(value);
+            }
+            break;
+          // Add cases for 'enum', 'array', 'object' for more complex schemas if needed
+        }
+
+        if (typeValidationError) {
+          errors.push(`Field "${label}" ${typeValidationError}.`);
+        } else {
+          validatedValues[fieldName] = processedValue;
+        }
+      }
+    }
+
+    // Step 2: Check for EXTRA fields
+    for (const keyInForm in currentFormValues) {
+      if (!schemaFieldNames.has(keyInForm)) {
+        console.warn(`Extra field "${keyInForm}" provided in form data will be ignored.`);
+        // Optionally, treat as an error:
+        // errors.push(`Field "${keyInForm}" is not a recognized field.`);
+      }
+    }
+
+    // Step 3: Return validation result
+    if (errors.length > 0) {
+      return { isValid: false, errors: errors, values: currentFormValues };
+    }
+    return { isValid: true, errors: [], values: validatedValues };
+  }
+
   async onSubmit(event) {
     event.preventDefault();
+    
+    // Call the validation function
+    const validationResult = this._validateFormValues(); 
+
+    if (!validationResult.isValid) {
+      this.state.error = validationResult.errors.join('\n'); // Display multiple errors
+      this.state.isLoading = false; 
+      return; // Stop submission
+    }
+
+    // If validation passes, proceed
     this.state.isLoading = true;
-    this.state.error = null;
+    this.state.error = null; // Clear any previous errors
 
     if (!this.llmModel) {
       this.state.error = "Model not available.";
@@ -195,8 +294,8 @@ export class LLMMediaForm extends Component {
 
     try {
       const composer = this.thread.composer;
-      composer.postUserMediaGenMessageForLLM(this.state.formValues);
-      // We don't reset the form to allow users to make minor adjustments for subsequent generations
+      // Send only the validated and cleaned values
+      composer.postUserMediaGenMessageForLLM(validationResult.values); 
     } catch (error) {
       console.error("Error submitting media generation form:", error);
       this.state.error =
