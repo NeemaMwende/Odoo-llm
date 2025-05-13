@@ -14,21 +14,16 @@
     "depends": [
         "web",
     ],
-    "data": [
-        "views/assets.xml",
-    ],
     "assets": {
         "web.assets_backend": [
             # JSONEditor library
             "web_json_editor/static/lib/jsoneditor/jsoneditor.min.js",
             "web_json_editor/static/lib/jsoneditor/jsoneditor.min.css",
             "web_json_editor/static/lib/jsoneditor/img/jsoneditor-icons.svg",
-            
             # Field widget
             "web_json_editor/static/src/fields/json_field.js",
             "web_json_editor/static/src/fields/json_field.xml",
             "web_json_editor/static/src/fields/json_field.scss",
-            
             # OWL Component
             "web_json_editor/static/src/components/json_editor/json_editor.js",
             "web_json_editor/static/src/components/json_editor/json_editor.xml",
