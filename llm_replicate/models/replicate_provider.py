@@ -143,7 +143,7 @@ class LLMProvider(models.Model):
         _logger.info(
             f"Generating media content using {model_record.name} with inputs {inputs}"
         )
-
+        # TODO: Might need to use prediction_create method, to have streaming and more details about prediction
         result = self.client.run(model_record.name, input=inputs)
 
         # Extract URLs from FileOutput objects
