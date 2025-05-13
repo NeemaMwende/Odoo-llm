@@ -3,7 +3,6 @@
 import { registry } from '@web/core/registry';
 import { standardFieldProps } from '@web/views/fields/standard_field_props';
 import { Component, useRef, onMounted, onWillUnmount } from '@odoo/owl';
-import { JsonEditorComponent } from '../components/json_editor/json_editor';
 
 /**
  * Simple JSON formatter for display mode
@@ -37,7 +36,7 @@ export class JsonEditorField extends Component {
         // Initialize JSONEditor with options
         const options = {
             mode: this.props.readonly ? 'view' : 'code',
-            modes: ['code', 'tree', 'form', 'view'],
+            modes: ['code', 'view'],
             search: true,
             history: true,
             navigationBar: true,

@@ -14,6 +14,14 @@
                 background-color: $gray-200;
                 border-bottom: 1px solid $border-color;
                 
+                // Style for the mode dropdown container
+                ul.jsoneditor-menu {
+                    background-color: $white;
+                    border: 1px solid $border-color;
+                    border-radius: $border-radius;
+                    box-shadow: 0 2px 4px rgba($black, 0.1);
+                }
+                
                 // Style for all menu buttons
                 button {
                     background-color: $o-brand-primary;
@@ -22,6 +30,37 @@
                     
                     &.jsoneditor-separator {
                         margin-right: 0.5rem;
+                    }
+                    
+                    // Mode selection buttons
+                    &.jsoneditor-type-modes {
+                        background-color: transparent;
+                        color: $gray-700;
+                        
+                        .jsoneditor-icon {
+                            filter: brightness(0.5);
+                        }
+                        
+                        .jsoneditor-text {
+                            color: $gray-700;
+                        }
+                        
+                        // Selected mode
+                        &.jsoneditor-selected {
+                            background-color: $o-brand-primary;
+                            
+                            .jsoneditor-icon {
+                                filter: brightness(1);
+                            }
+                            
+                            .jsoneditor-text {
+                                color: $white;
+                            }
+                        }
+                        
+                        &:hover:not(.jsoneditor-selected) {
+                            background-color: $gray-300;
+                        }
                     }
                 }
                 
@@ -44,19 +83,7 @@
                 font-size: $font-size-sm;
             }
             
-            /* Tree mode styling */
-            div.jsoneditor-tree {
-                padding: 0.5rem;
-                
-                div.jsoneditor-readonly {
-                    color: $gray-600;
-                }
-                
-                div.jsoneditor-field, div.jsoneditor-value {
-                    font-family: $font-family-monospace;
-                    font-size: $font-size-sm;
-                }
-            }
+            /* No tree mode styling needed as we removed tree mode */
         }
     }
     
