@@ -41,7 +41,6 @@ export class JsonEditorComponent extends Component {
 
     // Generate autocomplete options from schema if available
     const autocompleteOptions = this.generateAutocompleteOptions();
-    console.log("props: ###: ", this.props);
     // Default options
     const mode = this.props.mode || "code";
     const options = {
