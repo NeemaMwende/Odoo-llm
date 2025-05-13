@@ -4,15 +4,17 @@ from odoo import api, fields, models
 class LLMModel(models.Model):
     _inherit = "llm.model"
 
-    input_schema = fields.Text(
+    input_schema = fields.Json(
         string="Input Schema",
         help="JSON Schema defining the input parameters for this generation task",
-        tracking=True,
+        compute='_compute_io_schema',
+        store=True,
     )
-    output_schema = fields.Text(
+    output_schema = fields.Json(
         string="Output Schema",
         help="JSON Schema defining the output parameters for this generation task",
-        tracking=True,
+        compute='_compute_io_schema',
+        store=True,
     )
 
     @api.model
@@ -22,21 +24,18 @@ class LLMModel(models.Model):
             ("image_generation", "Image Generation"),
         ]
 
-    def _is_generative_task_model(self):
+    def _is_media_generation_model(self):
         """Helper to check if model_use indicates a non-chat/embedding generative task."""
         self.ensure_one()
         return self.model_use in ["image_generation"]
 
-    def action_generate_io_schema(self):
-        """Generate a generation configuration from the model's details.
-        This reads from self.details and dispatches to the provider.
-        """
-        self.ensure_one()
-
-        # Dispatch to provider-specific implementation
-        self.provider_id._dispatch("generate_io_schema", model_record=self)
-
-        return True
+    @api.depends('details', 'model_use', 'name', 'provider_id')
+    def _compute_io_schema(self):
+        """Compute input and output schemas based on model details and usage"""
+        for record in self:
+            if record._is_media_generation_model() and record.provider_id and record.details:
+                # Trigger provider-specific schema generation
+                record.provider_id.generate_io_schema(model_record=record)
 
     def generate_media(self, inputs, stream=False):
         """Generate content using this model with the specified inputs.
@@ -50,7 +49,7 @@ class LLMModel(models.Model):
         self.ensure_one()
 
         # Validate model is configured for generation
-        if not self._is_generative_task_model():
+        if not self._is_media_generation_model():
             raise ValueError(
                 f"Model {self.name} is not configured for generation tasks"
             )

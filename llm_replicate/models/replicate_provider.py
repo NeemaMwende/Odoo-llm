@@ -1,6 +1,7 @@
 import json
 import logging
 
+import jsonref
 import replicate
 
 from odoo import api, models
@@ -96,167 +97,6 @@ class LLMProvider(models.Model):
             "capabilities": capabilities,
         }
 
-    def _extract_schema_by_name(self, openapi_schema, schema_name):
-        """Extract a schema by name from the components section
-
-        Args:
-            openapi_schema (dict): The OpenAPI schema dictionary
-            schema_name (str): The name of the schema to extract (e.g., 'Input', 'Output')
-
-        Returns:
-            dict: The extracted schema or empty dict if not found
-        """
-        if (
-            not openapi_schema
-            or "components" not in openapi_schema
-            or "schemas" not in openapi_schema["components"]
-        ):
-            return {}
-
-        # Check if the schema exists directly
-        schemas = openapi_schema["components"]["schemas"]
-        if schema_name in schemas:
-            schema = schemas[schema_name]
-
-            # Resolve any references in the schema
-            if "$ref" in schema:
-                schema = self._resolve_schema_reference(openapi_schema, schema["$ref"])
-
-            return schema
-
-        # If not found directly, look for it in PredictionRequest/Response
-        if schema_name == "Input" and "PredictionRequest" in schemas:
-            pred_request = schemas["PredictionRequest"]
-            if "properties" in pred_request and "input" in pred_request["properties"]:
-                input_prop = pred_request["properties"]["input"]
-                if "$ref" in input_prop:
-                    return self._resolve_schema_reference(
-                        openapi_schema, input_prop["$ref"]
-                    )
-                return input_prop
-
-        elif schema_name == "Output" and "PredictionResponse" in schemas:
-            pred_response = schemas["PredictionResponse"]
-            if (
-                "properties" in pred_response
-                and "output" in pred_response["properties"]
-            ):
-                output_prop = pred_response["properties"]["output"]
-                if "$ref" in output_prop:
-                    return self._resolve_schema_reference(
-                        openapi_schema, output_prop["$ref"]
-                    )
-                return output_prop
-
-        return {}
-
-    def _resolve_schema_reference(self, openapi_schema, ref):
-        """Resolve a schema reference to its actual schema
-
-        Args:
-            openapi_schema (dict): The OpenAPI schema dictionary
-            ref (str): The reference string (e.g., '#/components/schemas/PredictionResponse')
-
-        Returns:
-            dict: The resolved schema or empty dict if not found
-        """
-        if not ref.startswith("#/"):
-            return {}
-
-        ref_parts = ref.split("/")[1:]  # Remove the '#' part
-
-        # Navigate through the schema to find the referenced object
-        current = openapi_schema
-        for part in ref_parts:
-            if part not in current:
-                return {}
-            current = current[part]
-
-        return current
-
-    def _process_input_schema(self, schema, openapi_schema):
-        """Process and flatten an input schema for dynamic form rendering
-
-        Args:
-            schema (dict): The schema to process
-            openapi_schema (dict): The full OpenAPI schema for reference resolution
-
-        Returns:
-            dict: A flattened schema with fields in a consistent format
-        """
-        # If schema has a reference, resolve it
-        if "$ref" in schema:
-            schema = self._resolve_schema_reference(openapi_schema, schema["$ref"])
-
-        # Get properties and required fields
-        properties = schema.get("properties", {})
-        required_fields = schema.get("required", [])
-
-        # Transform to flattened format
-        fields = []
-        for name, prop in properties.items():
-            # Resolve property reference if needed
-            if "$ref" in prop:
-                prop = self._resolve_schema_reference(openapi_schema, prop["$ref"])
-
-            # Basic field properties
-            field = {
-                "name": name,
-                "label": prop.get("title", name),
-                "type": prop.get("type", "string"),
-                "description": prop.get("description", ""),
-                "required": name in required_fields,
-                "order": prop.get("x-order", 999),
-            }
-
-            # Handle default value
-            if "default" in prop:
-                field["default"] = prop["default"]
-
-            # Handle type-specific properties
-            if field["type"] in ["integer", "number"]:
-                if "minimum" in prop:
-                    field["minimum"] = prop["minimum"]
-                if "maximum" in prop:
-                    field["maximum"] = prop["maximum"]
-
-            # Handle enums directly in the property
-            if "enum" in prop:
-                field["type"] = "enum"
-                field["options"] = [{"value": v, "label": str(v)} for v in prop["enum"]]
-
-            # Handle enums via allOf with $ref
-            if "allOf" in prop:
-                for item in prop.get("allOf", []):
-                    if "$ref" in item:
-                        # Extract the enum name from the reference
-                        enum_schema = self._resolve_schema_reference(
-                            openapi_schema, item["$ref"]
-                        )
-                        if "enum" in enum_schema:
-                            field["type"] = "enum"
-                            field["options"] = [
-                                {"value": v, "label": str(v)}
-                                for v in enum_schema["enum"]
-                            ]
-
-            # Handle formats for strings
-            if field["type"] == "string" and "format" in prop:
-                field["format"] = prop["format"]
-
-            fields.append(field)
-
-        # Sort by order
-        fields.sort(key=lambda x: x.get("order", 999))
-
-        return {
-            "title": schema.get("title", "Model Input Parameters"),
-            "description": schema.get(
-                "description", "Parameters for generating content with this model"
-            ),
-            "fields": fields,
-        }
-
     def replicate_generate_io_schema(self, model_record):
         """Generate a configuration from Replicate model details
 
@@ -280,49 +120,16 @@ class LLMProvider(models.Model):
         # Extract and process input schema
         input_schema = {}
         if openapi_schema:
-            # Extract the Input schema
-            raw_input_schema = self._extract_schema_by_name(openapi_schema, "Input")
-
-            if raw_input_schema:
-                # Process the input schema for form rendering
-                input_schema = self._process_input_schema(
-                    raw_input_schema, openapi_schema
-                )
-                _logger.info(f"Extracted and processed Input schema: {input_schema}")
-            else:
-                _logger.warning(f"Could not find Input schema for model {model_name}")
-                # Create a minimal schema
-                input_schema = {
-                    "title": "Model Input Parameters",
-                    "description": "Parameters for generating content with this model",
-                    "fields": [],
-                }
+            resolved_openapi_schema = jsonref.replace_refs(openapi_schema)
+            input_schema = resolved_openapi_schema['components']['schemas']['Input']
+            output_schema = resolved_openapi_schema['components']['schemas']['Output']
         else:
             _logger.warning(f"No OpenAPI schema found for model {model_name}")
 
-        # Extract output schema
-        output_schema = {}
-        if openapi_schema:
-            # Extract the Output schema
-            output_schema = self._extract_schema_by_name(openapi_schema, "Output")
-
-            if output_schema:
-                _logger.info(f"Extracted Output schema: {output_schema}")
-            else:
-                _logger.warning(f"Could not find Output schema for model {model_name}")
-                # Create a minimal schema
-                output_schema = {
-                    "type": "object",
-                    "title": "Output",
-                    "description": "Model output",
-                }
-        _logger.info(f"Input schema: {input_schema}")
-        _logger.info(f"Output schema: {output_schema}")
-
         model_record.write(
             {
-                "input_schema": json.dumps(input_schema) if input_schema else None,
-                "output_schema": json.dumps(output_schema) if output_schema else None,
+                "input_schema": json.dumps(input_schema, indent=2) if input_schema else None,
+                "output_schema": json.dumps(output_schema, indent=2) if output_schema else None,
             }
         )
 

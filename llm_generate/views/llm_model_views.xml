@@ -6,25 +6,14 @@
         <field name="model">llm.model</field>
         <field name="inherit_id" ref="llm.llm_model_view_form" />
         <field name="arch" type="xml">
-            <!-- Add the Generate Config button -->
-            <xpath expr="//header" position="inside">
-                <button
-          name="action_generate_io_schema"
-          string="Generate Config"
-          type="object"
-          help="Generate a configuration for this model based on its details."
-          attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}"
-        />
-            </xpath>
-
             <!-- Add Input/Output Schema notebook after the main group of fields -->
             <xpath expr="//sheet/group[1]" position="after">
                 <notebook attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}">
                     <page string="Input Schema" name="input_schema_page">
-                        <field name="input_schema" widget="ace" options="{'mode': 'json'}" />
+                        <field name="input_schema" widget="json_editor" />
                     </page>
                     <page string="Output Schema" name="output_schema_page">
-                        <field name="output_schema" widget="ace" options="{'mode': 'json'}" />
+                        <field name="output_schema" widget="json_editor" />
                     </page>
                 </notebook>
             </xpath>
