@@ -41,7 +41,7 @@ registerPatch({
               break;
             case "error":
               this._closeEventSource();
-              this.messaging.notify({ message: data.error, type: "danger" });
+              this.messaging.notify({ message: data.error, type: "danger", sticky: true });
               break;
             case "done": {
               const sameThread =
