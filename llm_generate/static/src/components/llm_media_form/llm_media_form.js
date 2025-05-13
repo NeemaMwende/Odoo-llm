@@ -1,6 +1,7 @@
 /** @odoo-module **/
 
 import { registerMessagingComponent } from "@mail/utils/messaging_component";
+import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor"; 
 const { Component, useState, onWillStart, useEffect } = owl;
 
 export class LLMMediaForm extends Component {
@@ -10,6 +11,9 @@ export class LLMMediaForm extends Component {
       isLoading: false,
       error: null,
       showAdvancedSettings: false,
+      inputMode: "form", 
+      isJsonValid: true,
+      jsonEditorError: null,
     });
 
     onWillStart(async () => {
@@ -129,6 +133,31 @@ export class LLMMediaForm extends Component {
     return this.formFields.filter((field) => !field.required);
   }
 
+  // Toggle input mode between form and JSON editor
+  toggleInputMode() {
+    if (this.state.inputMode === "form") {
+      this.state.inputMode = "json";
+    } else {
+      // When switching back to form, ensure formValues reflect any valid JSON changes
+      // If JSON was invalid, formValues would not have been updated by onJsonEditorChange
+      this.state.inputMode = "form";
+    }
+    this.state.jsonEditorError = null; // Clear any previous JSON errors when toggling
+  }
+
+  // Handler for changes from JsonEditorComponent
+  onJsonEditorChange({ value, isValid, error }) {
+    this.state.isJsonValid = isValid;
+    if (isValid) {
+      this.state.formValues = value; // value is already a JS object if valid
+      this.state.jsonEditorError = null;
+    } else {
+      // Keep the last valid formValues, but show an error.
+      // The JsonEditorComponent itself will display the invalid 'value' (raw text).
+      this.state.jsonEditorError = error || "Invalid JSON format.";
+    }
+  }
+
   // Toggle advanced settings visibility
   toggleAdvancedSettings() {
     this.state.showAdvancedSettings = !this.state.showAdvancedSettings;
@@ -190,5 +219,8 @@ LLMMediaForm.props = {
 };
 
 LLMMediaForm.template = "llm_thread.LLMMediaForm";
+
+// Register JsonEditorComponent for use in the template
+LLMMediaForm.components = { JsonEditorComponent };
 
 registerMessagingComponent(LLMMediaForm);
