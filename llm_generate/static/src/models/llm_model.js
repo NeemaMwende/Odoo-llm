@@ -20,48 +20,4 @@ registerPatch({
       },
     }),
   },
-  recordMethods: {
-    async fetchGenerationConfig() {
-      if (!this.id) {
-        // Check if model ID is available
-        console.error(
-          "LLMModel: Cannot fetch generation config without model ID."
-        );
-        return null;
-      }
-      // Ensure messaging service is available
-      if (!this.messaging) {
-        console.error("Messaging service not available for LLMModel.");
-        this.update({
-          inputSchema: { error: "Messaging unavailable" },
-          outputSchema: { error: "Messaging unavailable" },
-        });
-        return null;
-      }
-
-      const result = await this.messaging.rpc({
-        route: "/llm/model/gen_config",
-        params: {
-          model_id: this.id, // Use the LLMModel's own ID
-        },
-      });
-
-      if (!result || result.error) {
-        console.error("Error fetching generation config:", result.error);
-        // Update schemas to reflect the error, so UI can react
-        this.update({
-          inputSchema: { error: result.error },
-          outputSchema: { error: result.error },
-        });
-        return null;
-      }
-
-      this.update({
-        inputSchema: result.input_schema,
-        outputSchema: result.output_schema,
-      });
-
-      return result; // Return the raw result for potential further use
-    },
-  },
 });

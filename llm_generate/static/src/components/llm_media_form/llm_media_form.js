@@ -13,7 +13,6 @@ export class LLMMediaForm extends Component {
     });
 
     onWillStart(async () => {
-      await this.loadGenerationConfig();
       // Initialize form values with defaults after loading config
       this._initializeFormValues();
     });
@@ -21,11 +20,10 @@ export class LLMMediaForm extends Component {
     // Watch for changes in the model prop to reload config if necessary
     useEffect(
       () => {
-        this.loadGenerationConfig();
         // Re-initialize form values when model changes
         this._initializeFormValues();
       },
-      () => [this.llmModel]
+      () => [this.llmModel.inputSchema]
     );
   }
   
@@ -58,33 +56,41 @@ export class LLMMediaForm extends Component {
   }
 
   get inputSchema() {
-    return this.llmModel?.inputSchema;
+    if (!this.llmModel) {
+      return null;
+    }else if (!this.llmModel.inputSchema) {
+      return null;
+    } else if (typeof this.llmModel.inputSchema === "string") {
+      return JSON.parse(this.llmModel.inputSchema);
+    } else if (typeof this.llmModel.inputSchema === "object") {
+      return this.llmModel.inputSchema;
+    }
+    return null;
   }
 
-  // Placeholder for a getter that will transform the JSON schema into an array of field objects for rendering
   get formFields() {
-    // Ensure inputSchema and inputSchema.fields are valid
+    let inputSchema = this.inputSchema;
     if (
-      !this.inputSchema ||
-      this.inputSchema.error ||
-      !Array.isArray(this.inputSchema.fields)
+      !inputSchema ||
+      inputSchema.error ||
+      !Array.isArray(inputSchema.fields)
     ) {
-      if (this.inputSchema && this.inputSchema.error) {
+      if (inputSchema && inputSchema.error) {
         console.error(
           "LLMMediaForm: Error in input schema:",
-          this.inputSchema.error
+          inputSchema.error
         );
-      } else if (!this.inputSchema || !this.inputSchema.fields) {
+      } else if (!inputSchema || !inputSchema.fields) {
         console.warn(
           "LLMMediaForm: inputSchema or inputSchema.fields is not yet available or not an array.",
-          this.inputSchema
+          inputSchema
         );
       }
       return [];
     }
 
     // Map over the 'fields' array directly
-    return this.inputSchema.fields.map((field) => {
+    return inputSchema.fields.map((field) => {
       // Check if field name is 'prompt' (case insensitive)
       const isPromptField = field.name.toLowerCase() === 'prompt';
       
@@ -126,35 +132,6 @@ export class LLMMediaForm extends Component {
   // Toggle advanced settings visibility
   toggleAdvancedSettings() {
     this.state.showAdvancedSettings = !this.state.showAdvancedSettings;
-  }
-
-  async loadGenerationConfig() {
-    if (!this.llmModel || !this.llmModel.isMediaGenerationModel) {
-      this.state.error = "Not a media generation model or model not available.";
-      return;
-    }
-
-    // Only fetch if schema is not already loaded or if there was a previous error loading it
-    if (!this.llmModel.inputSchema || this.llmModel.inputSchema.error) {
-      this.state.isLoading = true;
-      this.state.error = null;
-      try {
-        await this.llmModel.fetchGenerationConfig();
-        if (this.llmModel.inputSchema?.error) {
-          // Check for error after fetch attempt
-          this.state.error = this.llmModel.inputSchema.error;
-        }
-      } catch (error) {
-        console.error(
-          "Error fetching generation config in LLMMediaForm:",
-          error
-        );
-        this.state.error =
-          error.message || "Failed to load generation configuration.";
-      } finally {
-        this.state.isLoading = false;
-      }
-    }
   }
 
   onInputChange(fieldName, event) {
