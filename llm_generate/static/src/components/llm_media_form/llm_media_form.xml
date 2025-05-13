@@ -53,8 +53,13 @@
                     <JsonEditorComponent
                         value="state.formValues"
                         onChange.bind="onJsonEditorChange"
+                        onValidationError.bind="onJsonValidationError"
+                        onError.bind="onJsonEditorError"
                         schema="inputSchema"
                         height="'300px'"
+                        mode="'code'"
+                        modes="['code']"
+                        allowSchemaSuggestions="true"
                     />
                     <div t-if="state.jsonEditorError" class="alert alert-danger mt-2 small p-2" role="alert">
                         <i class="fa fa-exclamation-triangle me-1"/> <t t-esc="state.jsonEditorError"/>

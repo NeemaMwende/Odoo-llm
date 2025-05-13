@@ -18,6 +18,7 @@
     "assets": {
         "web.assets_backend": [
             "llm_generate/static/src/components/llm_media_form/llm_media_form.js",
+            "llm_generate/static/src/components/llm_media_form/llm_media_form.scss",
             "llm_generate/static/src/components/llm_media_form/llm_media_form.xml",
             "llm_generate/static/src/components/llm_media_form/llm_form_fields_view.js",
             "llm_generate/static/src/components/llm_media_form/llm_form_fields_view.xml",

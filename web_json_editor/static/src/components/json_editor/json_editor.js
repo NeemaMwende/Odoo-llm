@@ -6,7 +6,8 @@ import { Component, onMounted, onWillUnmount, useRef, useEffect } from "@odoo/ow
 /**
  * Generic JSON Editor Component
  *
- * A reusable component for editing JSON with schema-based autocomplete
+ * A reusable component for editing JSON with schema-based validation and autocomplete.
+ * Wraps the JSONEditor library (https://github.com/josdejong/jsoneditor)
  */
 export class JsonEditorComponent extends Component {
   setup() {
@@ -34,40 +35,55 @@ export class JsonEditorComponent extends Component {
       },
       () => [this.props.value] // Dependency array: rerun effect if props.value changes
     );
+
+    // Update editor options when schema changes
+    useEffect(
+      () => {
+        if (this.editor && this.props.schema) {
+          this.updateSchema(this.props.schema);
+        }
+      },
+      () => [this.props.schema]
+    );
   }
 
   initEditor() {
     if (!this.editorRef.el) return;
 
-    // Generate autocomplete options from schema if available
-    const autocompleteOptions = this.generateAutocompleteOptions();
     // Default options
     const mode = this.props.mode || "code";
     const options = {
       mode: mode,
-      modes: [mode],
-      search: true,
-      autocomplete: autocompleteOptions,
-      onChange: () => {
-        if (this.props.onChange) {
-          try {
-            const json = this.editor.get();
-            this.props.onChange({ value: json, isValid: true });
-          } catch (e) {
-            let textValue = "";
-            // Attempt to get raw text if editor.get() fails, useful for invalid JSON feedback
-            if (this.editor && typeof this.editor.getText === 'function') {
-                textValue = this.editor.getText();
-            }
-            this.props.onChange({
-              value: textValue, // Send raw text on error
-              isValid: false,
-              error: e.message,
-            });
-          }
+      modes: this.props.modes || [mode],
+      search: this.props.search !== false,
+      history: this.props.history !== false,
+      indentation: this.props.indentation || 2,
+      mainMenuBar: this.props.mainMenuBar !== false,
+      navigationBar: this.props.navigationBar !== false,
+      statusBar: this.props.statusBar !== false,
+      colorPicker: this.props.colorPicker !== false,
+      onChange: () => this.handleChange(),
+      onValidationError: (errors) => this.handleValidationError(errors),
+      onError: (error) => {
+        if (this.props.onError) {
+          this.props.onError(error);
         }
       },
+      allowSchemaSuggestions: this.props.allowSchemaSuggestions !== false,
     };
+
+    // Add schema if provided
+    if (this.props.schema) {
+      options.schema = this.props.schema;
+      options.schemaRefs = this.props.schemaRefs;
+    }
+
+    // Add autocomplete options if provided or generate from schema
+    if (this.props.autocomplete) {
+      options.autocomplete = this.props.autocomplete;
+    } else if (this.props.schema) {
+      options.autocomplete = this.generateAutocompleteOptions();
+    }
 
     // Create editor
     this.editor = new JSONEditor(this.editorRef.el, options);
@@ -78,83 +94,159 @@ export class JsonEditorComponent extends Component {
     }
   }
 
+  handleChange() {
+    if (!this.props.onChange) return;
+    
+    try {
+      // First validate against schema
+      this.editor.validate().then(errors => {
+        if (errors && errors.length > 0) {
+          // There are validation errors - handle them
+          if (this.props.onValidationError) {
+            this.props.onValidationError(errors);
+          }
+          
+          // Get the current text and JSON if possible
+          let textValue = this.editor.getText();
+          let jsonValue = null;
+          try {
+            jsonValue = this.editor.get();
+          } catch (e) {
+            // Invalid JSON, will use text value only
+          }
+          
+          // Return both the validation errors and the current value
+          this.props.onChange({
+            value: jsonValue || textValue,
+            isValid: false,
+            error: "Schema validation failed",
+            text: textValue,
+            validationErrors: errors
+          });
+        } else {
+          // No validation errors, proceed with the valid JSON
+          const json = this.editor.get();
+          this.props.onChange({ 
+            value: json, 
+            isValid: true,
+            text: this.editor.getText()
+          });
+        }
+      });
+    } catch (e) {
+      // Handle syntax errors (not validation errors)
+      let textValue = "";
+      // Attempt to get raw text if editor.get() fails
+      if (this.editor && typeof this.editor.getText === 'function') {
+        textValue = this.editor.getText();
+      }
+      this.props.onChange({
+        value: textValue, // Send raw text on error
+        isValid: false,
+        error: e.message,
+        text: textValue
+      });
+    }
+  }
+
+  handleValidationError(errors) {
+    if (this.props.onValidationError) {
+      this.props.onValidationError(errors);
+    }
+  }
+
+  updateSchema(schema) {
+    if (!this.editor || !schema) return;
+    
+    try {
+      this.editor.setSchema(schema, this.props.schemaRefs);
+      
+      // Update autocomplete if using schema-based suggestions
+      if (this.props.allowSchemaSuggestions !== false && !this.props.autocomplete) {
+        const autocomplete = this.generateAutocompleteOptions();
+        // Note: JSONEditor doesn't have a direct method to update autocomplete options
+        // A full reinitialize would be needed, which might disrupt user experience
+      }
+    } catch (e) {
+      console.error("Error setting JSON schema:", e);
+      if (this.props.onError) {
+        this.props.onError(e);
+      }
+    }
+  }
+
   generateAutocompleteOptions() {
     // If no schema is provided, return default autocomplete (empty)
     if (!this.props.schema) return {};
 
-    const fields = this.props.schema.fields || [];
-    const templates = {};
-    const enums = {};
-
-    // Create templates for each field type
-    fields.forEach((field) => {
-      // Create template for this field
-      let template;
-
-      switch (field.type) {
-        case "string":
-          template = field.default || "";
-          break;
-        case "integer":
-        case "number":
-          template = field.default || 0;
-          break;
-        case "boolean":
-          template = field.default || false;
-          break;
-        case "enum":
-          if (field.choices && field.choices.length > 0) {
-            template = field.choices[0].value;
-            // Add enum values for autocomplete
-            enums[field.name] = field.choices.map((choice) => choice.value);
-          } else {
-            template = "";
-          }
-          break;
-        default:
-          template = null;
-      }
-
-      // Add to templates
-      templates[field.name] = template;
-    });
-
+    const schema = this.props.schema;
+    
     return {
       filter: "start",
-      getOptions: function (text, path) {
-        // Root level suggestions
-        if (path.length === 0) {
-          return Object.keys(templates).map((key) => {
+      trigger: "key",
+      getOptions: function (text, path, input, editor) {
+        // For root level suggestions in an object
+        if (path.length === 0 && schema.properties && input === "field") {
+          return Object.keys(schema.properties).map(key => {
+            const prop = schema.properties[key];
+            const description = prop.description || key;
             return {
-              text: `"${key}": `,
-              value: `"${key}": ${JSON.stringify(templates[key])},`,
-              title: key,
+              text: key,
+              value: key,
+              title: description
             };
           });
         }
-
+        
         // For enum fields, suggest possible values
-        const lastSegment = path[path.length - 1];
-        if (enums[lastSegment]) {
-          return enums[lastSegment].map((value) => {
-            if (typeof value === "string") {
-              return {
-                text: `"${value}"`,
-                value: `"${value}"`,
-                title: value,
-              };
+        if (path.length > 0 && input === "value") {
+          // Try to find the schema definition for this path
+          let currentSchema = schema;
+          let currentPath = [];
+          
+          // Navigate to the current schema position
+          for (const segment of path) {
+            currentPath.push(segment);
+            
+            if (currentSchema.properties && currentSchema.properties[segment]) {
+              currentSchema = currentSchema.properties[segment];
+            } else if (currentSchema.items) {
+              // Array items
+              currentSchema = currentSchema.items;
+            } else {
+              // Can't find schema for this path
+              currentSchema = null;
+              break;
             }
+          }
+          
+          // If we have enum values, suggest them
+          if (currentSchema && currentSchema.enum) {
+            return currentSchema.enum.map(value => {
+              const valueStr = typeof value === "string" ? `"${value}"` : String(value);
               return {
-                text: String(value),
-                value: String(value),
-                title: String(value),
+                text: valueStr,
+                value: valueStr,
+                title: valueStr
               };
-
-          });
+            });
+          }
+          
+          // If we have examples, suggest them
+          if (currentSchema && currentSchema.examples && currentSchema.examples.length) {
+            return currentSchema.examples.map(value => {
+              const valueStr = typeof value === "string" ? `"${value}"` : String(value);
+              return {
+                text: valueStr,
+                value: valueStr,
+                title: `Example: ${valueStr}`
+              };
+            });
+          }
         }
-
+        
         return null;
-      },
+      }
     };
   }
 
@@ -163,11 +255,54 @@ export class JsonEditorComponent extends Component {
 
     try {
       if (typeof value === "string") {
-        value = JSON.parse(value);
+        this.editor.setText(value);
+      } else {
+        this.editor.set(value);
       }
-      this.editor.set(value);
     } catch (e) {
       console.error("Error setting JSON value:", e);
+      if (this.props.onError) {
+        this.props.onError(e);
+      }
+    }
+  }
+
+  /**
+   * Validate the current JSON against the schema
+   * @returns {Promise<Array>} Promise resolving to an array of validation errors
+   */
+  async validate() {
+    if (!this.editor) {
+      return Promise.resolve([]);
+    }
+    return this.editor.validate();
+  }
+
+  /**
+   * Get the current JSON value
+   * @returns {Object} The current JSON value
+   * @throws {Error} If the JSON is invalid
+   */
+  getValue() {
+    if (!this.editor) return null;
+    return this.editor.get();
+  }
+
+  /**
+   * Get the current JSON as text
+   * @returns {String} The current JSON as text
+   */
+  getTextValue() {
+    if (!this.editor) return "";
+    return this.editor.getText();
+  }
+
+  /**
+   * Set focus to the editor
+   */
+  focus() {
+    if (this.editor) {
+      this.editor.focus();
     }
   }
 
@@ -183,9 +318,22 @@ JsonEditorComponent.template = "web_json_editor.JsonEditorComponent";
 JsonEditorComponent.props = {
   value: { type: [Object, String], optional: true },
   onChange: { type: Function, optional: true },
+  onError: { type: Function, optional: true },
+  onValidationError: { type: Function, optional: true },
   height: { type: String, optional: true, default: "400px" },
   mode: { type: String, optional: true, default: "code" },
+  modes: { type: Array, optional: true },
   schema: { type: Object, optional: true },
+  schemaRefs: { type: Object, optional: true },
+  search: { type: Boolean, optional: true, default: true },
+  history: { type: Boolean, optional: true, default: true },
+  indentation: { type: Number, optional: true, default: 2 },
+  mainMenuBar: { type: Boolean, optional: true, default: true },
+  navigationBar: { type: Boolean, optional: true, default: true },
+  statusBar: { type: Boolean, optional: true, default: true },
+  colorPicker: { type: Boolean, optional: true, default: true },
+  allowSchemaSuggestions: { type: Boolean, optional: true, default: true },
+  autocomplete: { type: Object, optional: true },
 };
 
 // Register the component

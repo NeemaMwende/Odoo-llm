@@ -124,6 +124,10 @@ class LLMProvider(models.Model):
             resolved_openapi_schema = jsonref.replace_refs(openapi_schema)
             input_schema = resolved_openapi_schema['components']['schemas']['Input']
             output_schema = resolved_openapi_schema['components']['schemas']['Output']
+            
+            # Enforce additionalProperties: false to validate against unknown fields
+            input_schema['additionalProperties'] = False
+            output_schema['additionalProperties'] = False
         else:
             _logger.warning(f"No OpenAPI schema found for model {model_name}")
 

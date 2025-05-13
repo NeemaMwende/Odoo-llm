@@ -145,8 +145,8 @@
 
                     <!-- Scrollable content -->
                     <div
-                        class="row overflow-auto pe-2"
-                        style="max-height: 350px; scrollbar-width: thin; -webkit-overflow-scrolling: touch;"
+                        class="row overflow-auto pe-2 max-height-gen-inputs"
+                        style="scrollbar-width: thin; -webkit-overflow-scrolling: touch;"
                     >
                         <t
                             t-foreach="props.optionalFields"

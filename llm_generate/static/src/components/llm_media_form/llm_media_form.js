@@ -165,16 +165,46 @@ export class LLMMediaForm extends Component {
   }
 
   // Handler for changes from JsonEditorComponent
-  onJsonEditorChange({ value, isValid, error }) {
+  onJsonEditorChange({ value, isValid, error, text, validationErrors }) {
     this.state.isJsonValid = isValid;
     if (isValid) {
       this.state.formValues = value; // value is already a JS object if valid
       this.state.jsonEditorError = null;
     } else {
       // Keep the last valid formValues, but show an error.
-      // The JsonEditorComponent itself will display the invalid 'value' (raw text).
-      this.state.jsonEditorError = error || "Invalid JSON format.";
+      if (validationErrors && validationErrors.length > 0) {
+        // We have schema validation errors - these are different from syntax errors
+        // If we have a valid JSON object but with schema errors, still update formValues
+        if (typeof value === 'object' && value !== null) {
+          this.state.formValues = value;
+        }
+        // Error message is already set by onJsonValidationError
+      } else {
+        // This is a syntax error, not a schema validation error
+        this.state.jsonEditorError = error || "Invalid JSON format.";
+      }
     }
+  }
+
+  // Handle validation errors from schema validation
+  onJsonValidationError(errors) {
+    if (errors && errors.length > 0) {
+      // Format validation errors for display
+      const formattedErrors = errors.map(error => {
+        // Format the path in a more readable way
+        const path = error.path ? error.path.join('.') : '';
+        return `${path ? path + ': ' : ''}${error.message}`;
+      });
+      
+      this.state.jsonEditorError = formattedErrors.join('\n');
+    } else {
+      this.state.jsonEditorError = null;
+    }
+  }
+
+  // Handle general JSON editor errors
+  onJsonEditorError(error) {
+    this.state.jsonEditorError = error.message || "An error occurred in the JSON editor.";
   }
 
   // Toggle advanced settings visibility
