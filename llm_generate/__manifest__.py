@@ -18,6 +18,8 @@
         "web.assets_backend": [
             "llm_generate/static/src/components/llm_media_form/llm_media_form.js",
             "llm_generate/static/src/components/llm_media_form/llm_media_form.xml",
+            "llm_generate/static/src/components/llm_media_form/llm_form_fields_view.js",
+            "llm_generate/static/src/components/llm_media_form/llm_form_fields_view.xml",
             "llm_generate/static/src/components/llm_chat_composer/llm_chat_composer.js",
             "llm_generate/static/src/components/llm_chat_composer/llm_chat_composer.xml",
             "llm_generate/static/src/components/message/message.xml",

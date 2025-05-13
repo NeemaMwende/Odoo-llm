@@ -2,6 +2,7 @@
 
 import { registerMessagingComponent } from "@mail/utils/messaging_component";
 import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor"; 
+import { LLMFormFieldsView } from "./llm_form_fields_view"; 
 const { Component, useState, onWillStart, useEffect } = owl;
 
 export class LLMMediaForm extends Component {
@@ -179,9 +180,6 @@ export class LLMMediaForm extends Component {
       ...this.state.formValues,
       [fieldName]: value,
     };
-    
-    console.log(`Field ${fieldName} updated to:`, value);
-    console.log("Current form values:", this.state.formValues);
   }
 
   async onSubmit(event) {
@@ -197,7 +195,6 @@ export class LLMMediaForm extends Component {
 
     try {
       const composer = this.thread.composer;
-      console.log(this.state.formValues)
       composer.postUserMediaGenMessageForLLM(this.state.formValues);
       // We don't reset the form to allow users to make minor adjustments for subsequent generations
     } catch (error) {
@@ -221,6 +218,6 @@ LLMMediaForm.props = {
 LLMMediaForm.template = "llm_thread.LLMMediaForm";
 
 // Register JsonEditorComponent for use in the template
-LLMMediaForm.components = { JsonEditorComponent };
+LLMMediaForm.components = { JsonEditorComponent, LLMFormFieldsView };
 
 registerMessagingComponent(LLMMediaForm);
