@@ -20,6 +20,9 @@
         "views/llm_training_job_views.xml",
         "views/llm_training_menu_views.xml",
     ],
+    "images": [
+        "static/description/banner.jpeg",
+    ],
     "license": "LGPL-3",
     "installable": True,
     "auto_install": False,
