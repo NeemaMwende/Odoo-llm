@@ -63,10 +63,6 @@
             }
           }
         }
-
-        .jsoneditor-poweredBy {
-          display: none !important;
-        }
       }
 
       .ace-jsoneditor {
@@ -99,4 +95,8 @@
     font-size: $font-size-sm;
     white-space: pre-wrap;
   }
+}
+
+.jsoneditor-poweredBy {
+  display: none !important;
 }

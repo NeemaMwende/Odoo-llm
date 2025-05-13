@@ -27,7 +27,6 @@
             # OWL Component
             "web_json_editor/static/src/components/json_editor/json_editor.js",
             "web_json_editor/static/src/components/json_editor/json_editor.xml",
-            "web_json_editor/static/src/components/json_editor/json_editor.scss",
         ],
     },
     "installable": True,
