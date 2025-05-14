@@ -1,8 +1,8 @@
 /** @odoo-module **/
 
 import { registerMessagingComponent } from "@mail/utils/messaging_component";
-import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor"; 
-import { LLMFormFieldsView } from "./llm_form_fields_view"; 
+import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor";
+import { LLMFormFieldsView } from "./llm_form_fields_view";
 const { Component, useState, onWillStart, useEffect } = owl;
 import { markup } from "@odoo/owl";
 export class LLMMediaForm extends Component {
@@ -12,7 +12,7 @@ export class LLMMediaForm extends Component {
       isLoading: false,
       error: null,
       showAdvancedSettings: false,
-      inputMode: "form", 
+      inputMode: "form",
       isJsonValid: true,
       jsonEditorError: null,
     });
@@ -31,23 +31,23 @@ export class LLMMediaForm extends Component {
       () => [this.llmModel.inputSchema]
     );
   }
-  
+
   // Initialize form values with defaults from schema
   _initializeFormValues() {
     if (!this.formFields || !Array.isArray(this.formFields)) {
       return;
     }
-    
+
     // Create a new object to hold the initial values
     const initialValues = {};
-    
+
     // Set default values from schema
-    this.formFields.forEach(field => {
+    this.formFields.forEach((field) => {
       if (field.default !== undefined) {
         initialValues[field.name] = field.default;
       }
     });
-    
+
     // Update state with initial values
     this.state.formValues = initialValues;
   }
@@ -63,7 +63,7 @@ export class LLMMediaForm extends Component {
   get inputSchema() {
     if (!this.llmModel) {
       return null;
-    }else if (!this.llmModel.inputSchema) {
+    } else if (!this.llmModel.inputSchema) {
       return null;
     } else if (typeof this.llmModel.inputSchema === "string") {
       return JSON.parse(this.llmModel.inputSchema);
@@ -82,7 +82,7 @@ export class LLMMediaForm extends Component {
     }
 
     // Check if we have a valid JSON Schema object with properties
-    if (!inputSchema.properties || typeof inputSchema.properties !== 'object') {
+    if (!inputSchema.properties || typeof inputSchema.properties !== "object") {
       console.warn(
         "LLMMediaForm: inputSchema doesn't contain properties object",
         inputSchema
@@ -91,49 +91,55 @@ export class LLMMediaForm extends Component {
     }
 
     // Extract required fields array
-    const requiredFields = Array.isArray(inputSchema.required) ? inputSchema.required : [];
+    const requiredFields = Array.isArray(inputSchema.required)
+      ? inputSchema.required
+      : [];
 
     // Convert properties object to array of field definitions
-    return Object.entries(inputSchema.properties).map(([name, fieldDef]) => {
-      // Check if field name is 'prompt' (case insensitive)
-      const isPromptField = name.toLowerCase() === 'prompt';
-      
-      // Handle enum types (could be in allOf[0].enum structure)
-      let choices;
-      let fieldType = fieldDef.type;
-      
-      if (fieldDef.allOf && fieldDef.allOf[0] && fieldDef.allOf[0].enum) {
-        // Format enum values as objects with value and label properties
-        choices = fieldDef.allOf[0].enum.map(value => ({
-          value: value,
-          label: value
-        }));
-        fieldType = 'enum';
-      } else if (fieldDef.enum) {
-        // Handle direct enum property
-        choices = fieldDef.enum.map(value => ({
-          value: value,
-          label: value
-        }));
-        fieldType = 'enum';
-      }
-      
-      return {
-        name: name,
-        label: fieldDef.title || name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-        type: fieldType,
-        // Field is required if in required array or if it's the prompt field
-        required: isPromptField || requiredFields.includes(name),
-        description: this.formatDescription(fieldDef.description),
-        default: fieldDef.default,
-        choices: choices,
-        minimum: fieldDef.minimum,
-        maximum: fieldDef.maximum,
-        format: fieldDef.format,
-        // Use x-order for sorting if available
-        order: fieldDef['x-order'] !== undefined ? fieldDef['x-order'] : 999
-      };
-    }).sort((a, b) => a.order - b.order); // Sort by order field
+    return Object.entries(inputSchema.properties)
+      .map(([name, fieldDef]) => {
+        // Check if field name is 'prompt' (case insensitive)
+        const isPromptField = name.toLowerCase() === "prompt";
+
+        // Handle enum types (could be in allOf[0].enum structure)
+        let choices;
+        let fieldType = fieldDef.type;
+
+        if (fieldDef.allOf && fieldDef.allOf[0] && fieldDef.allOf[0].enum) {
+          // Format enum values as objects with value and label properties
+          choices = fieldDef.allOf[0].enum.map((value) => ({
+            value: value,
+            label: value,
+          }));
+          fieldType = "enum";
+        } else if (fieldDef.enum) {
+          // Handle direct enum property
+          choices = fieldDef.enum.map((value) => ({
+            value: value,
+            label: value,
+          }));
+          fieldType = "enum";
+        }
+
+        return {
+          name: name,
+          label:
+            fieldDef.title ||
+            name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+          type: fieldType,
+          // Field is required if in required array or if it's the prompt field
+          required: isPromptField || requiredFields.includes(name),
+          description: this.formatDescription(fieldDef.description),
+          default: fieldDef.default,
+          choices: choices,
+          minimum: fieldDef.minimum,
+          maximum: fieldDef.maximum,
+          format: fieldDef.format,
+          // Use x-order for sorting if available
+          order: fieldDef["x-order"] !== undefined ? fieldDef["x-order"] : 999,
+        };
+      })
+      .sort((a, b) => a.order - b.order); // Sort by order field
   }
 
   // Getter to filter required fields
@@ -168,14 +174,14 @@ export class LLMMediaForm extends Component {
   onJsonEditorChange({ value, isValid, error, text, validationErrors }) {
     this.state.isJsonValid = isValid;
     if (isValid) {
-      this.state.formValues = value; // value is already a JS object if valid
+      this.state.formValues = value; // Value is already a JS object if valid
       this.state.jsonEditorError = null;
     } else {
       // Keep the last valid formValues, but show an error.
       if (validationErrors && validationErrors.length > 0) {
         // We have schema validation errors - these are different from syntax errors
         // If we have a valid JSON object but with schema errors, still update formValues
-        if (typeof value === 'object' && value !== null) {
+        if (typeof value === "object" && value !== null) {
           this.state.formValues = value;
         }
         // Error message is already set by onJsonValidationError
@@ -190,13 +196,13 @@ export class LLMMediaForm extends Component {
   onJsonValidationError(errors) {
     if (errors && errors.length > 0) {
       // Format validation errors for display
-      const formattedErrors = errors.map(error => {
+      const formattedErrors = errors.map((error) => {
         // Format the path in a more readable way
-        const path = error.path ? error.path.join('.') : '';
-        return `${path ? path + ': ' : ''}${error.message}`;
+        const path = error.path ? error.path.join(".") : "";
+        return `${path ? path + ": " : ""}${error.message}`;
       });
-      
-      this.state.jsonEditorError = formattedErrors.join('\n');
+
+      this.state.jsonEditorError = formattedErrors.join("\n");
     } else {
       this.state.jsonEditorError = null;
     }
@@ -204,7 +210,8 @@ export class LLMMediaForm extends Component {
 
   // Handle general JSON editor errors
   onJsonEditorError(error) {
-    this.state.jsonEditorError = error.message || "An error occurred in the JSON editor.";
+    this.state.jsonEditorError =
+      error.message || "An error occurred in the JSON editor.";
   }
 
   // Toggle advanced settings visibility
@@ -222,7 +229,7 @@ export class LLMMediaForm extends Component {
     } else {
       value = target.value;
     }
-    
+
     // Create a new object with the updated value to ensure reactivity
     this.state.formValues = {
       ...this.state.formValues,
@@ -234,7 +241,7 @@ export class LLMMediaForm extends Component {
     const errors = [];
     const validatedValues = {}; // This will hold values that conform to the schema
     const currentFormValues = this.state.formValues;
-    const schemaFieldNames = new Set(this.formFields.map(f => f.name)); // For quick lookup
+    const schemaFieldNames = new Set(this.formFields.map((f) => f.name)); // For quick lookup
 
     // Step 1: Check schema-defined fields: required, presence, and type
     for (const schemaField of this.formFields) {
@@ -247,12 +254,14 @@ export class LLMMediaForm extends Component {
       }
 
       if (schemaField.required) {
-        const isMissingOrEmpty = value === undefined || value === null ||
-                                 (typeof value === 'string' && value.trim() === '') ||
-                                 (Array.isArray(value) && value.length === 0);
+        const isMissingOrEmpty =
+          value === undefined ||
+          value === null ||
+          (typeof value === "string" && value.trim() === "") ||
+          (Array.isArray(value) && value.length === 0);
         if (isMissingOrEmpty) {
           errors.push(`Field "${label}" is required.`);
-          continue; 
+          continue;
         }
       }
 
@@ -261,7 +270,7 @@ export class LLMMediaForm extends Component {
         let typeValidationError = null;
 
         switch (schemaField.type) {
-          case 'integer':
+          case "integer":
             const intValue = parseFloat(value);
             if (isNaN(intValue) || !Number.isInteger(intValue)) {
               typeValidationError = `must be an integer. Received: "${value}"`;
@@ -269,7 +278,7 @@ export class LLMMediaForm extends Component {
               processedValue = intValue;
             }
             break;
-          case 'number':
+          case "number":
             const floatValue = parseFloat(value);
             if (isNaN(floatValue)) {
               typeValidationError = `must be a number. Received: "${value}"`;
@@ -277,16 +286,17 @@ export class LLMMediaForm extends Component {
               processedValue = floatValue;
             }
             break;
-          case 'boolean':
-            if (typeof value === 'string') {
-              if (value.toLowerCase() === 'true') processedValue = true;
-              else if (value.toLowerCase() === 'false') processedValue = false;
-              else typeValidationError = `expects a boolean (true/false). Received: "${value}"`;
-            } else if (typeof value !== 'boolean') {
+          case "boolean":
+            if (typeof value === "string") {
+              if (value.toLowerCase() === "true") processedValue = true;
+              else if (value.toLowerCase() === "false") processedValue = false;
+              else
+                typeValidationError = `expects a boolean (true/false). Received: "${value}"`;
+            } else if (typeof value !== "boolean") {
               typeValidationError = `expects a boolean. Received: ${typeof value}`;
             }
             break;
-          case 'string':
+          case "string":
             if (value !== null && value !== undefined) {
               processedValue = String(value);
             }
@@ -305,7 +315,9 @@ export class LLMMediaForm extends Component {
     // Step 2: Check for EXTRA fields
     for (const keyInForm in currentFormValues) {
       if (!schemaFieldNames.has(keyInForm)) {
-        console.warn(`Extra field "${keyInForm}" provided in form data will be ignored.`);
+        console.warn(
+          `Extra field "${keyInForm}" provided in form data will be ignored.`
+        );
         // Optionally, treat as an error:
         // errors.push(`Field "${keyInForm}" is not a recognized field.`);
       }
@@ -320,36 +332,36 @@ export class LLMMediaForm extends Component {
 
   /**
    * Format field descriptions to properly display HTML-like content
-   * @param {string} description - The raw description text
+   * @param {String} description - The raw description text
    * @returns {Markup} - Safely formatted description
    */
   formatDescription(description) {
-    if (!description) return '';
-    
+    if (!description) return "";
+
     // Format special syntax patterns
-    let formattedDesc = description
+    const formattedDesc = description
       // Format code-like elements with monospace font
-      .replace(/<([^>]+)>/g, '<code>$1</code>')
+      .replace(/<([^>]+)>/g, "<code>$1</code>")
       // Format examples with italics
-      .replace(/'([^']+)'/g, '<em>$1</em>')
+      .replace(/'([^']+)'/g, "<em>$1</em>")
       // Add line breaks for better readability
-      .replace(/\. /g, '. <br/>')
+      .replace(/\. /g, ". <br/>")
       // Format URLs as links
       .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
-    
+
     // Return as safe markup that won't be escaped
     return markup(formattedDesc);
   }
 
   async onSubmit(event) {
     event.preventDefault();
-    
+
     // Call the validation function
-    const validationResult = this._validateFormValues(); 
+    const validationResult = this._validateFormValues();
 
     if (!validationResult.isValid) {
-      this.state.error = validationResult.errors.join('\n'); // Display multiple errors
-      this.state.isLoading = false; 
+      this.state.error = validationResult.errors.join("\n"); // Display multiple errors
+      this.state.isLoading = false;
       return; // Stop submission
     }
 
@@ -366,7 +378,7 @@ export class LLMMediaForm extends Component {
     try {
       const composer = this.thread.composer;
       // Send only the validated and cleaned values
-      composer.postUserMediaGenMessageForLLM(validationResult.values); 
+      composer.postUserMediaGenMessageForLLM(validationResult.values);
     } catch (error) {
       console.error("Error submitting media generation form:", error);
       this.state.error =

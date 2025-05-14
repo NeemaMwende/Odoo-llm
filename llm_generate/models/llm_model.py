@@ -7,13 +7,13 @@ class LLMModel(models.Model):
     input_schema = fields.Json(
         string="Input Schema",
         help="JSON Schema defining the input parameters for this generation task",
-        compute='_compute_io_schema',
+        compute="_compute_io_schema",
         store=True,
     )
     output_schema = fields.Json(
         string="Output Schema",
         help="JSON Schema defining the output parameters for this generation task",
-        compute='_compute_io_schema',
+        compute="_compute_io_schema",
         store=True,
     )
 
@@ -29,11 +29,15 @@ class LLMModel(models.Model):
         self.ensure_one()
         return self.model_use in ["image_generation"]
 
-    @api.depends('details', 'model_use', 'name', 'provider_id')
+    @api.depends("details", "model_use", "name", "provider_id")
     def _compute_io_schema(self):
         """Compute input and output schemas based on model details and usage"""
         for record in self:
-            if record._is_media_generation_model() and record.provider_id and record.details:
+            if (
+                record._is_media_generation_model()
+                and record.provider_id
+                and record.details
+            ):
                 # Trigger provider-specific schema generation
                 record.provider_id.generate_io_schema(model_record=record)
 

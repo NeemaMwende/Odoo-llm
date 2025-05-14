@@ -1,8 +1,8 @@
 /** @odoo-module */
 
+import { Component, onMounted, onWillUnmount, useRef } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { standardFieldProps } from "@web/views/fields/standard_field_props";
-import { Component, onMounted, onWillUnmount, useRef } from "@odoo/owl";
 
 /**
  * Simple JSON formatter for display mode

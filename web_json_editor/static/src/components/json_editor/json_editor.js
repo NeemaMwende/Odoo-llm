@@ -1,7 +1,13 @@
 /** @odoo-module */
 
 import { registry } from "@web/core/registry";
-import { Component, onMounted, onWillUnmount, useRef, useEffect } from "@odoo/owl";
+import {
+  Component,
+  onMounted,
+  onWillUnmount,
+  useEffect,
+  useRef,
+} from "@odoo/owl";
 
 /**
  * Generic JSON Editor Component
@@ -24,7 +30,9 @@ export class JsonEditorComponent extends Component {
             const currentValue = this.editor.get();
             // Avoid re-setting if the editor's current value is already what's in props.value
             // This helps prevent potential cursor jumps or loss of intermediate (invalid) user input.
-            if (JSON.stringify(currentValue) !== JSON.stringify(this.props.value)) {
+            if (
+              JSON.stringify(currentValue) !== JSON.stringify(this.props.value)
+            ) {
               this.setValue(this.props.value);
             }
           } catch (e) {
@@ -96,40 +104,40 @@ export class JsonEditorComponent extends Component {
 
   handleChange() {
     if (!this.props.onChange) return;
-    
+
     try {
       // First validate against schema
-      this.editor.validate().then(errors => {
+      this.editor.validate().then((errors) => {
         if (errors && errors.length > 0) {
           // There are validation errors - handle them
           if (this.props.onValidationError) {
             this.props.onValidationError(errors);
           }
-          
+
           // Get the current text and JSON if possible
-          let textValue = this.editor.getText();
+          const textValue = this.editor.getText();
           let jsonValue = null;
           try {
             jsonValue = this.editor.get();
           } catch (e) {
             // Invalid JSON, will use text value only
           }
-          
+
           // Return both the validation errors and the current value
           this.props.onChange({
             value: jsonValue || textValue,
             isValid: false,
             error: "Schema validation failed",
             text: textValue,
-            validationErrors: errors
+            validationErrors: errors,
           });
         } else {
           // No validation errors, proceed with the valid JSON
           const json = this.editor.get();
-          this.props.onChange({ 
-            value: json, 
+          this.props.onChange({
+            value: json,
             isValid: true,
-            text: this.editor.getText()
+            text: this.editor.getText(),
           });
         }
       });
@@ -137,14 +145,14 @@ export class JsonEditorComponent extends Component {
       // Handle syntax errors (not validation errors)
       let textValue = "";
       // Attempt to get raw text if editor.get() fails
-      if (this.editor && typeof this.editor.getText === 'function') {
+      if (this.editor && typeof this.editor.getText === "function") {
         textValue = this.editor.getText();
       }
       this.props.onChange({
         value: textValue, // Send raw text on error
         isValid: false,
         error: e.message,
-        text: textValue
+        text: textValue,
       });
     }
   }
@@ -157,12 +165,15 @@ export class JsonEditorComponent extends Component {
 
   updateSchema(schema) {
     if (!this.editor || !schema) return;
-    
+
     try {
       this.editor.setSchema(schema, this.props.schemaRefs);
-      
+
       // Update autocomplete if using schema-based suggestions
-      if (this.props.allowSchemaSuggestions !== false && !this.props.autocomplete) {
+      if (
+        this.props.allowSchemaSuggestions !== false &&
+        !this.props.autocomplete
+      ) {
         const autocomplete = this.generateAutocompleteOptions();
         // Note: JSONEditor doesn't have a direct method to update autocomplete options
         // A full reinitialize would be needed, which might disrupt user experience
@@ -180,34 +191,34 @@ export class JsonEditorComponent extends Component {
     if (!this.props.schema) return {};
 
     const schema = this.props.schema;
-    
+
     return {
       filter: "start",
       trigger: "key",
       getOptions: function (text, path, input, editor) {
         // For root level suggestions in an object
         if (path.length === 0 && schema.properties && input === "field") {
-          return Object.keys(schema.properties).map(key => {
+          return Object.keys(schema.properties).map((key) => {
             const prop = schema.properties[key];
             const description = prop.description || key;
             return {
               text: key,
               value: key,
-              title: description
+              title: description,
             };
           });
         }
-        
+
         // For enum fields, suggest possible values
         if (path.length > 0 && input === "value") {
           // Try to find the schema definition for this path
           let currentSchema = schema;
-          let currentPath = [];
-          
+          const currentPath = [];
+
           // Navigate to the current schema position
           for (const segment of path) {
             currentPath.push(segment);
-            
+
             if (currentSchema.properties && currentSchema.properties[segment]) {
               currentSchema = currentSchema.properties[segment];
             } else if (currentSchema.items) {
@@ -219,34 +230,40 @@ export class JsonEditorComponent extends Component {
               break;
             }
           }
-          
+
           // If we have enum values, suggest them
           if (currentSchema && currentSchema.enum) {
-            return currentSchema.enum.map(value => {
-              const valueStr = typeof value === "string" ? `"${value}"` : String(value);
+            return currentSchema.enum.map((value) => {
+              const valueStr =
+                typeof value === "string" ? `"${value}"` : String(value);
               return {
                 text: valueStr,
                 value: valueStr,
-                title: valueStr
+                title: valueStr,
               };
             });
           }
-          
+
           // If we have examples, suggest them
-          if (currentSchema && currentSchema.examples && currentSchema.examples.length) {
-            return currentSchema.examples.map(value => {
-              const valueStr = typeof value === "string" ? `"${value}"` : String(value);
+          if (
+            currentSchema &&
+            currentSchema.examples &&
+            currentSchema.examples.length
+          ) {
+            return currentSchema.examples.map((value) => {
+              const valueStr =
+                typeof value === "string" ? `"${value}"` : String(value);
               return {
                 text: valueStr,
                 value: valueStr,
-                title: `Example: ${valueStr}`
+                title: `Example: ${valueStr}`,
               };
             });
           }
         }
-        
+
         return null;
-      }
+      },
     };
   }
 

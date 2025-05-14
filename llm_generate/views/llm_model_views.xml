@@ -8,7 +8,9 @@
         <field name="arch" type="xml">
             <!-- Add Input/Output Schema notebook after the main group of fields -->
             <xpath expr="//sheet/group[1]" position="after">
-                <notebook attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}">
+                <notebook
+          attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}"
+        >
                     <page string="Input Schema" name="input_schema_page">
                         <field name="input_schema" widget="json_editor" />
                     </page>
