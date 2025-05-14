@@ -8,7 +8,7 @@ registerPatch({
     postUserMediaGenMessageForLLM(inputs) {
       const thread = this.thread;
 
-      const messageBody = inputs.prompt;
+      const messageBody = inputs.prompt || "Media Generation Request";
       if (!messageBody || !thread) {
         this.messaging.notify({
           message: this.env._t("Please enter a message."),
