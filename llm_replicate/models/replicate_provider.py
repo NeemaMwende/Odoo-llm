@@ -141,9 +141,6 @@ class LLMProvider(models.Model):
 
     def replicate_generate_media(self, inputs, model_record=None, stream=False):
         """Generate media content using this provider"""
-        _logger.info(
-            f"Generating media content using {model_record.name} with inputs {inputs}"
-        )
         # Get full model name including version if specified
         model_name = model_record._replicate_model_name_with_version()
         if not model_name:
@@ -188,9 +185,6 @@ class LLMProvider(models.Model):
                   Returns an empty list if no suitable strings are found or
                   if the raw_response format is unexpected.
         """
-        _logger.debug(
-            f"Formatting Replicate raw_response: {raw_response} with schema: {output_schema}"
-        )
 
         extracted_strings = []
 
@@ -221,6 +215,6 @@ class LLMProvider(models.Model):
             # output_schema could be added here if needed for complex objects.
 
         _logger.info(
-            f"Replicate: Extracted strings: {extracted_strings} for schema {output_schema}"
+            f"Replicate: Extracted strings: {extracted_strings}"
         )
         return extracted_strings
