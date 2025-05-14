@@ -109,9 +109,6 @@ class LLMProvider(models.Model):
         details = model_record.details or {}
         model_name = model_record.name
 
-        # Log the details for debugging
-        _logger.info(f"Model details for {model_name}: {details}")
-
         # Extract OpenAPI schema from details
         openapi_schema = None
         if details.get("latest_version", {}).get("openapi_schema"):
@@ -147,8 +144,16 @@ class LLMProvider(models.Model):
         _logger.info(
             f"Generating media content using {model_record.name} with inputs {inputs}"
         )
+        # Get full model name including version if specified
+        model_name = model_record._replicate_model_name_with_version()
+        if not model_name:
+            model_name = model_record.name
+
+        if not model_name:
+            raise ValueError("Model name is required")
+
         # TODO: Might need to use prediction_create method, to have streaming and more details about prediction
-        result = self.client.run(model_record.name, input=inputs)
+        result = self.client.run(model_name, input=inputs)
 
         # Extract URLs from FileOutput objects
         urls = []

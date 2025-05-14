@@ -22,9 +22,7 @@ class MailMessage(models.Model):
 
     def is_llm_user_media_gen_message(self):
         if self.is_llm_user_message():
-            _logger.info(f"is_llm_user_media_gen_message: {self.generation_inputs}")
             result = bool(self.generation_inputs)
-            _logger.info(f"is_llm_user_media_gen_message: {result}")
             return result
         return False
 

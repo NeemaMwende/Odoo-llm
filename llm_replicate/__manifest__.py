@@ -13,6 +13,7 @@
     },
     "data": [
         "data/llm_publisher.xml",
+        "views/replicate_model_views.xml",
     ],
     "images": [
         "static/description/banner.jpeg",
