@@ -214,7 +214,5 @@ class LLMProvider(models.Model):
             # For now, we return an empty list. More sophisticated parsing based on
             # output_schema could be added here if needed for complex objects.
 
-        _logger.info(
-            f"Replicate: Extracted strings: {extracted_strings}"
-        )
+        _logger.info(f"Replicate: Extracted strings: {extracted_strings}")
         return extracted_strings

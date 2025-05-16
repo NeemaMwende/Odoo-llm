@@ -105,10 +105,10 @@
   }
 }"
                 />
-                <field 
-                name="input_schema_json" 
-                readonly="1"
-                widget="json_editor"
+                <field
+                  name="input_schema_json"
+                  readonly="1"
+                  widget="json_editor"
                 />
                             </group>
                             <div class="alert alert-info" role="alert">

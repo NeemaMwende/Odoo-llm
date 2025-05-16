@@ -41,11 +41,7 @@
                         </a>
                     </li>
                     <li><hr class="dropdown-divider" /></li>
-                    <t
-            t-foreach="llmPrompts"
-            t-as="prompt"
-            t-key="prompt.id"
-          >
+                    <t t-foreach="llmPrompts" t-as="prompt" t-key="prompt.id">
                         <li>
                             <a
                 class="dropdown-item text-truncate"

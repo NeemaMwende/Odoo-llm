@@ -61,7 +61,7 @@ export class LLMMediaForm extends Component {
   }
 
   get inputSchema() {
-    let result;
+    let result = null;
     if (!this.llmModel) {
       result = null;
     } else if (!this.llmModel.effectiveInputSchema) {
@@ -71,7 +71,7 @@ export class LLMMediaForm extends Component {
     } else if (typeof this.llmModel.effectiveInputSchema === "object") {
       result = this.llmModel.effectiveInputSchema;
     }
-    console.log("inputSchema", result);
+    
     return result;
   }
 

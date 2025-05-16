@@ -93,14 +93,14 @@ class LLMPromptTemplate(models.Model):
         for arg_name, arg_value in arguments.items():
             placeholder = "{{" + arg_name + "}}"
             placeholderWithSpace = "{{ " + arg_name + " }}"
-            
+
             # Convert value to string, handling special cases for JSON compatibility
             if isinstance(arg_value, bool):
                 # Convert Python True/False to JSON true/false
                 str_value = "true" if arg_value else "false"
             else:
                 str_value = str(arg_value)
-                
+
             # maybe can be done via regex, kept it simple for now
             if placeholder in content:
                 content = content.replace(placeholder, str_value)

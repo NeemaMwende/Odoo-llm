@@ -5,6 +5,6 @@
         <field name="name">ComfyUI Workflow</field>
         <field name="code">comfyui_workflow</field>
         <field name="sequence">10</field>
-        <field name="parent_id" ref="llm_prompt.category_technical"/>
+        <field name="parent_id" ref="llm_prompt.category_technical" />
     </record>
 </odoo>

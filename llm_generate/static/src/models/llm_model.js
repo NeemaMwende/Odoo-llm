@@ -28,7 +28,7 @@ registerPatch({
         const thread = this.messaging.models.Thread.all().find(
           (thread) => thread.llmModel && thread.llmModel.id === this.id
         );
-        
+
         // If there's a selected prompt and this is a media generation model, use the prompt's input schema
         if (thread && thread.prompt_id && this.isMediaGenerationModel) {
           try {
@@ -42,7 +42,7 @@ registerPatch({
             return this.inputSchema;
           }
         }
-        
+
         // Otherwise, use the model's input schema
         return this.inputSchema;
       },

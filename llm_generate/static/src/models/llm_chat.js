@@ -82,7 +82,7 @@ registerPatch({
      */
     _mapThreadDataFromServer(threadData) {
       const mappedData = this._super(threadData);
-      
+
       // Add prompt_id if present
       if (threadData.prompt_id) {
         mappedData.prompt_id = {
@@ -90,7 +90,7 @@ registerPatch({
           name: threadData.prompt_id[1],
         };
       }
-      
+
       return mappedData;
     },
 
@@ -98,10 +98,17 @@ registerPatch({
      * Override to load prompts along with other resources
      * @override
      */
-    async initializeLLMChat(action, initActiveId, postInitializationPromises = []) {
+    async initializeLLMChat(
+      action,
+      initActiveId,
+      postInitializationPromises = []
+    ) {
       // Add loadPrompts to the post-initialization promises
-      const extendedPromises = [...postInitializationPromises, this.loadPrompts()];
-      
+      const extendedPromises = [
+        ...postInitializationPromises,
+        this.loadPrompts(),
+      ];
+
       // Call the original method with the extended promises
       return this._super(action, initActiveId, extendedPromises);
     },
@@ -113,7 +120,7 @@ registerPatch({
     async loadThreads(additionalFields = []) {
       // Add prompt_id to the additional fields
       const extendedFields = [...additionalFields, ...ADDITIONAL_THREAD_FIELDS];
-      
+
       // Call the original method with the extended fields
       return this._super(extendedFields);
     },
@@ -125,7 +132,7 @@ registerPatch({
     async refreshThread(threadId, additionalFields = []) {
       // Add prompt_id to the additional fields
       const extendedFields = [...additionalFields, ...ADDITIONAL_THREAD_FIELDS];
-      
+
       // Call the original method with the extended fields
       return this._super(threadId, extendedFields);
     },

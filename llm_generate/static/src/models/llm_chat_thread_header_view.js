@@ -82,7 +82,7 @@ registerPatch({
           // If the server call was not successful, throw an error
           throw new Error("Failed to update prompt");
         }
-        
+
         // Refresh the thread to get updated data
         await this.threadView.thread.llmChat.refreshThread(
           this.threadView.thread.id,
@@ -90,12 +90,12 @@ registerPatch({
         );
       } catch (error) {
         console.error("Failed to update thread prompt:", error);
-        
+
         // Revert the local state if the server call failed
         this.update({
           selectedPromptId: this.threadView.thread.prompt_id?.id || clear(),
         });
-        
+
         this.messaging.notify({
           type: "danger",
           message: this.env._t("Failed to update prompt. Please try again."),

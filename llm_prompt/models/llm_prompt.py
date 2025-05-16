@@ -9,6 +9,7 @@ from .arguments_schema import validate_arguments_schema
 
 _logger = logging.getLogger(__name__)
 
+
 class LLMPrompt(models.Model):
     _name = "llm.prompt"
     _description = "LLM Prompt Template"
@@ -455,7 +456,7 @@ class LLMPrompt(models.Model):
             try:
                 # Get arguments from arguments_json
                 arguments = json.loads(prompt.arguments_json or "{}")
-                
+
                 prompt.input_schema_json = self._generate_json_schema(arguments)
             except Exception as e:
                 _logger.error("Error computing input schema JSON: %s", str(e))
@@ -465,30 +466,30 @@ class LLMPrompt(models.Model):
         # Initialize dictionaries and lists for schema components
         properties = {}
         required = []
-        
+
         # Process each property from the input dictionary
         for prop_name, prop_details in input_json.items():
             # Create a copy of prop_details to avoid modifying the original
             prop_schema = dict(prop_details)
-            
+
             # Check if the property is required and add to the required list if true
             if prop_schema.get("required", False):
                 required.append(prop_name)
                 # Remove the required key from the property schema
                 prop_schema.pop("required", None)
-            
+
             # Add the property schema to the properties dictionary
             properties[prop_name] = prop_schema
-        
+
         # Construct the full JSON schema
         schema = {
             "type": "object",
             "properties": properties,
         }
-        
+
         # Only add required array if there are required fields
         if required:
             schema["required"] = required
-        
+
         # Return the schema as a Python dictionary
         return schema
