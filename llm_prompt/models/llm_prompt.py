@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 
 from odoo import _, api, fields, models
@@ -6,6 +7,7 @@ from odoo.exceptions import ValidationError
 
 from .arguments_schema import validate_arguments_schema
 
+_logger = logging.getLogger(__name__)
 
 class LLMPrompt(models.Model):
     _name = "llm.prompt"
@@ -397,3 +399,42 @@ class LLMPrompt(models.Model):
             "res_id": wizard.id,
             "target": "new",
         }
+
+    def get_formatted_prompt(self, default_values=None):
+        """Generate a formatted system prompt based on the prompt template"""
+        self.ensure_one()
+
+        try:
+            # Get the argument values from default_values
+            arg_values = json.loads(default_values or "{}")
+
+            # Get messages from the prompt template
+            messages = self.get_messages(arg_values)
+
+            # Find the system message
+            system_message = next(
+                (msg for msg in messages if msg.get("role") == "system"), None
+            )
+            if system_message and "content" in system_message:
+                if (
+                    isinstance(system_message["content"], dict)
+                    and "text" in system_message["content"]
+                ):
+                    return system_message["content"]["text"]
+                elif isinstance(system_message["content"], str):
+                    return system_message["content"]
+
+            # If no system message found, return the first message content
+            if messages and "content" in messages[0]:
+                if (
+                    isinstance(messages[0]["content"], dict)
+                    and "text" in messages[0]["content"]
+                ):
+                    return messages[0]["content"]["text"]
+                elif isinstance(messages[0]["content"], str):
+                    return messages[0]["content"]
+
+        except Exception as e:
+            _logger.error("Error generating system prompt from template: %s", str(e))
+            return _("Error generating system prompt preview: %s") % str(e)
+        

@@ -14,6 +14,7 @@
     ],
     "data": [
         "views/llm_model_views.xml",
+        "views/llm_thread_views.xml",
     ],
     "assets": {
         "web.assets_backend": [
