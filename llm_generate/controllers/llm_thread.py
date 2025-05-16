@@ -19,7 +19,7 @@ class LLMThreadControllerExtended(LLMThreadController):
             "X-Accel-Buffering": "no",  # Disable nginx buffering
         }
         user_message_body = message
-        generation_inputs = self.env["llm.thread"].process_prompt_substitutions(
+        generation_inputs = request.env["llm.thread"].process_prompt_substitutions(
             thread_id, generation_inputs
         )
         return Response(

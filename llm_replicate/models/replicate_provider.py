@@ -94,7 +94,7 @@ class LLMProvider(models.Model):
             "id": model.id,
             "name": model.id,
             "details": details,
-            "capabilities": capabilities,
+            "capabilities": capabilities or ["image_generation"],
         }
 
     def replicate_generate_io_schema(self, model_record):

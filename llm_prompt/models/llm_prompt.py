@@ -118,6 +118,13 @@ class LLMPrompt(models.Model):
         help="When this prompt was last used",
     )
 
+    input_schema_json = fields.Json(
+        string="Input Schema JSON",
+        compute="_compute_input_schema_json",
+        help="JSON schema for input fields",
+        store=True,
+    )
+
     _sql_constraints = [
         ("name_unique", "UNIQUE(name)", "The prompt name must be unique."),
     ]
@@ -437,4 +444,51 @@ class LLMPrompt(models.Model):
         except Exception as e:
             _logger.error("Error generating system prompt from template: %s", str(e))
             return _("Error generating system prompt preview: %s") % str(e)
+
+    @api.depends("template_ids", "arguments_json")
+    def _compute_input_schema_json(self):
+        """
+        Compute a proper JSON schema for input fields based on the first template and arguments_json.
+        This is used for media generation models to provide a customized input form.
+        """
+        for prompt in self:
+            try:
+                # Get arguments from arguments_json
+                arguments = json.loads(prompt.arguments_json or "{}")
+                
+                prompt.input_schema_json = self._generate_json_schema(arguments)
+            except Exception as e:
+                _logger.error("Error computing input schema JSON: %s", str(e))
+                prompt.input_schema_json = {}
+
+    def _generate_json_schema(self, input_json):
+        # Initialize dictionaries and lists for schema components
+        properties = {}
+        required = []
         
+        # Process each property from the input dictionary
+        for prop_name, prop_details in input_json.items():
+            # Create a copy of prop_details to avoid modifying the original
+            prop_schema = dict(prop_details)
+            
+            # Check if the property is required and add to the required list if true
+            if prop_schema.get("required", False):
+                required.append(prop_name)
+                # Remove the required key from the property schema
+                prop_schema.pop("required", None)
+            
+            # Add the property schema to the properties dictionary
+            properties[prop_name] = prop_schema
+        
+        # Construct the full JSON schema
+        schema = {
+            "type": "object",
+            "properties": properties,
+        }
+        
+        # Only add required array if there are required fields
+        if required:
+            schema["required"] = required
+        
+        # Return the schema as a Python dictionary
+        return schema
