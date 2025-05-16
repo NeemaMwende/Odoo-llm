@@ -11,10 +11,13 @@
         "llm_thread",
         "llm_mail_message_subtypes",
         "web_json_editor",
+        "llm_prompt",
     ],
     "data": [
         "views/llm_model_views.xml",
         "views/llm_thread_views.xml",
+        "data/llm_prompt_category_data.xml",
+        "data/llm_prompt_data.xml",
     ],
     "assets": {
         "web.assets_backend": [

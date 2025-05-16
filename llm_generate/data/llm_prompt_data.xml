@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- ComfyUI Workflow Prompt Template -->
+    <record id="llm_prompt_comfyui_workflow" model="llm.prompt">
+        <field name="name">Sample ComfyUI Workflow Template</field>
+        <field name="description">Sample Template for ComfyUI image generation workflow with customizable parameters</field>
+        <field name="category_id" ref="llm_generate.category_comfyui" />
+        <field name="tag_ids" eval="[(6, 0, [ref('llm_prompt.tag_technical')])]" />
+        <field name="arguments_json"><![CDATA[{
+  "prompt": {
+    "type": "string",
+    "description": "Prompt for image generation",
+    "required": true
+  },
+  "output_quality": {
+    "type": "integer",
+    "title": "Output Quality",
+    "default": 95,
+    "maximum": 100,
+    "minimum": 0,
+    "x-order": 4,
+    "description": "Quality of the output images, from 0 to 100. 100 is best quality, 0 is lowest quality."
+  },
+  "return_temp_files": {
+    "type": "boolean",
+    "title": "Return Temp Files",
+    "default": false,
+    "x-order": 2,
+    "description": "Return any temporary files, such as preprocessed controlnet images. Useful for debugging."
+  },
+  "randomise_seeds": {
+    "type": "boolean",
+    "title": "Randomise Seeds",
+    "default": true,
+    "x-order": 5,
+    "description": "Automatically randomise seeds (seed, noise_seed, rand_seed)"
+  },
+  "force_reset_cache": {
+    "type": "boolean",
+    "title": "Force Reset Cache",
+    "default": false,
+    "x-order": 6,
+    "description": "Force reset the ComfyUI cache before running the workflow. Useful for debugging."
+  },
+  "output_format": {
+    "allOf": [
+      {
+        "enum": [
+          "webp",
+          "jpg",
+          "png"
+        ],
+        "type": "string",
+        "title": "output_format",
+        "description": "An enumeration."
+      }
+    ],
+    "default": "webp",
+    "x-order": 3,
+    "description": "Format of the output images"
+  }
+}]]></field>
+        <field name="active" eval="True" />
+    </record>
+
+    <!-- Template for the ComfyUI workflow -->
+    <record id="llm_prompt_template_comfyui_workflow" model="llm.prompt.template">
+        <field name="prompt_id" ref="llm_prompt_comfyui_workflow" />
+        <field name="role">user</field>
+        <field name="sequence">10</field>
+        <field name="content"><![CDATA[{
+  "output_format": "{{output_format}}",
+  "workflow_json": "{\n  \"3\": {\n    \"inputs\": {\n      \"seed\": 156680208700286,\n      \"steps\": 10,\n      \"cfg\": 2.5,\n      \"sampler_name\": \"dpmpp_2m_sde\",\n      \"scheduler\": \"karras\",\n      \"denoise\": 1,\n      \"model\": [\n        \"4\",\n        0\n      ],\n      \"positive\": [\n        \"6\",\n        0\n      ],\n      \"negative\": [\n        \"7\",\n        0\n      ],\n      \"latent_image\": [\n        \"5\",\n        0\n      ]\n    },\n    \"class_type\": \"KSampler\",\n    \"_meta\": {\n      \"title\": \"KSampler\"\n    }\n  },\n  \"4\": {\n    \"inputs\": {\n      \"ckpt_name\": \"SDXL-Flash.safetensors\"\n    },\n    \"class_type\": \"CheckpointLoaderSimple\",\n    \"_meta\": {\n      \"title\": \"Load Checkpoint\"\n    }\n  },\n  \"5\": {\n    \"inputs\": {\n      \"width\": 1024,\n      \"height\": 1024,\n      \"batch_size\": 1\n    },\n    \"class_type\": \"EmptyLatentImage\",\n    \"_meta\": {\n      \"title\": \"Empty Latent Image\"\n    }\n  },\n  \"6\": {\n    \"inputs\": {\n      \"text\": \"{{prompt}}\",\n      \"clip\": [\n        \"4\",\n        1\n      ]\n    },\n    \"class_type\": \"CLIPTextEncode\",\n    \"_meta\": {\n      \"title\": \"CLIP Text Encode (Prompt)\"\n    }\n  },\n  \"7\": {\n    \"inputs\": {\n      \"text\": \"text, watermark\",\n      \"clip\": [\n        \"4\",\n        1\n      ]\n    },\n    \"class_type\": \"CLIPTextEncode\",\n    \"_meta\": {\n      \"title\": \"CLIP Text Encode (Prompt)\"\n    }\n  },\n  \"8\": {\n    \"inputs\": {\n      \"samples\": [\n        \"3\",\n        0\n      ],\n      \"vae\": [\n        \"4\",\n        2\n      ]\n    },\n    \"class_type\": \"VAEDecode\",\n    \"_meta\": {\n      \"title\": \"VAE Decode\"\n    }\n  },\n  \"9\": {\n    \"inputs\": {\n      \"filename_prefix\": \"ComfyUI\",\n      \"images\": [\n        \"8\",\n        0\n      ]\n    },\n    \"class_type\": \"SaveImage\",\n    \"_meta\": {\n      \"title\": \"Save Image\"\n    }\n  }\n}\n",
+  "output_quality": {{output_quality}},
+  "randomise_seeds": {{randomise_seeds}},
+  "force_reset_cache": {{force_reset_cache}},
+  "return_temp_files": {{return_temp_files}}
+}]]></field>
+    </record>
+</odoo>
