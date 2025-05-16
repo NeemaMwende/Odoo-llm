@@ -78,24 +78,16 @@ registerPatch({
           },
         });
 
-        if (result) {
-          // Refresh the thread to get updated data
-          await this.threadView.thread.llmChat.refreshThread(
-            this.threadView.thread.id,
-            ["prompt_id"]
-          );
-        } else {
-          // Revert the local state if the server call failed
-          this.update({
-            selectedPromptId: this.threadView.thread.prompt_id?.id || clear(),
-          });
-
-          // Show error message
-          this.messaging.notify({
-            type: "warning",
-            message: this.env._t("Failed to update prompt"),
-          });
+        if (!result) {
+          // If the server call was not successful, throw an error
+          throw new Error("Failed to update prompt");
         }
+        
+        // Refresh the thread to get updated data
+        await this.threadView.thread.llmChat.refreshThread(
+          this.threadView.thread.id,
+          ["prompt_id"]
+        );
       } catch (error) {
         console.error("Failed to update thread prompt:", error);
         

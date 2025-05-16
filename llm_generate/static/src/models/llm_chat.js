@@ -59,7 +59,7 @@ registerPatch({
           method: "search_read",
           kwargs: {
             domain: [],
-            fields: ["name", "arguments_json"],
+            fields: ["name", "input_schema_json"],
           },
         });
 
@@ -67,7 +67,7 @@ registerPatch({
         const promptData = result.map((prompt) => ({
           id: prompt.id,
           name: prompt.name,
-          argumentsJson: prompt.arguments_json || "{}",
+          inputSchemaJson: prompt.input_schema_json || "{}",
         }));
 
         this.update({ llmPrompts: promptData });

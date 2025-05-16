@@ -10,7 +10,7 @@ registerModel({
       identifying: true,
     }),
     name: attr(),
-    argumentsJson: attr({
+    inputSchemaJson: attr({
       default: "{}",
     }),
     threads: many("Thread", {
