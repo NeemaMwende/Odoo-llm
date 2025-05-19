@@ -408,7 +408,7 @@ class LLMPrompt(models.Model):
             "target": "new",
         }
 
-    def get_formatted_prompt(self, default_values=None):
+    def get_formatted_system_prompt(self, default_values=None):
         """Generate a formatted system prompt based on the prompt template"""
         self.ensure_one()
 

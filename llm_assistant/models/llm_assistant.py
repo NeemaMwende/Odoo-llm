@@ -141,4 +141,4 @@ class LLMAssistant(models.Model):
         if not self.prompt_id:
             return ""
 
-        return self.prompt_id.get_formatted_prompt(self.default_values or "{}")
+        return self.prompt_id.get_formatted_system_prompt(self.default_values or "{}")
