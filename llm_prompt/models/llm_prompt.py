@@ -297,6 +297,7 @@ class LLMPrompt(models.Model):
         try:
             schema = json.loads(self.arguments_json or "{}")
         except json.JSONDecodeError:
+            _logger.warning("Skipping: Invalid JSON in arguments schema: %s", self.arguments_json)
             # If schema is invalid, skip validation
             return
 
