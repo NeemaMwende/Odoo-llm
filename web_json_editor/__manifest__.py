@@ -29,6 +29,8 @@
             "web_json_editor/static/src/components/json_editor/json_editor.xml",
         ],
     },
+    "author": "Apexive Solutions LLC",
+    "website": "https://github.com/apexive/odoo-llm",
     "installable": True,
     "application": False,
     "auto_install": False,

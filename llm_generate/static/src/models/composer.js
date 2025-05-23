@@ -66,7 +66,7 @@ registerPatch({
         eventSource.onerror = (error) => {
           console.error("EventSource failed:", error);
           this.messaging.notify({
-            message: this.env._t("An unknown error occurred"),
+            message: this.env._t("An unknown error occurred, error: ") + error,
             type: "danger",
           });
           this._closeEventSource();
@@ -74,7 +74,7 @@ registerPatch({
       } catch (error) {
         console.error("Error sending LLM message:", error);
         this.messaging.notify({
-          message: this.env._t("Failed to send message."),
+          message: this.env._t("Failed to send message, error: ") + error,
           type: "danger",
         });
       } finally {

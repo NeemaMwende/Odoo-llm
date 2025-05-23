@@ -28,7 +28,7 @@ export class LLMMediaForm extends Component {
         // Re-initialize form values when model changes
         this._initializeFormValues();
       },
-      () => [this.llmModel.inputSchema]
+      () => [this.llmModel.effectiveInputSchema]
     );
   }
 
@@ -61,16 +61,18 @@ export class LLMMediaForm extends Component {
   }
 
   get inputSchema() {
+    let result = null;
     if (!this.llmModel) {
-      return null;
-    } else if (!this.llmModel.inputSchema) {
-      return null;
-    } else if (typeof this.llmModel.inputSchema === "string") {
-      return JSON.parse(this.llmModel.inputSchema);
-    } else if (typeof this.llmModel.inputSchema === "object") {
-      return this.llmModel.inputSchema;
+      result = null;
+    } else if (!this.llmModel.effectiveInputSchema) {
+      result = null;
+    } else if (typeof this.llmModel.effectiveInputSchema === "string") {
+      result = JSON.parse(this.llmModel.effectiveInputSchema);
+    } else if (typeof this.llmModel.effectiveInputSchema === "object") {
+      result = this.llmModel.effectiveInputSchema;
     }
-    return null;
+    
+    return result;
   }
 
   get formFields() {
