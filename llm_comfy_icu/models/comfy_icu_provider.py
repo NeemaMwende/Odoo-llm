@@ -111,7 +111,7 @@ class LLMProvider(models.Model):
                 },
                 "files": {
                     "type": "string",
-                    "description": "Map of file paths to URLs for input files",
+                    "description": "Map of file paths to URLs for input files. Example: {\"/models/loras/thickline_fp16.safetensors\": \"https://civitai.com/api/download/models/16368?type=Model&format=SafeTensor&size=full&fp=fp16\"}",
                 },
                 "accelerator": {
                     "type": "string",
@@ -163,16 +163,10 @@ class LLMProvider(models.Model):
         if not workflow_id:
             raise UserError(_("Workflow ID is required"))
 
-        # Parse prompt JSON if it's a string
-        prompt = inputs.get("prompt", {})
-        if isinstance(prompt, str):
-            try:
-                prompt = json.loads(prompt)
-            except json.JSONDecodeError as e:
-                raise UserError(_("Invalid JSON in prompt: %s") % str(e)) from e
+        # Parse input parameters
+        prompt = self._parse_json_param(inputs.get("prompt", {}), "prompt")
+        files = self._parse_json_param(inputs.get("files"), "files")
 
-        # Get optional parameters
-        files = inputs.get("files")
         accelerator = inputs.get("accelerator")
         webhook = inputs.get("webhook")
 
@@ -192,14 +186,15 @@ class LLMProvider(models.Model):
 
             # Poll for completion
             result = client.poll_run_status(workflow_id, run_id)
-
+            _logger.info(f"ComfyICU: result: {result}")
             # Check for errors
             if result.get("status") == "ERROR":
-                error_msg = result.get("error", "Unknown error")
+                error_msg = self._comfy_icu_extract_error_message(result)
+                _logger.error(f"ComfyICU workflow failed: {error_msg}")
                 raise UserError(_("ComfyICU workflow failed: %s") % error_msg)
-            _logger.info(f"ComfyICU: Run completed successfully: {result}")
+            
             # Extract output URLs
-            urls = self._extract_output_urls(result)
+            urls = self._comfy_icu_extract_output_urls(result)
 
             # Return results based on streaming mode
             if stream:
@@ -243,7 +238,56 @@ class LLMProvider(models.Model):
         _logger.info(f"ComfyICU: Extracted URLs: {extracted_urls}")
         return extracted_urls
 
-    def _extract_output_urls(self, status_data):
+    def _parse_json_param(self, param, param_name):
+        """Parse a parameter as JSON if it's a string
+        
+        Args:
+            param: The parameter to parse
+            param_name: The name of the parameter (for error messages)
+            
+        Returns:
+            The parsed parameter (dict or original value if not a string)
+            
+        Raises:
+            UserError: If the parameter is a string but not valid JSON
+        """
+        if isinstance(param, str) and param.strip():
+            try:
+                return json.loads(param)
+            except json.JSONDecodeError as e:
+                raise UserError(_("Invalid JSON in %s: %s") % (param_name, str(e))) from e
+        return param
+
+    def _comfy_icu_extract_error_message(self, result):
+        """Extract error message from ComfyICU API response
+        
+        Args:
+            result (dict): The API response containing error information
+            
+        Returns:
+            str: The extracted error message
+        """
+        error_msg = "Unknown error"
+        
+        # Try to extract error from different possible locations in the response
+        if "error" in result and result["error"]:
+            error_msg = result["error"]
+        elif "output" in result and isinstance(result["output"], dict):
+            output = result["output"]
+            if "error" in output and isinstance(output["error"], dict):
+                error_data = output["error"]
+                if "exception_message" in error_data:
+                    error_msg = error_data["exception_message"]
+                elif "details" in error_data and isinstance(error_data["details"], dict):
+                    details = error_data["details"]
+                    if "error" in details and isinstance(details["error"], dict):
+                        error_details = details["error"]
+                        if "message" in error_details:
+                            error_msg = error_details["message"]
+        
+        return error_msg
+    
+    def _comfy_icu_extract_output_urls(self, status_data):
         """Extract output URLs from run status data
 
         The ComfyICU API returns output URLs in different formats depending on the endpoint:
@@ -270,4 +314,6 @@ class LLMProvider(models.Model):
                         urls.append(url)
 
         _logger.info(f"ComfyICU: Extracted {len(urls)} output URLs: {urls}")
+        if not urls:
+            raise UserError(_("No outputs found, try with different seed"))
         return urls
