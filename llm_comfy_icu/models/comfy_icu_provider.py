@@ -1,7 +1,10 @@
 import json
 import logging
+import time
+import requests
 
-from odoo import api, models
+from odoo import api, models, _
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -14,4 +17,288 @@ class LLMProvider(models.Model):
         services = super()._get_available_services()
         return services + [("comfy_icu", "ComfyICU")]
 
-    # The rest of the implementation will be added step by step
+    def comfy_icu_get_client(self):
+        """Get ComfyICU client instance
+        
+        Returns a dict with headers and base URL for API requests
+        """
+        if not self.api_key:
+            raise UserError(_("ComfyICU API key is required"))
+        
+        return {
+            "base_url": self.api_base or "https://comfy.icu/api/v1",
+            "headers": {
+                "accept": "application/json",
+                "content-type": "application/json",
+                "authorization": f"Bearer {self.api_key}"
+            }
+        }
+    
+    def comfy_icu_models(self, model_id=None):
+        """List available ComfyICU models
+        
+        For ComfyICU, models are workflows that users have created.
+        Fetches workflows from the ComfyICU API.
+        
+        Args:
+            model_id (str, optional): Specific model ID to fetch. Defaults to None.
+        
+        Yields:
+            dict: Model information with workflow details
+        """
+        self.ensure_one()
+        client = self.client
+        
+        # If a specific model ID is requested, fetch just that workflow
+        if model_id:
+            try:
+                url = f"{client['base_url']}/workflows/{model_id}"
+                response = requests.get(url, headers=client["headers"])
+                response.raise_for_status()
+                workflow = response.json()
+                
+                yield self._comfy_icu_parse_workflow(workflow)
+            except requests.exceptions.RequestException as e:
+                _logger.error(f"Error fetching ComfyICU workflow {model_id}: {e}")
+                # Return a basic model if we can't fetch the details
+                yield {
+                    "id": model_id,
+                    "name": model_id,
+                    "details": {},
+                    "capabilities": ["image_generation"],
+                }
+        else:
+            # Fetch all workflows
+            try:
+                url = f"{client['base_url']}/workflows"
+                response = requests.get(url, headers=client["headers"])
+                response.raise_for_status()
+                workflows = response.json()
+                
+                for workflow in workflows:
+                    yield self._comfy_icu_parse_workflow(workflow)
+            except requests.exceptions.RequestException as e:
+                _logger.error(f"Error fetching ComfyICU workflows: {e}")
+    
+    def _comfy_icu_parse_workflow(self, workflow):
+        """Parse workflow data into model format
+        
+        Args:
+            workflow (dict): Workflow data from ComfyICU API
+        
+        Returns:
+            dict: Model information
+        """
+        # Extract relevant details from the workflow
+        details = {
+            "name": workflow.get("name"),
+            "description": workflow.get("description"),
+            "created_at": workflow.get("created_at"),
+            "updated_at": workflow.get("updated_at"),
+            "tags": workflow.get("tags"),
+            "is_nsfw": workflow.get("is_nsfw"),
+            "visibility": workflow.get("visibility"),
+            "accelerator": workflow.get("accelerator"),
+            "featuredImages": workflow.get("featuredImages"),
+        }
+        
+        # Create model information
+        return {
+            "id": workflow.get("id"),
+            "name": workflow.get("id"),
+            "details": self.serialize_model_data(details),
+            "capabilities": ["image_generation"],
+        }
+    
+    def comfy_icu_generate_io_schema(self, model_record):
+        """Generate a configuration from ComfyICU model details
+        
+        Args:
+            model_record (llm.model): The model record to generate config for
+        """
+        self.ensure_one()
+        
+        # ComfyICU doesn't provide a schema API, so we'll use a generic schema
+        # that accepts workflow_id, prompt, files, and accelerator
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "The ComfyUI API JSON prompt"
+                },
+                "files": {
+                    "type": "string",
+                    "description": "Map of file paths to URLs for input files"
+                },
+                "accelerator": {
+                    "type": "string",
+                    "enum": ["T4", "L4", "A10", "A100_40GB", "A100_80GB", "H100"],
+                    "description": "GPU accelerator to use"
+                },
+                "webhook": {
+                    "type": "string",
+                    "description": "Webhook URL for status updates"
+                }
+            },
+            "required": ["prompt"]
+        }
+        
+        output_schema = {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "format": "uri"
+            },
+            "description": "List of URLs to generated media files"
+        }
+        
+        model_record.write({
+            "input_schema": json.dumps(input_schema, indent=2),
+            "output_schema": json.dumps(output_schema, indent=2)
+        })
+    
+    def comfy_icu_generate_media(self, inputs, model_record=None, stream=False):
+        """Generate media content using ComfyICU
+        
+        Args:
+            inputs (dict): Input parameters for the generation
+            model_record (llm.model, optional): Model record. Defaults to None.
+            stream (bool, optional): Whether to stream the response. Defaults to False.
+        
+        Returns:
+            list: List of URLs to generated media
+        
+        Yields:
+            dict: Streaming response with content URLs
+        """
+        self.ensure_one()
+        client = self.client
+        
+        # Get workflow_id from inputs or model name
+        workflow_id = inputs.get("workflow_id", model_record.name if model_record else None)
+        if not workflow_id:
+            raise UserError(_("Workflow ID is required"))
+        
+        # Prepare request body
+        body = {
+            "workflow_id": workflow_id,
+            "prompt": json.loads(inputs.get("prompt", {}))
+        }
+        
+        # Add optional parameters if provided
+        if "files" in inputs:
+            body["files"] = inputs["files"]
+        
+        if "accelerator" in inputs:
+            body["accelerator"] = inputs["accelerator"]
+        
+        if "webhook" in inputs:
+            body["webhook"] = inputs["webhook"]
+        
+        # Submit workflow run
+        url = f"{client['base_url']}/workflows/{workflow_id}/runs"
+        try:
+            response = requests.post(url, headers=client["headers"], json=body)
+            response.raise_for_status()
+            run = response.json()
+        except requests.exceptions.RequestException as e:
+            _logger.error(f"Error submitting ComfyICU workflow: {e}")
+            raise UserError(_("Failed to submit ComfyICU workflow: %s") % str(e))
+        
+        run_id = run.get("id")
+        if not run_id:
+            raise UserError(_("No run ID returned from ComfyICU"))
+        
+        result = self._comfy_icu_poll_run_status(workflow_id, run_id)
+        if result['status'] == 'ERROR':
+            raise UserError(_("ComfyICU workflow failed: %s") % result['error'])
+        # If streaming, yield updates as they come
+        if stream:
+            yield result
+        else:
+            return result
+
+    def _comfy_icu_poll_run_status(self, workflow_id, run_id, max_attempts=30, delay=5):
+        for attempt in range(max_attempts):
+            status = self._comfy_icu_get_run_status(workflow_id, run_id)
+            print(f"Attempt {attempt + 1}: Run status is {status['status']}")
+
+            if status['status'] in ['COMPLETED', 'ERROR']:
+                return status
+
+        time.sleep(delay)
+
+        raise TimeoutError("Max polling attempts reached")
+
+    def _comfy_icu_get_run_status(self, workflow_id, run_id):
+        """Get the status of a workflow run
+        
+        Args:
+            workflow_id (str): Workflow ID
+            run_id (str): Run ID
+        
+        Returns:
+            dict: Run status data
+        """
+        client = self.client
+        
+        url = f"{client['base_url']}/workflows/{workflow_id}/runs/{run_id}"
+        try:
+            response = requests.get(url, headers=client["headers"])
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            _logger.error(f"Error getting ComfyICU run status: {e}")
+            raise UserError(_("Failed to get ComfyICU run status: %s") % str(e))
+    
+    def _comfy_icu_extract_output_urls(self, status_data):
+        """Extract output URLs from run status data
+        
+        Args:
+            status_data (dict): Run status data
+        
+        Returns:
+            list: List of output URLs
+        """
+        outputs = status_data.get("outputs", {})
+        urls = []
+        
+        # Extract URLs from outputs
+        for path, url in outputs.items():
+            if path.startswith("/output/"):
+                urls.append(url)
+        
+        return urls
+    
+    def comfy_icu_format_generation_response(self, raw_response, output_schema):
+        """Format the raw generation response
+        
+        Args:
+            raw_response: The raw response from the provider
+            output_schema (dict): Schema of the output
+        
+        Returns:
+            list: A list of URLs extracted from the raw_response
+        """
+        extracted_urls = []
+        
+        if isinstance(raw_response, list):
+            for item in raw_response:
+                if isinstance(item, str):
+                    extracted_urls.append(item)
+                else:
+                    _logger.warning(
+                        f"ComfyICU: Item in raw_response list is not a string: {item} (type: {type(item)})"
+                    )
+        elif isinstance(raw_response, str):
+            extracted_urls.append(raw_response)
+        elif raw_response is None:
+            _logger.info("ComfyICU: Raw response is None. Returning empty list.")
+        else:
+            _logger.warning(
+                f"ComfyICU: Unexpected raw_response type: {type(raw_response)}. Full response: {raw_response}"
+            )
+        
+        _logger.info(f"ComfyICU: Extracted URLs: {extracted_urls}")
+        return extracted_urls
