@@ -1,10 +1,10 @@
 import json
 import logging
-import time
-import requests
 
-from odoo import api, models, _
+from odoo import _, api, models
 from odoo.exceptions import UserError
+
+from .http_client import ComfyICUClient
 
 _logger = logging.getLogger(__name__)
 
@@ -18,21 +18,14 @@ class LLMProvider(models.Model):
         return services + [("comfy_icu", "ComfyICU")]
 
     def comfy_icu_get_client(self):
-        """Get ComfyICU client instance
-        
-        Returns a dict with headers and base URL for API requests
-        """
+        """Get ComfyICU client instance"""
         if not self.api_key:
             raise UserError(_("ComfyICU API key is required"))
         
-        return {
-            "base_url": self.api_base or "https://comfy.icu/api/v1",
-            "headers": {
-                "accept": "application/json",
-                "content-type": "application/json",
-                "authorization": f"Bearer {self.api_key}"
-            }
-        }
+        return ComfyICUClient(
+            api_key=self.api_key,
+            api_base=self.api_base
+        )
     
     def comfy_icu_models(self, model_id=None):
         """List available ComfyICU models
@@ -52,13 +45,9 @@ class LLMProvider(models.Model):
         # If a specific model ID is requested, fetch just that workflow
         if model_id:
             try:
-                url = f"{client['base_url']}/workflows/{model_id}"
-                response = requests.get(url, headers=client["headers"])
-                response.raise_for_status()
-                workflow = response.json()
-                
+                workflow = client.get_workflow(model_id)
                 yield self._comfy_icu_parse_workflow(workflow)
-            except requests.exceptions.RequestException as e:
+            except Exception as e:
                 _logger.error(f"Error fetching ComfyICU workflow {model_id}: {e}")
                 # Return a basic model if we can't fetch the details
                 yield {
@@ -70,14 +59,10 @@ class LLMProvider(models.Model):
         else:
             # Fetch all workflows
             try:
-                url = f"{client['base_url']}/workflows"
-                response = requests.get(url, headers=client["headers"])
-                response.raise_for_status()
-                workflows = response.json()
-                
+                workflows = client.list_workflows()
                 for workflow in workflows:
                     yield self._comfy_icu_parse_workflow(workflow)
-            except requests.exceptions.RequestException as e:
+            except Exception as e:
                 _logger.error(f"Error fetching ComfyICU workflows: {e}")
     
     def _comfy_icu_parse_workflow(self, workflow):
@@ -180,96 +165,53 @@ class LLMProvider(models.Model):
         if not workflow_id:
             raise UserError(_("Workflow ID is required"))
         
-        # Prepare request body
-        body = {
-            "workflow_id": workflow_id,
-            "prompt": json.loads(inputs.get("prompt", {}))
-        }
+        # Parse prompt JSON if it's a string
+        prompt = inputs.get("prompt", {})
+        if isinstance(prompt, str):
+            try:
+                prompt = json.loads(prompt)
+            except json.JSONDecodeError as e:
+                raise UserError(_("Invalid JSON in prompt: %s") % str(e))
         
-        # Add optional parameters if provided
-        if "files" in inputs:
-            body["files"] = inputs["files"]
+        # Get optional parameters
+        files = inputs.get("files")
+        accelerator = inputs.get("accelerator")
+        webhook = inputs.get("webhook")
         
-        if "accelerator" in inputs:
-            body["accelerator"] = inputs["accelerator"]
-        
-        if "webhook" in inputs:
-            body["webhook"] = inputs["webhook"]
-        
-        # Submit workflow run
-        url = f"{client['base_url']}/workflows/{workflow_id}/runs"
         try:
-            response = requests.post(url, headers=client["headers"], json=body)
-            response.raise_for_status()
-            run = response.json()
-        except requests.exceptions.RequestException as e:
-            _logger.error(f"Error submitting ComfyICU workflow: {e}")
-            raise UserError(_("Failed to submit ComfyICU workflow: %s") % str(e))
-        
-        run_id = run.get("id")
-        if not run_id:
-            raise UserError(_("No run ID returned from ComfyICU"))
-        
-        result = self._comfy_icu_poll_run_status(workflow_id, run_id)
-        if result['status'] == 'ERROR':
-            raise UserError(_("ComfyICU workflow failed: %s") % result['error'])
-        # If streaming, yield updates as they come
-        if stream:
-            yield result
-        else:
-            return result
-
-    def _comfy_icu_poll_run_status(self, workflow_id, run_id, max_attempts=30, delay=5):
-        for attempt in range(max_attempts):
-            status = self._comfy_icu_get_run_status(workflow_id, run_id)
-            print(f"Attempt {attempt + 1}: Run status is {status['status']}")
-
-            if status['status'] in ['COMPLETED', 'ERROR']:
-                return status
-
-        time.sleep(delay)
-
-        raise TimeoutError("Max polling attempts reached")
-
-    def _comfy_icu_get_run_status(self, workflow_id, run_id):
-        """Get the status of a workflow run
-        
-        Args:
-            workflow_id (str): Workflow ID
-            run_id (str): Run ID
-        
-        Returns:
-            dict: Run status data
-        """
-        client = self.client
-        
-        url = f"{client['base_url']}/workflows/{workflow_id}/runs/{run_id}"
-        try:
-            response = requests.get(url, headers=client["headers"])
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            _logger.error(f"Error getting ComfyICU run status: {e}")
-            raise UserError(_("Failed to get ComfyICU run status: %s") % str(e))
-    
-    def _comfy_icu_extract_output_urls(self, status_data):
-        """Extract output URLs from run status data
-        
-        Args:
-            status_data (dict): Run status data
-        
-        Returns:
-            list: List of output URLs
-        """
-        outputs = status_data.get("outputs", {})
-        urls = []
-        
-        # Extract URLs from outputs
-        for path, url in outputs.items():
-            if path.startswith("/output/"):
-                urls.append(url)
-        
-        return urls
+            # Submit workflow run
+            run = client.create_run(
+                workflow_id=workflow_id,
+                prompt=prompt,
+                files=files,
+                accelerator=accelerator,
+                webhook=webhook
+            )
+            
+            run_id = run.get("id")
+            if not run_id:
+                raise UserError(_("No run ID returned from ComfyICU"))
+            
+            # Poll for completion
+            result = client.poll_run_status(workflow_id, run_id)
+            
+            # Check for errors
+            if result.get("status") == "ERROR":
+                error_msg = result.get("error", "Unknown error")
+                raise UserError(_("ComfyICU workflow failed: %s") % error_msg)
+            _logger.info(f"ComfyICU: Run completed successfully: {result}")
+            # Extract output URLs
+            urls = self._extract_output_urls(result)
+            
+            # Return results based on streaming mode
+            if stream:
+                yield {"content": urls}
+            else:
+                return urls
+                
+        except Exception as e:
+            _logger.error(f"Error in ComfyICU workflow execution: {e}")
+            raise UserError(_("ComfyICU workflow execution failed: %s") % str(e))
     
     def comfy_icu_format_generation_response(self, raw_response, output_schema):
         """Format the raw generation response
@@ -302,3 +244,15 @@ class LLMProvider(models.Model):
         
         _logger.info(f"ComfyICU: Extracted URLs: {extracted_urls}")
         return extracted_urls
+
+    def _extract_output_urls(self, status_data):
+        """Extract output URLs from run status data"""
+        outputs = status_data.get("outputs", {})
+        urls = []
+        
+        # Extract URLs from outputs
+        for path, url in outputs.items():
+            if path.startswith("/output/"):
+                urls.append(url)
+        
+        return urls
