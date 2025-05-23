@@ -82,7 +82,9 @@ class LLMThread(models.Model):
         if not thread or not thread.prompt_id:
             return generation_inputs
 
-        result = thread.prompt_id.get_formatted_system_prompt(default_values=generation_inputs)
+        result = thread.prompt_id.get_formatted_system_prompt(
+            default_values=generation_inputs
+        )
 
         try:
             result = json.loads(result)

@@ -71,7 +71,7 @@ export class LLMMediaForm extends Component {
     } else if (typeof this.llmModel.effectiveInputSchema === "object") {
       result = this.llmModel.effectiveInputSchema;
     }
-    
+
     return result;
   }
 

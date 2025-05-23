@@ -18,5 +18,6 @@ This module integrates Odoo with the ComfyICU API for media generation capabilit
 ## Security
 
 This module follows the standard two-tier security model:
+
 - Regular users (base.group_user) have read-only access to models
 - LLM Managers (llm.group_llm_manager) have full CRUD access

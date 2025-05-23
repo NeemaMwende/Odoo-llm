@@ -15,21 +15,20 @@ class ComfyICUClient:
         self.api_key = api_key
         self.api_base = api_base or "https://comfy.icu/api/v1"
         self.session = requests.Session()
-        self.session.headers.update({
-            "accept": "application/json",
-            "content-type": "application/json",
-            "authorization": f"Bearer {api_key}"
-        })
+        self.session.headers.update(
+            {
+                "accept": "application/json",
+                "content-type": "application/json",
+                "authorization": f"Bearer {api_key}",
+            }
+        )
 
     def _make_request(self, method, endpoint, data=None, **kwargs):
         """Make HTTP request to ComfyICU API"""
         url = f"{self.api_base}{endpoint}"
         try:
             response = self.session.request(
-                method=method,
-                url=url,
-                json=data if data else None,
-                **kwargs
+                method=method, url=url, json=data if data else None, **kwargs
             )
             response.raise_for_status()
             return response.json()
@@ -53,13 +52,12 @@ class ComfyICUClient:
         """Get a specific workflow"""
         return self._make_request("GET", f"/workflows/{workflow_id}")
 
-    def create_run(self, workflow_id, prompt, files=None, accelerator=None, webhook=None):
+    def create_run(
+        self, workflow_id, prompt, files=None, accelerator=None, webhook=None
+    ):
         """Create a new workflow run"""
-        data = {
-            "workflow_id": workflow_id,
-            "prompt": prompt
-        }
-        
+        data = {"workflow_id": workflow_id, "prompt": prompt}
+
         # Add optional parameters
         if files:
             data["files"] = files
@@ -67,7 +65,7 @@ class ComfyICUClient:
             data["accelerator"] = accelerator
         if webhook:
             data["webhook"] = webhook
-            
+
         return self._make_request("POST", f"/workflows/{workflow_id}/runs", data=data)
 
     def get_run_status(self, workflow_id, run_id):
@@ -79,12 +77,14 @@ class ComfyICUClient:
         for attempt in range(max_attempts):
             status_data = self.get_run_status(workflow_id, run_id)
             status = status_data.get("status", "UNKNOWN")
-            
+
             _logger.info(f"Attempt {attempt + 1}: Run status is {status}")
-            
+
             if status in ["COMPLETED", "ERROR"]:
                 return status_data
-            
+
             time.sleep(delay)
-        
-        raise TimeoutError(f"Timeout waiting for ComfyICU workflow {workflow_id} run {run_id} to complete")
+
+        raise TimeoutError(
+            f"Timeout waiting for ComfyICU workflow {workflow_id} run {run_id} to complete"
+        )

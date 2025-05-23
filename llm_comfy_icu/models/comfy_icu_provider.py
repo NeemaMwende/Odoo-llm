@@ -21,27 +21,24 @@ class LLMProvider(models.Model):
         """Get ComfyICU client instance"""
         if not self.api_key:
             raise UserError(_("ComfyICU API key is required"))
-        
-        return ComfyICUClient(
-            api_key=self.api_key,
-            api_base=self.api_base
-        )
-    
+
+        return ComfyICUClient(api_key=self.api_key, api_base=self.api_base)
+
     def comfy_icu_models(self, model_id=None):
         """List available ComfyICU models
-        
+
         For ComfyICU, models are workflows that users have created.
         Fetches workflows from the ComfyICU API.
-        
+
         Args:
             model_id (str, optional): Specific model ID to fetch. Defaults to None.
-        
+
         Yields:
             dict: Model information with workflow details
         """
         self.ensure_one()
         client = self.client
-        
+
         # If a specific model ID is requested, fetch just that workflow
         if model_id:
             try:
@@ -64,13 +61,13 @@ class LLMProvider(models.Model):
                     yield self._comfy_icu_parse_workflow(workflow)
             except Exception as e:
                 _logger.error(f"Error fetching ComfyICU workflows: {e}")
-    
+
     def _comfy_icu_parse_workflow(self, workflow):
         """Parse workflow data into model format
-        
+
         Args:
             workflow (dict): Workflow data from ComfyICU API
-        
+
         Returns:
             dict: Model information
         """
@@ -86,7 +83,7 @@ class LLMProvider(models.Model):
             "accelerator": workflow.get("accelerator"),
             "featuredImages": workflow.get("featuredImages"),
         }
-        
+
         # Create model information
         return {
             "id": workflow.get("id"),
@@ -94,15 +91,15 @@ class LLMProvider(models.Model):
             "details": self.serialize_model_data(details),
             "capabilities": ["image_generation"],
         }
-    
+
     def comfy_icu_generate_io_schema(self, model_record):
         """Generate a configuration from ComfyICU model details
-        
+
         Args:
             model_record (llm.model): The model record to generate config for
         """
         self.ensure_one()
-        
+
         # ComfyICU doesn't provide a schema API, so we'll use a generic schema
         # that accepts workflow_id, prompt, files, and accelerator
         input_schema = {
@@ -110,74 +107,75 @@ class LLMProvider(models.Model):
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "The ComfyUI API JSON prompt"
+                    "description": "The ComfyUI API JSON prompt",
                 },
                 "files": {
                     "type": "string",
-                    "description": "Map of file paths to URLs for input files"
+                    "description": "Map of file paths to URLs for input files",
                 },
                 "accelerator": {
                     "type": "string",
                     "enum": ["T4", "L4", "A10", "A100_40GB", "A100_80GB", "H100"],
-                    "description": "GPU accelerator to use"
+                    "description": "GPU accelerator to use",
                 },
                 "webhook": {
                     "type": "string",
-                    "description": "Webhook URL for status updates"
-                }
+                    "description": "Webhook URL for status updates",
+                },
             },
-            "required": ["prompt"]
+            "required": ["prompt"],
         }
-        
+
         output_schema = {
             "type": "array",
-            "items": {
-                "type": "string",
-                "format": "uri"
-            },
-            "description": "List of URLs to generated media files"
+            "items": {"type": "string", "format": "uri"},
+            "description": "List of URLs to generated media files",
         }
-        
-        model_record.write({
-            "input_schema": json.dumps(input_schema, indent=2),
-            "output_schema": json.dumps(output_schema, indent=2)
-        })
-    
+
+        model_record.write(
+            {
+                "input_schema": json.dumps(input_schema, indent=2),
+                "output_schema": json.dumps(output_schema, indent=2),
+            }
+        )
+
     def comfy_icu_generate_media(self, inputs, model_record=None, stream=False):
         """Generate media content using ComfyICU
-        
+
         Args:
             inputs (dict): Input parameters for the generation
             model_record (llm.model, optional): Model record. Defaults to None.
             stream (bool, optional): Whether to stream the response. Defaults to False.
-        
+
         Returns:
             list: List of URLs to generated media
-        
+
         Yields:
             dict: Streaming response with content URLs
         """
         self.ensure_one()
         client = self.client
-        
+
         # Get workflow_id from inputs or model name
-        workflow_id = inputs.get("workflow_id", model_record.name if model_record else None)
+        workflow_id = inputs.get(
+            "workflow_id", model_record.name if model_record else None
+        )
         if not workflow_id:
             raise UserError(_("Workflow ID is required"))
-        
+
         # Parse prompt JSON if it's a string
         prompt = inputs.get("prompt", {})
         if isinstance(prompt, str):
             try:
                 prompt = json.loads(prompt)
             except json.JSONDecodeError as e:
-                raise UserError(_("Invalid JSON in prompt: %s") % str(e))
-        
+                raise UserError(_("Invalid JSON in prompt: %s") % str(e)) from e
+
         # Get optional parameters
         files = inputs.get("files")
         accelerator = inputs.get("accelerator")
         webhook = inputs.get("webhook")
-        
+
         try:
             # Submit workflow run
             run = client.create_run(
@@ -185,16 +183,16 @@ class LLMProvider(models.Model):
                 prompt=prompt,
                 files=files,
                 accelerator=accelerator,
-                webhook=webhook
+                webhook=webhook,
             )
-            
+
             run_id = run.get("id")
             if not run_id:
                 raise UserError(_("No run ID returned from ComfyICU"))
-            
+
             # Poll for completion
             result = client.poll_run_status(workflow_id, run_id)
-            
+
             # Check for errors
             if result.get("status") == "ERROR":
                 error_msg = result.get("error", "Unknown error")
@@ -202,29 +200,29 @@ class LLMProvider(models.Model):
             _logger.info(f"ComfyICU: Run completed successfully: {result}")
             # Extract output URLs
             urls = self._extract_output_urls(result)
-            
+
             # Return results based on streaming mode
             if stream:
                 yield {"content": urls}
             else:
                 return urls
-                
+
         except Exception as e:
             _logger.error(f"Error in ComfyICU workflow execution: {e}")
             raise UserError(_("ComfyICU workflow execution failed: %s") % str(e)) from e
-    
+
     def comfy_icu_format_generation_response(self, raw_response, output_schema):
         """Format the raw generation response
-        
+
         Args:
             raw_response: The raw response from the provider
             output_schema (dict): Schema of the output
-        
+
         Returns:
             list: A list of URLs extracted from the raw_response
         """
         extracted_urls = []
-        
+
         if isinstance(raw_response, list):
             for item in raw_response:
                 if isinstance(item, str):
@@ -241,28 +239,28 @@ class LLMProvider(models.Model):
             _logger.warning(
                 f"ComfyICU: Unexpected raw_response type: {type(raw_response)}. Full response: {raw_response}"
             )
-        
+
         _logger.info(f"ComfyICU: Extracted URLs: {extracted_urls}")
         return extracted_urls
 
     def _extract_output_urls(self, status_data):
         """Extract output URLs from run status data
-        
+
         The ComfyICU API returns output URLs in different formats depending on the endpoint:
         1. In the 'outputs' field as a dict of path -> url (older format)
         2. In the 'output' field as a list of objects with 'url' field (newer format)
-        
+
         This method handles both formats.
         """
         urls = []
-        
+
         # Try the newer format first (output as a list of objects)
         output_list = status_data.get("output", [])
         if output_list and isinstance(output_list, list):
             for item in output_list:
                 if isinstance(item, dict) and "url" in item:
                     urls.append(item["url"])
-        
+
         # If no URLs found, try the older format (outputs as a dict)
         if not urls:
             outputs = status_data.get("outputs", {})
@@ -270,6 +268,6 @@ class LLMProvider(models.Model):
                 for path, url in outputs.items():
                     if path.startswith("/output/"):
                         urls.append(url)
-        
+
         _logger.info(f"ComfyICU: Extracted {len(urls)} output URLs: {urls}")
         return urls
