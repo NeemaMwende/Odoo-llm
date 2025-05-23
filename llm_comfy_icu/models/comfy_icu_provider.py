@@ -211,7 +211,7 @@ class LLMProvider(models.Model):
                 
         except Exception as e:
             _logger.error(f"Error in ComfyICU workflow execution: {e}")
-            raise UserError(_("ComfyICU workflow execution failed: %s") % str(e))
+            raise UserError(_("ComfyICU workflow execution failed: %s") % str(e)) from e
     
     def comfy_icu_format_generation_response(self, raw_response, output_schema):
         """Format the raw generation response
@@ -246,13 +246,30 @@ class LLMProvider(models.Model):
         return extracted_urls
 
     def _extract_output_urls(self, status_data):
-        """Extract output URLs from run status data"""
-        outputs = status_data.get("outputs", {})
+        """Extract output URLs from run status data
+        
+        The ComfyICU API returns output URLs in different formats depending on the endpoint:
+        1. In the 'outputs' field as a dict of path -> url (older format)
+        2. In the 'output' field as a list of objects with 'url' field (newer format)
+        
+        This method handles both formats.
+        """
         urls = []
         
-        # Extract URLs from outputs
-        for path, url in outputs.items():
-            if path.startswith("/output/"):
-                urls.append(url)
+        # Try the newer format first (output as a list of objects)
+        output_list = status_data.get("output", [])
+        if output_list and isinstance(output_list, list):
+            for item in output_list:
+                if isinstance(item, dict) and "url" in item:
+                    urls.append(item["url"])
         
+        # If no URLs found, try the older format (outputs as a dict)
+        if not urls:
+            outputs = status_data.get("outputs", {})
+            if outputs and isinstance(outputs, dict):
+                for path, url in outputs.items():
+                    if path.startswith("/output/"):
+                        urls.append(url)
+        
+        _logger.info(f"ComfyICU: Extracted {len(urls)} output URLs: {urls}")
         return urls
