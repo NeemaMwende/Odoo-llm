@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<odoo>
+<odoo noupdate="1">
     <!-- ComfyUI Workflow Prompt Template -->
     <record id="llm_prompt_comfyui_workflow" model="llm.prompt">
         <field name="name">Sample ComfyUI Workflow Template</field>
@@ -30,7 +30,7 @@
     model="llm.prompt.template"
   >
         <field name="prompt_id" ref="llm_prompt_comfyui_workflow" />
-        <field name="role">user</field>
+        <field name="role">system</field>
         <field name="sequence">10</field>
         <field
       name="content"

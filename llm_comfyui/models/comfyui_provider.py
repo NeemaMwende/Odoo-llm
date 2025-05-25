@@ -113,7 +113,7 @@ class LLMProvider(models.Model):
         prompt = self._parse_json_param(inputs.get("prompt", {}), "prompt")
         client_id = inputs.get("client_id")
         number = inputs.get("number", -1)
-        extra_data = self._parse_json_param(inputs.get("extra_data"), "extra_data")
+        extra_data = self._parse_json_param(inputs.get("extra_data"), {})
 
         try:
             # Submit workflow for execution
@@ -121,7 +121,7 @@ class LLMProvider(models.Model):
                 prompt=prompt,
                 client_id=client_id,
                 number=number,
-                # extra_data=extra_data
+                extra_data=extra_data
             )
 
             prompt_id = response.get("prompt_id")
@@ -137,7 +137,6 @@ class LLMProvider(models.Model):
 
             # Poll for completion
             result = client.poll_prompt_status(prompt_id)
-            _logger.info(f"ComfyUI: result: {result}")
             
             # Extract output URLs
             urls = self._comfyui_extract_output_urls(result)
