@@ -33,10 +33,7 @@ class LLMModel(models.Model):
     def _compute_io_schema(self):
         """Compute input and output schemas based on model details and usage"""
         for record in self:
-            if (
-                record._is_media_generation_model()
-                and record.provider_id
-            ):
+            if record._is_media_generation_model() and record.provider_id:
                 # Trigger provider-specific schema generation
                 record.provider_id.generate_io_schema(model_record=record)
 
