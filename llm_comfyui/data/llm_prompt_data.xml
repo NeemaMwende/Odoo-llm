@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo noupdate="1">
+    <!-- ComfyUI Workflow Prompt Template -->
+    <record id="llm_prompt_comfyui_workflow" model="llm.prompt">
+        <field name="name">Sample ComfyUI Workflow Template</field>
+        <field
+      name="description"
+    >Sample Template for ComfyUI image generation workflow, it generates image based on prompt</field>
+        <field name="category_id" ref="llm_comfyui.category_comfyui" />
+        <field
+      name="tag_ids"
+      eval="[(6, 0, [ref('llm_prompt.tag_technical')])]"
+    />
+        <field
+      name="arguments_json"
+    ><![CDATA[{
+  "prompt": {
+    "type": "string",
+    "default": "A head and shoulders portrait shot of a young Belgian woman with green eyes. Her hair, styled in two Dutch braids, shines red, adding a warm contrast to her skin's pale complexion. \n\nThe professional photo boasts a balanced exposure, making it look like it could be taken during the day or night with equal results. The headshot pose gives the image intimacy while maintaining a sense of connection to the viewer., Generate a portrait shot. Ensure ample headroom above the subject's head, leaving a noticeable space between the top of the head and the top edge of the image frame. The entire head must be fully visible and uncapped in the shot, with no part of the scalp or hair cropped off. masterpiece, amazingly fine details. very clear image.",
+    "description": "Prompt to describe the desired image",
+    "required": true
+  }
+}]]></field>
+        <field name="active" eval="True" />
+    </record>
+
+    <!-- Template for the ComfyUI workflow -->
+    <record
+    id="llm_prompt_template_comfyui_workflow"
+    model="llm.prompt.template"
+  >
+        <field name="prompt_id" ref="llm_prompt_comfyui_workflow" />
+        <field name="role">system</field>
+        <field name="sequence">10</field>
+        <field
+      name="content"
+    ><![CDATA[{
+    "prompt": {
+        "1": {
+            "inputs": {
+                "unet_name": "flux1-dev-fp8-e4m3fn.safetensors",
+                "weight_dtype": "fp8_e4m3fn"
+            },
+            "class_type": "UNETLoader",
+            "_meta": {
+                "title": "Load Diffusion Model"
+            }
+        },
+        "2": {
+            "inputs": {
+                "clip_name1": "t5xxl_fp8_e4m3fn.safetensors",
+                "clip_name2": "ViT-L-14-TEXT-detail-improved-hiT-GmP-TE-only-HF.safetensors",
+                "type": "flux",
+                "device": "default"
+            },
+            "class_type": "DualCLIPLoader",
+            "_meta": {
+                "title": "DualCLIPLoader"
+            }
+        },
+        "3": {
+            "inputs": {
+                "vae_name": "ae.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": {
+                "title": "Load VAE"
+            }
+        },
+        "5": {
+            "inputs": {
+                "conditioning": [
+                    "11",
+                    0
+                ]
+            },
+            "class_type": "ConditioningZeroOut",
+            "_meta": {
+                "title": "ConditioningZeroOut"
+            }
+        },
+        "6": {
+            "inputs": {
+                "seed": 317327564125655,
+                "steps": 30,
+                "cfg": 1,
+                "sampler_name": "dpmpp_2m",
+                "scheduler": "normal",
+                "denoise": 1,
+                "model": [
+                    "1",
+                    0
+                ],
+                "positive": [
+                    "11",
+                    0
+                ],
+                "negative": [
+                    "5",
+                    0
+                ],
+                "latent_image": [
+                    "7",
+                    0
+                ]
+            },
+            "class_type": "KSampler",
+            "_meta": {
+                "title": "KSampler"
+            }
+        },
+        "7": {
+            "inputs": {
+                "width": 768,
+                "height": 1024,
+                "batch_size": 1
+            },
+            "class_type": "EmptyLatentImage",
+            "_meta": {
+                "title": "Empty Latent Image"
+            }
+        },
+        "8": {
+            "inputs": {
+                "samples": [
+                    "6",
+                    0
+                ],
+                "vae": [
+                    "3",
+                    0
+                ]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+                "title": "VAE Decode"
+            }
+        },
+        "9": {
+            "inputs": {
+                "images": [
+                    "8",
+                    0
+                ]
+            },
+            "class_type": "PreviewImage",
+            "_meta": {
+                "title": "Preview Image"
+            }
+        },
+        "11": {
+            "inputs": {
+                "clip_l": [
+                    "12",
+                    0
+                ],
+                "t5xxl": [
+                    "12",
+                    0
+                ],
+                "guidance": 2.6,
+                "clip": [
+                    "2",
+                    0
+                ]
+            },
+            "class_type": "CLIPTextEncodeFlux",
+            "_meta": {
+                "title": "CLIPTextEncodeFlux"
+            }
+        },
+        "12": {
+            "inputs": {
+                "text": "{{prompt}}"
+            },
+            "class_type": "ttN text",
+            "_meta": {
+                "title": "text"
+            }
+        }
+    }
+}]]></field>
+    </record>
+</odoo>

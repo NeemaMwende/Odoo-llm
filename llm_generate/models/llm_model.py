@@ -36,7 +36,6 @@ class LLMModel(models.Model):
             if (
                 record._is_media_generation_model()
                 and record.provider_id
-                and record.details
             ):
                 # Trigger provider-specific schema generation
                 record.provider_id.generate_io_schema(model_record=record)
