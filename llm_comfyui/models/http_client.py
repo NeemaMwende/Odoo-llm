@@ -175,15 +175,29 @@ class ComfyUIClient:
                 history = self.get_prompt_history(prompt_id)
                 if prompt_id in history:
                     prompt_data = history[prompt_id]
-                    
+                    status = None if "status" not in prompt_data else prompt_data["status"]
                     # Check for errors in the execution
                     if "error" in prompt_data and prompt_data["error"]:
                         error_msg = prompt_data["error"]
                         _logger.error(f"ComfyUI execution error: {error_msg}")
                         raise Exception(f"ComfyUI execution error: {error_msg}")
-                    
+                    # Check for errors in the execution
+                    execution_error = status and "status_str" in status and status["status_str"] == "error"
+                    if execution_error:
+                        # Extract the exception_message from the execution_error entry in messages
+                        error_msg = "Unknown error"
+                        if "messages" in status and isinstance(status["messages"], list):
+                            for message in status["messages"]:
+                                if isinstance(message, list) and len(message) >= 2 and message[0] == "execution_error":
+                                    error_data = message[1]
+                                    if isinstance(error_data, dict) and "exception_message" in error_data:
+                                        error_msg = error_data["exception_message"]
+                                        break
+    
+                        _logger.error(f"ComfyUI execution error: {error_msg}")
+                        raise Exception(f"ComfyUI execution error: {error_msg}")
                     # Check if there are outputs
-                    if "outputs" in prompt_data and prompt_data["outputs"]:
+                    elif "outputs" in prompt_data and prompt_data["outputs"]:
                         # Verify outputs have the expected format
                         outputs = prompt_data["outputs"]
                         if isinstance(outputs, dict) and any("images" in node_output for node_output in outputs.values()):
