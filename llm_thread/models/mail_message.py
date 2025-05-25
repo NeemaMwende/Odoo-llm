@@ -1,4 +1,5 @@
 import json
+import logging
 
 import markdown2
 
@@ -8,6 +9,8 @@ from odoo.exceptions import MissingError, UserError, ValidationError
 from odoo.addons.llm_mail_message_subtypes.const import (
     LLM_TOOL_RESULT_SUBTYPE_XMLID,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 class MailMessage(models.Model):

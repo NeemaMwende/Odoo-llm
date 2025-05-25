@@ -1,6 +1,12 @@
+import json
+import logging
+
+import jsonref
 import replicate
 
 from odoo import api, models
+
+_logger = logging.getLogger(__name__)
 
 
 class LLMProvider(models.Model):
@@ -88,5 +94,125 @@ class LLMProvider(models.Model):
             "id": model.id,
             "name": model.id,
             "details": details,
-            "capabilities": capabilities,
+            "capabilities": capabilities or ["image_generation"],
         }
+
+    def replicate_generate_io_schema(self, model_record):
+        """Generate a configuration from Replicate model details
+
+        Args:
+            model_record (llm.model): The model record to generate config for
+        """
+        self.ensure_one()
+
+        # Get model details
+        details = model_record.details or {}
+        model_name = model_record.name
+
+        # Extract OpenAPI schema from details
+        openapi_schema = None
+        if details.get("latest_version", {}).get("openapi_schema"):
+            openapi_schema = details["latest_version"]["openapi_schema"]
+
+        # Extract and process input schema
+        input_schema = {}
+        output_schema = {}
+        if openapi_schema:
+            resolved_openapi_schema = jsonref.replace_refs(openapi_schema)
+            input_schema = resolved_openapi_schema["components"]["schemas"]["Input"]
+            output_schema = resolved_openapi_schema["components"]["schemas"]["Output"]
+
+            # Enforce additionalProperties: false to validate against unknown fields
+            input_schema["additionalProperties"] = False
+            output_schema["additionalProperties"] = False
+        else:
+            _logger.warning(f"No OpenAPI schema found for model {model_name}")
+
+        model_record.write(
+            {
+                "input_schema": json.dumps(input_schema, indent=2)
+                if input_schema
+                else None,
+                "output_schema": json.dumps(output_schema, indent=2)
+                if output_schema
+                else None,
+            }
+        )
+
+    def replicate_generate_media(self, inputs, model_record=None, stream=False):
+        """Generate media content using this provider"""
+        # Get full model name including version if specified
+        model_name = model_record._replicate_model_name_with_version()
+        if not model_name:
+            model_name = model_record.name
+
+        if not model_name:
+            raise ValueError("Model name is required")
+
+        # TODO: Might need to use prediction_create method, to have streaming and more details about prediction
+        result = self.client.run(model_name, input=inputs)
+
+        # Extract URLs from FileOutput objects
+        urls = []
+        if isinstance(result, list):
+            for item in result:
+                if hasattr(item, "url"):
+                    urls.append(item.url)
+                else:
+                    urls.append(str(item))
+        else:
+            if hasattr(result, "url"):
+                urls.append(result.url)
+            else:
+                urls.append(str(result))
+
+        # TODO: Need to properly check how to detect if some model has streaming/or not
+        if stream:
+            yield {"content": urls}
+        else:
+            return urls
+
+    def replicate_format_generation_response(self, raw_response, output_schema):
+        """Format the raw generation response according to the output processing config
+
+        Args:
+            raw_response: The raw response from the provider (e.g., Replicate client.run()).
+                          Typically a list of URLs or a single URL string for images.
+            output_schema (dict): Schema of the output.
+
+        Returns:
+            list: A list of strings (e.g., URLs) extracted from the raw_response.
+                  Returns an empty list if no suitable strings are found or
+                  if the raw_response format is unexpected.
+        """
+
+        extracted_strings = []
+
+        # output_schema example: {"type": "array", "items": {"type": "string", "format": "uri"}}
+        # This implies the raw_response should ideally be a list of strings, or a single string.
+
+        if isinstance(raw_response, list):
+            for item in raw_response:
+                if isinstance(item, str):
+                    extracted_strings.append(item)
+                else:
+                    # Log if an item in the list is not a string, but continue processing
+                    _logger.warning(
+                        f"Replicate: Item in raw_response list is not a string: {item} (type: {type(item)}). Output schema: {output_schema}"
+                    )
+        elif isinstance(raw_response, str):
+            # If the raw_response is a single string, assume it's the URL/data itself.
+            extracted_strings.append(raw_response)
+        elif raw_response is None:
+            _logger.info(
+                f"Replicate: Raw response is None for schema {output_schema}. Returning empty list."
+            )
+        else:
+            _logger.warning(
+                f"Replicate: Unexpected raw_response type: {type(raw_response)}. Full response: {raw_response}. Output schema: {output_schema}"
+            )
+            # For now, we return an empty list. More sophisticated parsing based on
+            # output_schema could be added here if needed for complex objects.
+
+        _logger.info(f"Replicate: Extracted strings: {extracted_strings}")
+        return extracted_strings
