@@ -17,6 +17,7 @@
     "data": [
         "data/llm_publisher.xml",
         "data/llm_prompt_category_data.xml",
+        "data/llm_prompt_data.xml",
     ],
     "images": [
         "static/description/banner.png",
