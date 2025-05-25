@@ -1,4 +1,3 @@
-import base64
 import json
 import logging
 from urllib.parse import urlparse
@@ -39,12 +38,14 @@ class LLMProvider(models.Model):
             UserError: Always raises an error as model fetching is not supported
         """
         self.ensure_one()
-        
-        raise UserError(_(
-            "ComfyUI doesn't support model listing or fetching. "
-            "It is a workflow execution engine that processes JSON inputs. "
-            "Please create a model manually and configure it with your workflow JSON."
-        ))
+
+        raise UserError(
+            _(
+                "ComfyUI doesn't support model listing or fetching. "
+                "It is a workflow execution engine that processes JSON inputs. "
+                "Please create a model manually and configure it with your workflow JSON."
+            )
+        )
 
     def comfyui_generate_io_schema(self, model_record):
         """Generate a configuration from ComfyUI model details
@@ -118,10 +119,7 @@ class LLMProvider(models.Model):
         try:
             # Submit workflow for execution
             response = client.submit_prompt(
-                prompt=prompt,
-                client_id=client_id,
-                number=number,
-                extra_data=extra_data
+                prompt=prompt, client_id=client_id, number=number, extra_data=extra_data
             )
 
             prompt_id = response.get("prompt_id")
@@ -137,7 +135,7 @@ class LLMProvider(models.Model):
 
             # Poll for completion
             result = client.poll_prompt_status(prompt_id)
-            
+
             # Extract output URLs
             urls = self._comfyui_extract_output_urls(result)
 
@@ -185,14 +183,14 @@ class LLMProvider(models.Model):
 
     def _parse_json_param(self, param, param_name):
         """Parse a parameter as JSON if it's a string
-        
+
         Args:
             param: The parameter to parse
             param_name: The name of the parameter (for error messages)
-            
+
         Returns:
             The parsed parameter (dict or original value if not a string)
-            
+
         Raises:
             UserError: If the parameter is a string but not valid JSON
         """
@@ -200,12 +198,14 @@ class LLMProvider(models.Model):
             try:
                 return json.loads(param)
             except json.JSONDecodeError as e:
-                raise UserError(_("Invalid JSON in %s: %s") % (param_name, str(e))) from e
+                raise UserError(
+                    _("Invalid JSON in %s: %s") % (param_name, str(e))
+                ) from e
         return param
 
     def _comfyui_extract_output_urls(self, result):
         """Extract output URLs from prompt result data
-        
+
         ComfyUI returns outputs in the format:
         {
             "prompt_id": {
@@ -222,19 +222,19 @@ class LLMProvider(models.Model):
                 }
             }
         }
-        
+
         Args:
             result (dict): The prompt result data
-            
+
         Returns:
             list: List of output URLs
         """
         urls = []
-        
+
         # Extract prompt_id and outputs
         if not result or not isinstance(result, dict):
             raise UserError(_("Invalid response format from ComfyUI"))
-            
+
         # Get the outputs from the result
         outputs = result.get("outputs", {})
         if not outputs:
@@ -248,27 +248,27 @@ class LLMProvider(models.Model):
                     filename = image_info.get("filename")
                     subfolder = image_info.get("subfolder", "")
                     type_folder = image_info.get("type", "output")
-                    
+
                     if filename:
                         # Construct the URL to the image
                         parsed_url = urlparse(self.api_base)
                         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-                        
+
                         # Build the path
                         path_parts = ["/view"]
                         query_parts = [f"filename={filename}"]
-                        
+
                         if subfolder:
                             query_parts.append(f"subfolder={subfolder}")
                         if type_folder:
                             query_parts.append(f"type={type_folder}")
-                            
+
                         # Construct the final URL
                         image_url = f"{base_url}{path_parts[0]}?{'&'.join(query_parts)}"
                         urls.append(image_url)
-        
+
         _logger.info(f"ComfyUI: Extracted {len(urls)} output URLs")
         if not urls:
             raise UserError(_("No image outputs found in ComfyUI response"))
-            
+
         return urls

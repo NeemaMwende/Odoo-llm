@@ -24,5 +24,6 @@ The module expects ComfyUI workflow JSON in the API format. You can obtain this 
 ## Security
 
 This module follows the standard two-tier security model:
+
 - Regular users (base.group_user) have read-only access
 - LLM Managers (llm.group_llm_manager) have full CRUD access
