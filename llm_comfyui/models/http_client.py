@@ -137,8 +137,8 @@ class ComfyUIClient:
         except RequestException as e:
             _logger.error(f"ComfyUI image upload error: {str(e)}")
             raise Exception(f"ComfyUI image upload error: {str(e)}") from e
-
-    def poll_prompt_status(self, prompt_id, max_attempts=60, delay=10):
+    # TODO: Maybe it should be configurable
+    def poll_prompt_status(self, prompt_id, max_attempts=120, delay=10):
         """Poll for prompt status until completion or error
         
         This method checks both the queue and history to determine if a prompt
