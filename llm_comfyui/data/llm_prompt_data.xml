@@ -16,7 +16,7 @@
     ><![CDATA[{
   "prompt": {
     "type": "string",
-    "default": "A head and shoulders portrait shot of a young Belgian woman with green eyes. Her hair, styled in two Dutch braids, shines red, adding a warm contrast to her skin's pale complexion. \n\nThe professional photo boasts a balanced exposure, making it look like it could be taken during the day or night with equal results. The headshot pose gives the image intimacy while maintaining a sense of connection to the viewer., Generate a portrait shot. Ensure ample headroom above the subject's head, leaving a noticeable space between the top of the head and the top edge of the image frame. The entire head must be fully visible and uncapped in the shot, with no part of the scalp or hair cropped off. masterpiece, amazingly fine details. very clear image.",
+    "default": "A head and shoulders portrait shot of a young Belgian woman with green eyes. Her hair, styled in two Dutch braids, shines red, adding a warm contrast to her skin's pale complexion. The professional photo boasts a balanced exposure, making it look like it could be taken during the day or night with equal results. The headshot pose gives the image intimacy while maintaining a sense of connection to the viewer., Generate a portrait shot. Ensure ample headroom above the subject's head, leaving a noticeable space between the top of the head and the top edge of the image frame. The entire head must be fully visible and uncapped in the shot, with no part of the scalp or hair cropped off. masterpiece, amazingly fine details. very clear image.",
     "description": "Prompt to describe the desired image",
     "required": true
   }
