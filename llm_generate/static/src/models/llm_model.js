@@ -26,7 +26,7 @@ registerPatch({
       compute() {
         // Get the thread that this model is associated with
         const thread = this.messaging.models.Thread.all().find(
-          (thread) => thread.llmModel && thread.llmModel.id === this.id
+          (t) => t.llmModel && t.llmModel.id === this.id
         );
 
         // If there's a selected prompt and this is a media generation model, use the prompt's input schema
