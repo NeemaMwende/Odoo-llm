@@ -280,7 +280,8 @@ class LLMProvider(models.Model):
     @api.model
     def randomise_input_seed(self, input_key, inputs):
         if input_key in inputs and isinstance(inputs[input_key], (int, float)):
-            new_seed = random.randint(0, 2**32 - 1)
+            # Use 2^31 (2147483648) as the maximum value to avoid exceeding ComfyUI's limit
+            new_seed = random.randint(0, 2**31 - 1)
             _logger.info(f"Randomising {input_key} to {new_seed}")
             inputs[input_key] = new_seed
 
