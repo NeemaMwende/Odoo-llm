@@ -191,7 +191,7 @@
         <field name="category_id" ref="llm_comfyui.category_comfyui" />
         <field
       name="tag_ids"
-      eval="[(6, 0, [ref('llm_prompt.tag_technical')])]" 
+      eval="[(6, 0, [ref('llm_prompt.tag_technical')])]"
     />
         <field
       name="arguments_json"
@@ -202,15 +202,15 @@
 
      <!-- Template for the ComfyUI workflow -->
      <record
-     id="llm_prompt_template_comfyui_character_gen_v1"
-     model="llm.prompt.template"
-   >
+    id="llm_prompt_template_comfyui_character_gen_v1"
+    model="llm.prompt.template"
+  >
          <field name="prompt_id" ref="llm_prompt_comfyui_character_gen" />
          <field name="role">system</field>
          <field name="sequence">10</field>
          <field
-       name="content"
-     ><![CDATA[{ 
+      name="content"
+    ><![CDATA[{
    "prompt": {
   "1": {
     "inputs": {

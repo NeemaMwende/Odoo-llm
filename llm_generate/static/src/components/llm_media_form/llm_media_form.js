@@ -112,7 +112,12 @@ export class LLMMediaForm extends Component {
           const enumValues = fieldDef.allOf[0].enum;
           choices = enumValues.map((item) => {
             // Check if the enum item is already a {value, label} object
-            if (item && typeof item === 'object' && 'value' in item && 'label' in item) {
+            if (
+              item &&
+              typeof item === "object" &&
+              "value" in item &&
+              "label" in item
+            ) {
               return item;
             }
             // Otherwise, use the item as both value and label
@@ -127,7 +132,12 @@ export class LLMMediaForm extends Component {
           const enumValues = fieldDef.enum;
           choices = enumValues.map((item) => {
             // Check if the enum item is already a {value, label} object
-            if (item && typeof item === 'object' && 'value' in item && 'label' in item) {
+            if (
+              item &&
+              typeof item === "object" &&
+              "value" in item &&
+              "label" in item
+            ) {
               return item;
             }
             // Otherwise, use the item as both value and label
@@ -240,10 +250,10 @@ export class LLMMediaForm extends Component {
   onInputChange(fieldName, event) {
     const target = event.target;
     let value;
-    
+
     // Find the field definition to check its type
-    const fieldDef = this.formFields.find(field => field.name === fieldName);
-    
+    const fieldDef = this.formFields.find((field) => field.name === fieldName);
+
     if (target.type === "checkbox") {
       value = target.checked;
     } else if (target.type === "number" || target.type === "range") {
@@ -254,7 +264,7 @@ export class LLMMediaForm extends Component {
     } else {
       value = target.value;
     }
-  
+
     // Create a new object with the updated value to ensure reactivity
     this.state.formValues = {
       ...this.state.formValues,
