@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 from urllib.parse import urlparse
 
 from odoo import _, api, models
@@ -115,8 +116,11 @@ class LLMProvider(models.Model):
         client_id = inputs.get("client_id")
         number = inputs.get("number", -1)
         extra_data = self._parse_json_param(inputs.get("extra_data"), {})
+        randomise_seeds = inputs.get("randomise_seeds", False)
 
         try:
+            if randomise_seeds:
+                self.randomise_seeds(prompt)
             # Submit workflow for execution
             response = client.submit_prompt(
                 prompt=prompt, client_id=client_id, number=number, extra_data=extra_data
@@ -272,3 +276,18 @@ class LLMProvider(models.Model):
             raise UserError(_("No image outputs found in ComfyUI response"))
 
         return urls
+
+    @api.model
+    def randomise_input_seed(self, input_key, inputs):
+        if input_key in inputs and isinstance(inputs[input_key], (int, float)):
+            new_seed = random.randint(0, 2**32 - 1)
+            _logger.info(f"Randomising {input_key} to {new_seed}")
+            inputs[input_key] = new_seed
+
+    @api.model
+    def randomise_seeds(self, workflow_json):
+        for node_id, node in workflow_json.items():
+            inputs = node.get("inputs", {})
+            seed_keys = ["seed", "noise_seed", "rand_seed"]
+            for seed_key in seed_keys:
+                self.randomise_input_seed(seed_key, inputs)
