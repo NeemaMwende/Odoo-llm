@@ -6,6 +6,8 @@
     "description": """
         Adds support for generating images, audio, and other media using LLM models.
     """,
+    "author": "Apexive Solutions LLC",
+    "website": "https://github.com/apexive/odoo-llm",
     "depends": [
         "llm",
         "llm_thread",
