@@ -33,7 +33,7 @@
                 type="text"
                 class="form-control"
                 t-att-name="field.name"
-                t-att-value="props.state.formValues[field.name] || field.default"
+                t-att-value="props.state.formValues[field.name] !== undefined ? props.state.formValues[field.name] : field.default"
                 t-on-input="(ev) => props.onInputChange(field.name, ev)"
                 required="required"
               />
