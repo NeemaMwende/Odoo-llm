@@ -21,9 +21,9 @@ registerPatch({
 
       try {
         const eventSource = new EventSource(
-          `/llm/thread/generate-media?thread_id=${
-            thread.id
-          }&message=${messageBody}&generation_inputs=${JSON.stringify(inputs)}`
+          `/llm/thread/generate-media?thread_id=${thread.id}` +
+          `&message=${encodeURIComponent(messageBody)}` +
+          `&generation_inputs=${encodeURIComponent(JSON.stringify(inputs))}`
         );
         this.update({ eventSource });
 
@@ -66,7 +66,7 @@ registerPatch({
         eventSource.onerror = (error) => {
           console.error("EventSource failed:", error);
           this.messaging.notify({
-            message: this.env._t("An unknown error occurred, error: ") + error,
+            message: this.env._t("An unknown error occurred! Disconnected from the server. Please try again later."),
             type: "danger",
             sticky: true,
           });
