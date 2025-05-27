@@ -68,6 +68,7 @@ registerPatch({
           this.messaging.notify({
             message: this.env._t("An unknown error occurred, error: ") + error,
             type: "danger",
+            sticky: true,
           });
           this._closeEventSource();
         };
@@ -76,6 +77,7 @@ registerPatch({
         this.messaging.notify({
           message: this.env._t("Failed to send message, error: ") + error,
           type: "danger",
+          sticky: true,
         });
       } finally {
         for (const composerView of this.composerViews) {
