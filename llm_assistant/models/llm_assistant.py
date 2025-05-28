@@ -1,7 +1,7 @@
 import json
 import logging
 
-from odoo import _, api, fields, models
+from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
 
@@ -141,36 +141,4 @@ class LLMAssistant(models.Model):
         if not self.prompt_id:
             return ""
 
-        try:
-            # Get the argument values from default_values
-            arg_values = json.loads(self.default_values or "{}")
-
-            # Get messages from the prompt template
-            messages = self.prompt_id.get_messages(arg_values)
-
-            # Find the system message
-            system_message = next(
-                (msg for msg in messages if msg.get("role") == "system"), None
-            )
-            if system_message and "content" in system_message:
-                if (
-                    isinstance(system_message["content"], dict)
-                    and "text" in system_message["content"]
-                ):
-                    return system_message["content"]["text"]
-                elif isinstance(system_message["content"], str):
-                    return system_message["content"]
-
-            # If no system message found, return the first message content
-            if messages and "content" in messages[0]:
-                if (
-                    isinstance(messages[0]["content"], dict)
-                    and "text" in messages[0]["content"]
-                ):
-                    return messages[0]["content"]["text"]
-                elif isinstance(messages[0]["content"], str):
-                    return messages[0]["content"]
-
-        except Exception as e:
-            _logger.error("Error generating system prompt from template: %s", str(e))
-            return _("Error generating system prompt preview: %s") % str(e)
+        return self.prompt_id.get_formatted_system_prompt(self.default_values or "{}")

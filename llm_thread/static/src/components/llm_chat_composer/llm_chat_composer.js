@@ -12,6 +12,7 @@ export class LLMChatComposer extends Component {
     super.setup();
     useComponentToModel({ fieldName: "component" });
   }
+
   /**
    * @returns {ComposerView}
    */
@@ -46,6 +47,7 @@ export class LLMChatComposer extends Component {
 
     this.composerView.composer.postUserMessageForLLM();
   }
+
   /**
    * Handles click on the stop button.
    *
