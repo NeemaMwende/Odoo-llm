@@ -134,11 +134,27 @@ class LLMAssistant(models.Model):
             except json.JSONDecodeError:
                 pass
 
-    def get_formatted_system_prompt(self):
-        """Generate a formatted system prompt based on the prompt template"""
+    def get_formatted_system_prompt(self, thread=None):
+        """Generate a formatted system prompt based on the prompt template
+        
+        Args:
+            thread (llm.thread): Optional thread that is requesting the prompt
+                                If provided, it will be added to the context
+        
+        Returns:
+            str: Formatted system prompt
+        """
         self.ensure_one()
 
         if not self.prompt_id:
             return ""
-
+            
+        # If we have a thread, add it to the context so our enhanced
+        # _substitute_placeholders method can access it
+        if thread:
+            # Create a context with the thread_id
+            context = dict(self.env.context, thread_id=thread.id)
+            # Use the prompt with the new context
+            return self.with_context(context).prompt_id.get_formatted_system_prompt(self.default_values or "{}")
+        
         return self.prompt_id.get_formatted_system_prompt(self.default_values or "{}")

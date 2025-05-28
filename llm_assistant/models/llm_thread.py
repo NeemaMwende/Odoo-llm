@@ -1,5 +1,7 @@
 from odoo import api, fields, models
+import logging
 
+_logger = logging.getLogger(__name__)
 
 class LLMThread(models.Model):
     _inherit = "llm.thread"
@@ -76,11 +78,12 @@ class LLMThread(models.Model):
         system_prompt = super()._get_system_prompt()
         assistant_system_prompt = None
         if self.assistant_id:
-            assistant_system_prompt = self.assistant_id.get_formatted_system_prompt()
+            # Pass the thread to the assistant's get_formatted_system_prompt method
+            assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(thread=self)
 
         if assistant_system_prompt and system_prompt:
             system_prompt = f"{assistant_system_prompt}\n\n{system_prompt}"
         elif assistant_system_prompt:
             system_prompt = assistant_system_prompt
-
+        _logger.info("System prompt: %s", system_prompt)
         return system_prompt
