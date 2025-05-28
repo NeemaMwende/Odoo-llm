@@ -27,7 +27,7 @@ class LLMPromptTemplate(models.Model):
         related_record = None
         
         related_record_pattern = r'\{\{(\s*)related_record(\s*)\}\}'
-        record_field_pattern = r'\{\{(\s*)record\.([a-zA-Z0-9_]+)(\s*)\}\}'
+        record_field_pattern = r'\{\{(\s*)related_record\.([a-zA-Z0-9_]+)(\s*)\}\}'
         
         if re.search(related_record_pattern, content) or re.search(record_field_pattern, content):
             thread = self._get_thread_from_context()
