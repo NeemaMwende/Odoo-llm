@@ -228,6 +228,20 @@ class LLMThread(models.Model):
         self.ensure_one()
         return None
 
+    def get_related_record(self):
+        """Get the related record if this thread is connected to a model.
+        
+        Returns:
+            recordset: The related record if it exists, otherwise False
+        """
+        self.ensure_one()
+        if self.model and self.res_id:
+            try:
+                return self.env[self.model].browse(self.res_id).exists()
+            except Exception as e:
+                _logger.error("Error getting related record: %s", str(e))
+        return False
+
     def _get_assistant_response(self):
         self.ensure_one()
         message_history_rs = self._get_message_history_recordset()
