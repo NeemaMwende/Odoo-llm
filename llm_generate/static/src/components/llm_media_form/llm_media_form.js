@@ -39,12 +39,11 @@ export class LLMMediaForm extends Component {
   // Initialize form values with defaults from schema
   _initializeFormValues() {
     
-    
+    this.state.formValues = {};
     if (!this.formFields || !Array.isArray(this.formFields)) {
       return;
     }
 
-    this.state.formValues = {};
 
     // Create a new object to hold the initial values
     const initialValues = {};
@@ -61,6 +60,8 @@ export class LLMMediaForm extends Component {
 
     // Update state with initial values
     this.state.formValues = initialValues;
+    console.log("form values", this.state.formValues);
+    console.log("form fields", this.formFields);
   }
 
   get llmModel() {
@@ -79,12 +80,12 @@ export class LLMMediaForm extends Component {
     let result = null;
     if (!this.llmModel) {
       result = null;
-    } else if (!this.llmModel.effectiveInputSchema) {
+    } else if (!this.effectiveInputSchema) {
       result = null;
-    } else if (typeof this.llmModel.effectiveInputSchema === "string") {
-      result = JSON.parse(this.llmModel.effectiveInputSchema);
-    } else if (typeof this.llmModel.effectiveInputSchema === "object") {
-      result = this.llmModel.effectiveInputSchema;
+    } else if (typeof this.effectiveInputSchema === "string") {
+      result = JSON.parse(this.effectiveInputSchema);
+    } else if (typeof this.effectiveInputSchema === "object") {
+      result = this.effectiveInputSchema;
     }
 
     return result;
