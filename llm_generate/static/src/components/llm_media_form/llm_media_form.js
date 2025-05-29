@@ -32,11 +32,14 @@ export class LLMMediaForm extends Component {
   }
 
   get effectiveInputSchema() {
-    return this.llmModel.effectiveInputSchema;
+    const schema = this.llmModel.effectiveInputSchema;
+    return schema;
   }
 
   // Initialize form values with defaults from schema
   _initializeFormValues() {
+    
+    
     if (!this.formFields || !Array.isArray(this.formFields)) {
       return;
     }
@@ -48,6 +51,7 @@ export class LLMMediaForm extends Component {
 
     // Set default values from schema
     this.formFields.forEach((field) => {
+      
       if (this.state.formValues[field.name] === undefined && field.default !== undefined) {
         initialValues[field.name] = field.default;
       } else if (this.state.formValues[field.name] !== undefined) {

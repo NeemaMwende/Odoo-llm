@@ -71,8 +71,6 @@ registerPatch({
       });
       
       const thread = this.threadView.thread;
-
-      // Call the dedicated endpoint to set the assistant
       const result = await this.messaging.rpc({
         route: "/llm/thread/set_assistant",
         params: {
@@ -80,12 +78,14 @@ registerPatch({
           assistant_id: assistantId,
         },
       });
-
+      
       if (result.success) {
         // Find the assistant in the list
         const assistants = this.threadView?.thread?.llmChat?.llmAssistants;
+        
         if (assistants && assistantId) {
           const assistant = assistants.find(a => a.id === assistantId);
+          
           if (assistant) {
             if (result.evaluated_default_values) {
               // Update the individual assistant properties with new values
@@ -94,7 +94,6 @@ registerPatch({
                 evaluatedDefaultValues: result.evaluated_default_values,
               });
             } else {
-              console.log("cleaning default values");
               // Clean up default values when there are no evaluated default values
               assistant.update({
                 defaultValues: clear(),

@@ -157,12 +157,14 @@ registerPatch({
           id: assistantId,
           name: threadData.assistant_id[1],
         };
-        console.log("Mapped thread data:", mappedData);
+        
         // Only fetch thread-specific evaluated default values for the active thread
         if (this.activeId === threadData.id) {
-          console.log(`Thread ${threadData.id} is active, fetching assistant values`);
           this._fetchAssistantValuesForThread(threadData.id, assistantId);
         }
+      } else {
+        // IMPORTANT: Clear the llmAssistant field when assistant_id is not present
+        mappedData.llmAssistant = clear();
       }
 
       return mappedData;

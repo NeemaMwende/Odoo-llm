@@ -55,7 +55,7 @@ registerPatch({
             if (thread.prompt_id.inputSchemaJson) {
               baseSchema = thread.prompt_id.inputSchemaJson;
             }
-          }
+          } 
           
           // Parse the schema if it's a string
           schemaObj = typeof baseSchema === "string" ? JSON.parse(baseSchema) : baseSchema;
@@ -65,8 +65,10 @@ registerPatch({
             try {
               // Find the assistant in the llmAssistants collection to get the most up-to-date values
               const assistants = thread.llmChat?.llmAssistants;
+              
               if (assistants) {
                 const assistant = assistants.find(a => a.id === thread.llmAssistant.id);
+                
                 if (assistant && assistant.evaluatedDefaultValues) {
                   // Parse the evaluated default values
                   const evaluatedDefaults = JSON.parse(assistant.evaluatedDefaultValues);
@@ -79,7 +81,6 @@ registerPatch({
                     // Update the default values in the schema
                     Object.entries(evaluatedDefaults).forEach(([key, value]) => {
                       if (updatedSchema.properties[key]) {
-                        console.log(`Updating schema default for ${key}: ${updatedSchema.properties[key].default} -> ${value}`);
                         updatedSchema.properties[key].default = value;
                       }
                     });
@@ -91,7 +92,7 @@ registerPatch({
                 }
               }
             } catch (error) {
-              console.error("Error applying assistant defaults to schema:", error);
+              console.error("[DEBUG] Error applying assistant defaults to schema:", error);
             }
           }
           // Return the base schema if no modifications were made
