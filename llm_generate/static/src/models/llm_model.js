@@ -42,23 +42,18 @@ registerPatch({
         try {
           // Priority 1: If an assistant is selected and it has a prompt, use that prompt's schema
           if (thread.llmAssistant && thread.llmAssistant.llmPrompt) {
-            console.log("Using assistant's prompt schema", thread.llmAssistant.llmPrompt);
             
             // Get the prompt's schema
             const promptSchema = thread.llmAssistant.llmPrompt.inputSchemaJson;
             if (promptSchema) {
               baseSchema = promptSchema;
-              console.log("Using assistant's prompt schema:", baseSchema);
             }
           }
           // Priority 2: If a prompt is selected directly on the thread, use its schema
           else if (thread.prompt_id) {
-            console.log("Using thread's prompt schema", thread.prompt_id);
-            
             // Use the input_schema_json field which contains a properly formatted JSON schema
             if (thread.prompt_id.inputSchemaJson) {
               baseSchema = thread.prompt_id.inputSchemaJson;
-              console.log("Using thread's prompt schema:", baseSchema);
             }
           }
           
@@ -73,8 +68,6 @@ registerPatch({
               if (assistants) {
                 const assistant = assistants.find(a => a.id === thread.llmAssistant.id);
                 if (assistant && assistant.evaluatedDefaultValues) {
-                  console.log("Applying assistant's evaluated default values to schema");
-                  
                   // Parse the evaluated default values
                   const evaluatedDefaults = JSON.parse(assistant.evaluatedDefaultValues);
                   
@@ -101,7 +94,6 @@ registerPatch({
               console.error("Error applying assistant defaults to schema:", error);
             }
           }
-          
           // Return the base schema if no modifications were made
           return baseSchema;
           
