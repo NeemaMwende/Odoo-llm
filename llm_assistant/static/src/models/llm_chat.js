@@ -33,15 +33,20 @@ registerPatch({
         method: "search_read",
         kwargs: {
           domain: [["active", "=", true]],
-          fields: ["name", "default_values", "evaluated_default_values", "prompt_id"],
+          fields: [
+            "name",
+            "default_values",
+            "evaluated_default_values",
+            "prompt_id",
+          ],
         },
       });
-      
+
       // Extract all prompt IDs to fetch their details
       const promptIds = assistantResult
-        .map(assistant => assistant.prompt_id && assistant.prompt_id[0])
-        .filter(id => id); // Filter out falsy values
-      
+        .map((assistant) => assistant.prompt_id && assistant.prompt_id[0])
+        .filter((id) => id); // Filter out falsy values
+
       // If we have prompt IDs, fetch their details
       let promptsById = {};
       if (promptIds.length > 0) {
@@ -53,7 +58,7 @@ registerPatch({
             fields: ["name", "input_schema_json"],
           },
         });
-        
+
         // Create a map of prompts by ID for easy lookup
         promptsById = promptResult.reduce((acc, prompt) => {
           acc[prompt.id] = {
@@ -64,7 +69,7 @@ registerPatch({
           return acc;
         }, {});
       }
-      
+
       // Map assistant data and include prompt details if available
       const assistantData = assistantResult.map((assistant) => {
         const data = {
@@ -73,18 +78,18 @@ registerPatch({
           defaultValues: assistant.default_values,
           evaluatedDefaultValues: assistant.evaluated_default_values,
         };
-        
+
         // If this assistant has a prompt, include its ID and create the relationship
         if (assistant.prompt_id && assistant.prompt_id[0]) {
           const promptId = assistant.prompt_id[0];
           data.promptId = promptId;
-          
+
           // If we have the prompt details, include them
           if (promptsById[promptId]) {
             data.llmPrompt = promptsById[promptId];
           }
         }
-        
+
         return data;
       });
 
@@ -157,7 +162,7 @@ registerPatch({
           id: assistantId,
           name: threadData.assistant_id[1],
         };
-        
+
         // Only fetch thread-specific evaluated default values for the active thread
         if (this.activeId === threadData.id) {
           this._fetchAssistantValuesForThread(threadData.id, assistantId);
@@ -169,7 +174,7 @@ registerPatch({
 
       return mappedData;
     },
-    
+
     /**
      * Handle active thread changes
      */
@@ -182,15 +187,20 @@ registerPatch({
           ? ["llm.thread", this.activeId]
           : this.activeId.split("_");
       // Get the active thread
-      const activeThread = this.messaging.models.Thread.findFromIdentifyingData({ id: Number(id), model });
+      const activeThread = this.messaging.models.Thread.findFromIdentifyingData(
+        { id: Number(id), model }
+      );
       if (!activeThread || !activeThread.llmAssistant) {
         return;
       }
-      
+
       // Fetch thread-specific evaluated default values for the active thread's assistant
-      this._fetchAssistantValuesForThread(activeThread.id, activeThread.llmAssistant.id);
+      this._fetchAssistantValuesForThread(
+        activeThread.id,
+        activeThread.llmAssistant.id
+      );
     },
-    
+
     /**
      * Fetch thread-specific evaluated default values for an assistant
      * @param {Number} threadId - ID of the thread
@@ -206,13 +216,18 @@ registerPatch({
             assistant_id: assistantId,
           },
         });
-        
+
         if (result.success) {
           // Find the thread and update its assistant with the evaluated values
-          const thread = this.messaging.models.Thread.findFromIdentifyingData({ id: threadId, model: "llm.thread" });
+          const thread = this.messaging.models.Thread.findFromIdentifyingData({
+            id: threadId,
+            model: "llm.thread",
+          });
           if (thread) {
             // Find the assistant in our registry
-            const assistant = this.llmAssistants.find(a => a.id === assistantId);
+            const assistant = this.llmAssistants.find(
+              (a) => a.id === assistantId
+            );
             if (assistant) {
               // Update the assistant with thread-specific evaluated values
               if (result.evaluated_default_values) {
@@ -228,12 +243,15 @@ registerPatch({
                   evaluatedDefaultValues: clear(),
                 });
               }
-              
+
               // If we have prompt data, update or create the prompt relationship
               if (result.prompt) {
                 const promptData = result.prompt;
-                const prompt = this.messaging.models.LLMPrompt.findFromIdentifyingData({ id: promptData.id });
-                
+                const prompt =
+                  this.messaging.models.LLMPrompt.findFromIdentifyingData({
+                    id: promptData.id,
+                  });
+
                 if (prompt) {
                   // Update existing prompt
                   prompt.update({
@@ -248,7 +266,7 @@ registerPatch({
                     inputSchemaJson: promptData.input_schema_json,
                   });
                 }
-                
+
                 // Update assistant with prompt relationship
                 assistant.update({
                   promptId: promptData.id,

@@ -73,11 +73,13 @@ class LLMThread(models.Model):
         thread = self.browse(thread_id)
         if not thread or not thread.assistant_id or not thread.assistant_id.prompt_id:
             return generation_inputs
-        
+
         # Create a context with the thread_id
         context = dict(self.env.context, thread_id=thread.id)
         # Use the prompt with the new context
-        result = thread.with_context(context).assistant_id.prompt_id.get_formatted_system_prompt(generation_inputs)
+        result = thread.with_context(
+            context
+        ).assistant_id.prompt_id.get_formatted_system_prompt(generation_inputs)
         try:
             result = json.loads(result)
             return json.dumps(result)

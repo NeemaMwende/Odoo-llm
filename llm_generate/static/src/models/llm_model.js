@@ -17,7 +17,7 @@ registerPatch({
       }
       // Store the current thread context
       this.update({ currentThreadContext: thread });
-      
+
       // Calculate and return the schema
       return this.effectiveInputSchema;
     },
@@ -45,26 +45,27 @@ registerPatch({
     currentThreadContext: attr({
       default: null,
     }),
-    
+
     effectiveInputSchema: attr({
       compute() {
         // Use the stored thread context or find a thread if not available
-        const thread = this.currentThreadContext || this.messaging.models.Thread.all().find(
-          (t) => t.llmModel && t.llmModel.id === this.id
-        );
-        
+        const thread =
+          this.currentThreadContext ||
+          this.messaging.models.Thread.all().find(
+            (t) => t.llmModel && t.llmModel.id === this.id
+          );
+
         if (!thread || !this.isMediaGenerationModel) {
           return this.inputSchema;
         }
-        
+
         // Start with the model's input schema
         let baseSchema = this.inputSchema;
         let schemaObj = null;
-        
+
         try {
           // Priority 1: If an assistant is selected and it has a prompt, use that prompt's schema
           if (thread.llmAssistant && thread.llmAssistant.llmPrompt) {
-            
             // Get the prompt's schema
             const promptSchema = thread.llmAssistant.llmPrompt.inputSchemaJson;
             if (promptSchema) {
@@ -77,49 +78,64 @@ registerPatch({
             if (thread.prompt_id.inputSchemaJson) {
               baseSchema = thread.prompt_id.inputSchemaJson;
             }
-          } 
-          
+          }
+
           // Parse the schema if it's a string
-          schemaObj = typeof baseSchema === "string" ? JSON.parse(baseSchema) : baseSchema;
-          
+          schemaObj =
+            typeof baseSchema === "string"
+              ? JSON.parse(baseSchema)
+              : baseSchema;
+
           // If an assistant is selected and it has evaluated default values, apply them to the schema
-          if (thread.llmAssistant && thread.llmAssistant.evaluatedDefaultValues) {
+          if (
+            thread.llmAssistant &&
+            thread.llmAssistant.evaluatedDefaultValues
+          ) {
             try {
               // Find the assistant in the llmAssistants collection to get the most up-to-date values
               const assistants = thread.llmChat?.llmAssistants;
-              
+
               if (assistants) {
-                const assistant = assistants.find(a => a.id === thread.llmAssistant.id);
-                
+                const assistant = assistants.find(
+                  (a) => a.id === thread.llmAssistant.id
+                );
+
                 if (assistant && assistant.evaluatedDefaultValues) {
                   // Parse the evaluated default values
-                  const evaluatedDefaults = JSON.parse(assistant.evaluatedDefaultValues);
-                  
+                  const evaluatedDefaults = JSON.parse(
+                    assistant.evaluatedDefaultValues
+                  );
+
                   // If we have a valid schema object, update its defaults with the evaluated values
                   if (schemaObj && schemaObj.properties) {
                     // Create a new schema object to avoid modifying the original
                     const updatedSchema = JSON.parse(JSON.stringify(schemaObj));
-                    
+
                     // Update the default values in the schema
-                    Object.entries(evaluatedDefaults).forEach(([key, value]) => {
-                      if (updatedSchema.properties[key]) {
-                        updatedSchema.properties[key].default = value;
+                    Object.entries(evaluatedDefaults).forEach(
+                      ([key, value]) => {
+                        if (updatedSchema.properties[key]) {
+                          updatedSchema.properties[key].default = value;
+                        }
                       }
-                    });
-                    
+                    );
+
                     // Return the updated schema
-                    return typeof baseSchema === "string" ? 
-                      JSON.stringify(updatedSchema) : updatedSchema;
+                    return typeof baseSchema === "string"
+                      ? JSON.stringify(updatedSchema)
+                      : updatedSchema;
                   }
                 }
               }
             } catch (error) {
-              console.error("[DEBUG] Error applying assistant defaults to schema:", error);
+              console.error(
+                "[DEBUG] Error applying assistant defaults to schema:",
+                error
+              );
             }
           }
           // Return the base schema if no modifications were made
           return baseSchema;
-          
         } catch (error) {
           console.error("Error processing schema:", error);
           return this.inputSchema;

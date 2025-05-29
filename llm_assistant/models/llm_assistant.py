@@ -53,7 +53,7 @@ class LLMAssistant(models.Model):
         default="{}",
         tracking=True,
     )
-    
+
     # Whether default values contain expressions to be evaluated
     has_dynamic_defaults = fields.Boolean(
         string="Has Dynamic Defaults",
@@ -61,7 +61,7 @@ class LLMAssistant(models.Model):
         help="Enable if your default values contain Python expressions that should be evaluated",
         tracking=True,
     )
-    
+
     # Evaluated default values (for API)
     evaluated_default_values = fields.Text(
         string="Evaluated Default Values",
@@ -103,17 +103,19 @@ class LLMAssistant(models.Model):
         for assistant in self:
             assistant.system_prompt_preview = assistant.get_formatted_system_prompt()
 
-    @api.depends('thread_ids')
+    @api.depends("thread_ids")
     def _compute_thread_count(self):
         """Compute the number of threads using this assistant"""
         for assistant in self:
             assistant.thread_count = len(assistant.thread_ids)
 
-    @api.depends('default_values', 'has_dynamic_defaults')
+    @api.depends("default_values", "has_dynamic_defaults")
     def _compute_evaluated_default_values(self):
         """Compute the evaluated default values for API use"""
         for assistant in self:
-            assistant.evaluated_default_values = assistant.get_evaluated_default_values()
+            assistant.evaluated_default_values = (
+                assistant.get_evaluated_default_values()
+            )
 
     def action_view_threads(self):
         """Open the threads using this assistant"""
@@ -158,11 +160,11 @@ class LLMAssistant(models.Model):
 
     def get_formatted_system_prompt(self, thread=None):
         """Generate a formatted system prompt based on the prompt template
-        
+
         Args:
             thread (llm.thread): Optional thread that is requesting the prompt
                                 If provided, it will be added to the context
-        
+
         Returns:
             str: Formatted system prompt
         """
@@ -170,7 +172,7 @@ class LLMAssistant(models.Model):
 
         if not self.prompt_id:
             return ""
-            
+
         # If we have a thread, add it to the context so our enhanced
         # _substitute_placeholders method can access it
         if thread:
@@ -180,47 +182,53 @@ class LLMAssistant(models.Model):
             return self.with_context(context).prompt_id.get_formatted_system_prompt(
                 self.get_evaluated_default_values(thread) or "{}"
             )
-        
+
         return self.prompt_id.get_formatted_system_prompt(
             self.get_evaluated_default_values() or "{}"
         )
-        
+
     def get_evaluated_default_values(self, thread=None):
         """Evaluate default values, processing any Python expressions if has_dynamic_defaults is enabled
-        
+
         Args:
             thread (llm.thread): Optional thread to provide context for evaluation
-            
+
         Returns:
             str: JSON string with evaluated default values
         """
         self.ensure_one()
-        
+
         if not self.default_values:
             return "{}"
-            
+
         try:
             # Parse the default values JSON
             default_values_dict = json.loads(self.default_values)
-            
+
             # If dynamic defaults are enabled, evaluate expressions
             if self.has_dynamic_defaults:
                 # Prepare evaluation context
                 eval_context = {
-                    'env': self.env,
-                    'user': self.env.user,
+                    "env": self.env,
+                    "user": self.env.user,
                 }
-                
+
                 # Add thread-related context if available
                 if thread:
-                    eval_context.update({
-                        'thread': thread,
-                        'related_record': thread.get_related_record(),
-                    })
-                
+                    eval_context.update(
+                        {
+                            "thread": thread,
+                            "related_record": thread.get_related_record(),
+                        }
+                    )
+
                 # Process each value that might contain an expression
                 for key, value in default_values_dict.items():
-                    if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
+                    if (
+                        isinstance(value, str)
+                        and value.startswith("${")
+                        and value.endswith("}")
+                    ):
                         # Extract the expression from ${...}
                         expr = value[2:-1].strip()
                         try:
@@ -228,30 +236,32 @@ class LLMAssistant(models.Model):
                             result = safe_eval(expr, eval_context)
                             default_values_dict[key] = result
                         except Exception as e:
-                            _logger.warning(f"Error evaluating expression '{expr}': {e}")
+                            _logger.warning(
+                                f"Error evaluating expression '{expr}': {e}"
+                            )
                             # Keep the original value on error
-                
+
             # Return the processed values as JSON
             return json.dumps(default_values_dict)
-            
+
         except json.JSONDecodeError as e:
             _logger.error(f"Invalid JSON in default_values: {e}")
             return "{}"
         except Exception as e:
             _logger.error(f"Error processing default_values: {e}")
             return "{}"
-            
+
     def _get_json_fields(self):
         """Return fields that should be serialized as JSON in the API"""
-        return ['default_values', 'evaluated_default_values']
-        
+        return ["default_values", "evaluated_default_values"]
+
     @api.model
     def get_assistant_by_id(self, assistant_id):
         """Get an assistant record by its ID
-        
+
         Args:
             assistant_id (int): ID of the assistant
-            
+
         Returns:
             tuple: (assistant, error_response)
                   If successful, error_response will be None
@@ -259,27 +269,27 @@ class LLMAssistant(models.Model):
         """
         if not assistant_id:
             return None, None
-            
+
         assistant = self.browse(int(assistant_id))
         if not assistant.exists():
             return None, {"success": False, "error": "Assistant not found"}
         return assistant, None
-        
+
     def get_assistant_values(self, thread, include_prompt=True):
         """Get thread-specific evaluated default values for this assistant
-        
+
         Args:
             thread (llm.thread): Thread record
             include_prompt (bool): Whether to include prompt data
-            
+
         Returns:
             dict: Result with evaluated default values and prompt data
         """
         self.ensure_one()
-        
+
         # Get thread-specific evaluated default values
         evaluated_values = self.get_evaluated_default_values(thread)
-        
+
         result = {
             "success": True,
             "thread_id": thread.id,
@@ -287,7 +297,7 @@ class LLMAssistant(models.Model):
             "default_values": self.default_values,
             "evaluated_default_values": evaluated_values,
         }
-        
+
         # Get the prompt details if requested
         if include_prompt and self.prompt_id:
             prompt = self.prompt_id
@@ -296,5 +306,5 @@ class LLMAssistant(models.Model):
                 "name": prompt.name,
                 "input_schema_json": prompt.input_schema_json,
             }
-        
+
         return result

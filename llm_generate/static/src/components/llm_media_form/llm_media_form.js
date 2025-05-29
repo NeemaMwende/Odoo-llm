@@ -43,20 +43,20 @@ export class LLMMediaForm extends Component {
 
   // Initialize form values with defaults from schema
   _initializeFormValues() {
-    
     this.state.formValues = {};
     if (!this.formFields || !Array.isArray(this.formFields)) {
       return;
     }
-
 
     // Create a new object to hold the initial values
     const initialValues = {};
 
     // Set default values from schema
     this.formFields.forEach((field) => {
-      
-      if (this.state.formValues[field.name] === undefined && field.default !== undefined) {
+      if (
+        this.state.formValues[field.name] === undefined &&
+        field.default !== undefined
+      ) {
         initialValues[field.name] = field.default;
       } else if (this.state.formValues[field.name] !== undefined) {
         initialValues[field.name] = this.state.formValues[field.name];

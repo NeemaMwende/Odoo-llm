@@ -24,4 +24,3 @@ class LLMThreadControllerExtended(http.Controller):
 
         # Update the thread with the prompt
         return thread.write({"prompt_id": prompt_id or False})
-

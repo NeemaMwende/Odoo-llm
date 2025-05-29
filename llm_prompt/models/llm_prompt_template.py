@@ -67,11 +67,11 @@ class LLMPromptTemplate(models.Model):
     def _substitute_placeholders(self, content, arguments):
         """
         Replace argument placeholders in content with their values using Jinja2.
-        
+
         Args:
             content (str): Content with placeholders
             arguments (dict): Dictionary of argument values
-            
+
         Returns:
             str: Content with placeholders replaced by values
         """
@@ -83,7 +83,7 @@ class LLMPromptTemplate(models.Model):
                 processed_args[arg_name] = "true" if arg_value else "false"
             else:
                 processed_args[arg_name] = arg_value
-                
+
         env = Environment(
             # Keep the same delimiters as the current implementation
             variable_start_string="{{",

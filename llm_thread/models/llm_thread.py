@@ -230,7 +230,7 @@ class LLMThread(models.Model):
 
     def get_related_record(self):
         """Get the related record if this thread is connected to a model.
-        
+
         Returns:
             recordset: The related record if it exists, otherwise False
         """
@@ -359,18 +359,17 @@ class LLMThread(models.Model):
         """
         Try to get the llm.thread from the context.
         This is useful when the template is used in a thread context.
-        
+
         Returns:
             llm.thread recordset or False
         """
         _logger.info("Attempting to get thread from context")
-    
-            
+
         # Check if we have a thread_id in the context
-        thread_id = self.env.context.get('thread_id', False)
+        thread_id = self.env.context.get("thread_id", False)
         if thread_id:
             _logger.info("Found thread_id in context: %s", thread_id)
-            thread = self.env['llm.thread'].browse(thread_id).exists()
+            thread = self.env["llm.thread"].browse(thread_id).exists()
             if thread:
                 _logger.info("Thread exists: %s", thread.name)
                 return thread

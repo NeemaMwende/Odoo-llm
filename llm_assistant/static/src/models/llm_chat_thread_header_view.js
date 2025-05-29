@@ -69,7 +69,7 @@ registerPatch({
       this.update({
         selectedAssistantId: assistantId || clear(),
       });
-      
+
       const thread = this.threadView.thread;
       const result = await this.messaging.rpc({
         route: "/llm/thread/set_assistant",
@@ -78,14 +78,14 @@ registerPatch({
           assistant_id: assistantId,
         },
       });
-      
+
       if (result.success) {
         // Find the assistant in the list
         const assistants = this.threadView?.thread?.llmChat?.llmAssistants;
-        
+
         if (assistants && assistantId) {
-          const assistant = assistants.find(a => a.id === assistantId);
-          
+          const assistant = assistants.find((a) => a.id === assistantId);
+
           if (assistant) {
             if (result.evaluated_default_values) {
               // Update the individual assistant properties with new values
@@ -102,7 +102,7 @@ registerPatch({
             }
           }
         }
-        
+
         // Refresh the thread to get updated data
         await this.threadView.thread.llmChat.refreshThread(
           this.threadView.thread.id

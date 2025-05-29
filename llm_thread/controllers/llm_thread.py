@@ -114,14 +114,19 @@ class LLMThreadController(http.Controller):
             return {"error": _("Invalid message ID or vote value format.")}
         except Exception as e:
             return {"error": str(e)}
-            
-    @http.route("/llm/thread/<int:thread_id>/assistants", type="json", auth="user", methods=["GET"])
+
+    @http.route(
+        "/llm/thread/<int:thread_id>/assistants",
+        type="json",
+        auth="user",
+        methods=["GET"],
+    )
     def get_thread_assistants(self, thread_id):
         """Get assistants with thread-specific evaluated default values
-        
+
         Args:
             thread_id (int): ID of the thread to get context from
-            
+
         Returns:
             dict: Dictionary with assistants data including evaluated default values
         """
@@ -129,25 +134,27 @@ class LLMThreadController(http.Controller):
             thread = request.env["llm.thread"].browse(thread_id)
             if not thread.exists():
                 return {"error": _("Thread not found")}
-                
+
             # Get all active assistants
-            assistants = request.env["llm.assistant"].search([('active', '=', True)])
-            
+            assistants = request.env["llm.assistant"].search([("active", "=", True)])
+
             # Prepare result with thread-specific evaluated values
             result = []
             for assistant in assistants:
                 # Get thread-specific evaluated default values
                 evaluated_values = assistant.get_evaluated_default_values(thread)
-                
-                result.append({
-                    "id": assistant.id,
-                    "name": assistant.name,
-                    "default_values": assistant.default_values,
-                    "evaluated_default_values": evaluated_values,
-                })
-                
+
+                result.append(
+                    {
+                        "id": assistant.id,
+                        "name": assistant.name,
+                        "default_values": assistant.default_values,
+                        "evaluated_default_values": evaluated_values,
+                    }
+                )
+
             return {"success": True, "assistants": result}
-            
+
         except Exception as e:
             _logger.exception(f"Error getting thread assistants: {e}")
             return {"error": str(e)}
