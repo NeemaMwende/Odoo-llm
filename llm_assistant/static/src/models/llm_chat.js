@@ -1,6 +1,7 @@
 /** @odoo-module **/
 
 import { many } from "@mail/model/model_field";
+import { clear } from "@mail/model/model_field_command";
 import { registerPatch } from "@mail/model/model_core";
 
 // Define assistant-related fields to fetch from server
@@ -212,9 +213,19 @@ registerPatch({
             const assistant = this.llmAssistants.find(a => a.id === assistantId);
             if (assistant) {
               // Update the assistant with thread-specific evaluated values
-              assistant.update({
-                evaluatedDefaultValues: result.evaluated_default_values,
-              });
+              if (result.evaluated_default_values) {
+                assistant.update({
+                  defaultValues: result.default_values,
+                  evaluatedDefaultValues: result.evaluated_default_values,
+                });
+              } else {
+                console.log("cleaning default values");
+                // Clean up default values when there are no evaluated default values
+                assistant.update({
+                  defaultValues: clear(),
+                  evaluatedDefaultValues: clear(),
+                });
+              }
               
               // If we have prompt data, update or create the prompt relationship
               if (result.prompt) {
