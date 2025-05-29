@@ -223,24 +223,59 @@ class LLMAssistant(models.Model):
                         }
                     )
 
-                # Process each value that might contain an expression
+                # Process each value that might contain expressions
                 for key, value in default_values_dict.items():
-                    if (
-                        isinstance(value, str)
-                        and value.startswith("${")
-                        and value.endswith("}")
-                    ):
-                        # Extract the expression from ${...}
-                        expr = value[2:-1].strip()
-                        try:
-                            # Evaluate the expression using safe_eval
-                            result = safe_eval(expr, eval_context)
-                            default_values_dict[key] = result
-                        except Exception as e:
-                            _logger.warning(
-                                f"Error evaluating expression '{expr}': {e}"
-                            )
-                            # Keep the original value on error
+                    if not isinstance(value, str):
+                        continue
+                        
+                    # Check if the value contains any ${...} expressions
+                    if "${" in value and "}" in value:
+                        # Handle the simple case where the entire string is an expression
+                        if value.startswith("${")\
+                           and value.endswith("}")\
+                           and value.count("${")==1:
+                            # Extract the expression from ${...}
+                            expr = value[2:-1].strip()
+                            try:
+                                # Evaluate the expression using safe_eval
+                                result = safe_eval(expr, eval_context)
+                                default_values_dict[key] = result
+                                continue  # Skip to the next item
+                            except Exception as e:
+                                _logger.warning(
+                                    f"Error evaluating expression '{expr}': {e}"
+                                )
+                                # Keep the original value on error
+                                continue  # Skip to the next item
+                        
+                        # Handle the case with multiple embedded expressions
+                        # or expressions mixed with regular text
+                        import re
+                        # Find all ${...} patterns
+                        pattern = r"\${([^}]*)}"
+                        matches = re.finditer(pattern, value)
+                        
+                        # Start with the original string
+                        result_str = value
+                        
+                        # Process each match
+                        for match in matches:
+                            full_match = match.group(0)  # The entire ${...} expression
+                            expr = match.group(1).strip()  # Just the expression inside
+                            
+                            try:
+                                # Evaluate the expression using safe_eval
+                                eval_result = safe_eval(expr, eval_context)
+                                # Replace the expression with its evaluated result
+                                result_str = result_str.replace(full_match, str(eval_result))
+                            except Exception as e:
+                                _logger.warning(
+                                    f"Error evaluating embedded expression '{expr}': {e}"
+                                )
+                                # Keep the original expression on error
+                        
+                        # Update the value with all expressions evaluated
+                        default_values_dict[key] = result_str
 
             # Return the processed values as JSON
             return json.dumps(default_values_dict)
