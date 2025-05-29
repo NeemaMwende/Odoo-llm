@@ -28,11 +28,11 @@ export class LLMMediaForm extends Component {
         // Re-initialize form values when model changes
         this._initializeFormValues();
       },
-      () => [this.llmModel.effectiveInputSchema]
+      () => [this.llmModel.effectiveInputSchema, this.thread, this.thread?.assistant_id]
     );
   }
 
-  // Initialize form values with defaults from assistant or schema
+  // Initialize form values with defaults from schema
   _initializeFormValues() {
     if (!this.formFields || !Array.isArray(this.formFields)) {
       return;
@@ -40,35 +40,13 @@ export class LLMMediaForm extends Component {
 
     // Create a new object to hold the initial values
     const initialValues = {};
-    
-    // Try to get evaluated default values from the assistant if available
-    let assistantDefaults = {};
-    if (this.thread?.assistant_id) {
-      try {
-        // First try to get the evaluated default values (with expressions processed)
-        if (this.thread.assistant_id.evaluatedDefaultValues) {
-          assistantDefaults = JSON.parse(this.thread.assistant_id.evaluatedDefaultValues);
-        } 
-        // Fall back to regular default values if evaluated ones aren't available
-        else if (this.thread.assistant_id.defaultValues) {
-          assistantDefaults = JSON.parse(this.thread.assistant_id.defaultValues);
-        }
-      } catch (e) {
-        console.warn("Failed to parse assistant default values:", e);
-      }
-    }
 
-    // Set values with this priority:
-    // 1. Existing form values (to preserve user input)
-    // 2. Assistant evaluated default values
-    // 3. Schema default values
+    // Set default values from schema
     this.formFields.forEach((field) => {
-      if (assistantDefaults[field.name] !== undefined) {
-        // Use assistant default values
-        initialValues[field.name] = assistantDefaults[field.name];
-      } else if (field.default !== undefined) {
-        // Fall back to schema default values
+      if (this.state.formValues[field.name] === undefined && field.default !== undefined) {
         initialValues[field.name] = field.default;
+      } else if (this.state.formValues[field.name] !== undefined) {
+        initialValues[field.name] = this.state.formValues[field.name];
       }
     });
 
