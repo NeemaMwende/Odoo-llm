@@ -156,7 +156,7 @@ registerPatch({
           id: assistantId,
           name: threadData.assistant_id[1],
         };
-        
+        console.log("Mapped thread data:", mappedData);
         // Only fetch thread-specific evaluated default values for the active thread
         if (this.activeId === threadData.id) {
           console.log(`Thread ${threadData.id} is active, fetching assistant values`);
@@ -174,16 +174,18 @@ registerPatch({
       if (!this.activeId) {
         return;
       }
-      
+      const [model, id] =
+        typeof this.activeId === "number"
+          ? ["llm.thread", this.activeId]
+          : this.activeId.split("_");
       // Get the active thread
-      const activeThread = this.messaging.models.Thread.findFromIdentifyingData({ id: this.activeId });
+      const activeThread = this.messaging.models.Thread.findFromIdentifyingData({ id: Number(id), model });
       if (!activeThread || !activeThread.llmAssistant) {
         return;
       }
       
       // Fetch thread-specific evaluated default values for the active thread's assistant
-      console.log(`Active thread changed to ${this.activeId}, fetching assistant values`);
-      this._fetchAssistantValuesForThread(this.activeId, activeThread.llmAssistant.id);
+      this._fetchAssistantValuesForThread(activeThread.id, activeThread.llmAssistant.id);
     },
     
     /**
@@ -194,8 +196,6 @@ registerPatch({
      */
     async _fetchAssistantValuesForThread(threadId, assistantId) {
       try {
-        console.log(`Fetching assistant values for thread ${threadId} and assistant ${assistantId}`);
-        
         const result = await this.messaging.rpc({
           route: "/llm/thread/get_assistant_values",
           params: {
@@ -205,10 +205,8 @@ registerPatch({
         });
         
         if (result.success) {
-          console.log("Received thread-specific assistant values:", result);
-          
           // Find the thread and update its assistant with the evaluated values
-          const thread = this.messaging.models.Thread.findFromIdentifyingData({ id: threadId });
+          const thread = this.messaging.models.Thread.findFromIdentifyingData({ id: threadId, model: "llm.thread" });
           if (thread) {
             // Find the assistant in our registry
             const assistant = this.llmAssistants.find(a => a.id === assistantId);
@@ -244,8 +242,6 @@ registerPatch({
                   llmPrompt: { id: promptData.id },
                 });
               }
-              
-              console.log("Updated assistant with thread-specific values:", assistant);
             }
           }
         } else {
