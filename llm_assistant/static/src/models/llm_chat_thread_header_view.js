@@ -80,6 +80,22 @@ registerPatch({
       });
 
       if (result.success) {
+        // If we have evaluated default values, update the selected assistant
+        if (assistantId && result.evaluated_default_values) {
+          // Find the assistant in the list
+          const assistants = this.threadView?.thread?.llmChat?.llmAssistants;
+          if (assistants) {
+            const assistant = assistants.find(a => a.id === assistantId);
+            if (assistant) {
+              // Update the individual assistant properties
+              assistant.update({
+                defaultValues: result.default_values,
+                evaluatedDefaultValues: result.evaluated_default_values,
+              });
+            }
+          }
+        }
+        
         // Refresh the thread to get updated data
         await this.threadView.thread.llmChat.refreshThread(
           this.threadView.thread.id

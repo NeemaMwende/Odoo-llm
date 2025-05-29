@@ -25,13 +25,15 @@ registerPatch({
         method: "search_read",
         kwargs: {
           domain: [["active", "=", true]],
-          fields: ["name"],
+          fields: ["name", "default_values", "evaluated_default_values"],
         },
       });
 
       const assistantData = result.map((assistant) => ({
         id: assistant.id,
         name: assistant.name,
+        defaultValues: assistant.default_values,
+        evaluatedDefaultValues: assistant.evaluated_default_values,
       }));
 
       this.update({ llmAssistants: assistantData });

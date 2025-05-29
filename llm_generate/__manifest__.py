@@ -14,6 +14,7 @@
         "llm_mail_message_subtypes",
         "web_json_editor",
         "llm_prompt",
+        "llm_assistant",
     ],
     "data": [
         "views/llm_model_views.xml",

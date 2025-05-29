@@ -19,5 +19,7 @@ registerModel({
     threads: many("Thread", {
       inverse: "llmAssistant",
     }),
+    defaultValues: attr(),
+    evaluatedDefaultValues: attr(),
   },
 });

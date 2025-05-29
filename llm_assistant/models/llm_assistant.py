@@ -2,6 +2,7 @@ import json
 import logging
 
 from odoo import api, fields, models
+from odoo.tools.safe_eval import safe_eval
 
 _logger = logging.getLogger(__name__)
 
@@ -48,9 +49,24 @@ class LLMAssistant(models.Model):
     # Default values for prompt variables as JSON
     default_values = fields.Text(
         string="Default Values",
-        help="JSON object with default values for prompt variables",
+        help="JSON object with default values for prompt variables. Can include Python expressions that will be evaluated using safe_eval.",
         default="{}",
         tracking=True,
+    )
+    
+    # Whether default values contain expressions to be evaluated
+    has_dynamic_defaults = fields.Boolean(
+        string="Has Dynamic Defaults",
+        default=False,
+        help="Enable if your default values contain Python expressions that should be evaluated",
+        tracking=True,
+    )
+    
+    # Evaluated default values (for API)
+    evaluated_default_values = fields.Text(
+        string="Evaluated Default Values",
+        compute="_compute_evaluated_default_values",
+        help="Default values with any expressions evaluated",
     )
 
     # Tools configuration
@@ -87,11 +103,17 @@ class LLMAssistant(models.Model):
         for assistant in self:
             assistant.system_prompt_preview = assistant.get_formatted_system_prompt()
 
-    @api.depends("thread_ids")
+    @api.depends('thread_ids')
     def _compute_thread_count(self):
         """Compute the number of threads using this assistant"""
         for assistant in self:
             assistant.thread_count = len(assistant.thread_ids)
+
+    @api.depends('default_values', 'has_dynamic_defaults')
+    def _compute_evaluated_default_values(self):
+        """Compute the evaluated default values for API use"""
+        for assistant in self:
+            assistant.evaluated_default_values = assistant.get_evaluated_default_values()
 
     def action_view_threads(self):
         """Open the threads using this assistant"""
@@ -155,6 +177,70 @@ class LLMAssistant(models.Model):
             # Create a context with the thread_id
             context = dict(self.env.context, thread_id=thread.id)
             # Use the prompt with the new context
-            return self.with_context(context).prompt_id.get_formatted_system_prompt(self.default_values or "{}")
+            return self.with_context(context).prompt_id.get_formatted_system_prompt(
+                self.get_evaluated_default_values(thread) or "{}"
+            )
         
-        return self.prompt_id.get_formatted_system_prompt(self.default_values or "{}")
+        return self.prompt_id.get_formatted_system_prompt(
+            self.get_evaluated_default_values() or "{}"
+        )
+        
+    def get_evaluated_default_values(self, thread=None):
+        """Evaluate default values, processing any Python expressions if has_dynamic_defaults is enabled
+        
+        Args:
+            thread (llm.thread): Optional thread to provide context for evaluation
+            
+        Returns:
+            str: JSON string with evaluated default values
+        """
+        self.ensure_one()
+        
+        if not self.default_values:
+            return "{}"
+            
+        try:
+            # Parse the default values JSON
+            default_values_dict = json.loads(self.default_values)
+            
+            # If dynamic defaults are enabled, evaluate expressions
+            if self.has_dynamic_defaults:
+                # Prepare evaluation context
+                eval_context = {
+                    'env': self.env,
+                    'user': self.env.user,
+                }
+                
+                # Add thread-related context if available
+                if thread:
+                    eval_context.update({
+                        'thread': thread,
+                        'related_record': thread.get_related_record(),
+                    })
+                
+                # Process each value that might contain an expression
+                for key, value in default_values_dict.items():
+                    if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
+                        # Extract the expression from ${...}
+                        expr = value[2:-1].strip()
+                        try:
+                            # Evaluate the expression using safe_eval
+                            result = safe_eval(expr, eval_context)
+                            default_values_dict[key] = result
+                        except Exception as e:
+                            _logger.warning(f"Error evaluating expression '{expr}': {e}")
+                            # Keep the original value on error
+                
+            # Return the processed values as JSON
+            return json.dumps(default_values_dict)
+            
+        except json.JSONDecodeError as e:
+            _logger.error(f"Invalid JSON in default_values: {e}")
+            return "{}"
+        except Exception as e:
+            _logger.error(f"Error processing default_values: {e}")
+            return "{}"
+            
+    def _get_json_fields(self):
+        """Return fields that should be serialized as JSON in the API"""
+        return ['default_values', 'evaluated_default_values']

@@ -122,6 +122,8 @@ class LLMProvider(models.Model):
             if randomise_seeds:
                 self.randomise_seeds(prompt)
             # Submit workflow for execution
+            _logger.info("ComfyUI: Submitting prompt: %s", prompt)
+            raise UserError("Test Error")
             response = client.submit_prompt(
                 prompt=prompt, client_id=client_id, number=number, extra_data=extra_data
             )
