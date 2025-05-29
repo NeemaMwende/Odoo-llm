@@ -215,10 +215,11 @@ class LLMAssistant(models.Model):
 
                 # Add thread-related context if available
                 if thread:
+                    related_record = thread.get_related_record()
                     eval_context.update(
                         {
                             "thread": thread,
-                            "related_record": thread.get_related_record(),
+                            "related_record": related_record,
                         }
                     )
 
