@@ -69,12 +69,14 @@ registerPatch({
       this.update({
         selectedAssistantId: assistantId || clear(),
       });
+      
+      const thread = this.threadView.thread;
 
       // Call the dedicated endpoint to set the assistant
       const result = await this.messaging.rpc({
         route: "/llm/thread/set_assistant",
         params: {
-          thread_id: this.threadView.thread.id,
+          thread_id: thread.id,
           assistant_id: assistantId,
         },
       });

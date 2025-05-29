@@ -15,6 +15,12 @@ registerPatch({
     // Use attr instead of many for direct array access
     llmAssistants: many("LLMAssistant"),
   },
+  onChanges: [
+    {
+      dependencies: ["activeId"],
+      methodName: "onActiveIdChanged",
+    },
+  ],
   recordMethods: {
     /**
      * Load assistants from the server
@@ -145,13 +151,109 @@ registerPatch({
 
       // Add assistant information if present
       if (threadData.assistant_id) {
+        const assistantId = threadData.assistant_id[0];
         mappedData.llmAssistant = {
-          id: threadData.assistant_id[0],
+          id: assistantId,
           name: threadData.assistant_id[1],
         };
+        
+        // Only fetch thread-specific evaluated default values for the active thread
+        if (this.activeId === threadData.id) {
+          console.log(`Thread ${threadData.id} is active, fetching assistant values`);
+          this._fetchAssistantValuesForThread(threadData.id, assistantId);
+        }
       }
 
       return mappedData;
+    },
+    
+    /**
+     * Handle active thread changes
+     */
+    onActiveIdChanged() {
+      if (!this.activeId) {
+        return;
+      }
+      
+      // Get the active thread
+      const activeThread = this.messaging.models.Thread.findFromIdentifyingData({ id: this.activeId });
+      if (!activeThread || !activeThread.llmAssistant) {
+        return;
+      }
+      
+      // Fetch thread-specific evaluated default values for the active thread's assistant
+      console.log(`Active thread changed to ${this.activeId}, fetching assistant values`);
+      this._fetchAssistantValuesForThread(this.activeId, activeThread.llmAssistant.id);
+    },
+    
+    /**
+     * Fetch thread-specific evaluated default values for an assistant
+     * @param {Number} threadId - ID of the thread
+     * @param {Number} assistantId - ID of the assistant
+     * @private
+     */
+    async _fetchAssistantValuesForThread(threadId, assistantId) {
+      try {
+        console.log(`Fetching assistant values for thread ${threadId} and assistant ${assistantId}`);
+        
+        const result = await this.messaging.rpc({
+          route: "/llm/thread/get_assistant_values",
+          params: {
+            thread_id: threadId,
+            assistant_id: assistantId,
+          },
+        });
+        
+        if (result.success) {
+          console.log("Received thread-specific assistant values:", result);
+          
+          // Find the thread and update its assistant with the evaluated values
+          const thread = this.messaging.models.Thread.findFromIdentifyingData({ id: threadId });
+          if (thread) {
+            // Find the assistant in our registry
+            const assistant = this.llmAssistants.find(a => a.id === assistantId);
+            if (assistant) {
+              // Update the assistant with thread-specific evaluated values
+              assistant.update({
+                evaluatedDefaultValues: result.evaluated_default_values,
+              });
+              
+              // If we have prompt data, update or create the prompt relationship
+              if (result.prompt) {
+                const promptData = result.prompt;
+                const prompt = this.messaging.models.LLMPrompt.findFromIdentifyingData({ id: promptData.id });
+                
+                if (prompt) {
+                  // Update existing prompt
+                  prompt.update({
+                    name: promptData.name,
+                    inputSchemaJson: promptData.input_schema_json,
+                  });
+                } else {
+                  // Create new prompt record
+                  this.messaging.models.LLMPrompt.insert({
+                    id: promptData.id,
+                    name: promptData.name,
+                    inputSchemaJson: promptData.input_schema_json,
+                  });
+                }
+                
+                // Update assistant with prompt relationship
+                assistant.update({
+                  promptId: promptData.id,
+                  llmPrompt: { id: promptData.id },
+                });
+              }
+              
+              console.log("Updated assistant with thread-specific values:", assistant);
+            }
+          }
+        } else {
+          console.error("Error fetching assistant values:", result.error);
+        }
+      } catch (error) {
+        console.error("Error in _fetchAssistantValuesForThread:", error);
+      }
     },
   },
 });

@@ -63,10 +63,7 @@ export class LLMMediaForm extends Component {
     // 2. Assistant evaluated default values
     // 3. Schema default values
     this.formFields.forEach((field) => {
-      if (this.state.formValues[field.name] !== undefined) {
-        // Keep existing form values (user input)
-        initialValues[field.name] = this.state.formValues[field.name];
-      } else if (assistantDefaults[field.name] !== undefined) {
+      if (assistantDefaults[field.name] !== undefined) {
         // Use assistant default values
         initialValues[field.name] = assistantDefaults[field.name];
       } else if (field.default !== undefined) {
