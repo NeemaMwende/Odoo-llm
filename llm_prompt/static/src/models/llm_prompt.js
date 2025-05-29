@@ -13,6 +13,15 @@ registerModel({
     inputSchemaJson: attr({
       default: "{}",
     }),
+    /**
+     * Assistants using this prompt
+     */
+    assistants: many("LLMAssistant", {
+      inverse: "llmPrompt",
+    }),
+    /**
+     * Threads using this prompt directly (legacy support)
+     */
     threads: many("Thread", {
       inverse: "prompt_id",
     }),

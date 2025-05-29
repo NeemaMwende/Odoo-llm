@@ -20,21 +20,66 @@ registerPatch({
      * Load assistants from the server
      */
     async loadAssistants() {
-      const result = await this.messaging.rpc({
+      // First, load assistants with their basic data and prompt_id
+      const assistantResult = await this.messaging.rpc({
         model: "llm.assistant",
         method: "search_read",
         kwargs: {
           domain: [["active", "=", true]],
-          fields: ["name", "default_values", "evaluated_default_values"],
+          fields: ["name", "default_values", "evaluated_default_values", "prompt_id"],
         },
       });
-
-      const assistantData = result.map((assistant) => ({
-        id: assistant.id,
-        name: assistant.name,
-        defaultValues: assistant.default_values,
-        evaluatedDefaultValues: assistant.evaluated_default_values,
-      }));
+      
+      // Extract all prompt IDs to fetch their details
+      const promptIds = assistantResult
+        .map(assistant => assistant.prompt_id && assistant.prompt_id[0])
+        .filter(id => id); // Filter out falsy values
+      
+      // If we have prompt IDs, fetch their details
+      let promptsById = {};
+      if (promptIds.length > 0) {
+        const promptResult = await this.messaging.rpc({
+          model: "llm.prompt",
+          method: "search_read",
+          kwargs: {
+            domain: [["id", "in", promptIds]],
+            fields: ["name", "input_schema_json"],
+          },
+        });
+        
+        // Create a map of prompts by ID for easy lookup
+        promptsById = promptResult.reduce((acc, prompt) => {
+          acc[prompt.id] = {
+            id: prompt.id,
+            name: prompt.name,
+            inputSchemaJson: prompt.input_schema_json,
+          };
+          return acc;
+        }, {});
+      }
+      
+      // Map assistant data and include prompt details if available
+      const assistantData = assistantResult.map((assistant) => {
+        const data = {
+          id: assistant.id,
+          name: assistant.name,
+          defaultValues: assistant.default_values,
+          evaluatedDefaultValues: assistant.evaluated_default_values,
+        };
+        
+        // If this assistant has a prompt, include its ID and create the relationship
+        if (assistant.prompt_id && assistant.prompt_id[0]) {
+          const promptId = assistant.prompt_id[0];
+          data.promptId = promptId;
+          
+          // If we have the prompt details, include them
+          if (promptsById[promptId]) {
+            data.llmPrompt = promptsById[promptId];
+          }
+        }
+        
+        return data;
+      });
 
       this.update({ llmAssistants: assistantData });
     },
