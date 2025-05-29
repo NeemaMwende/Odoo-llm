@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { attr, many } from "@mail/model/model_field";
+import { attr, many, one } from "@mail/model/model_field";
 import { registerModel } from "@mail/model/model_core";
 
 /**
@@ -19,5 +19,17 @@ registerModel({
     threads: many("Thread", {
       inverse: "llmAssistant",
     }),
+    /**
+     * The prompt associated with this assistant
+     */
+    llmPrompt: one("LLMPrompt", {
+      inverse: "assistants",
+    }),
+    /**
+     * Prompt ID (used for loading from server)
+     */
+    promptId: attr(),
+    defaultValues: attr(),
+    evaluatedDefaultValues: attr(),
   },
 });

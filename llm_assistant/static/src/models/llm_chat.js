@@ -1,6 +1,7 @@
 /** @odoo-module **/
 
 import { many } from "@mail/model/model_field";
+import { clear } from "@mail/model/model_field_command";
 import { registerPatch } from "@mail/model/model_core";
 
 // Define assistant-related fields to fetch from server
@@ -15,24 +16,82 @@ registerPatch({
     // Use attr instead of many for direct array access
     llmAssistants: many("LLMAssistant"),
   },
+  onChanges: [
+    {
+      dependencies: ["activeId"],
+      methodName: "onActiveIdChanged",
+    },
+  ],
   recordMethods: {
     /**
      * Load assistants from the server
      */
     async loadAssistants() {
-      const result = await this.messaging.rpc({
+      // First, load assistants with their basic data and prompt_id
+      const assistantResult = await this.messaging.rpc({
         model: "llm.assistant",
         method: "search_read",
         kwargs: {
           domain: [["active", "=", true]],
-          fields: ["name"],
+          fields: [
+            "name",
+            "default_values",
+            "evaluated_default_values",
+            "prompt_id",
+          ],
         },
       });
 
-      const assistantData = result.map((assistant) => ({
-        id: assistant.id,
-        name: assistant.name,
-      }));
+      // Extract all prompt IDs to fetch their details
+      const promptIds = assistantResult
+        .map((assistant) => assistant.prompt_id && assistant.prompt_id[0])
+        .filter((id) => id); // Filter out falsy values
+
+      // If we have prompt IDs, fetch their details
+      let promptsById = {};
+      if (promptIds.length > 0) {
+        const promptResult = await this.messaging.rpc({
+          model: "llm.prompt",
+          method: "search_read",
+          kwargs: {
+            domain: [["id", "in", promptIds]],
+            fields: ["name", "input_schema_json"],
+          },
+        });
+
+        // Create a map of prompts by ID for easy lookup
+        promptsById = promptResult.reduce((acc, prompt) => {
+          acc[prompt.id] = {
+            id: prompt.id,
+            name: prompt.name,
+            inputSchemaJson: prompt.input_schema_json,
+          };
+          return acc;
+        }, {});
+      }
+
+      // Map assistant data and include prompt details if available
+      const assistantData = assistantResult.map((assistant) => {
+        const data = {
+          id: assistant.id,
+          name: assistant.name,
+          defaultValues: assistant.default_values,
+          evaluatedDefaultValues: assistant.evaluated_default_values,
+        };
+
+        // If this assistant has a prompt, include its ID and create the relationship
+        if (assistant.prompt_id && assistant.prompt_id[0]) {
+          const promptId = assistant.prompt_id[0];
+          data.promptId = promptId;
+
+          // If we have the prompt details, include them
+          if (promptsById[promptId]) {
+            data.llmPrompt = promptsById[promptId];
+          }
+        }
+
+        return data;
+      });
 
       this.update({ llmAssistants: assistantData });
     },
@@ -98,13 +157,130 @@ registerPatch({
 
       // Add assistant information if present
       if (threadData.assistant_id) {
+        const assistantId = threadData.assistant_id[0];
         mappedData.llmAssistant = {
-          id: threadData.assistant_id[0],
+          id: assistantId,
           name: threadData.assistant_id[1],
         };
+
+        // Only fetch thread-specific evaluated default values for the active thread
+        if (this.activeId === threadData.id) {
+          this._fetchAssistantValuesForThread(threadData.id, assistantId);
+        }
+      } else {
+        // IMPORTANT: Clear the llmAssistant field when assistant_id is not present
+        mappedData.llmAssistant = clear();
       }
 
       return mappedData;
+    },
+
+    /**
+     * Handle active thread changes
+     */
+    onActiveIdChanged() {
+      if (!this.activeId) {
+        return;
+      }
+      const [model, id] =
+        typeof this.activeId === "number"
+          ? ["llm.thread", this.activeId]
+          : this.activeId.split("_");
+      // Get the active thread
+      const activeThread = this.messaging.models.Thread.findFromIdentifyingData(
+        { id: Number(id), model }
+      );
+      if (!activeThread || !activeThread.llmAssistant) {
+        return;
+      }
+
+      // Fetch thread-specific evaluated default values for the active thread's assistant
+      this._fetchAssistantValuesForThread(
+        activeThread.id,
+        activeThread.llmAssistant.id
+      );
+    },
+
+    /**
+     * Fetch thread-specific evaluated default values for an assistant
+     * @param {Number} threadId - ID of the thread
+     * @param {Number} assistantId - ID of the assistant
+     * @private
+     */
+    async _fetchAssistantValuesForThread(threadId, assistantId) {
+      try {
+        const result = await this.messaging.rpc({
+          route: "/llm/thread/get_assistant_values",
+          params: {
+            thread_id: threadId,
+            assistant_id: assistantId,
+          },
+        });
+
+        if (result.success) {
+          // Find the thread and update its assistant with the evaluated values
+          const thread = this.messaging.models.Thread.findFromIdentifyingData({
+            id: threadId,
+            model: "llm.thread",
+          });
+          if (thread) {
+            // Find the assistant in our registry
+            const assistant = this.llmAssistants.find(
+              (a) => a.id === assistantId
+            );
+            if (assistant) {
+              // Update the assistant with thread-specific evaluated values
+              if (result.evaluated_default_values) {
+                assistant.update({
+                  defaultValues: result.default_values,
+                  evaluatedDefaultValues: result.evaluated_default_values,
+                });
+              } else {
+                console.log("cleaning default values");
+                // Clean up default values when there are no evaluated default values
+                assistant.update({
+                  defaultValues: clear(),
+                  evaluatedDefaultValues: clear(),
+                });
+              }
+
+              // If we have prompt data, update or create the prompt relationship
+              if (result.prompt) {
+                const promptData = result.prompt;
+                const prompt =
+                  this.messaging.models.LLMPrompt.findFromIdentifyingData({
+                    id: promptData.id,
+                  });
+
+                if (prompt) {
+                  // Update existing prompt
+                  prompt.update({
+                    name: promptData.name,
+                    inputSchemaJson: promptData.input_schema_json,
+                  });
+                } else {
+                  // Create new prompt record
+                  this.messaging.models.LLMPrompt.insert({
+                    id: promptData.id,
+                    name: promptData.name,
+                    inputSchemaJson: promptData.input_schema_json,
+                  });
+                }
+
+                // Update assistant with prompt relationship
+                assistant.update({
+                  promptId: promptData.id,
+                  llmPrompt: { id: promptData.id },
+                });
+              }
+            }
+          }
+        } else {
+          console.error("Error fetching assistant values:", result.error);
+        }
+      } catch (error) {
+        console.error("Error in _fetchAssistantValuesForThread:", error);
+      }
     },
   },
 });

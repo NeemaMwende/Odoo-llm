@@ -78,6 +78,10 @@
   &quot;instructions&quot;: &quot;Always be polite and helpful.&quot;
 }"
                 />
+                                <field
+                  name="has_dynamic_defaults"
+                  help="Enable if your default values contain Python expressions that should be evaluated"
+                />
                             </group>
                             <div
                 class="alert alert-info w-100 mt-3 mb-3"

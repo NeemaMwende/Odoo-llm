@@ -25,15 +25,25 @@ export class LLMMediaForm extends Component {
     // Watch for changes in the model prop to reload config if necessary
     useEffect(
       () => {
-        // Re-initialize form values when model changes
         this._initializeFormValues();
       },
-      () => [this.llmModel.effectiveInputSchema]
+      // Use thread.id and llmAssistant.id to ensure proper dependency tracking
+      () => [this.effectiveInputSchema, this.thread?.id, this.llmAssistant?.id]
     );
+  }
+
+  get effectiveInputSchema() {
+    if (!this.llmModel || !this.thread) {
+      return null;
+    }
+    // Use the thread-specific schema method
+    const schema = this.llmModel.getEffectiveInputSchemaForThread(this.thread);
+    return schema;
   }
 
   // Initialize form values with defaults from schema
   _initializeFormValues() {
+    this.state.formValues = {};
     if (!this.formFields || !Array.isArray(this.formFields)) {
       return;
     }
@@ -43,7 +53,10 @@ export class LLMMediaForm extends Component {
 
     // Set default values from schema
     this.formFields.forEach((field) => {
-      if (this.state.formValues[field.name] === undefined && field.default !== undefined) {
+      if (
+        this.state.formValues[field.name] === undefined &&
+        field.default !== undefined
+      ) {
         initialValues[field.name] = field.default;
       } else if (this.state.formValues[field.name] !== undefined) {
         initialValues[field.name] = this.state.formValues[field.name];
@@ -62,16 +75,20 @@ export class LLMMediaForm extends Component {
     return this.props.model;
   }
 
+  get llmAssistant() {
+    return this.thread?.llmAssistant;
+  }
+
   get inputSchema() {
     let result = null;
     if (!this.llmModel) {
       result = null;
-    } else if (!this.llmModel.effectiveInputSchema) {
+    } else if (!this.effectiveInputSchema) {
       result = null;
-    } else if (typeof this.llmModel.effectiveInputSchema === "string") {
-      result = JSON.parse(this.llmModel.effectiveInputSchema);
-    } else if (typeof this.llmModel.effectiveInputSchema === "object") {
-      result = this.llmModel.effectiveInputSchema;
+    } else if (typeof this.effectiveInputSchema === "string") {
+      result = JSON.parse(this.effectiveInputSchema);
+    } else if (typeof this.effectiveInputSchema === "object") {
+      result = this.effectiveInputSchema;
     }
 
     return result;

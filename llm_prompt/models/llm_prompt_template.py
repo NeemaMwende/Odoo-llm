@@ -1,3 +1,5 @@
+from jinja2 import Environment
+
 from odoo import _, api, fields, models
 
 
@@ -62,6 +64,37 @@ class LLMPromptTemplate(models.Model):
             args = template.prompt_id._extract_arguments_from_template(template.content)
             template.used_arguments = ", ".join(sorted(args)) if args else ""
 
+    def _substitute_placeholders(self, content, arguments):
+        """
+        Replace argument placeholders in content with their values using Jinja2.
+
+        Args:
+            content (str): Content with placeholders
+            arguments (dict): Dictionary of argument values
+
+        Returns:
+            str: Content with placeholders replaced by values
+        """
+        # Process boolean values for JSON compatibility
+        processed_args = {}
+        for arg_name, arg_value in arguments.items():
+            if isinstance(arg_value, bool):
+                # Convert Python True/False to JSON true/false
+                processed_args[arg_name] = "true" if arg_value else "false"
+            else:
+                processed_args[arg_name] = arg_value
+
+        env = Environment(
+            # Keep the same delimiters as the current implementation
+            variable_start_string="{{",
+            variable_end_string="}}",
+            # Trim whitespace to match current behavior
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        template = env.from_string(content)
+        return template.render(**processed_args)
+
     def get_template_message(self, arguments=None):
         """
         Generate a message for this template with the given arguments
@@ -75,7 +108,7 @@ class LLMPromptTemplate(models.Model):
         self.ensure_one()
         arguments = arguments or {}
 
-        # Check execution condition
+        # Check if condition is satisfied
         if self.condition:
             try:
                 if not self._evaluate_condition(self.condition, arguments):
@@ -89,23 +122,7 @@ class LLMPromptTemplate(models.Model):
                 return None
 
         # Replace argument placeholders in content
-        content = self.content
-        for arg_name, arg_value in arguments.items():
-            placeholder = "{{" + arg_name + "}}"
-            placeholderWithSpace = "{{ " + arg_name + " }}"
-
-            # Convert value to string, handling special cases for JSON compatibility
-            if isinstance(arg_value, bool):
-                # Convert Python True/False to JSON true/false
-                str_value = "true" if arg_value else "false"
-            else:
-                str_value = str(arg_value)
-
-            # maybe can be done via regex, kept it simple for now
-            if placeholder in content:
-                content = content.replace(placeholder, str_value)
-            elif placeholderWithSpace in content:
-                content = content.replace(placeholderWithSpace, str_value)
+        content = self._substitute_placeholders(self.content, arguments)
 
         # Create the message
         return {

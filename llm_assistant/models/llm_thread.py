@@ -1,4 +1,8 @@
+import logging
+
 from odoo import api, fields, models
+
+_logger = logging.getLogger(__name__)
 
 
 class LLMThread(models.Model):
@@ -76,11 +80,60 @@ class LLMThread(models.Model):
         system_prompt = super()._get_system_prompt()
         assistant_system_prompt = None
         if self.assistant_id:
-            assistant_system_prompt = self.assistant_id.get_formatted_system_prompt()
+            # Pass the thread to the assistant's get_formatted_system_prompt method
+            assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(
+                thread=self
+            )
 
         if assistant_system_prompt and system_prompt:
             system_prompt = f"{assistant_system_prompt}\n\n{system_prompt}"
         elif assistant_system_prompt:
             system_prompt = assistant_system_prompt
-
+        _logger.info("System prompt: %s", system_prompt)
         return system_prompt
+
+    @api.model
+    def get_thread_by_id(self, thread_id):
+        """Get a thread record by its ID
+
+        Args:
+            thread_id (int): ID of the thread
+
+        Returns:
+            tuple: (thread, error_response)
+                  If successful, error_response will be None
+                  If error, thread will be None
+        """
+        thread = self.browse(int(thread_id))
+        if not thread.exists():
+            return None, {"success": False, "error": "Thread not found"}
+        return thread, None
+
+    @api.model
+    def get_thread_and_assistant(self, thread_id, assistant_id=False):
+        """Get thread and assistant records by their IDs
+
+        Args:
+            thread_id (int): ID of the thread
+            assistant_id (int, optional): ID of the assistant, or False to clear
+
+        Returns:
+            tuple: (thread, assistant, error_response)
+                  If successful, error_response will be None
+                  If error, thread and/or assistant will be None
+        """
+        # Get thread
+        thread, error = self.get_thread_by_id(thread_id)
+        if error:
+            return None, None, error
+
+        # If no assistant_id, return just the thread
+        if not assistant_id:
+            return thread, None, None
+
+        # Get assistant from the assistant model
+        assistant, error = self.env["llm.assistant"].get_assistant_by_id(assistant_id)
+        if error:
+            return thread, None, error
+
+        return thread, assistant, None
