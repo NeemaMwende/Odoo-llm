@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
     <t
-    t-name="llm_generate.LLMChatThreadHeader"
+    t-name="llm_prompt.LLMChatThreadHeader"
     t-inherit="llm_thread.LLMChatThreadHeader"
     t-inherit-mode="extension"
   >

@@ -3,7 +3,7 @@
 import { LLMChatThreadHeader } from "@llm_thread/components/llm_chat_thread_header/llm_chat_thread_header";
 import { patch } from "@web/core/utils/patch";
 
-patch(LLMChatThreadHeader.prototype, "llm_generate.llm_prompt_dropdown_patch", {
+patch(LLMChatThreadHeader.prototype, "llm_prompt.llm_prompt_dropdown_patch", {
   /**
    * Get all available prompts
    */

@@ -1,7 +1,7 @@
 import json
 import logging
 
-from odoo import _, api, fields, models
+from odoo import _, api, models
 from odoo.exceptions import UserError
 
 from odoo.addons.llm_mail_message_subtypes.const import (
@@ -13,14 +13,6 @@ _logger = logging.getLogger(__name__)
 
 class LLMThread(models.Model):
     _inherit = "llm.thread"
-
-    prompt_id = fields.Many2one(
-        "llm.prompt",
-        string="Prompt for workflow",
-        ondelete="restrict",
-        tracking=True,
-        help="Prompt to use for workflow",
-    )
 
     def _next_step(self, last_message):
         """Dispatch to the next generator based on message type."""
@@ -75,16 +67,17 @@ class LLMThread(models.Model):
         return {k: v for k, v in vals.items() if v is not None}
 
     @api.model
-    def process_prompt_substitutions(self, thread_id, generation_inputs):
+    def process_prompt_for_media_gen(self, thread_id, generation_inputs):
         if isinstance(thread_id, str):
             thread_id = int(thread_id)
         thread = self.browse(thread_id)
         if not thread or not thread.prompt_id:
             return generation_inputs
-
-        result = thread.prompt_id.get_formatted_system_prompt(
-            default_values=generation_inputs
-        )
+        
+        # Create a context with the thread_id
+        context = dict(self.env.context, thread_id=thread.id)
+        # Use the prompt with the new context
+        result = thread.with_context(context).prompt_id.get_formatted_system_prompt(generation_inputs)
 
         try:
             result = json.loads(result)

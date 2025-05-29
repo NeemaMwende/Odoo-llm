@@ -1,6 +1,6 @@
+import json
 import logging
 import re
-import json
 
 from odoo import models
 
@@ -30,7 +30,7 @@ class LLMPromptTemplate(models.Model):
         record_field_pattern = r'\{\{(\s*)related_record\.([a-zA-Z0-9_]+)(\s*)\}\}'
         
         if re.search(related_record_pattern, content) or re.search(record_field_pattern, content):
-            thread = self._get_thread_from_context()
+            thread = self.env['llm.thread'].get_thread_from_context()
             if thread:
                 related_record = thread.get_related_record()
                 if related_record:
@@ -95,48 +95,3 @@ class LLMPromptTemplate(models.Model):
         
         final_result = super()._substitute_placeholders(result, arguments)
         return final_result
-    
-    def _get_thread_from_context(self):
-        """
-        Try to get the llm.thread from the context.
-        This is useful when the template is used in a thread context.
-        
-        Returns:
-            llm.thread recordset or False
-        """
-        _logger.info("Attempting to get thread from context")
-        
-        # Check if we're in a prompt that's linked to an assistant
-        prompt = self.prompt_id
-        if not prompt:
-            _logger.info("No prompt_id found")
-            return False
-            
-        # Check if we have a thread_id in the context
-        thread_id = self.env.context.get('thread_id', False)
-        if thread_id:
-            _logger.info("Found thread_id in context: %s", thread_id)
-            thread = self.env['llm.thread'].browse(thread_id).exists()
-            if thread:
-                _logger.info("Thread exists: %s", thread.name)
-                return thread
-            else:
-                _logger.warning("Thread with ID %s not found", thread_id)
-                return False
-            
-        # If no thread_id in context, check if we're in an assistant context
-        # and if that assistant is used in any threads
-        assistant_id = self.env.context.get('assistant_id', False)
-        if assistant_id:
-            _logger.info("Found assistant_id in context: %s", assistant_id)
-            assistant = self.env['llm.assistant'].browse(assistant_id).exists()
-            if assistant and assistant.thread_ids:
-                # Return the most recently active thread
-                thread = assistant.thread_ids[0]
-                _logger.info("Using most recent thread from assistant: %s", thread.name)
-                return thread
-            else:
-                _logger.info("Assistant has no threads or doesn't exist")
-                
-        _logger.info("No thread found in context")
-        return False

@@ -353,3 +353,29 @@ class LLMThread(models.Model):
                 "tool_call_result": tool_call_result,
             }
             return {k: v for k, v in vals.items() if v is not None}
+
+    @api.model
+    def get_thread_from_context(self):
+        """
+        Try to get the llm.thread from the context.
+        This is useful when the template is used in a thread context.
+        
+        Returns:
+            llm.thread recordset or False
+        """
+        _logger.info("Attempting to get thread from context")
+    
+            
+        # Check if we have a thread_id in the context
+        thread_id = self.env.context.get('thread_id', False)
+        if thread_id:
+            _logger.info("Found thread_id in context: %s", thread_id)
+            thread = self.env['llm.thread'].browse(thread_id).exists()
+            if thread:
+                _logger.info("Thread exists: %s", thread.name)
+                return thread
+            else:
+                _logger.warning("Thread with ID %s not found", thread_id)
+                return False
+
+        return False
