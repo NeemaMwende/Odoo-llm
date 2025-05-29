@@ -66,14 +66,25 @@ registerPatch({
       initActiveId,
       postInitializationPromises = []
     ) {
-      // Add loadPrompts to the post-initialization promises
-      const extendedPromises = [
+      // Pass our loadPrompts promise to the original method
+      return this._super(action, initActiveId, [
         ...postInitializationPromises,
         this.loadPrompts(),
-      ];
+      ]);
+    },
 
-      // Call the original method with the extended promises
-      return this._super(action, initActiveId, extendedPromises);
+    /**
+     * Override ensureThread to load assistants as well
+     * @override
+     */
+    async ensureThread(options) {
+      // Load assistants if not already loaded
+      if (!this.llmPrompts || this.llmPrompts.length === 0) {
+        await this.loadPrompts();
+      }
+
+      // Call the original method
+      return this._super(options);
     },
 
     /**
