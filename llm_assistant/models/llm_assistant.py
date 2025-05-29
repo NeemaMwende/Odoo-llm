@@ -244,3 +244,57 @@ class LLMAssistant(models.Model):
     def _get_json_fields(self):
         """Return fields that should be serialized as JSON in the API"""
         return ['default_values', 'evaluated_default_values']
+        
+    @api.model
+    def get_assistant_by_id(self, assistant_id):
+        """Get an assistant record by its ID
+        
+        Args:
+            assistant_id (int): ID of the assistant
+            
+        Returns:
+            tuple: (assistant, error_response)
+                  If successful, error_response will be None
+                  If error, assistant will be None
+        """
+        if not assistant_id:
+            return None, None
+            
+        assistant = self.browse(int(assistant_id))
+        if not assistant.exists():
+            return None, {"success": False, "error": "Assistant not found"}
+        return assistant, None
+        
+    def get_assistant_values(self, thread, include_prompt=True):
+        """Get thread-specific evaluated default values for this assistant
+        
+        Args:
+            thread (llm.thread): Thread record
+            include_prompt (bool): Whether to include prompt data
+            
+        Returns:
+            dict: Result with evaluated default values and prompt data
+        """
+        self.ensure_one()
+        
+        # Get thread-specific evaluated default values
+        evaluated_values = self.get_evaluated_default_values(thread)
+        
+        result = {
+            "success": True,
+            "thread_id": thread.id,
+            "assistant_id": self.id,
+            "default_values": self.default_values,
+            "evaluated_default_values": evaluated_values,
+        }
+        
+        # Get the prompt details if requested
+        if include_prompt and self.prompt_id:
+            prompt = self.prompt_id
+            result["prompt"] = {
+                "id": prompt.id,
+                "name": prompt.name,
+                "input_schema_json": prompt.input_schema_json,
+            }
+        
+        return result
