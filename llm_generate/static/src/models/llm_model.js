@@ -5,6 +5,23 @@ import { registerPatch } from "@mail/model/model_core";
 
 registerPatch({
   name: "LLMModel",
+  recordMethods: {
+    /**
+     * Get the effective input schema for a specific thread
+     * @param {Thread} thread - The thread to get the schema for
+     * @returns {Object} The effective input schema
+     */
+    getEffectiveInputSchemaForThread(thread) {
+      if (!thread || !this.isMediaGenerationModel) {
+        return this.inputSchema;
+      }
+      // Store the current thread context
+      this.update({ currentThreadContext: thread });
+      
+      // Calculate and return the schema
+      return this.effectiveInputSchema;
+    },
+  },
   fields: {
     modelUse: attr(), // Field to store the model's use case, e.g., 'chat', 'image_generation'
     inputSchema: attr({
@@ -24,10 +41,15 @@ registerPatch({
     // 1. If an assistant is selected, use its prompt's schema with evaluated default values
     // 2. If a prompt is selected directly on the thread, use its schema
     // 3. Otherwise, use the model's input schema
+    // Store the current thread context for schema computation
+    currentThreadContext: attr({
+      default: null,
+    }),
+    
     effectiveInputSchema: attr({
       compute() {
-        // Get the thread that this model is associated with
-        const thread = this.messaging.models.Thread.all().find(
+        // Use the stored thread context or find a thread if not available
+        const thread = this.currentThreadContext || this.messaging.models.Thread.all().find(
           (t) => t.llmModel && t.llmModel.id === this.id
         );
         

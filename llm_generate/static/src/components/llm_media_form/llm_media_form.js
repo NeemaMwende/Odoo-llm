@@ -27,12 +27,17 @@ export class LLMMediaForm extends Component {
       () => {
         this._initializeFormValues();
       },
-      () => [this.effectiveInputSchema, this.thread, this.llmAssistant]
+      // Use thread.id and llmAssistant.id to ensure proper dependency tracking
+      () => [this.effectiveInputSchema, this.thread?.id, this.llmAssistant?.id]
     );
   }
 
   get effectiveInputSchema() {
-    const schema = this.llmModel.effectiveInputSchema;
+    if (!this.llmModel || !this.thread) {
+      return null;
+    }
+    // Use the thread-specific schema method
+    const schema = this.llmModel.getEffectiveInputSchemaForThread(this.thread);
     return schema;
   }
 
@@ -60,8 +65,6 @@ export class LLMMediaForm extends Component {
 
     // Update state with initial values
     this.state.formValues = initialValues;
-    console.log("form values", this.state.formValues);
-    console.log("form fields", this.formFields);
   }
 
   get llmModel() {
