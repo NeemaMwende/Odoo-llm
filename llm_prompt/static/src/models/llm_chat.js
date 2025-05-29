@@ -74,11 +74,11 @@ registerPatch({
     },
 
     /**
-     * Override ensureThread to load assistants as well
+     * Override ensureThread to load prompts as well
      * @override
      */
     async ensureThread(options) {
-      // Load assistants if not already loaded
+      // Load prompts if not already loaded
       if (!this.llmPrompts || this.llmPrompts.length === 0) {
         await this.loadPrompts();
       }
