@@ -37,10 +37,10 @@ class LLMPromptTemplate(models.Model):
         
         # Check if we need to handle related record
         related_record_pattern = r'\{\{(\s*)related_record(\s*)\}\}'
-        # Pattern to match {{ related_record.dict_name["key_name"] }} or {{ related_record.field_name }}
-        record_field_pattern = r'\{\{(\s*)related_record\.([a-zA-Z0-9_]+)(?:\[(["\'])(.*?)\3\])?(\s*)\}\}'
+        # Simple pattern to detect if we need to process related record fields
+        related_record_field_pattern = r'\{\{(\s*)get_related_record\('
         
-        if re.search(related_record_pattern, content) or re.search(record_field_pattern, content):
+        if re.search(related_record_pattern, content) or re.search(related_record_field_pattern, content):
             # Get the related record
             thread = self.env['llm.thread'].get_thread_from_context()
             if thread:
@@ -53,12 +53,14 @@ class LLMPromptTemplate(models.Model):
                         "display_name": related_record.display_name
                     })
                     
-                    # Create a custom function to access record fields
-                    def get_record_field(field_name, key_name=None):
-                        # Ensure key_name is truly None if it's an empty string from regex
-                        if not key_name: 
-                            key_name = None
-
+                    # Create a custom function to access record fields and dictionary keys
+                    def get_related_record(field_name, key_name=None):
+                        """
+                        Access fields or dictionary keys from the related record.
+                        Usage in templates:
+                        {{ get_related_record('field_name') }} - For regular fields
+                        {{ get_related_record('dict_field', 'key_name') }} - For dictionary keys
+                        """
                         if hasattr(related_record, field_name):
                             try:
                                 attr_value = getattr(related_record, field_name)
@@ -97,17 +99,12 @@ class LLMPromptTemplate(models.Model):
                     )
                     
                     # Register the custom function
-                    env.globals['get_record_field'] = get_record_field
+                    env.globals['get_related_record'] = get_related_record
                     
-                    # Preprocess the template to replace {{related_record.field_name}} with {{get_record_field('field_name')}}
-                    processed_content = re.sub(
-                        record_field_pattern,
-                        r'{{ get_record_field("\2", "\4") }}', # \4 might be empty if no key
-                        content
-                    )
+                    # No need to preprocess the template anymore, as users will directly call the function
                     
                     # Create and render the template
-                    template = env.from_string(processed_content)
+                    template = env.from_string(content)
                     return template.render(**processed_args)
                 else:
                     _logger.warning("No related record found for thread %s", thread.id)
