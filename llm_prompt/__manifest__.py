@@ -15,6 +15,9 @@
     "category": "Technical",
     "version": "16.0.1.0.0",
     "depends": ["llm", "llm_thread"],
+    "external_dependencies": {
+        "python": ["jinja2"],
+    },
     "data": [
         "security/ir.model.access.csv",
         "data/llm_prompt_tag_data.xml",

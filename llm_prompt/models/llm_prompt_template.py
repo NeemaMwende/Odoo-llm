@@ -1,3 +1,5 @@
+from jinja2 import Environment
+
 from odoo import _, api, fields, models
 
 
@@ -64,7 +66,7 @@ class LLMPromptTemplate(models.Model):
 
     def _substitute_placeholders(self, content, arguments):
         """
-        Replace argument placeholders in content with their values.
+        Replace argument placeholders in content with their values using Jinja2.
         
         Args:
             content (str): Content with placeholders
@@ -73,25 +75,25 @@ class LLMPromptTemplate(models.Model):
         Returns:
             str: Content with placeholders replaced by values
         """
-        result = content
+        # Process boolean values for JSON compatibility
+        processed_args = {}
         for arg_name, arg_value in arguments.items():
-            placeholder = "{{" + arg_name + "}}"
-            placeholderWithSpace = "{{ " + arg_name + " }}"
-
-            # Convert value to string, handling special cases for JSON compatibility
             if isinstance(arg_value, bool):
                 # Convert Python True/False to JSON true/false
-                str_value = "true" if arg_value else "false"
+                processed_args[arg_name] = "true" if arg_value else "false"
             else:
-                str_value = str(arg_value)
-
-            # maybe can be done via regex, kept it simple for now
-            if placeholder in result:
-                result = result.replace(placeholder, str_value)
-            elif placeholderWithSpace in result:
-                result = result.replace(placeholderWithSpace, str_value)
+                processed_args[arg_name] = arg_value
                 
-        return result
+        env = Environment(
+            # Keep the same delimiters as the current implementation
+            variable_start_string="{{",
+            variable_end_string="}}",
+            # Trim whitespace to match current behavior
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        template = env.from_string(content)
+        return template.render(**processed_args)
 
     def get_template_message(self, arguments=None):
         """

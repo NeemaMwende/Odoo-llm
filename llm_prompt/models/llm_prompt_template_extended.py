@@ -2,6 +2,8 @@ import json
 import logging
 import re
 
+from jinja2 import Environment
+
 from odoo import models
 
 _logger = logging.getLogger(__name__)
@@ -12,7 +14,7 @@ class LLMPromptTemplate(models.Model):
 
     def _substitute_placeholders(self, content, arguments):
         """
-        Replace argument placeholders in content with their values.
+        Replace argument placeholders in content with their values using Jinja2.
         Extends the base implementation to handle special cases:
         1. When arg_name is 'related_record', fetch from llm.thread.get_related_record()
         2. When placeholder is like {{record.field_name}}, get the field value from the record
@@ -24,74 +26,73 @@ class LLMPromptTemplate(models.Model):
         Returns:
             str: Content with placeholders replaced by values
         """
-        related_record = None
         
+        
+        # Process boolean values for JSON compatibility
+        processed_args = dict(arguments)
+        for arg_name, arg_value in arguments.items():
+            if isinstance(arg_value, bool):
+                # Convert Python True/False to JSON true/false
+                processed_args[arg_name] = "true" if arg_value else "false"
+        
+        # Check if we need to handle related record
         related_record_pattern = r'\{\{(\s*)related_record(\s*)\}\}'
         record_field_pattern = r'\{\{(\s*)related_record\.([a-zA-Z0-9_]+)(\s*)\}\}'
         
         if re.search(related_record_pattern, content) or re.search(record_field_pattern, content):
+            # Get the related record
             thread = self.env['llm.thread'].get_thread_from_context()
             if thread:
                 related_record = thread.get_related_record()
                 if related_record:
-                    # Replace {{related_record}} placeholders with a JSON representation
-                    matches = re.finditer(related_record_pattern, content)
-                    replacements = []
+                    # Add related_record to the context
+                    processed_args['related_record'] = json.dumps({
+                        "model": related_record._name,
+                        "id": related_record.id,
+                        "display_name": related_record.display_name
+                    })
                     
-                    for match in matches:
-                        full_match = match.group(0)
-                        # Create a simple JSON with the basic record info
-                        record_json = json.dumps({
-                            "model": related_record._name,
-                            "id": related_record.id,
-                            "display_name": related_record.display_name
-                        })
-                        replacements.append((full_match, record_json))
-                    
-                    # Apply replacements for related_record
-                    result = content
-                    for old, new in replacements:
-                        result = result.replace(old, new)
-                    
-                    # Now handle record.field_name placeholders
-                    matches = re.finditer(record_field_pattern, result)
-                    replacements = []
-                    
-                    for match in matches:
-                        full_match = match.group(0)
-                        field_name = match.group(2)
-                        
+                    # Create a custom function to access record fields
+                    def get_record_field(field_name):
                         if hasattr(related_record, field_name):
                             try:
                                 field_value = getattr(related_record, field_name)
-                                
-                                # Convert to string
+                                # Convert to string with proper JSON handling
                                 if isinstance(field_value, bool):
-                                    str_value = "true" if field_value else "false"
-                                else:
-                                    str_value = str(field_value)
-                                
-                                replacements.append((full_match, str_value))
+                                    return "true" if field_value else "false"
+                                return str(field_value)
                             except Exception as e:
                                 _logger.error("Error getting field %s from record: %s", field_name, str(e))
+                                return f"ERROR: {str(e)}"
                         else:
                             _logger.warning("Record doesn't have field: %s", field_name)
+                            return f"FIELD_NOT_FOUND: {field_name}"
                     
-                    # Apply replacements for record.field_name
-                    for old, new in replacements:
-                        result = result.replace(old, new)
+                    # Create Jinja2 environment with custom functions
+                    env = Environment(
+                        variable_start_string="{{",
+                        variable_end_string="}}",
+                        trim_blocks=True,
+                        lstrip_blocks=True,
+                    )
                     
-                    _logger.info("Applied %d replacements for record.field_name placeholders", len(replacements))
+                    # Register the custom function
+                    env.globals['get_record_field'] = get_record_field
                     
+                    # Preprocess the template to replace {{related_record.field_name}} with {{get_record_field('field_name')}}
+                    processed_content = re.sub(
+                        r'\{\{(\s*)related_record\.([a-zA-Z0-9_]+)(\s*)\}\}',
+                        r'{{ get_record_field("\2") }}',
+                        content
+                    )
+                    
+                    # Create and render the template
+                    template = env.from_string(processed_content)
+                    return template.render(**processed_args)
                 else:
                     _logger.warning("No related record found for thread %s", thread.id)
-                    result = content
             else:
                 _logger.info("No thread found in context")
-                result = content
-        else:
-            # No related_record or record.field placeholders, just use the content as is
-            result = content
         
-        final_result = super()._substitute_placeholders(result, arguments)
-        return final_result
+        # If no related record handling needed, use the parent implementation
+        return super()._substitute_placeholders(content, processed_args)
