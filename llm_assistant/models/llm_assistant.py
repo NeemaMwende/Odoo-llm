@@ -30,7 +30,7 @@ class LLMAssistant(models.Model):
     model_id = fields.Many2one(
         "llm.model",
         string="Model",
-        domain="[('provider_id', '=', provider_id), ('model_use', 'in', ['chat', 'multimodal'])]",
+        domain="[('provider_id', '=', provider_id)]",
         ondelete="restrict",
         tracking=True,
         required=False,
