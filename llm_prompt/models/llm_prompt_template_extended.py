@@ -37,7 +37,8 @@ class LLMPromptTemplate(models.Model):
         
         # Check if we need to handle related record
         related_record_pattern = r'\{\{(\s*)related_record(\s*)\}\}'
-        record_field_pattern = r'\{\{(\s*)related_record\.([a-zA-Z0-9_]+)(\s*)\}\}'
+        # Pattern to match {{ related_record.dict_name["key_name"] }} or {{ related_record.field_name }}
+        record_field_pattern = r'\{\{(\s*)related_record\.([a-zA-Z0-9_]+)(?:\[(["\'])(.*?)\3\])?(\s*)\}\}'
         
         if re.search(related_record_pattern, content) or re.search(record_field_pattern, content):
             # Get the related record
@@ -53,16 +54,35 @@ class LLMPromptTemplate(models.Model):
                     })
                     
                     # Create a custom function to access record fields
-                    def get_record_field(field_name):
+                    def get_record_field(field_name, key_name=None):
+                        # Ensure key_name is truly None if it's an empty string from regex
+                        if not key_name: 
+                            key_name = None
+
                         if hasattr(related_record, field_name):
                             try:
-                                field_value = getattr(related_record, field_name)
-                                # Convert to string with proper JSON handling
-                                if isinstance(field_value, bool):
-                                    return "true" if field_value else "false"
-                                return str(field_value)
+                                attr_value = getattr(related_record, field_name)
+
+                                if key_name is not None: # We want to access an item from this attribute
+                                    if isinstance(attr_value, dict):
+                                        if key_name in attr_value:
+                                            final_value = attr_value[key_name]
+                                        else:
+                                            _logger.warning("Key '%s' not found in dictionary field '%s'", key_name, field_name)
+                                            return f"KEY_NOT_FOUND: {key_name} in {field_name}"
+                                    else:
+                                        _logger.warning("Field '%s' is not a dictionary, cannot access key '%s'", field_name, key_name)
+                                        return f"NOT_A_DICT: {field_name}"
+                                else: # No key, just return the attribute value
+                                    final_value = attr_value
+                                
+                                # Convert to string with proper JSON handling for booleans
+                                if isinstance(final_value, bool):
+                                    return "true" if final_value else "false"
+                                return str(final_value)
+
                             except Exception as e:
-                                _logger.error("Error getting field %s from record: %s", field_name, str(e))
+                                _logger.error("Error getting field %s (key: %s) from record: %s", field_name, key_name, str(e))
                                 return f"ERROR: {str(e)}"
                         else:
                             _logger.warning("Record doesn't have field: %s", field_name)
@@ -81,8 +101,8 @@ class LLMPromptTemplate(models.Model):
                     
                     # Preprocess the template to replace {{related_record.field_name}} with {{get_record_field('field_name')}}
                     processed_content = re.sub(
-                        r'\{\{(\s*)related_record\.([a-zA-Z0-9_]+)(\s*)\}\}',
-                        r'{{ get_record_field("\2") }}',
+                        record_field_pattern,
+                        r'{{ get_record_field("\2", "\4") }}', # \4 might be empty if no key
                         content
                     )
                     
