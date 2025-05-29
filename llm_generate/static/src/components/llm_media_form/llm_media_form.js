@@ -25,11 +25,14 @@ export class LLMMediaForm extends Component {
     // Watch for changes in the model prop to reload config if necessary
     useEffect(
       () => {
-        // Re-initialize form values when model changes
         this._initializeFormValues();
       },
-      () => [this.llmModel.effectiveInputSchema, this.thread, this.thread?.assistant_id]
+      () => [this.effectiveInputSchema, this.thread, this.llmAssistant]
     );
+  }
+
+  get effectiveInputSchema() {
+    return this.llmModel.effectiveInputSchema;
   }
 
   // Initialize form values with defaults from schema
@@ -37,6 +40,8 @@ export class LLMMediaForm extends Component {
     if (!this.formFields || !Array.isArray(this.formFields)) {
       return;
     }
+
+    this.state.formValues = {};
 
     // Create a new object to hold the initial values
     const initialValues = {};
@@ -60,6 +65,10 @@ export class LLMMediaForm extends Component {
 
   get thread() {
     return this.props.model;
+  }
+
+  get llmAssistant() {
+    return this.thread?.llmAssistant;
   }
 
   get inputSchema() {
