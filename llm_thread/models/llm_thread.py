@@ -222,11 +222,19 @@ class LLMThread(models.Model):
                 tool_call_def=tool_def,
             )
         return last_tool_msg
-
-    def _get_system_prompt(self):
-        """Hook: return a system prompt for chat. Override in other modules. If needed"""
+        
+    def _get_prepend_messages(self):
+        """Hook: return a list of formatted messages to prepend to the conversation.
+        Override in other modules if needed.
+        
+        Returns:
+            list: List of message dictionaries in the format:
+                [{"role": "system", "content": "..."},
+                 {"role": "user", "content": "..."},
+                 ...]
+        """
         self.ensure_one()
-        return None
+        return []
 
     def get_related_record(self):
         """Get the related record if this thread is connected to a model.
@@ -250,7 +258,7 @@ class LLMThread(models.Model):
             "messages": message_history_rs,
             "tools": tool_rs,
             "stream": True,
-            "system_prompt": self._get_system_prompt(),
+            "prepend_messages": self._get_prepend_messages(),
         }
         stream_response = self.model_id.chat(**chat_kwargs)
         assistant_msg = yield from self.env["mail.message"].create_message_from_stream(
