@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from odoo import api, fields, models
 from odoo.tools.safe_eval import safe_eval
@@ -230,59 +231,19 @@ class LLMAssistant(models.Model):
                         
                     # Check if the value contains any ${...} expressions
                     if "${" in value and "}" in value:
-                        # Handle the simple case where the entire string is an expression
-                        if value.startswith("${")\
-                           and value.endswith("}")\
-                           and value.count("${")==1:
-                            # Extract the expression from ${...}
-                            expr = value[2:-1].strip()
-                            try:
-                                # Evaluate the expression using safe_eval
-                                result = safe_eval(expr, eval_context)
+                        # Handle the simple case where the entire string is a single expression
+                        if value.startswith("${") and value.endswith("}") and value.count("${")==1:
+                            result = self._evaluate_single_expression(value, eval_context)
+                            if result is not None:  # None indicates evaluation error
                                 default_values_dict[key] = result
-                                continue  # Skip to the next item
-                            except Exception as e:
-                                _logger.warning(
-                                    f"Error evaluating expression '{expr}': {e}"
-                                )
-                                # Keep the original value on error
-                                continue  # Skip to the next item
-                        
-                        # Handle the case with multiple embedded expressions
-                        # or expressions mixed with regular text
-                        import re
-                        # Find all ${...} patterns
-                        pattern = r"\${([^}]*)}"
-                        matches = re.finditer(pattern, value)
-                        
-                        # Start with the original string
-                        result_str = value
-                        
-                        # Process each match
-                        for match in matches:
-                            full_match = match.group(0)  # The entire ${...} expression
-                            expr = match.group(1).strip()  # Just the expression inside
-                            
-                            try:
-                                # Evaluate the expression using safe_eval
-                                eval_result = safe_eval(expr, eval_context)
-                                # Replace the expression with its evaluated result
-                                result_str = result_str.replace(full_match, str(eval_result))
-                            except Exception as e:
-                                _logger.warning(
-                                    f"Error evaluating embedded expression '{expr}': {e}"
-                                )
-                                # Keep the original expression on error
-                        
-                        # Update the value with all expressions evaluated
-                        default_values_dict[key] = result_str
+                        else:
+                            # Handle the case with multiple embedded expressions
+                            result_str = self._evaluate_embedded_expressions(value, eval_context)
+                            default_values_dict[key] = result_str
 
             # Return the processed values as JSON
             return json.dumps(default_values_dict)
 
-        except json.JSONDecodeError as e:
-            _logger.error(f"Invalid JSON in default_values: {e}")
-            return "{}"
         except Exception as e:
             _logger.error(f"Error processing default_values: {e}")
             return "{}"
@@ -344,3 +305,57 @@ class LLMAssistant(models.Model):
             }
 
         return result
+
+    def _evaluate_single_expression(self, value, eval_context):
+        """Evaluate a single expression in the format ${expression}
+        
+        Args:
+            value (str): String containing a single expression
+            eval_context (dict): Context for safe_eval
+            
+        Returns:
+            Any: Evaluated result or None if evaluation failed
+        """
+        # Extract the expression from ${...}
+        expr = value[2:-1].strip()
+        try:
+            # Evaluate the expression using safe_eval
+            result = safe_eval(expr, eval_context)
+            return result
+        except Exception as e:
+            _logger.warning(f"Error evaluating expression '{expr}': {e}")
+            # Return None to indicate evaluation error
+            return None
+
+    def _evaluate_embedded_expressions(self, value, eval_context):
+        """Evaluate multiple embedded expressions in a string
+        
+        Args:
+            value (str): String containing one or more ${expression} patterns
+            eval_context (dict): Context for safe_eval
+            
+        Returns:
+            str: String with all expressions evaluated
+        """
+        # Find all ${...} patterns
+        pattern = r"\${([^}]*)}"
+        matches = re.finditer(pattern, value)
+        
+        # Start with the original string
+        result_str = value
+        
+        # Process each match
+        for match in matches:
+            full_match = match.group(0)  # The entire ${...} expression
+            expr = match.group(1).strip()  # Just the expression inside
+            
+            try:
+                # Evaluate the expression using safe_eval
+                eval_result = safe_eval(expr, eval_context)
+                # Replace the expression with its evaluated result
+                result_str = result_str.replace(full_match, str(eval_result))
+            except Exception as e:
+                _logger.warning(f"Error evaluating embedded expression '{expr}': {e}")
+                # Keep the original expression on error
+        
+        return result_str
