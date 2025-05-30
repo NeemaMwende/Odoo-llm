@@ -136,12 +136,7 @@
                             <group>
                                 <field
                   name="example_args"
-                  widget="ace"
-                  options="{'mode': 'text'}"
-                  placeholder="{
-  'system_prompt': 'You are a helpful data analysis assistant.',
-  'user_input': 'Please analyze this dataset...'
-}"
+                  widget="json_editor"
                 />
                             </group>
                             <div class="alert alert-info" role="alert">
