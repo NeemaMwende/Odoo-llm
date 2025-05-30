@@ -172,7 +172,7 @@ class LLMPromptTemplate(models.Model):
                 # Convert to string with proper JSON handling for booleans
                 if isinstance(final_value, bool):
                     return "true" if final_value else "false"
-                return str(final_value)
+                return final_value
 
             except Exception as e:
                 _logger.error(
