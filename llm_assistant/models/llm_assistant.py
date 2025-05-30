@@ -102,7 +102,7 @@ class LLMAssistant(models.Model):
     def _compute_system_prompt_preview(self):
         """Compute preview of the formatted system prompt"""
         for assistant in self:
-            assistant.system_prompt_preview = assistant.get_formatted_system_prompt()
+            assistant.system_prompt_preview = assistant.get_messages()
 
     @api.depends("thread_ids")
     def _compute_thread_count(self):
@@ -249,6 +249,8 @@ class LLMAssistant(models.Model):
                 eval_context = {
                     "env": self.env,
                     "user": self.env.user,
+                    "thread": None,
+                    "related_record": None,
                 }
 
                 # Add thread-related context if available
