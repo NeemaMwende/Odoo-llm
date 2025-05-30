@@ -45,7 +45,7 @@ registerPatch({
 
       try {
         const eventSource = new EventSource(
-          `/llm/thread/generate?thread_id=${thread.id}&message=${messageBody}`
+          `/llm/thread/generate?thread_id=${thread.id}&message=${encodeURIComponent(messageBody)}`
         );
         this.update({ eventSource });
 
