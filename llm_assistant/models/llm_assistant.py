@@ -187,6 +187,43 @@ class LLMAssistant(models.Model):
         return self.prompt_id.get_formatted_system_prompt(
             self.get_evaluated_default_values() or "{}"
         )
+        
+    def get_messages(self, thread=None):
+        """Get a list of messages from the prompt template
+        
+        This method is the message-based equivalent of get_formatted_system_prompt.
+        It uses the prompt's get_messages method to get a list of messages instead
+        of a single system prompt string.
+        
+        Args:
+            thread (llm.thread): Optional thread that is requesting the messages
+                               If provided, it will be added to the context
+                               
+        Returns:
+            list: List of message dictionaries in the format:
+                [{"role": "system", "content": "..."},
+                 {"role": "user", "content": "..."},
+                 ...]
+        """
+        self.ensure_one()
+        
+        if not self.prompt_id:
+            return []
+            
+        # Get the evaluated default values
+        default_values = self.get_evaluated_default_values(thread) or "{}"
+        
+        # If we have a thread, add it to the context
+        if thread:
+            # Create a context with the thread_id
+            context = dict(self.env.context, thread_id=thread.id)
+            # Use the prompt with the new context to get messages
+            return self.with_context(context).prompt_id.get_messages(
+                json.loads(default_values)
+            )
+            
+        # No thread, just get messages with default values
+        return self.prompt_id.get_messages(json.loads(default_values))
 
     def get_evaluated_default_values(self, thread=None):
         """Evaluate default values, processing any Python expressions if has_dynamic_defaults is enabled
