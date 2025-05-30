@@ -106,5 +106,5 @@ class LLMProvider(models.Model):
                                 ]
                             }
                         )
-        _logger.info("messages %s", params["messages"])
+
         return params
