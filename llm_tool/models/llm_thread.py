@@ -106,5 +106,6 @@ class LLMProvider(models.Model):
                                 ]
                             }
                         )
-
+        # log first 5 messages
+        _logger.info("messages %s", params["messages"][:5])
         return params

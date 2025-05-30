@@ -94,26 +94,8 @@ class LLMThread(models.Model):
             assistant_messages = self.assistant_id.get_messages(thread=self)
             
             if assistant_messages:
-                # If we have messages from the assistant, merge them with existing messages
-                if messages:
-                    # Check for system messages to avoid duplicates
-                    system_messages_in_assistant = [msg for msg in assistant_messages if msg.get("role") == "system"]
-                    system_messages_in_existing = [msg for msg in messages if msg.get("role") == "system"]
-                    
-                    if system_messages_in_assistant and system_messages_in_existing:
-                        # Both have system messages, merge them
-                        for asst_msg in system_messages_in_assistant:
-                            for exist_msg in system_messages_in_existing:
-                                exist_msg["content"] = f"{asst_msg['content']}\n\n{exist_msg['content']}"
-                            # Remove the assistant system message as we've merged it
-                            assistant_messages.remove(asst_msg)
-                    
-                    # Now add any remaining assistant messages at the beginning
-                    messages = assistant_messages + messages
-                else:
-                    # No existing messages, use the assistant messages directly
-                    messages = assistant_messages
-                
+                # Use the helper method from llm_prompt to merge the messages
+                messages = self.merge_message_lists(assistant_messages, messages)
                 _logger.info("Added %d messages from assistant", len(assistant_messages))
             else:
                 # Fallback to the old method if get_messages returns empty
