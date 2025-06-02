@@ -114,7 +114,8 @@ class MailMessage(models.Model):
             if chunk.get("error"):
                 yield {"type": "error", "error": chunk["error"]}
                 return
-
+        if not msg:
+            return
         # final write & update
         msg.write(
             {
