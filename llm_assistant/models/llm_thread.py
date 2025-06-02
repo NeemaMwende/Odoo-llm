@@ -77,7 +77,7 @@ class LLMThread(models.Model):
     def _get_prepend_messages(self):
         """Hook: return a list of formatted messages to prepend to the conversation.
         Override in other modules if needed.
-        
+
         Returns:
             list: List of message dictionaries in the format:
                 [{"role": "system", "content": "..."},
@@ -87,24 +87,31 @@ class LLMThread(models.Model):
         self.ensure_one()
         # Get base messages from parent class
         messages = super()._get_prepend_messages()
-        
+
         # Get messages from assistant if available
         if self.assistant_id:
             # Use the new get_messages method which returns a list of messages
             assistant_messages = self.assistant_id.get_messages(thread=self)
-            
+
             if assistant_messages:
                 # Use the helper method from llm_prompt to merge the messages
                 messages = self.merge_message_lists(assistant_messages, messages)
-                _logger.info("Added %d messages from assistant", len(assistant_messages))
+                _logger.info(
+                    "Added %d messages from assistant", len(assistant_messages)
+                )
             else:
                 # Fallback to the old method if get_messages returns empty
                 # This ensures backward compatibility
-                assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(thread=self)
+                assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(
+                    thread=self
+                )
                 if assistant_system_prompt:
                     # Create a system message with the assistant's prompt
-                    assistant_message = {"role": "system", "content": assistant_system_prompt}
-                    
+                    assistant_message = {
+                        "role": "system",
+                        "content": assistant_system_prompt,
+                    }
+
                     # Add it to existing messages or create a new list
                     if messages:
                         # Check if there's already a system message
@@ -112,19 +119,24 @@ class LLMThread(models.Model):
                         for msg in messages:
                             if msg.get("role") == "system":
                                 # Append to existing system message
-                                msg["content"] = f"{assistant_system_prompt}\n\n{msg['content']}"
+                                msg["content"] = (
+                                    f"{assistant_system_prompt}\n\n{msg['content']}"
+                                )
                                 has_system_message = True
                                 break
-                        
+
                         # If no system message found, add the new one at the beginning
                         if not has_system_message:
                             messages.insert(0, assistant_message)
                     else:
                         # No existing messages, create a new list with just the system message
                         messages = [assistant_message]
-                    
-                    _logger.info("Added system message from assistant: %s", assistant_system_prompt)
-                
+
+                    _logger.info(
+                        "Added system message from assistant: %s",
+                        assistant_system_prompt,
+                    )
+
         return messages
 
     @api.model

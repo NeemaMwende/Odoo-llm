@@ -149,28 +149,27 @@ class LLMProvider(models.Model):
         if not model_name:
             raise ValueError("Model name is required")
 
-        # TODO: Might need to use prediction_create method, to have streaming and more details about prediction
+        # Run the model
         result = self.client.run(model_name, input=inputs)
+        if not stream:
+            for _ in result:
+                # consume the generator/iterator so it doesn't block
+                pass
 
-        # Extract URLs from FileOutput objects
-        urls = []
-        if isinstance(result, list):
-            for item in result:
-                if hasattr(item, "url"):
-                    urls.append(item.url)
-                else:
-                    urls.append(str(item))
-        else:
-            if hasattr(result, "url"):
-                urls.append(result.url)
-            else:
-                urls.append(str(result))
+        # Extract URLs from the result
+        urls = self._replicate_extract_urls_from_result(result)
 
-        # TODO: Need to properly check how to detect if some model has streaming/or not
         if stream:
-            yield {"content": urls}
+            return self._replicate_stream_media_result(urls)
         else:
             return urls
+
+    def _replicate_stream_media_result(self, urls):
+        """Stream media generation results
+
+        This is a separate generator function to avoid making the main method a generator.
+        """
+        yield {"content": urls}
 
     def replicate_format_generation_response(self, raw_response, output_schema):
         """Format the raw generation response according to the output processing config
@@ -216,3 +215,40 @@ class LLMProvider(models.Model):
 
         _logger.info(f"Replicate: Extracted strings: {extracted_strings}")
         return extracted_strings
+
+    def _replicate_extract_urls_from_result(self, result):
+        """Extract URLs from Replicate result, handling FileOutput objects and other formats"""
+        urls = []
+
+        if result is None:
+            return urls
+
+        # Handle list of results
+        if isinstance(result, (list, tuple)):
+            for item in result:
+                url = self._replicate_extract_single_url(item)
+                if url:
+                    urls.append(url)
+        else:
+            # Handle single result
+            url = self._replicate_extract_single_url(result)
+            if url:
+                urls.append(url)
+
+        return urls
+
+    def _replicate_extract_single_url(self, item):
+        """Extract URL from a single result item"""
+        if item is None:
+            return None
+
+        # FileOutput object from Replicate v1.0.0+
+        if hasattr(item, "url"):
+            return item.url
+
+        # Direct string URL (older versions or direct URLs)
+        if isinstance(item, str):
+            return item
+
+        # Convert other types to string as fallback
+        return str(item)

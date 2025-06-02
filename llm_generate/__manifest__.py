@@ -1,6 +1,6 @@
 {
     "name": "LLM Media Generation",
-    "version": "1.0",
+    "version": "16.0.1.0.2",
     "category": "Productivity/Discuss",
     "summary": "Media generation capabilities for LLM models",
     "description": """
@@ -17,6 +17,7 @@
         "llm_assistant",
     ],
     "data": [
+        "data/llm_tool_data.xml",
         "views/llm_model_views.xml",
     ],
     "assets": {

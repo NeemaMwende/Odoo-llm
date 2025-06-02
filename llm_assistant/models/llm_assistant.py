@@ -187,18 +187,18 @@ class LLMAssistant(models.Model):
         return self.prompt_id.get_formatted_system_prompt(
             self.get_evaluated_default_values() or "{}"
         )
-        
+
     def get_messages(self, thread=None):
         """Get a list of messages from the prompt template
-        
+
         This method is the message-based equivalent of get_formatted_system_prompt.
         It uses the prompt's get_messages method to get a list of messages instead
         of a single system prompt string.
-        
+
         Args:
             thread (llm.thread): Optional thread that is requesting the messages
                                If provided, it will be added to the context
-                               
+
         Returns:
             list: List of message dictionaries in the format:
                 [{"role": "system", "content": "..."},
@@ -206,13 +206,13 @@ class LLMAssistant(models.Model):
                  ...]
         """
         self.ensure_one()
-        
+
         if not self.prompt_id:
             return []
-            
+
         # Get the evaluated default values
         default_values = self.get_evaluated_default_values(thread) or "{}"
-        
+
         # If we have a thread, add it to the context
         if thread:
             # Create a context with the thread_id
@@ -221,7 +221,7 @@ class LLMAssistant(models.Model):
             return self.with_context(context).prompt_id.get_messages(
                 json.loads(default_values)
             )
-            
+
         # No thread, just get messages with default values
         return self.prompt_id.get_messages(json.loads(default_values))
 
@@ -267,17 +267,25 @@ class LLMAssistant(models.Model):
                 for key, value in default_values_dict.items():
                     if not isinstance(value, str):
                         continue
-                        
+
                     # Check if the value contains any ${...} expressions
                     if "${" in value and "}" in value:
                         # Handle the simple case where the entire string is a single expression
-                        if value.startswith("${") and value.endswith("}") and value.count("${")==1:
-                            result = self._evaluate_single_expression(value, eval_context)
+                        if (
+                            value.startswith("${")
+                            and value.endswith("}")
+                            and value.count("${") == 1
+                        ):
+                            result = self._evaluate_single_expression(
+                                value, eval_context
+                            )
                             if result is not None:  # None indicates evaluation error
                                 default_values_dict[key] = result
                         else:
                             # Handle the case with multiple embedded expressions
-                            result_str = self._evaluate_embedded_expressions(value, eval_context)
+                            result_str = self._evaluate_embedded_expressions(
+                                value, eval_context
+                            )
                             default_values_dict[key] = result_str
 
             # Return the processed values as JSON
@@ -347,11 +355,11 @@ class LLMAssistant(models.Model):
 
     def _evaluate_single_expression(self, value, eval_context):
         """Evaluate a single expression in the format ${expression}
-        
+
         Args:
             value (str): String containing a single expression
             eval_context (dict): Context for safe_eval
-            
+
         Returns:
             Any: Evaluated result or None if evaluation failed
         """
@@ -368,26 +376,26 @@ class LLMAssistant(models.Model):
 
     def _evaluate_embedded_expressions(self, value, eval_context):
         """Evaluate multiple embedded expressions in a string
-        
+
         Args:
             value (str): String containing one or more ${expression} patterns
             eval_context (dict): Context for safe_eval
-            
+
         Returns:
             str: String with all expressions evaluated
         """
         # Find all ${...} patterns
         pattern = r"\${([^}]*)}"
         matches = re.finditer(pattern, value)
-        
+
         # Start with the original string
         result_str = value
-        
+
         # Process each match
         for match in matches:
             full_match = match.group(0)  # The entire ${...} expression
             expr = match.group(1).strip()  # Just the expression inside
-            
+
             try:
                 # Evaluate the expression using safe_eval
                 eval_result = safe_eval(expr, eval_context)
@@ -396,5 +404,5 @@ class LLMAssistant(models.Model):
             except Exception as e:
                 _logger.warning(f"Error evaluating embedded expression '{expr}': {e}")
                 # Keep the original expression on error
-        
+
         return result_str

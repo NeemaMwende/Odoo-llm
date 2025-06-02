@@ -19,7 +19,16 @@ Use cases include creating specialized assistants for customer support, data ana
     """,
     "category": "Productivity, Discuss",
     "version": "16.0.1.0.1",
-    "depends": ["base", "mail", "web", "llm", "llm_thread", "llm_tool", "llm_prompt", "web_json_editor"],
+    "depends": [
+        "base",
+        "mail",
+        "web",
+        "llm",
+        "llm_thread",
+        "llm_tool",
+        "llm_prompt",
+        "web_json_editor",
+    ],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "data": [
