@@ -155,18 +155,18 @@ class LLMProvider(models.Model):
             for _ in result:
                 # consume the generator/iterator so it doesn't block
                 pass
-        
+
         # Extract URLs from the result
         urls = self._replicate_extract_urls_from_result(result)
-        
+
         if stream:
             return self._replicate_stream_media_result(urls)
         else:
             return urls
-            
+
     def _replicate_stream_media_result(self, urls):
         """Stream media generation results
-        
+
         This is a separate generator function to avoid making the main method a generator.
         """
         yield {"content": urls}
@@ -216,14 +216,13 @@ class LLMProvider(models.Model):
         _logger.info(f"Replicate: Extracted strings: {extracted_strings}")
         return extracted_strings
 
-
     def _replicate_extract_urls_from_result(self, result):
         """Extract URLs from Replicate result, handling FileOutput objects and other formats"""
         urls = []
-        
+
         if result is None:
             return urls
-        
+
         # Handle list of results
         if isinstance(result, (list, tuple)):
             for item in result:
@@ -235,21 +234,21 @@ class LLMProvider(models.Model):
             url = self._replicate_extract_single_url(result)
             if url:
                 urls.append(url)
-        
+
         return urls
 
     def _replicate_extract_single_url(self, item):
         """Extract URL from a single result item"""
         if item is None:
             return None
-        
+
         # FileOutput object from Replicate v1.0.0+
         if hasattr(item, "url"):
             return item.url
-        
+
         # Direct string URL (older versions or direct URLs)
         if isinstance(item, str):
             return item
-        
+
         # Convert other types to string as fallback
         return str(item)

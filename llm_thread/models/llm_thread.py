@@ -222,11 +222,11 @@ class LLMThread(models.Model):
                 tool_call_def=tool_def,
             )
         return last_tool_msg
-        
+
     def _get_prepend_messages(self):
         """Hook: return a list of formatted messages to prepend to the conversation.
         Override in other modules if needed.
-        
+
         Returns:
             list: List of message dictionaries in the format:
                 [{"role": "system", "content": "..."},

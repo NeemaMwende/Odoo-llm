@@ -7,6 +7,7 @@ from odoo import _, api, fields, models
 
 _logger = logging.getLogger(__name__)
 
+
 class LLMPromptTemplate(models.Model):
     _name = "llm.prompt.template"
     _description = "LLM Prompt Template"
@@ -121,34 +122,38 @@ class LLMPromptTemplate(models.Model):
 
         # Always register the function, even if related_record is None
         env.globals["get_related_record"] = get_related_record_wrapper
-        
+
         # Create and render the template
         template = env.from_string(content)
         return template.render(**processed_args)
-    
+
     def get_related_record(self, field_name, key_name=None, related_record=None):
         """
         Access fields or dictionary keys from a related record.
-        
+
         Args:
             field_name (str): The field name to access
             key_name (str, optional): If the field is a dictionary, the key to access
             related_record (Model, optional): The record to access.
-        
+
         Returns:
             str: The value of the field/key or an empty string if not available
         """
         # If we still don't have a related record, return empty string
         if not related_record:
-            _logger.info(f"No related record available, returning empty value for {field_name}")
+            _logger.info(
+                f"No related record available, returning empty value for {field_name}"
+            )
             return ""
-        
+
         # Access the field
         if hasattr(related_record, field_name):
             try:
                 attr_value = getattr(related_record, field_name)
 
-                if key_name is not None:  # We want to access an item from this attribute
+                if (
+                    key_name is not None
+                ):  # We want to access an item from this attribute
                     if isinstance(attr_value, dict):
                         if key_name in attr_value:
                             final_value = attr_value[key_name]

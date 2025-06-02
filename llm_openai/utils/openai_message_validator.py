@@ -238,20 +238,20 @@ class OpenAIMessageValidator:
         # Mark messages for removal
         for index in indices_to_remove:
             self.messages[index] = None
-    
+
     def _is_valid_message(self, msg):
         """
         Check if a message is valid (has required fields and content).
-        
+
         Args:
             msg (dict): Message to validate
-            
+
         Returns:
             bool: True if message is valid, False otherwise
         """
         if not msg:
             return False
-            
+
         # Check if message has a role
         if "role" not in msg:
             self.logger.warning("Message missing 'role' field")
@@ -260,18 +260,22 @@ class OpenAIMessageValidator:
         # Special case for tool messages which might have empty content but valid tool_call_id
         if msg["role"] == "tool" and msg.get("tool_call_id"):
             return True
-            
+
         # Check if message has content (can be string or dict)
         if "content" not in msg:
-            self.logger.warning(f"Message with role '{msg['role']}' missing 'content' field")
+            self.logger.warning(
+                f"Message with role '{msg['role']}' missing 'content' field"
+            )
             return False
-            
 
-            
         # Check if content is empty
         content = msg["content"]
-        if content is None or (isinstance(content, str) and not content) or (isinstance(content, list) and not content):
+        if (
+            content is None
+            or (isinstance(content, str) and not content)
+            or (isinstance(content, list) and not content)
+        ):
             self.logger.warning(f"Message with role '{msg['role']}' has empty content")
             return False
-            
+
         return True
