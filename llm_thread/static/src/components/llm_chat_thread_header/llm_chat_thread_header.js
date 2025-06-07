@@ -16,12 +16,11 @@ export class LLMChatThreadHeader extends Component {
       refName: "threadNameInput",
     });
 
-    // State for model search dropdown and related record
+    // State for model search dropdown
     this.state = useState({
       modelSearchQuery: "",
       shouldShowDropdown: false,
       shouldFocusSearch: false,
-      relatedRecordDisplayName: "",
     });
 
     // Refs for dropdown elements
@@ -37,8 +36,6 @@ export class LLMChatThreadHeader extends Component {
     this.onSelectProvider = this.onSelectProvider.bind(this);
     this._preventDropdownClose = this._preventDropdownClose.bind(this);
     this.onModelSearchInput = this.onModelSearchInput.bind(this);
-    this.onClickRelatedRecord = this.onClickRelatedRecord.bind(this);
-    this.onClickChooseRecord = this.onClickChooseRecord.bind(this);
 
     onMounted(() => {
       if (this.modelDropdownRef.el) {
@@ -51,9 +48,6 @@ export class LLMChatThreadHeader extends Component {
             this._onModelDropdownHidden
         );
       }
-
-      // Load related record display name if exists
-      this._loadRelatedRecordDisplayName();
     });
 
     onWillUnmount(() => {
@@ -144,109 +138,8 @@ export class LLMChatThreadHeader extends Component {
     return this.messaging.device.isSmall;
   }
 
-  get relatedRecordDisplayName() {
-    return this.state.relatedRecordDisplayName;
-  }
-
   // --------------------------------------------------------------------------
-  // Related Record Methods
-  // --------------------------------------------------------------------------
-
-  /**
-   * Load the display name of the related record
-   * @private
-   */
-  async _loadRelatedRecordDisplayName() {
-    if (!this.thread.relatedThread) {
-      return;
-    }
-
-    try {
-      const result = await this.messaging.rpc({
-        model: this.thread.relatedThreadModel,
-        method: "name_get",
-        args: [[this.thread.relatedThreadId]],
-      });
-
-      if (result && result.length > 0) {
-        this.state.relatedRecordDisplayName = result[0][1];
-      }
-    } catch (error) {
-      console.error("Error loading related record display name:", error);
-      // Fallback to model + ID format
-      this.state.relatedRecordDisplayName = "";
-    }
-  }
-
-  /**
-   * Get the appropriate icon for the related record based on model
-   * @returns {string} Font Awesome icon class
-   */
-  getRelatedRecordIcon() {
-    if (!this.thread.relatedThreadModel) {
-      return "fa-file-o";
-    }
-
-    // Common model icons mapping
-    const iconMap = {
-      "res.partner": "fa-user",
-      "res.users": "fa-user",
-      "sale.order": "fa-shopping-cart",
-      "purchase.order": "fa-shopping-bag",
-      "account.move": "fa-file-text-o",
-      "project.project": "fa-folder-open",
-      "project.task": "fa-check-square-o",
-      "helpdesk.ticket": "fa-ticket",
-      "crm.lead": "fa-bullseye",
-      "hr.employee": "fa-user-circle",
-      "product.product": "fa-cube",
-      "product.template": "fa-cubes",
-      "stock.picking": "fa-truck",
-      "mrp.production": "fa-cogs",
-      "maintenance.request": "fa-wrench",
-    };
-
-    return iconMap[this.thread.relatedThreadModel] || "fa-file-o";
-  }
-
-  /**
-   * Handle click on related record button
-   */
-  async onClickRelatedRecord() {
-    if (!this.thread.relatedThread) {
-      return;
-    }
-
-    try {
-      await this.env.services.action.doAction({
-        type: "ir.actions.act_window",
-        res_model: this.thread.relatedThreadModel,
-        res_id: this.thread.relatedThreadId,
-        views: [[false, "form"]],
-        target: "current",
-      });
-    } catch (error) {
-      console.error("Error opening related record:", error);
-      this.messaging.notify({
-        message: this.env._t("Failed to open related record"),
-        type: "danger",
-      });
-    }
-  }
-
-  /**
-   * Handle click on choose record button (for future implementation)
-   */
-  async onClickChooseRecord() {
-    // TODO: Implement record chooser dialog
-    this.messaging.notify({
-      message: this.env._t("Record chooser will be implemented later"),
-      type: "info",
-    });
-  }
-
-  // --------------------------------------------------------------------------
-  // Existing Handlers
+  // Event Handlers
   // --------------------------------------------------------------------------
 
   /**
