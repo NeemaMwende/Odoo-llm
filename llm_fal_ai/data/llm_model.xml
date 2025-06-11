@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="llm_model_fal_ai" model="llm.model">
+        <field name="name">fal-ai/flux/schnell</field>
+        <field name="provider_id" ref="llm_provider_fal_ai" />
+        <field name="publisher_id" ref="llm_publisher_fal_ai" />
+        <field name="model_use">image_generation</field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+        <field name="input_schema">
+            {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "Description of the image to generate",
+                        "title": "Prompt"
+                    },
+                    "negative_prompt": {
+                        "type": "string",
+                        "description": "Elements to avoid in the generated image",
+                        "title": "Negative Prompt",
+                        "default": ""
+                    },
+                    "image_size": {
+                        "type": "string",
+                        "description": "Size of the generated image",
+                        "enum": ["square", "portrait", "landscape", "landscape_16_9", "landscape_4_3"],
+                        "default": "square",
+                        "title": "Image Size"
+                    },
+                    "num_images": {
+                        "type": "integer",
+                        "description": "Number of images to generate",
+                        "minimum": 1,
+                        "maximum": 4,
+                        "default": 1,
+                        "title": "Image Quantity"
+                    },
+                    "seed": {
+                        "type": "integer",
+                        "description": "Seed for reproducibility",
+                        "default": 42,
+                        "title": "Seed"
+                    }
+                },
+                "required": ["prompt"]
+            }
+        </field>
+        <field name="output_schema">
+            {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "title": "Output"
+            }
+        </field>
+    </record>
+    <record id="llm_model_fal_ai_dev" model="llm.model">
+        <field name="name">fal-ai/flux/dev</field>
+        <field name="provider_id" ref="llm_provider_fal_ai" />
+        <field name="publisher_id" ref="llm_publisher_fal_ai" />
+        <field name="model_use">image_generation</field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+        <field name="input_schema">
+            {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "Description of the image to generate",
+                        "title": "Prompt"
+                    },
+                    "negative_prompt": {
+                        "type": "string",
+                        "description": "Elements to avoid in the generated image",
+                        "title": "Negative Prompt",
+                        "default": ""
+                    },
+                    "image_size": {
+                        "type": "string",
+                        "description": "Size of the generated image",
+                        "enum": ["square", "portrait", "landscape", "landscape_16_9", "landscape_4_3"],
+                        "default": "square",
+                        "title": "Image Size"
+                    },
+                    "num_images": {
+                        "type": "integer",
+                        "description": "Number of images to generate",
+                        "minimum": 1,
+                        "maximum": 4,
+                        "default": 1,
+                        "title": "Image Quantity"
+                    },
+                    "seed": {
+                        "type": "integer",
+                        "description": "Seed for reproducibility",
+                        "default": 42,
+                        "title": "Seed"
+                    }
+                },
+                "required": ["prompt"]
+            }
+        </field>
+        <field name="output_schema">
+            {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "title": "Output"
+            }
+        </field>
+    </record>
+</odoo>
