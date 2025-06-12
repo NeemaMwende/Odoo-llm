@@ -239,7 +239,7 @@ class LLMPrompt(models.Model):
         arguments = arguments or {}
 
         # Fill default values for missing arguments
-        arguments = self._fill_default_values(arguments)
+        arguments = self.sudo()._fill_default_values(arguments)
 
         # Validate arguments against schema
         self._validate_arguments(arguments)
@@ -247,7 +247,7 @@ class LLMPrompt(models.Model):
         messages = []
 
         # Add template messages
-        for template in self.template_ids.sorted(key=lambda t: t.sequence):
+        for template in self.sudo().template_ids.sorted(key=lambda t: t.sequence):
             template_message = template.get_template_message(arguments)
             if template_message:
                 messages.append(template_message)

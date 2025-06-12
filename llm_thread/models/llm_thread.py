@@ -106,8 +106,8 @@ class LLMThread(models.Model):
         author_id = kwargs.get("author_id")
         body = kwargs.get("body", "")
         email_from = self.get_email_from(
-            self.provider_id.name,
-            self.model_id.name,
+            self.sudo().provider_id.name,
+            self.sudo().model_id.name,
             subtype_xmlid,
             author_id,
             kwargs.get("tool_name"),
@@ -260,7 +260,7 @@ class LLMThread(models.Model):
             "stream": True,
             "prepend_messages": self._get_prepend_messages(),
         }
-        stream_response = self.model_id.chat(**chat_kwargs)
+        stream_response = self.sudo().model_id.chat(**chat_kwargs)
         assistant_msg = yield from self.env["mail.message"].create_message_from_stream(
             self,
             stream_response,

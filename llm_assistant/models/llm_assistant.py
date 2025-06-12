@@ -279,7 +279,7 @@ class LLMAssistant(models.Model):
             # Create a context with the thread_id
             context = dict(self.env.context, thread_id=thread.id)
             # Use the prompt with the new context to get messages
-            return self.with_context(context).prompt_id.get_messages(
+            return self.with_context(context).sudo().prompt_id.get_messages(
                 json.loads(default_values)
             )
 
