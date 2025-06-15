@@ -130,25 +130,59 @@ class LLMAssistant(models.Model):
         tracking=True,
     )
 
-    # Template management fields
-    template_ids = fields.One2many(
-        "llm.prompt.template",
-        string="Templates",
-        related="prompt_id.template_ids",
-        help="Templates from the associated prompt",
+    # Template fields - computed from prompt
+    template = fields.Text(
+        string="Template",
+        related="prompt_id.template",
+        readonly=True,
+        help="Template content from the associated prompt",
     )
 
-    template_count = fields.Integer(
-        string="Template Count",
-        related="prompt_id.template_count",
-        help="Number of templates in the prompt",
+    template_format = fields.Selection(
+        string="Template Format",
+        related="prompt_id.format",
+        readonly=True,
+        help="Format of the template (text, yaml, json)",
     )
 
     @api.depends("prompt_id", "default_values")
     def _compute_system_prompt_preview(self):
         """Compute preview of the formatted system prompt"""
         for assistant in self:
-            assistant.system_prompt_preview = assistant.get_messages()
+            try:
+                if assistant.prompt_id:
+                    messages = assistant.get_messages()
+                    if messages:
+                        # Find system message or use first message
+                        system_msg = next(
+                            (msg for msg in messages if msg.get("role") == "system"),
+                            messages[0] if messages else None,
+                        )
+                        if system_msg and system_msg.get("content"):
+                            content = system_msg["content"]
+                            if isinstance(content, list) and content:
+                                assistant.system_prompt_preview = content[0].get(
+                                    "text", ""
+                                )
+                            elif isinstance(content, str):
+                                assistant.system_prompt_preview = content
+                            else:
+                                assistant.system_prompt_preview = str(content)
+                        else:
+                            assistant.system_prompt_preview = (
+                                "No system prompt generated"
+                            )
+                    else:
+                        assistant.system_prompt_preview = "No messages generated"
+                else:
+                    assistant.system_prompt_preview = "No prompt template selected"
+            except Exception as e:
+                _logger.error(
+                    "Error computing system prompt preview for assistant %s: %s",
+                    assistant.name,
+                    str(e),
+                )
+                assistant.system_prompt_preview = f"Error: {str(e)}"
 
     @api.depends("thread_ids")
     def _compute_thread_count(self):
@@ -171,12 +205,12 @@ class LLMAssistant(models.Model):
             return False
 
         return {
-            'name': 'Prompt Template',
-            'type': 'ir.actions.act_window',
-            'res_model': 'llm.prompt',
-            'view_mode': 'form',
-            'res_id': self.prompt_id.id,
-            'target': 'current',
+            "name": "Prompt Template",
+            "type": "ir.actions.act_window",
+            "res_model": "llm.prompt",
+            "view_mode": "form",
+            "res_id": self.prompt_id.id,
+            "target": "current",
         }
 
     def action_view_threads(self):
@@ -279,8 +313,10 @@ class LLMAssistant(models.Model):
             # Create a context with the thread_id
             context = dict(self.env.context, thread_id=thread.id)
             # Use the prompt with the new context to get messages
-            return self.with_context(context).sudo().prompt_id.get_messages(
-                json.loads(default_values)
+            return (
+                self.with_context(context)
+                .sudo()
+                .prompt_id.get_messages(json.loads(default_values))
             )
 
         # No thread, just get messages with default values
@@ -333,9 +369,9 @@ class LLMAssistant(models.Model):
                     if "${" in value and "}" in value:
                         # Handle the simple case where the entire string is a single expression
                         if (
-                                value.startswith("${")
-                                and value.endswith("}")
-                                and value.count("${") == 1
+                            value.startswith("${")
+                            and value.endswith("}")
+                            and value.count("${") == 1
                         ):
                             result = self._evaluate_single_expression(
                                 value, eval_context
@@ -479,7 +515,11 @@ class LLMAssistant(models.Model):
 
         # Assistants allowed for user's groups
         if user.groups_id:
-            domain = ["|", ("is_public", "=", True), ("allowed_group_ids", "in", user.groups_id.ids)]
+            domain = [
+                "|",
+                ("is_public", "=", True),
+                ("allowed_group_ids", "in", user.groups_id.ids),
+            ]
         else:
             # If user has no groups, only public assistants
             domain = [("is_public", "=", True)]

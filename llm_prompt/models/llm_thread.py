@@ -52,14 +52,37 @@ class LLMThreadPrompt(models.Model):
             # Both have system messages, merge them
             for source_msg in system_messages_in_source:
                 for target_msg in system_messages_in_target:
-                    target_msg["content"] = (
-                        f"{source_msg['content']}\n\n{target_msg['content']}"
-                    )
+                    # Handle different content formats
+                    source_content = self._extract_message_content(source_msg)
+                    target_content = self._extract_message_content(target_msg)
+
+                    # Merge the content
+                    merged_content = f"{source_content}\n\n{target_content}"
+
+                    # Update target message with merged content
+                    if isinstance(target_msg.get("content"), list):
+                        target_msg["content"][0]["text"] = merged_content
+                    else:
+                        target_msg["content"] = merged_content
+
                 # Remove the source system message as we've merged it
                 source_messages_copy.remove(source_msg)
 
         # Now add any remaining source messages at the beginning
         return source_messages_copy + target_messages
+
+    def _extract_message_content(self, message):
+        """Extract text content from a message regardless of format"""
+        content = message.get("content", "")
+
+        if isinstance(content, list) and len(content) > 0:
+            # Handle new format with content array
+            return content[0].get("text", "")
+        elif isinstance(content, str):
+            # Handle old format with direct content string
+            return content
+        else:
+            return ""
 
     # override to include prompt messages
     def _get_prepend_messages(self):
@@ -68,8 +91,8 @@ class LLMThreadPrompt(models.Model):
 
         Returns:
             list: List of message dictionaries in the format:
-                [{"role": "system", "content": "..."},
-                 {"role": "user", "content": "..."},
+                [{"role": "system", "content": [{"type": "text", "text": "..."}]},
+                 {"role": "user", "content": [{"type": "text", "text": "..."}]},
                  ...]
         """
         self.ensure_one()

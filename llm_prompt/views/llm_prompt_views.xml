@@ -45,9 +45,9 @@
                 widget="many2many_tags"
                 options="{'color_field': 'color'}"
               />
+                            <field name="format" />
                         </group>
                         <group>
-                            <field name="template_count" readonly="1" />
                             <field name="argument_count" readonly="1" />
                             <field name="usage_count" readonly="1" />
                             <field name="last_used" readonly="1" />
@@ -60,52 +60,90 @@
                 placeholder="Describe the purpose and usage of this prompt..."
               />
                         </page>
-                        <page string="Templates" name="templates">
-                            <field
-                name="template_ids"
-                context="{'default_prompt_id': active_id}"
-              >
-                                <tree editable="bottom">
-                                    <field name="sequence" widget="handle" />
-                                    <field name="role" />
-                                    <field name="content" />
-                                    <field name="condition" />
-                                </tree>
-                            </field>
-                        </page>
-                        <page string="Arguments" name="arguments">
+                        <page string="Template" name="template">
                             <div
                 class="alert alert-warning"
                 role="alert"
                 attrs="{'invisible': [('undefined_arguments', '=', False)]}"
               >
                                 <strong
-                >Warning:</strong> The following arguments are used in templates but not defined in the schema:
+                >Warning:</strong> The following arguments are used in the template but not defined in the schema:
                                 <field
                   name="undefined_arguments"
                   readonly="1"
                   class="oe_inline"
                 />
                             </div>
+                            <field
+                name="template"
+                widget="ace"
+                options="{'mode': 'text'}"
+                attrs="{'options': [('format', '=', 'text'), {'mode': 'text'}], 'options': [('format', '=', 'yaml'), {'mode': 'yaml'}], 'options': [('format', '=', 'json'), {'mode': 'json'}]}"
+                placeholder="Enter your prompt template here..."
+              />
+                            <div class="alert alert-info" role="alert">
+                                <h5>Template Format Guide:</h5>
+                                <div
+                  attrs="{'invisible': [('format', '!=', 'text')]}"
+                >
+                                    <p><strong
+                    >Text Format:</strong> Simple text with {{argument_name}} placeholders.</p>
+                                    <pre
+                  >Hello {{user_name}}, please analyze the following data: {{data_input}}</pre>
+                                </div>
+                                <div
+                  attrs="{'invisible': [('format', '!=', 'yaml')]}"
+                >
+                                    <p><strong
+                    >YAML Format:</strong> Structured messages in YAML format.</p>
+                                    <pre>messages:
+                                        - type: system
+                                        content: |
+                                        You are a helpful assistant. The user's name is {{user_name}}.
+                                        - type: user
+                                        content: |
+                                        Please analyze: {{data_input}}</pre>
+                                </div>
+                                <div
+                  attrs="{'invisible': [('format', '!=', 'json')]}"
+                >
+                                    <p><strong
+                    >JSON Format:</strong> Structured messages in JSON format.</p>
+                                    <pre>{
+                                        "messages": [
+                                        {
+                                        "type": "system",
+                                        "content": "You are a helpful assistant. The user's name is {{user_name}}."
+                                        },
+                                        {
+                                        "type": "user",
+                                        "content": "Please analyze: {{data_input}}"
+                                        }
+                                        ]
+                                        }</pre>
+                                </div>
+                            </div>
+                        </page>
+                        <page string="Arguments" name="arguments">
                             <group>
                                 <field
                   name="arguments_json"
                   widget="json_editor"
                   placeholder="{
-  'system_prompt': {
+  'user_name': {
     'type': 'string',
-    'description': 'The system instructions for the LLM',
+    'description': 'Name of the user',
     'required': true,
-    'default': 'You are a helpful assistant.'
+    'default': 'User'
   },
-  'user_input': {
+  'data_input': {
     'type': 'string',
-    'description': 'The user input to process',
+    'description': 'The data to analyze',
     'required': true
   }
 }"
                 />
-                <field
+                                <field
                   name="input_schema_json"
                   readonly="1"
                   widget="json_editor"
@@ -179,8 +217,8 @@
             <tree>
                 <field name="name" />
                 <field name="category_id" />
+                <field name="format" />
                 <field name="tag_ids" widget="many2many_tags" />
-                <field name="template_count" />
                 <field name="argument_count" />
                 <field name="usage_count" />
                 <field name="last_used" />
@@ -200,11 +238,32 @@
                 <field name="category_id" />
                 <field name="tag_ids" />
                 <filter
+          string="Text Format"
+          name="format_text"
+          domain="[('format', '=', 'text')]"
+        />
+                <filter
+          string="YAML Format"
+          name="format_yaml"
+          domain="[('format', '=', 'yaml')]"
+        />
+                <filter
+          string="JSON Format"
+          name="format_json"
+          domain="[('format', '=', 'json')]"
+        />
+                <filter
           string="Archived"
           name="inactive"
           domain="[('active', '=', False)]"
         />
                 <group expand="0" string="Group By">
+                    <filter
+            string="Format"
+            name="group_by_format"
+            domain="[]"
+            context="{'group_by': 'format'}"
+          />
                     <filter
             string="Category"
             name="group_by_category"
@@ -221,6 +280,7 @@
             </search>
         </field>
     </record>
+
     <!-- Prompts Menu -->
     <record id="llm_prompt_action" model="ir.actions.act_window">
         <field name="name">Prompts</field>
@@ -231,7 +291,7 @@
                 Create your first prompt template
             </p>
             <p>
-                Prompt templates help you create reusable messages for LLM interactions.
+                Prompt templates help you create reusable messages for LLM interactions with support for text, YAML, and JSON formats.
             </p>
         </field>
     </record>
