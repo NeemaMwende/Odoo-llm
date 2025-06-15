@@ -4,6 +4,7 @@ import re
 
 from odoo import api, fields, models
 from odoo.tools.safe_eval import safe_eval
+from odoo.addons.llm_prompt.utils import render_template
 
 _logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class LLMAssistant(models.Model):
     # Default values for prompt variables as JSON
     default_values = fields.Text(
         string="Default Values",
-        help="JSON object with default values for prompt variables. Can include Python expressions that will be evaluated using safe_eval.",
+        help="JSON object with default values for prompt variables. Can include template expressions that will be evaluated.",
         default="{}",
         tracking=True,
     )
@@ -91,15 +92,8 @@ class LLMAssistant(models.Model):
     has_dynamic_defaults = fields.Boolean(
         string="Has Dynamic Defaults",
         default=False,
-        help="Enable if your default values contain Python expressions that should be evaluated",
+        help="Enable if your default values contain template expressions that should be evaluated",
         tracking=True,
-    )
-
-    # Evaluated default values (for API)
-    evaluated_default_values = fields.Text(
-        string="Evaluated Default Values",
-        compute="_compute_evaluated_default_values",
-        help="Default values with any expressions evaluated",
     )
 
     # Tools configuration
@@ -151,7 +145,9 @@ class LLMAssistant(models.Model):
         for assistant in self:
             try:
                 if assistant.prompt_id:
-                    messages = assistant.get_messages()
+                    # Get evaluated default values for preview
+                    default_values = assistant.get_evaluated_default_values({})
+                    messages = assistant.prompt_id.get_messages(default_values)
                     if messages:
                         # Find system message or use first message
                         system_msg = next(
@@ -190,14 +186,6 @@ class LLMAssistant(models.Model):
         for assistant in self:
             assistant.thread_count = len(assistant.thread_ids)
 
-    @api.depends("default_values", "has_dynamic_defaults")
-    def _compute_evaluated_default_values(self):
-        """Compute the evaluated default values for API use"""
-        for assistant in self:
-            assistant.evaluated_default_values = (
-                assistant.get_evaluated_default_values()
-            )
-
     def action_view_prompt(self):
         """Open the associated prompt for advanced template management"""
         self.ensure_one()
@@ -222,6 +210,110 @@ class LLMAssistant(models.Model):
         action["domain"] = [("assistant_id", "=", self.id)]
         action["context"] = {"default_assistant_id": self.id}
         return action
+
+    def action_reset_defaults(self):
+        """Reset default values from the prompt's arguments schema defaults"""
+        self.ensure_one()
+
+        if not self.prompt_id:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'No Prompt Template',
+                    'message': 'Please select a prompt template first.',
+                    'type': 'warning',
+                }
+            }
+
+        try:
+            # Get the prompt arguments schema
+            args_schema = json.loads(self.prompt_id.arguments_json or "{}")
+            default_values = {}
+
+            # Extract default values from schema
+            for arg_name, arg_schema in args_schema.items():
+                if "default" in arg_schema:
+                    default_values[arg_name] = arg_schema["default"]
+
+            # Update default_values field
+            if default_values:
+                self.default_values = json.dumps(default_values, indent=2)
+            else:
+                self.default_values = "{}"
+
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Defaults Reset',
+                    'message': f'Default values have been reset from the prompt template schema. Found {len(default_values)} default values.',
+                    'type': 'success',
+                }
+            }
+
+        except json.JSONDecodeError:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Error',
+                    'message': 'Invalid JSON in prompt arguments schema.',
+                    'type': 'danger',
+                }
+            }
+        except Exception as e:
+            _logger.error("Error resetting defaults for assistant %s: %s", self.name, str(e))
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Error',
+                    'message': f'Error resetting defaults: {str(e)}',
+                    'type': 'danger',
+                }
+            }
+
+    def get_evaluated_default_values(self, context):
+        """
+        Evaluate default values using the provided context.
+        This is used by llm.thread to get assistant's default values with thread context.
+
+        Args:
+            context (dict): Context for template rendering
+
+        Returns:
+            dict: Evaluated default values
+        """
+        self.ensure_one()
+
+        # Parse the default values JSON
+        try:
+            default_values = json.loads(self.default_values or "{}")
+        except json.JSONDecodeError:
+            _logger.warning("Invalid JSON in default_values for assistant %s", self.name)
+            return {}
+
+        if not default_values:
+            return {}
+
+        # If we don't have dynamic defaults, return as-is
+        if not self.has_dynamic_defaults:
+            return default_values
+
+        # Render each default value as a template
+        evaluated_values = {}
+        for key, value in default_values.items():
+            if isinstance(value, str) and "{{" in value and "}}" in value:
+                try:
+                    evaluated_values[key] = render_template(template=value, context=context)
+                except Exception as e:
+                    _logger.warning("Error evaluating default value '%s' for assistant %s: %s", key, self.name, str(e))
+                    evaluated_values[key] = value  # Keep original on error
+            else:
+                evaluated_values[key] = value
+
+        return evaluated_values
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -254,67 +346,9 @@ class LLMAssistant(models.Model):
             except json.JSONDecodeError:
                 pass
 
-    def get_evaluated_default_values(self, thread=None):
-        """Evaluate default values, processing any Python expressions if has_dynamic_defaults is enabled
-
-        Args:
-            thread (llm.thread): Optional thread to provide context for evaluation
-
-        Returns:
-            str: JSON string with evaluated default values
-        """
-        self.ensure_one()
-
-        default_values = {}
-
-        if self.has_dynamic_defaults:
-            # Prepare evaluation context
-            eval_context = {
-                "env": self.env,
-                "user": self.env.user,
-                "thread": None,
-                "related_record": None,
-            }
-
-            # Add thread-related context if available
-            if thread:
-                eval_context.update(
-                    {
-                        "thread": thread.related_record,
-                        "related_record": thread.related_record,
-                    }
-                )
-
-            # Process each value that might contain expressions
-            for key, value in default_values.items():
-                if not isinstance(value, str):
-                    continue
-
-                # Check if the value contains any ${...} expressions
-                if "${" in value and "}" in value:
-                    # Handle the simple case where the entire string is a single expression
-                    if (
-                        value.startswith("${")
-                        and value.endswith("}")
-                        and value.count("${") == 1
-                    ):
-                        result = self._evaluate_single_expression(
-                            value, eval_context
-                        )
-                        if result is not None:  # None indicates evaluation error
-                            default_values[key] = result
-                    else:
-                        # Handle the case with multiple embedded expressions
-                        result_str = self._evaluate_embedded_expressions(
-                            value, eval_context
-                        )
-                        default_values[key] = result_str
-
-        return default_values
-
     def _get_json_fields(self):
         """Return fields that should be serialized as JSON in the API"""
-        return ["default_values", "evaluated_default_values"]
+        return ["default_values"]
 
     @api.model
     def get_assistant_by_id(self, assistant_id):
@@ -348,15 +382,16 @@ class LLMAssistant(models.Model):
         """
         self.ensure_one()
 
-        # Get thread-specific evaluated default values
-        evaluated_values = self.get_evaluated_default_values(thread)
+        # Get thread context and use it to evaluate default values
+        thread_context = thread.get_context() if hasattr(thread, 'get_context') else {}
+        evaluated_values = self.get_evaluated_default_values(thread_context)
 
         result = {
             "success": True,
             "thread_id": thread.id,
             "assistant_id": self.id,
             "default_values": self.default_values,
-            "evaluated_default_values": evaluated_values,
+            "evaluated_default_values": json.dumps(evaluated_values, indent=2) if evaluated_values else "{}",
         }
 
         # Get the prompt details if requested
@@ -369,60 +404,6 @@ class LLMAssistant(models.Model):
             }
 
         return result
-
-    def _evaluate_single_expression(self, value, eval_context):
-        """Evaluate a single expression in the format ${expression}
-
-        Args:
-            value (str): String containing a single expression
-            eval_context (dict): Context for safe_eval
-
-        Returns:
-            Any: Evaluated result or None if evaluation failed
-        """
-        # Extract the expression from ${...}
-        expr = value[2:-1].strip()
-        try:
-            # Evaluate the expression using safe_eval
-            result = safe_eval(expr, eval_context)
-            return result
-        except Exception as e:
-            _logger.warning(f"Error evaluating expression '{expr}': {e}")
-            # Return None to indicate evaluation error
-            return None
-
-    def _evaluate_embedded_expressions(self, value, eval_context):
-        """Evaluate multiple embedded expressions in a string
-
-        Args:
-            value (str): String containing one or more ${expression} patterns
-            eval_context (dict): Context for safe_eval
-
-        Returns:
-            str: String with all expressions evaluated
-        """
-        # Find all ${...} patterns
-        pattern = r"\${([^}]*)}"
-        matches = re.finditer(pattern, value)
-
-        # Start with the original string
-        result_str = value
-
-        # Process each match
-        for match in matches:
-            full_match = match.group(0)  # The entire ${...} expression
-            expr = match.group(1).strip()  # Just the expression inside
-
-            try:
-                # Evaluate the expression using safe_eval
-                eval_result = safe_eval(expr, eval_context)
-                # Replace the expression with its evaluated result
-                result_str = result_str.replace(full_match, str(eval_result))
-            except Exception as e:
-                _logger.warning(f"Error evaluating embedded expression '{expr}': {e}")
-                # Keep the original expression on error
-
-        return result_str
 
     def _get_allowed_assistants_for_user(self, user=None):
         """Get assistants that the current user can access"""

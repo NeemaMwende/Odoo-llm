@@ -76,19 +76,33 @@ class LLMThread(models.Model):
             "target": "current",
         }
 
-    # override to include assistant's messages
-    def get_context(self):
-        """Hook: return a list of formatted messages to prepend to the conversation.
-        Override in other modules if needed.
+    def get_context(self, base_context=None):
+        """
+        Get the context for prompt rendering, including assistant's default values.
+
+        Args:
+            base_context (dict): Additional context from caller (optional)
 
         Returns:
-            list: List of message dictionaries in the format:
-                [{"role": "system", "content": "..."},
-                 {"role": "user", "content": "..."},
-                 ...]
+            dict: Context for prompt rendering
         """
         self.ensure_one()
-        return super().get_context(self.assistant_id.get_evaluated_default_values(self) if self.assistant_id else {})
+
+        # Get the base context from parent (this includes thread context like related_record, etc.)
+        context = super().get_context(base_context or {})
+
+        # If we have an assistant with default values, add them to the context
+        if self.assistant_id:
+            # Get assistant's evaluated default values using the current context
+            assistant_defaults = self.assistant_id.get_evaluated_default_values(context)
+
+            # Merge assistant defaults into context
+            # Assistant defaults are added first, so thread context takes precedence
+            if assistant_defaults:
+                merged_context = {**assistant_defaults, **context}
+                return merged_context
+
+        return context
 
     @api.model
     def get_thread_by_id(self, thread_id):
