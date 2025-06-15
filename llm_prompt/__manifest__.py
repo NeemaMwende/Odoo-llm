@@ -15,7 +15,7 @@
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "category": "Technical",
-    "version": "16.0.1.2.0",
+    "version": "16.0.1.3.0",
     "depends": ["llm", "llm_thread"],
     "external_dependencies": {
         "python": ["jinja2", "pyyaml"],

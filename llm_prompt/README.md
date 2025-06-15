@@ -2,6 +2,7 @@
 
 This Odoo module provides functionality for creating and managing reusable prompt templates for Large Language Model (LLM) interactions. It allows you to define structured prompts with dynamic arguments, organize them with categories and tags, and use them across your Odoo instance.
 
+
 ## Features
 
 - **Reusable Prompt Templates**: Create and manage prompt templates that can be reused across your LLM interactions.

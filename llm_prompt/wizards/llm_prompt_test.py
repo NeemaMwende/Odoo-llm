@@ -25,12 +25,25 @@ class LLMPromptTest(models.TransientModel):
         default=lambda self: self._get_default_context(),
     )
 
-    # Reference field for related record selection - no model limitations
+    # Reference field for related record selection - allow all models
     related_record_ref = fields.Reference(
-        selection=[],  # Empty selection - allows all models
+        selection="_get_reference_models",
         string="Related Record",
         help="Select any record to use as context for testing get_related_record() functions",
     )
+
+    @api.model
+    def _get_reference_models(self):
+        """
+        Get list of all available models for reference selection.
+        """
+        # Get all models from ir.model that are not abstract/transient
+        models = self.env['ir.model'].search([
+            ('state', '!=', 'manual'),
+            ('transient', '=', False),
+        ], order='name')
+
+        return [(model.model, model.name) for model in models]
 
     # Results
     rendered_template = fields.Text(

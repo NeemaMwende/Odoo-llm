@@ -39,30 +39,26 @@
                     </div>
 
                     <!-- Related Record Selection (compact) -->
-                    <group string="Related Record for Testing">
-                        <group>
-                            <field name="related_record_ref"
-                                   string="Test Record"
-                                   placeholder="Choose any record..."
-                                   options="{'no_create': True, 'no_open': True}"
-                                   help="Select any record to test get_related_record() functions in your prompt"/>
-                        </group>
-                        <group>
-                            <div class="oe_button_box" name="related_record_buttons"
-                                 attrs="{'invisible': [('related_record_ref', '=', False)]}">
-                                <button name="action_clear_related_record"
-                                        string="Clear"
-                                        type="object"
-                                        class="btn btn-sm btn-secondary"
-                                        icon="fa-times"/>
-                                <button name="action_populate_sample_context"
-                                        string="Populate Data"
-                                        type="object"
-                                        class="btn btn-sm btn-info"
-                                        icon="fa-magic"
-                                        help="Add sample data from the selected record to test context"/>
-                            </div>
-                        </group>
+                    <group>
+                        <field name="related_record_ref"
+                               string="Test Record"
+                               placeholder="Choose any record..."
+                               options="{'no_create': True, 'no_open': True}"
+                               help="Select any record to test get_related_record() functions in your prompt"/>
+                        <div class="oe_button_box" name="related_record_buttons"
+                             attrs="{'invisible': [('related_record_ref', '=', False)]}">
+                            <button name="action_clear_related_record"
+                                    string="Clear"
+                                    type="object"
+                                    class="btn btn-sm btn-secondary"
+                                    icon="fa-times"/>
+                            <button name="action_populate_sample_context"
+                                    string="Populate Data"
+                                    type="object"
+                                    class="btn btn-sm btn-info"
+                                    icon="fa-magic"
+                                    help="Add sample data from the selected record to test context"/>
+                        </div>
                     </group>
 
                     <notebook>
