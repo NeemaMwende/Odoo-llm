@@ -71,7 +71,7 @@ class LLMPrompt(models.Model):
         help="LLM publishers whose models work well with this prompt",
     )
 
-    # New single template field
+    # Template field
     template = fields.Text(
         string="Template",
         required=True,
@@ -111,13 +111,6 @@ class LLMPrompt(models.Model):
         compute="_compute_argument_validation",
         string="Undefined Arguments",
         help="Arguments used in templates but not defined in schema",
-    )
-
-    # Example invocation
-    example_args = fields.Text(
-        string="Example Arguments",
-        help="Example arguments in JSON format to test this prompt",
-        default="""{}""",
     )
 
     # Usage tracking
@@ -184,20 +177,6 @@ class LLMPrompt(models.Model):
             is_valid, error = validate_arguments_schema(prompt.arguments_json)
             if not is_valid:
                 raise ValidationError(error)
-
-    @api.constrains("example_args")
-    def _validate_example_args_syntax(self):
-        """Validate that the example args JSON is syntactically valid"""
-        for prompt in self:
-            if not prompt.example_args:
-                continue
-
-            try:
-                json.loads(prompt.example_args)
-            except json.JSONDecodeError as e:
-                raise ValidationError(
-                    _("Invalid JSON in example arguments: %s") % str(e)
-                ) from e
 
     @api.constrains("template", "format")
     def _validate_template_format(self):
@@ -420,9 +399,6 @@ class LLMPrompt(models.Model):
     def render(self, context):
         """
         Replace argument placeholders in content with their values using Jinja2.
-        Extends the base implementation to handle special cases:
-        1. When arg_name is 'related_record', fetch from llm.thread.get_related_record()
-        2. When placeholder is like {{get_related_record('field_name')}}, get the field value from the record
 
         Args:
             context (dict): Dictionary of argument values
@@ -513,6 +489,7 @@ class LLMPrompt(models.Model):
                 "default_prompt_id": self.id,
             },
         }
+
     @api.depends("template", "arguments_json")
     def _compute_input_schema_json(self):
         """

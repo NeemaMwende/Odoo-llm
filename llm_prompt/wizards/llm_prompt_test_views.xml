@@ -14,13 +14,6 @@
                             class="oe_highlight"
                     />
                     <button
-                            name="action_copy_context_from_example"
-                            string="Copy Example Args"
-                            type="object"
-                            class="btn-secondary"
-                            attrs="{'invisible': [('prompt_id', '=', False)]}"
-                    />
-                    <button
                             name="action_reset_context"
                             string="Reset Context"
                             type="object"
@@ -90,9 +83,6 @@
                                     <li><strong>Related Record:</strong> Optionally link a record to test {{get_related_record()}} functions</li>
                                     <li><strong>Evaluation:</strong> Click "Evaluate Prompt" to see the rendered results</li>
                                 </ul>
-                                <p>
-                                    <strong>Tip:</strong> Use "Copy Example Args" to load the prompt's example arguments as a starting point.
-                                </p>
                             </div>
                         </page>
 

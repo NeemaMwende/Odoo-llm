@@ -103,7 +103,7 @@ class LLMPromptTest(models.TransientModel):
                 wizard.related_record_display = ""
 
     def _get_default_context(self):
-        """Get default context based on prompt's example args or schema"""
+        """Get default context based on prompt's schema"""
         prompt_id = self.env.context.get('default_prompt_id')
         if not prompt_id:
             return "{}"
@@ -112,15 +112,7 @@ class LLMPromptTest(models.TransientModel):
         if not prompt.exists():
             return "{}"
 
-        # Try to use example args first
-        if prompt.example_args:
-            try:
-                json.loads(prompt.example_args)  # Validate JSON
-                return prompt.example_args
-            except json.JSONDecodeError:
-                pass
-
-        # Fall back to generating defaults from schema
+        # Generate defaults from schema
         try:
             schema = json.loads(prompt.arguments_json or "{}")
             defaults = {}
@@ -288,22 +280,9 @@ class LLMPromptTest(models.TransientModel):
         self.related_record_id = record_id
         self._onchange_related_record()
 
-    def action_copy_context_from_example(self):
-        """Copy context from prompt's example args"""
-        self.ensure_one()
-        if self.prompt_id.example_args:
-            try:
-                json.loads(self.prompt_id.example_args)  # Validate
-                self.test_context = self.prompt_id.example_args
-            except json.JSONDecodeError:
-                raise ValidationError(_("Invalid JSON in prompt's example arguments"))
-        else:
-            self.test_context = "{}"
-
     def action_reset_context(self):
         """Reset context to defaults"""
         self.ensure_one()
         self.test_context = self._get_default_context()
         self.related_record_model = ""
         self.related_record_id = 0
-        

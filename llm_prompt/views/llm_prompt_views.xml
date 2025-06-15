@@ -28,6 +28,18 @@
                                     options="{'terminology': 'archive'}"
                             />
                         </button>
+                        <button
+                                name="action_test_prompt"
+                                string="Test Prompt"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-play"
+                        >
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Test</span>
+                                <span class="o_stat_text">Prompt</span>
+                            </div>
+                        </button>
                     </div>
                     <div class="oe_title">
                         <h1>
@@ -195,25 +207,6 @@
                                 </strong> placeholders.
                                 </p>
                             </div>
-                        </page>
-                        <page string="Testing" name="testing">
-                            <group>
-                                <field
-                                        name="example_args"
-                                        widget="json_editor"
-                                />
-                            </group>
-                            <div class="alert alert-info" role="alert">
-                                <p
-                                >Enter example arguments in JSON format to test this prompt.
-                                </p>
-                            </div>
-                            <button
-                                    name="action_test_prompt"
-                                    string="Test Prompt"
-                                    type="object"
-                                    class="oe_highlight"
-                            />
                         </page>
                         <page string="Providers" name="providers">
                             <field
