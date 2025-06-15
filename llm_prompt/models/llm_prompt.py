@@ -489,37 +489,30 @@ class LLMPrompt(models.Model):
 
     def action_test_prompt(self):
         """
-        Test the prompt with example arguments
+        Test the prompt with the enhanced evaluation wizard
 
         Returns:
-            dict: Action to show test result
+            dict: Action to show enhanced test wizard
         """
         self.ensure_one()
 
-        try:
-            example_args = json.loads(self.example_args or "{}")
-        except json.JSONDecodeError as e:
-            raise ValidationError(_("Invalid example arguments JSON")) from e
-
-        messages = self.get_messages(example_args)
-
-        # Create a wizard to show the result
-        wizard = self.env["llm.prompt.test"].create(
-            {
-                "prompt_id": self.id,
-                "messages": json.dumps(messages, indent=2),
-            }
-        )
+        # Create a wizard record with the prompt pre-filled
+        wizard = self.env["llm.prompt.test"].create({
+            "prompt_id": self.id,
+        })
 
         return {
-            "name": _("Prompt Test Result"),
+            "name": _("Test Prompt: %s") % self.name,
             "type": "ir.actions.act_window",
             "res_model": "llm.prompt.test",
             "view_mode": "form",
             "res_id": wizard.id,
             "target": "new",
+            "view_id": self.env.ref("llm_prompt.llm_prompt_test_view_form").id,
+            "context": {
+                "default_prompt_id": self.id,
+            },
         }
-
     @api.depends("template", "arguments_json")
     def _compute_input_schema_json(self):
         """

@@ -9,6 +9,8 @@
         - Multi-step prompt workflows through structured formats
         - Prompt discovery and retrieval
         - Categories and tags for organization
+        - Enhanced prompt testing with context simulation
+        - Related record integration for prompt testing
     """,
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
@@ -29,6 +31,7 @@
         "views/llm_thread_views.xml",
         "views/menu.xml",
         "wizards/llm_prompt_test_views.xml",
+        "wizards/llm_prompt_record_selector_views.xml",
     ],
     "assets": {
         "web.assets_backend": [

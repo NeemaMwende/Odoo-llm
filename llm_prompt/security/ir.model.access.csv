@@ -5,4 +5,6 @@ access_llm_prompt_tag_user,llm.prompt.tag.user,model_llm_prompt_tag,base.group_u
 access_llm_prompt_tag_manager,llm.prompt.tag.manager,model_llm_prompt_tag,llm.group_llm_manager,1,1,1,1
 access_llm_prompt_category_user,llm.prompt.category.user,model_llm_prompt_category,base.group_user,1,0,0,0
 access_llm_prompt_category_manager,llm.prompt.category.manager,model_llm_prompt_category,llm.group_llm_manager,1,1,1,1
-access_llm_prompt_test_user,llm.prompt.test.user,model_llm_prompt_test,base.group_user,1,1,1,0
+access_llm_prompt_test_user,llm.prompt.test.user,model_llm_prompt_test,base.group_user,1,1,1,1
+access_llm_prompt_record_selector_user,llm.prompt.record.selector.user,model_llm_prompt_record_selector,base.group_user,1,1,1,1
+access_llm_prompt_record_selector_line_user,llm.prompt.record.selector.line.user,model_llm_prompt_record_selector_line,base.group_user,1,1,1,1

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Record Selector Wizard Form -->
+    <record id="llm_prompt_record_selector_view_form" model="ir.ui.view">
+        <field name="name">llm.prompt.record.selector.form</field>
+        <field name="model">llm.prompt.record.selector</field>
+        <field name="arch" type="xml">
+            <form string="Select Related Record">
+                <header>
+                    <!-- Model Selection Step -->
+                    <div attrs="{'invisible': [('step', '!=', 'model')]}">
+                        <button
+                                name="action_next_step"
+                                string="Next: Select Record"
+                                type="object"
+                                class="oe_highlight"
+                                attrs="{'invisible': [('model_id', '=', False)]}"
+                        />
+                    </div>
+
+                    <!-- Record Selection Step -->
+                    <div attrs="{'invisible': [('step', '!=', 'record')]}">
+                        <button
+                                name="action_previous_step"
+                                string="Back: Select Model"
+                                type="object"
+                                class="btn-secondary"
+                        />
+                        <button
+                                name="action_confirm_selection"
+                                string="Confirm Selection"
+                                type="object"
+                                class="oe_highlight"
+                                attrs="{'invisible': [('selected_record_id', '=', 0)]}"
+                        />
+                    </div>
+                </header>
+
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <span attrs="{'invisible': [('step', '!=', 'model')]}">Step 1: Select Model Type</span>
+                            <span attrs="{'invisible': [('step', '!=', 'record')]}">Step 2: Choose Record</span>
+                        </h1>
+                    </div>
+
+                    <!-- Model Selection Step -->
+                    <div attrs="{'invisible': [('step', '!=', 'model')]}">
+                        <group>
+                            <field
+                                    name="model_id"
+                                    options="{'no_create': True, 'no_create_edit': True}"
+                                    placeholder="Select a model type (e.g., Contact, Product, etc.)"
+                            />
+                            <field name="model_name" readonly="1" attrs="{'invisible': [('model_name', '=', False)]}"/>
+                        </group>
+
+                        <div class="alert alert-info" role="alert">
+                            <p><strong>Select Model Type:</strong></p>
+                            <p>Choose the type of record you want to link to your prompt test. Common examples:</p>
+                            <ul>
+                                <li><strong>res.partner</strong> - Contacts/Customers</li>
+                                <li><strong>product.product</strong> - Products</li>
+                                <li><strong>sale.order</strong> - Sales Orders</li>
+                                <li><strong>account.move</strong> - Invoices/Bills</li>
+                                <li><strong>project.project</strong> - Projects</li>
+                                <li><strong>hr.employee</strong> - Employees</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Record Selection Step -->
+                    <div attrs="{'invisible': [('step', '!=', 'record')]}">
+                        <p>Select a record from <strong t-field="model_id.name"/>:</p>
+
+                        <field name="record_ids" mode="tree" nolabel="1">
+                            <tree create="false" edit="false" delete="false">
+                                <field name="display_name"/>
+                                <field name="record_id"/>
+                                <button
+                                        name="action_select_this_record"
+                                        string="Select"
+                                        type="object"
+                                        class="oe_highlight btn-sm"
+                                />
+                            </tree>
+                        </field>
+
+                        <div class="alert alert-info mt-3" role="alert">
+                            <p><strong>Record Selection:</strong></p>
+                            <p>Click "Select" next to the record you want to use for testing. This record will be available in your prompt template through the <code>{{get_related_record('field_name')}}</code> function.</p>
+                        </div>
+                    </div>
+
+                    <!-- Hidden fields -->
+                    <field name="test_wizard_id" invisible="1"/>
+                    <field name="step" invisible="1"/>
+                    <field name="selected_record_id" invisible="1"/>
+                </sheet>
+
+                <footer>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree view for record selector lines (used in the one2many field) -->
+    <record id="llm_prompt_record_selector_line_view_tree" model="ir.ui.view">
+        <field name="name">llm.prompt.record.selector.line.tree</field>
+        <field name="model">llm.prompt.record.selector.line</field>
+        <field name="arch" type="xml">
+            <tree create="false" edit="false" delete="false">
+                <field name="display_name" string="Record Name"/>
+                <field name="record_id" string="ID"/>
+                <button
+                        name="action_select_this_record"
+                        string="Select"
+                        type="object"
+                        class="oe_highlight btn-sm"
+                />
+            </tree>
+        </field>
+    </record>
+</odoo>
