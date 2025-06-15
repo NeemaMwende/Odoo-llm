@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from collections.abc import Iterable
 
 import yaml
 from jinja2 import Environment, Undefined
@@ -209,7 +210,7 @@ class LLMPrompt(models.Model):
                 if prompt.format == "json":
                     json.loads(prompt.template)
                 elif prompt.format == "yaml":
-                    yaml.safe_load(prompt.template)
+                    yaml.safe_load_all(prompt.template)
                 # Text format doesn't need validation
             except (json.JSONDecodeError, yaml.YAMLError) as e:
                 raise ValidationError(
@@ -244,7 +245,7 @@ class LLMPrompt(models.Model):
             "arguments": formatted_args,
         }
 
-    def get_messages(self, arguments=None):
+    def get_messages(self, arguments={}):
         """
         Generate messages for this prompt with the given arguments
 
@@ -255,7 +256,6 @@ class LLMPrompt(models.Model):
             list: List of messages for this prompt
         """
         self.ensure_one()
-        arguments = arguments or {}
 
         # Fill default values for missing arguments
         arguments = self.sudo()._fill_default_values(arguments)
@@ -263,21 +263,23 @@ class LLMPrompt(models.Model):
         # Validate arguments against schema
         self._validate_arguments(arguments)
 
+        content = self.render(arguments)
+
         # Parse template based on format
         try:
             if self.format == "text":
-                messages = self._parse_text_template(arguments)
+                messages = self._parse_text_messages(content)
             elif self.format == "yaml":
-                messages = self._parse_yaml_template(arguments)
+                messages = self._parse_dict_messages(yaml.safe_load_all(content))
             elif self.format == "json":
-                messages = self._parse_json_template(arguments)
+                messages = self._parse_dict_messages(json.loads(content))
             else:
                 raise ValidationError(
                     _("Unsupported template format: %s") % self.format
                 )
         except Exception as e:
-            _logger.error("Error parsing template for prompt %s: %s", self.name, str(e))
-            raise ValidationError(_("Error parsing template: %s") % str(e))
+            _logger.error("Error parsing %s template for prompt %s: %s", self.format, self.name, str(e))
+            raise ValidationError(_("Error parsing %s template: %s") % self.format, str(e))
 
         # Update usage statistics
         self.usage_count += 1
@@ -285,12 +287,11 @@ class LLMPrompt(models.Model):
 
         return messages
 
-    def _parse_text_template(self, arguments):
+    def _parse_text_messages(self, content):
         """Parse a simple text template"""
-        content = self._substitute_placeholders(self.template, arguments)
         return [
             {
-                "role": "user",
+                "role": "system",
                 "content": [
                     {
                         "type": "text",
@@ -300,30 +301,24 @@ class LLMPrompt(models.Model):
             }
         ]
 
-    def _parse_yaml_template(self, arguments):
-        """Parse a YAML template"""
-        try:
-            # First substitute placeholders in the YAML string
-            yaml_content = self._substitute_placeholders(self.template, arguments)
-            data = yaml.safe_load(yaml_content)
+    def _parse_dict_messages(self, data):
+        """Parse messages from dict, list, or iterator of dicts recursively"""
 
-            if not isinstance(data, dict) or "messages" not in data:
-                raise ValidationError(_("YAML template must contain a 'messages' key"))
+        # Handle single dict or iterable of items
+        items = data if isinstance(data, Iterable) and not isinstance(data, (str, dict)) else [data]
 
-            messages = []
-            for msg_data in data["messages"]:
-                if not isinstance(msg_data, dict):
-                    continue
+        for item in items:
+            if isinstance(item, dict):
+                # Check if this dict has a 'content' key - if so, it's a message
+                if "content" in item:
+                    msg_type = item.get("type", "user")
+                    content = item["content"]
 
-                msg_type = msg_data.get("type", "user")
-                content = msg_data.get("content", "")
+                    # Handle multi-line content
+                    if isinstance(content, list):
+                        content = "\n".join(str(line) for line in content)
 
-                # Handle multi-line content
-                if isinstance(content, list):
-                    content = "\n".join(str(line) for line in content)
-
-                messages.append(
-                    {
+                    yield {
                         "role": msg_type,
                         "content": [
                             {
@@ -332,47 +327,15 @@ class LLMPrompt(models.Model):
                             }
                         ],
                     }
-                )
+                else:
+                    # If no 'content' key, recursively check all values in the dict
+                    for value in item.values():
+                        if isinstance(value, (dict, list)) or (isinstance(value, Iterable) and not isinstance(value, str)):
+                            yield from self._parse_dict_messages(value)
 
-            return messages
-
-        except yaml.YAMLError as e:
-            raise ValidationError(_("Invalid YAML template: %s") % str(e))
-
-    def _parse_json_template(self, arguments):
-        """Parse a JSON template"""
-        try:
-            # First substitute placeholders in the JSON string
-            json_content = self._substitute_placeholders(self.template, arguments)
-            data = json.loads(json_content)
-
-            if not isinstance(data, dict) or "messages" not in data:
-                raise ValidationError(_("JSON template must contain a 'messages' key"))
-
-            messages = []
-            for msg_data in data["messages"]:
-                if not isinstance(msg_data, dict):
-                    continue
-
-                msg_type = msg_data.get("type", "user")
-                content = msg_data.get("content", "")
-
-                messages.append(
-                    {
-                        "role": msg_type,
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": str(content),
-                            }
-                        ],
-                    }
-                )
-
-            return messages
-
-        except json.JSONDecodeError as e:
-            raise ValidationError(_("Invalid JSON template: %s") % str(e))
+            elif isinstance(item, (list, tuple)) or (isinstance(item, Iterable) and not isinstance(item, str)):
+                # If item is iterable (but not string), recurse into it
+                yield from self._parse_dict_messages(item)
 
     def _fill_default_values(self, arguments):
         """
@@ -454,7 +417,7 @@ class LLMPrompt(models.Model):
 
         return set(matches)
 
-    def _substitute_placeholders(self, content, arguments):
+    def render(self, context):
         """
         Replace argument placeholders in content with their values using Jinja2.
         Extends the base implementation to handle special cases:
@@ -462,16 +425,15 @@ class LLMPrompt(models.Model):
         2. When placeholder is like {{get_related_record('field_name')}}, get the field value from the record
 
         Args:
-            content (str): Content with placeholders
-            arguments (dict): Dictionary of argument values
+            context (dict): Dictionary of argument values
 
         Returns:
             str: Content with placeholders replaced by values
         """
 
         # Process boolean values for JSON compatibility
-        processed_args = dict(arguments)
-        for arg_name, arg_value in arguments.items():
+        processed_args = dict(context)
+        for arg_name, arg_value in context.items():
             if isinstance(arg_value, bool):
                 # Convert Python True/False to JSON true/false
                 processed_args[arg_name] = "true" if arg_value else "false"
@@ -487,95 +449,9 @@ class LLMPrompt(models.Model):
             undefined=Undefined,  # Handle missing variables gracefully
         )
 
-        # Get related record if available
-        related_record = None
-        thread = self.env["llm.thread"].get_thread_from_context()
-        if thread:
-            related_record = thread.get_related_record()
-            if related_record:
-                # Add related_record to the context
-                processed_args["related_record"] = json.dumps(
-                    {
-                        "model": related_record._name,
-                        "id": related_record.id,
-                        "display_name": related_record.display_name,
-                    }
-                )
-
-        # Create a wrapper function that automatically includes the related_record
-        def get_related_record_wrapper(field_name, key_name=None):
-            return self.get_related_record(field_name, key_name, related_record)
-
-        # Always register the function, even if related_record is None
-        env.globals["get_related_record"] = get_related_record_wrapper
-
         # Create and render the template
-        template = env.from_string(content)
+        template = env.from_string(self.template)
         return template.render(**processed_args)
-
-    def get_related_record(self, field_name, key_name=None, related_record=None):
-        """
-        Access fields or dictionary keys from a related record.
-
-        Args:
-            field_name (str): The field name to access
-            key_name (str, optional): If the field is a dictionary, the key to access
-            related_record (Model, optional): The record to access.
-
-        Returns:
-            str: The value of the field/key or an empty string if not available
-        """
-        # If we still don't have a related record, return empty string
-        if not related_record:
-            _logger.info(
-                f"No related record available, returning empty value for {field_name}"
-            )
-            return ""
-
-        # Access the field
-        if hasattr(related_record, field_name):
-            try:
-                attr_value = getattr(related_record, field_name)
-
-                if (
-                    key_name is not None
-                ):  # We want to access an item from this attribute
-                    if isinstance(attr_value, dict):
-                        if key_name in attr_value:
-                            final_value = attr_value[key_name]
-                        else:
-                            _logger.warning(
-                                "Key '%s' not found in dictionary field '%s'",
-                                key_name,
-                                field_name,
-                            )
-                            return ""  # Return empty string instead of error message
-                    else:
-                        _logger.warning(
-                            "Field '%s' is not a dictionary, cannot access key '%s'",
-                            field_name,
-                            key_name,
-                        )
-                        return ""  # Return empty string instead of error message
-                else:  # No key, just return the attribute value
-                    final_value = attr_value
-
-                # Convert to string with proper JSON handling for booleans
-                if isinstance(final_value, bool):
-                    return "true" if final_value else "false"
-                return final_value
-
-            except Exception as e:
-                _logger.error(
-                    "Error getting field %s (key: %s) from record: %s",
-                    field_name,
-                    key_name,
-                    str(e),
-                )
-                return ""  # Return empty string instead of error message
-        else:
-            _logger.warning("Record doesn't have field: %s", field_name)
-            return ""  # Return empty string instead of error message
 
     def auto_detect_arguments(self):
         """
@@ -643,46 +519,6 @@ class LLMPrompt(models.Model):
             "res_id": wizard.id,
             "target": "new",
         }
-
-    def get_formatted_system_prompt(self, default_values=None):
-        """Generate a formatted system prompt based on the prompt template"""
-        self.ensure_one()
-
-        try:
-            # Get the argument values from default_values
-            arg_values = json.loads(default_values or "{}")
-
-            # Get messages from the prompt template
-            messages = self.get_messages(arg_values)
-
-            # Find the system message
-            system_message = next(
-                (msg for msg in messages if msg.get("role") == "system"), None
-            )
-            if system_message and "content" in system_message:
-                if (
-                    isinstance(system_message["content"], list)
-                    and len(system_message["content"]) > 0
-                    and "text" in system_message["content"][0]
-                ):
-                    return system_message["content"][0]["text"]
-                elif isinstance(system_message["content"], str):
-                    return system_message["content"]
-
-            # If no system message found, return the first message content
-            if messages and "content" in messages[0]:
-                if (
-                    isinstance(messages[0]["content"], list)
-                    and len(messages[0]["content"]) > 0
-                    and "text" in messages[0]["content"][0]
-                ):
-                    return messages[0]["content"][0]["text"]
-                elif isinstance(messages[0]["content"], str):
-                    return messages[0]["content"]
-
-        except Exception as e:
-            _logger.error("Error generating system prompt from template: %s", str(e))
-            return _("Error generating system prompt preview: %s") % str(e)
 
     @api.depends("template", "arguments_json")
     def _compute_input_schema_json(self):

@@ -270,7 +270,7 @@ class LLMThread(models.Model):
             )
         return last_tool_msg
 
-    def _get_prepend_messages(self):
+    def _get_prepend_messages(self, context=None):
         """Hook: return a list of formatted messages to prepend to the conversation.
         Override in other modules if needed.
 
@@ -280,10 +280,9 @@ class LLMThread(models.Model):
                  {"role": "user", "content": "..."},
                  ...]
         """
+        context = context or {}
         self.ensure_one()
-        return []
-
-
+        return context
 
     def _get_assistant_response(self):
         self.ensure_one()

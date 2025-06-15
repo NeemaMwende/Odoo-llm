@@ -79,7 +79,7 @@ class LLMThread(models.Model):
         # Use the prompt with the new context
         result = thread.with_context(
             context
-        ).assistant_id.prompt_id.get_formatted_system_prompt(generation_inputs)
+        ).assistant_id.prompt_id.render(generation_inputs)
         try:
             result = json.loads(result)
             return json.dumps(result)

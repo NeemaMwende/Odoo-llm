@@ -1,3 +1,4 @@
+import json
 import logging
 
 from odoo import fields, models
@@ -85,7 +86,7 @@ class LLMThreadPrompt(models.Model):
             return ""
 
     # override to include prompt messages
-    def _get_prepend_messages(self):
+    def _get_prepend_messages(self, context=None):
         """Hook: return a list of formatted messages to prepend to the conversation.
         Override in other modules if needed.
 
@@ -95,18 +96,89 @@ class LLMThreadPrompt(models.Model):
                  {"role": "user", "content": [{"type": "text", "text": "..."}]},
                  ...]
         """
+        context = context or {}
         self.ensure_one()
         # Get base messages from parent class
-        messages = super()._get_prepend_messages()
+        messages = super()._get_prepend_messages(context=context)
 
-        # Get messages from the prompt if available
         if self.prompt_id:
-            # Create a context with the thread_id
-            context = dict(self.env.context, thread_id=self.id)
+            context["thread_id"] = self.id
+            context["related_record"] = json.dumps(
+                {
+                    "model": self.related_record._name,
+                    "id": self.related_record.id,
+                    "display_name": self.related_record.display_name,
+                }
+            ) if self.related_record else False
+            context["get_related_field"] = self.get_related_field
             # Use the prompt to get messages with the new context
-            prompt_messages = self.with_context(context).prompt_id.get_messages({})
+            prompt_messages = self.prompt_id.get_messages(context)
             if prompt_messages:
                 messages = self.merge_message_lists(prompt_messages, messages)
                 _logger.info("Added %d messages from prompt", len(prompt_messages))
 
         return messages
+
+    def get_related_field(self, field_name, key_name=None):
+        """
+        Access fields or dictionary keys from a related record.
+
+        Args:
+            field_name (str): The field name to access
+            key_name (str, optional): If the field is a dictionary, the key to access
+            related_record (Model, optional): The record to access.
+
+        Returns:
+            str: The value of the field/key or an empty string if not available
+        """
+        # If we still don't have a related record, return empty string
+        if not self.related_record:
+            _logger.info(
+                f"No related record available, returning empty value for {field_name}"
+            )
+            return ""
+
+        # Access the field
+        if hasattr(self.related_record, field_name):
+            try:
+                attr_value = getattr(self.related_record, field_name)
+
+                if (
+                        key_name is not None
+                ):  # We want to access an item from this attribute
+                    if isinstance(attr_value, dict):
+                        if key_name in attr_value:
+                            final_value = attr_value[key_name]
+                        else:
+                            _logger.warning(
+                                "Key '%s' not found in dictionary field '%s'",
+                                key_name,
+                                field_name,
+                            )
+                            return ""  # Return empty string instead of error message
+                    else:
+                        _logger.warning(
+                            "Field '%s' is not a dictionary, cannot access key '%s'",
+                            field_name,
+                            key_name,
+                        )
+                        return ""  # Return empty string instead of error message
+                else:  # No key, just return the attribute value
+                    final_value = attr_value
+
+                # Convert to string with proper JSON handling for booleans
+                if isinstance(final_value, bool):
+                    return "true" if final_value else "false"
+                return final_value
+
+            except Exception as e:
+                _logger.error(
+                    "Error getting field %s (key: %s) from record: %s",
+                    field_name,
+                    key_name,
+                    str(e),
+                )
+                return ""  # Return empty string instead of error message
+        else:
+            _logger.warning("Record doesn't have field: %s", field_name)
+            return ""  # Return empty string instead of error message

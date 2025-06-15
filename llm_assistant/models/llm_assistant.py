@@ -254,74 +254,6 @@ class LLMAssistant(models.Model):
             except json.JSONDecodeError:
                 pass
 
-    def get_formatted_system_prompt(self, thread=None):
-        """Generate a formatted system prompt based on the prompt template
-
-        Args:
-            thread (llm.thread): Optional thread that is requesting the prompt
-                                If provided, it will be added to the context
-
-        Returns:
-            str: Formatted system prompt
-        """
-        self.ensure_one()
-
-        if not self.prompt_id:
-            return ""
-
-        # If we have a thread, add it to the context so our enhanced
-        # _substitute_placeholders method can access it
-        if thread:
-            # Create a context with the thread_id
-            context = dict(self.env.context, thread_id=thread.id)
-            # Use the prompt with the new context
-            return self.with_context(context).prompt_id.get_formatted_system_prompt(
-                self.get_evaluated_default_values(thread) or "{}"
-            )
-
-        return self.prompt_id.get_formatted_system_prompt(
-            self.get_evaluated_default_values() or "{}"
-        )
-
-    def get_messages(self, thread=None):
-        """Get a list of messages from the prompt template
-
-        This method is the message-based equivalent of get_formatted_system_prompt.
-        It uses the prompt's get_messages method to get a list of messages instead
-        of a single system prompt string.
-
-        Args:
-            thread (llm.thread): Optional thread that is requesting the messages
-                               If provided, it will be added to the context
-
-        Returns:
-            list: List of message dictionaries in the format:
-                [{"role": "system", "content": "..."},
-                 {"role": "user", "content": "..."},
-                 ...]
-        """
-        self.ensure_one()
-
-        if not self.prompt_id:
-            return []
-
-        # Get the evaluated default values
-        default_values = self.get_evaluated_default_values(thread) or "{}"
-
-        # If we have a thread, add it to the context
-        if thread:
-            # Create a context with the thread_id
-            context = dict(self.env.context, thread_id=thread.id)
-            # Use the prompt with the new context to get messages
-            return (
-                self.with_context(context)
-                .sudo()
-                .prompt_id.get_messages(json.loads(default_values))
-            )
-
-        # No thread, just get messages with default values
-        return self.prompt_id.get_messages(json.loads(default_values))
-
     def get_evaluated_default_values(self, thread=None):
         """Evaluate default values, processing any Python expressions if has_dynamic_defaults is enabled
 
@@ -333,64 +265,52 @@ class LLMAssistant(models.Model):
         """
         self.ensure_one()
 
-        if not self.default_values:
-            return "{}"
+        default_values = {}
 
-        try:
-            # Parse the default values JSON
-            default_values_dict = json.loads(self.default_values)
+        if self.has_dynamic_defaults:
+            # Prepare evaluation context
+            eval_context = {
+                "env": self.env,
+                "user": self.env.user,
+                "thread": None,
+                "related_record": None,
+            }
 
-            # If dynamic defaults are enabled, evaluate expressions
-            if self.has_dynamic_defaults:
-                # Prepare evaluation context
-                eval_context = {
-                    "env": self.env,
-                    "user": self.env.user,
-                    "thread": None,
-                    "related_record": None,
-                }
+            # Add thread-related context if available
+            if thread:
+                eval_context.update(
+                    {
+                        "thread": thread.related_record,
+                        "related_record": thread.related_record,
+                    }
+                )
 
-                # Add thread-related context if available
-                if thread:
-                    related_record = thread.get_related_record()
-                    eval_context.update(
-                        {
-                            "thread": thread,
-                            "related_record": related_record,
-                        }
-                    )
+            # Process each value that might contain expressions
+            for key, value in default_values.items():
+                if not isinstance(value, str):
+                    continue
 
-                # Process each value that might contain expressions
-                for key, value in default_values_dict.items():
-                    if not isinstance(value, str):
-                        continue
+                # Check if the value contains any ${...} expressions
+                if "${" in value and "}" in value:
+                    # Handle the simple case where the entire string is a single expression
+                    if (
+                        value.startswith("${")
+                        and value.endswith("}")
+                        and value.count("${") == 1
+                    ):
+                        result = self._evaluate_single_expression(
+                            value, eval_context
+                        )
+                        if result is not None:  # None indicates evaluation error
+                            default_values[key] = result
+                    else:
+                        # Handle the case with multiple embedded expressions
+                        result_str = self._evaluate_embedded_expressions(
+                            value, eval_context
+                        )
+                        default_values[key] = result_str
 
-                    # Check if the value contains any ${...} expressions
-                    if "${" in value and "}" in value:
-                        # Handle the simple case where the entire string is a single expression
-                        if (
-                            value.startswith("${")
-                            and value.endswith("}")
-                            and value.count("${") == 1
-                        ):
-                            result = self._evaluate_single_expression(
-                                value, eval_context
-                            )
-                            if result is not None:  # None indicates evaluation error
-                                default_values_dict[key] = result
-                        else:
-                            # Handle the case with multiple embedded expressions
-                            result_str = self._evaluate_embedded_expressions(
-                                value, eval_context
-                            )
-                            default_values_dict[key] = result_str
-
-            # Return the processed values as JSON
-            return json.dumps(default_values_dict)
-
-        except Exception as e:
-            _logger.error(f"Error processing default_values: {e}")
-            return "{}"
+        return default_values
 
     def _get_json_fields(self):
         """Return fields that should be serialized as JSON in the API"""
