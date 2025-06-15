@@ -15,6 +15,7 @@ class RelatedRecordProxy:
 
     def __init__(self, record):
         self._record = record
+        _logger.debug("RelatedRecordProxy initialized with record: %s", record)
 
     def get_field(self, field_name, default=""):
         """
@@ -28,6 +29,7 @@ class RelatedRecordProxy:
             The field value, or default if not available
         """
         if not self._record:
+            _logger.debug("No record available, returning default for field '%s'", field_name)
             return default
 
         try:
@@ -198,50 +200,221 @@ class LLMPromptTest(models.TransientModel):
         except (json.JSONDecodeError, Exception):
             return "{}"
 
-    def _create_mock_thread(self):
-        """Create a mock context for testing purposes."""
-        # Create basic context with simplified related_record access
-        context = {
-            'thread_id': 'test_thread',
-        }
+    def _populate_context_from_record(self):
+        """Populate context with sample data from the related record"""
+        if not self.related_record_ref:
+            return
 
-        # Add simplified related_record object
+        try:
+            record = self.related_record_ref
+            _logger.info("Auto-populating context from record: %s (ID: %s)", record, record.id)
+
+            # Parse existing context, preserving user data
+            try:
+                context = json.loads(self.test_context or "{}")
+            except json.JSONDecodeError:
+                context = {}
+
+            # Add record metadata
+            context['related_model_name'] = record._name
+            context['related_model_id'] = record._name
+            context['related_res_id'] = record.id
+
+            # Add some common fields from the record as sample data
+            sample_fields = ['name', 'display_name', 'email', 'phone', 'mobile',
+                             'street', 'city', 'country_id', 'state_id', 'website',
+                             'description', 'notes', 'comment', 'reference', 'code']
+
+            added_fields = []
+            for field_name in sample_fields:
+                field_key = f"record_{field_name}"
+                # Only add if not already present (preserve user data)
+                if field_key not in context and hasattr(record, field_name):
+                    try:
+                        value = getattr(record, field_name)
+                        if value:
+                            # Handle different field types
+                            if hasattr(value, 'name'):  # Many2one field
+                                context[field_key] = value.name
+                                added_fields.append(field_key)
+                            elif hasattr(value, 'ids'):  # Many2many/One2many field
+                                names = [r.name for r in value[:3]]  # Limit to 3
+                                if names:
+                                    context[field_key] = names
+                                    added_fields.append(field_key)
+                            else:
+                                context[field_key] = str(value)
+                                added_fields.append(field_key)
+                    except Exception as e:
+                        _logger.debug("Could not get field %s: %s", field_name, str(e))
+                        continue
+
+            # Add a note about the related_record access (only if not present)
+            if '_related_record_help' not in context:
+                context['_related_record_help'] = "Use {{ related_record.get_field('field_name') }} in your template to access record fields directly"
+
+            self.test_context = json.dumps(context, indent=2)
+
+            if added_fields:
+                _logger.info("Auto-added sample fields: %s", ', '.join(added_fields))
+
+        except Exception as e:
+            _logger.exception("Error auto-populating context from record")
+
+    def _create_enhanced_context(self, user_context):
+        """
+        Create enhanced context for prompt evaluation.
+
+        Args:
+            user_context (dict): User-provided test context
+
+        Returns:
+            dict: Enhanced context with related_record proxy
+        """
+        # Start with user context
+        enhanced_context = dict(user_context)
+
+        # Add thread-specific context
+        enhanced_context['thread_id'] = 'test_thread'
+
+        # Add related_record proxy and metadata
         if self.related_record_ref:
-            context['related_record'] = RelatedRecordProxy(self.related_record_ref)
+            _logger.info("Creating RelatedRecordProxy with record: %s (ID: %s)",
+                         self.related_record_ref, self.related_record_ref.id)
+            enhanced_context['related_record'] = RelatedRecordProxy(self.related_record_ref)
+            # Ensure metadata is in context
+            enhanced_context['related_model_name'] = self.related_record_ref._name
+            enhanced_context['related_model_id'] = self.related_record_ref._name
+            enhanced_context['related_res_id'] = self.related_record_ref.id
         else:
-            context['related_record'] = RelatedRecordProxy(None)  # Empty proxy
+            _logger.debug("No related record selected, creating empty proxy")
+            enhanced_context['related_record'] = RelatedRecordProxy(None)
+            enhanced_context['related_model_name'] = None
+            enhanced_context['related_model_id'] = None
+            enhanced_context['related_res_id'] = None
 
-        return context
+        return enhanced_context
+
+    @api.onchange('related_record_ref')
+    def _onchange_related_record_ref(self):
+        """Auto-populate context and evaluate when record is selected"""
+        if self.related_record_ref:
+            # Auto-populate context with record data
+            self._populate_context_from_record()
+            # Auto-evaluate the prompt
+            self._auto_evaluate_prompt()
+        else:
+            # Clear related record metadata from context when record is cleared
+            try:
+                context = json.loads(self.test_context or "{}")
+                # Remove related record metadata
+                context.pop('related_model_name', None)
+                context.pop('related_model_id', None)
+                context.pop('related_res_id', None)
+                self.test_context = json.dumps(context, indent=2)
+            except (json.JSONDecodeError, Exception):
+                pass
+
+    def _auto_evaluate_prompt(self):
+        """Auto-evaluate prompt without showing user messages"""
+        try:
+            # Parse test context
+            try:
+                user_context = json.loads(self.test_context or "{}")
+            except json.JSONDecodeError:
+                return  # Skip if invalid JSON
+
+            # Create enhanced context with proper related_record handling
+            enhanced_context = self._create_enhanced_context(user_context)
+
+            _logger.info("Auto-evaluation - Enhanced context keys: %s", list(enhanced_context.keys()))
+
+            # Reset error state
+            self.has_error = False
+            self.error_message = ""
+
+            # Render the template
+            try:
+                self.rendered_template = self.prompt_id.render(enhanced_context)
+            except Exception as e:
+                _logger.debug("Auto-evaluation template render error: %s", str(e))
+                self.has_error = True
+                self.error_message = f"Template render error: {str(e)}"
+                return
+
+            # Generate messages
+            try:
+                messages = self.prompt_id.get_messages(enhanced_context)
+            except Exception as e:
+                _logger.debug("Auto-evaluation message generation error: %s", str(e))
+                self.has_error = True
+                self.error_message = f"Message generation error: {str(e)}"
+                return
+
+            # Convert messages to different formats
+            self.messages_json = json.dumps(messages, indent=2, ensure_ascii=False)
+
+            # Convert to YAML
+            try:
+                self.messages_yaml = yaml.dump(messages, default_flow_style=False, allow_unicode=True, indent=2)
+            except Exception as e:
+                self.messages_yaml = f"Error converting to YAML: {str(e)}"
+
+            # Convert to readable text
+            text_parts = []
+            for i, message in enumerate(messages, 1):
+                role = message.get('role', 'unknown')
+                content = message.get('content', '')
+
+                # Extract text content
+                if isinstance(content, list) and len(content) > 0:
+                    text_content = content[0].get('text', '')
+                elif isinstance(content, str):
+                    text_content = content
+                else:
+                    text_content = str(content)
+
+                text_parts.append(f"Message {i} ({role.upper()}):\n{text_content}\n")
+
+            self.messages_text = "\n" + "="*50 + "\n".join(text_parts)
+
+        except Exception as e:
+            _logger.debug("Auto-evaluation failed: %s", str(e))
+            self.has_error = True
+            self.error_message = f"Auto-evaluation error: {str(e)}"
 
     def action_evaluate_prompt(self):
         """Evaluate the prompt with the given context"""
         self.ensure_one()
 
         try:
-            # Reset error state
-            self.has_error = False
-            self.error_message = ""
-
             # Parse test context
             try:
                 user_context = json.loads(self.test_context or "{}")
             except json.JSONDecodeError as e:
                 raise ValidationError(_("Invalid JSON in test context: %s") % str(e))
 
-            # Create enhanced context with simplified related_record access
-            enhanced_context = self._create_mock_thread()
-            enhanced_context.update(user_context)  # Add user's test context
+            # Create enhanced context with proper related_record handling
+            enhanced_context = self._create_enhanced_context(user_context)
+
+            _logger.info("Manual evaluation - Enhanced context keys: %s", list(enhanced_context.keys()))
+
+            # Reset error state
+            self.has_error = False
+            self.error_message = ""
 
             # Render the template using the prompt's render method
             try:
                 self.rendered_template = self.prompt_id.render(enhanced_context)
             except Exception as e:
+                _logger.exception("Error rendering template")
                 raise ValidationError(_("Error rendering template: %s") % str(e))
 
             # Generate messages using the prompt's get_messages method
             try:
                 messages = self.prompt_id.get_messages(enhanced_context)
             except Exception as e:
+                _logger.exception("Error generating messages")
                 raise ValidationError(_("Error generating messages: %s") % str(e))
 
             # Convert messages to different formats
@@ -283,14 +456,14 @@ class LLMPromptTest(models.TransientModel):
             self.messages_text = f"Error during evaluation: {str(e)}"
             _logger.exception("Error evaluating prompt %s", self.prompt_id.name)
 
-        # Return an action to keep the wizard open
+        # Return an action to keep the wizard open and preserve context
         return {
             'type': 'ir.actions.act_window',
             'res_model': 'llm.prompt.test',
             'res_id': self.id,
             'view_mode': 'form',
             'target': 'new',
-            'context': self.env.context,
+            'context': dict(self.env.context, keep_context=True),
         }
 
     def action_reset_context(self):
@@ -313,7 +486,7 @@ class LLMPromptTest(models.TransientModel):
             'res_id': self.id,
             'view_mode': 'form',
             'target': 'new',
-            'context': self.env.context,
+            'context': dict(self.env.context, keep_context=True),
         }
 
     def action_clear_related_record(self):
@@ -327,55 +500,5 @@ class LLMPromptTest(models.TransientModel):
             'res_id': self.id,
             'view_mode': 'form',
             'target': 'new',
-            'context': self.env.context,
-        }
-
-    def action_populate_sample_context(self):
-        """Populate context with sample data from the related record"""
-        self.ensure_one()
-
-        if not self.related_record_ref:
-            raise ValidationError(_("Please select a related record first."))
-
-        try:
-            record = self.related_record_ref
-
-            # Parse existing context
-            try:
-                context = json.loads(self.test_context or "{}")
-            except json.JSONDecodeError:
-                context = {}
-
-            # Add some common fields from the record as sample data
-            sample_fields = ['name', 'display_name', 'email', 'phone', 'mobile',
-                             'street', 'city', 'country_id', 'state_id', 'website',
-                             'description', 'notes', 'comment']
-
-            for field_name in sample_fields:
-                if hasattr(record, field_name):
-                    try:
-                        value = getattr(record, field_name)
-                        if value:
-                            # Handle different field types
-                            if hasattr(value, 'name'):  # Many2one field
-                                context[f"record_{field_name}"] = value.name
-                            elif hasattr(value, 'ids'):  # Many2many/One2many field
-                                context[f"record_{field_name}"] = [r.name for r in value[:3]]  # Limit to 3
-                            else:
-                                context[f"record_{field_name}"] = str(value)
-                    except Exception:
-                        continue
-
-            self.test_context = json.dumps(context, indent=2)
-
-        except Exception as e:
-            raise ValidationError(_("Error populating sample context: %s") % str(e))
-
-        return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'llm.prompt.test',
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-            'context': self.env.context,
+            'context': dict(self.env.context, keep_context=True),
         }

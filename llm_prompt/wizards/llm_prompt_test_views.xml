@@ -44,20 +44,14 @@
                                string="Test Record"
                                placeholder="Choose any record..."
                                options="{'no_create': True, 'no_open': True}"
-                               help="Select any record to test get_related_record() functions in your prompt"/>
+                               help="Select any record to test get_related_record() functions. Context will auto-populate and prompt will auto-evaluate."/>
                         <div class="oe_button_box" name="related_record_buttons"
                              attrs="{'invisible': [('related_record_ref', '=', False)]}">
                             <button name="action_clear_related_record"
-                                    string="Clear"
+                                    string="Clear Record"
                                     type="object"
                                     class="btn btn-sm btn-secondary"
                                     icon="fa-times"/>
-                            <button name="action_populate_sample_context"
-                                    string="Populate Data"
-                                    type="object"
-                                    class="btn btn-sm btn-info"
-                                    icon="fa-magic"
-                                    help="Add sample data from the selected record to test context"/>
                         </div>
                     </group>
 
@@ -80,11 +74,12 @@
                                 <h5>Testing Instructions:</h5>
                                 <ul>
                                     <li><strong>Test Context:</strong> Provide arguments in JSON format that match your prompt's schema</li>
-                                    <li><strong>Related Record:</strong> Use the reference field above to select any record from any available model</li>
-                                    <li><strong>Sample Data:</strong> Click "Populate Sample Data" to automatically add common fields from the selected record</li>
-                                    <li><strong>Evaluation:</strong> Click "Evaluate Prompt" to see the rendered results</li>
+                                    <li><strong>Related Record:</strong> Select any record above - context will auto-populate and prompt will auto-evaluate</li>
+                                    <li><strong>Auto-population:</strong> Common fields are automatically added as "record_fieldname" when you select a record</li>
+                                    <li><strong>Related Record Access:</strong> Use {{ related_record.get_field('field_name') }} in templates for direct field access</li>
+                                    <li><strong>Manual Evaluation:</strong> Click "Evaluate Prompt" to re-run evaluation with modified context</li>
                                 </ul>
-                                <p><strong>Pro Tip:</strong> The reference field allows you to select from all available models in your Odoo instance, making it easy to test different scenarios.</p>
+                                <p><strong>Pro Tip:</strong> The context includes related_model_name, related_model_id, and related_res_id for debugging.</p>
                             </div>
                         </page>
 
@@ -95,7 +90,7 @@
                                     widget="ace"
                                     options="{'mode': 'text', 'showPrintMargin': false}"
                                     readonly="1"
-                                    placeholder="Click 'Evaluate Prompt' to see the rendered template..."
+                                    placeholder="Select a record or click 'Evaluate Prompt' to see the rendered template..."
                             />
                             <div class="alert alert-info mt-3" role="alert">
                                 <p><strong>Rendered Template:</strong> This shows your template after all {{argument}} placeholders have been replaced with actual values.</p>
@@ -118,7 +113,7 @@
                                         widget="ace"
                                         options="{'mode': 'json', 'showPrintMargin': false}"
                                         readonly="1"
-                                        placeholder="Click 'Evaluate Prompt' to see the generated messages in JSON format..."
+                                        placeholder="Select a record or click 'Evaluate Prompt' to see the generated messages in JSON format..."
                                 />
                             </div>
 
@@ -129,7 +124,7 @@
                                         widget="ace"
                                         options="{'mode': 'yaml', 'showPrintMargin': false}"
                                         readonly="1"
-                                        placeholder="Click 'Evaluate Prompt' to see the generated messages in YAML format..."
+                                        placeholder="Select a record or click 'Evaluate Prompt' to see the generated messages in YAML format..."
                                 />
                             </div>
 
@@ -139,7 +134,7 @@
                                         name="messages_text"
                                         widget="text"
                                         readonly="1"
-                                        placeholder="Click 'Evaluate Prompt' to see the generated messages in readable text format..."
+                                        placeholder="Select a record or click 'Evaluate Prompt' to see the generated messages in readable text format..."
                                 />
                             </div>
 
