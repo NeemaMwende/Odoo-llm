@@ -40,7 +40,6 @@
             "llm_prompt/static/src/models/llm_prompt.js",
             "llm_prompt/static/src/models/thread.js",
             "llm_prompt/static/src/models/llm_chat.js",
-            "llm_prompt/static/src/js/prompt_test_component_bridge.js",
             "llm_prompt/static/src/widgets/llm_thread_related_record_widget.js",
             "llm_prompt/static/src/widgets/llm_thread_related_record_widget.xml",
         ],
