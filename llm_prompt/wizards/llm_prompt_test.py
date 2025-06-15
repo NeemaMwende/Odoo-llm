@@ -25,7 +25,7 @@ class LLMPromptTest(models.TransientModel):
         default=lambda self: self._get_default_context(),
     )
 
-    # Related record selection
+    # Related record selection - simplified to just store the info
     related_record_model = fields.Char(
         string="Related Record Model",
         help="Model name for the related record (e.g. 'res.partner')",
@@ -40,6 +40,13 @@ class LLMPromptTest(models.TransientModel):
         string="Related Record",
         compute="_compute_related_record_display",
         help="Display name of the selected related record",
+    )
+
+    # Create a mock thread for the component to work with
+    mock_thread = fields.Json(
+        string="Mock Thread Data",
+        compute="_compute_mock_thread",
+        help="Mock thread data for the related record component",
     )
 
     # Results
@@ -101,6 +108,18 @@ class LLMPromptTest(models.TransientModel):
                     wizard.related_record_display = f"Error: {str(e)}"
             else:
                 wizard.related_record_display = ""
+
+    @api.depends('related_record_model', 'related_record_id')
+    def _compute_mock_thread(self):
+        """Create mock thread data for the LLMChatThreadRelatedRecord component"""
+        for wizard in self:
+            mock_thread = {
+                'id': 0,  # Mock thread ID
+                'relatedThreadModel': wizard.related_record_model or None,
+                'relatedThreadId': wizard.related_record_id or None,
+                'relatedThread': bool(wizard.related_record_model and wizard.related_record_id),
+            }
+            wizard.mock_thread = mock_thread
 
     def _get_default_context(self):
         """Get default context based on prompt's schema"""
@@ -228,6 +247,16 @@ class LLMPromptTest(models.TransientModel):
             self.messages_text = f"Error during evaluation: {str(e)}"
             _logger.exception("Error evaluating prompt %s", self.prompt_id.name)
 
+        # Return an action to keep the wizard open
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'llm.prompt.test',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': self.env.context,
+        }
+
     def _extract_message_content(self, message):
         """Extract text content from a message regardless of format"""
         content = message.get("content", "")
@@ -241,48 +270,29 @@ class LLMPromptTest(models.TransientModel):
         else:
             return str(content)
 
-    def action_clear_related_record(self):
-        """Clear the selected related record"""
-        self.ensure_one()
-        self.related_record_model = ""
-        self.related_record_id = 0
-        # Update context to remove related record info
-        try:
-            context = json.loads(self.test_context or "{}")
-            context.pop('related_record', None)
-            self.test_context = json.dumps(context, indent=2)
-        except (json.JSONDecodeError, KeyError):
-            pass
-
-    def action_select_related_record(self):
-        """Open a dialog to select related record"""
-        self.ensure_one()
-
-        # Create a record selector wizard
-        selector = self.env['llm.prompt.record.selector'].create({
-            'test_wizard_id': self.id,
-        })
-
-        return {
-            'name': _('Select Related Record'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'llm.prompt.record.selector',
-            'view_mode': 'form',
-            'res_id': selector.id,
-            'target': 'new',
-            'view_id': self.env.ref('llm_prompt.llm_prompt_record_selector_view_form').id,
-        }
-
-    def set_related_record(self, model_name, record_id):
-        """Set the related record from external selection"""
-        self.ensure_one()
-        self.related_record_model = model_name
-        self.related_record_id = record_id
-        self._onchange_related_record()
-
     def action_reset_context(self):
         """Reset context to defaults"""
         self.ensure_one()
         self.test_context = self._get_default_context()
         self.related_record_model = ""
         self.related_record_id = 0
+
+        # Return an action to keep the wizard open
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'llm.prompt.test',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': self.env.context,
+        }
+
+    def update_related_record(self, model, record_id):
+        """Called by the frontend component to update the related record"""
+        self.ensure_one()
+        self.write({
+            'related_record_model': model,
+            'related_record_id': record_id,
+        })
+        self._onchange_related_record()
+        return True

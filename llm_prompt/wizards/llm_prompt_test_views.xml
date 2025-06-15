@@ -51,27 +51,27 @@
                                     />
                                 </group>
                                 <group string="Related Record">
-                                    <field name="related_record_display" readonly="1" placeholder="No record selected"/>
-                                    <div class="o_row">
-                                        <button
-                                                name="action_select_related_record"
-                                                string="Select Record"
-                                                type="object"
-                                                class="btn btn-primary"
-                                                icon="fa-search"
-                                        />
-                                        <button
-                                                name="action_clear_related_record"
-                                                string="Clear"
-                                                type="object"
-                                                class="btn btn-secondary ml-2"
-                                                icon="fa-times"
-                                                attrs="{'invisible': [('related_record_id', '=', 0)]}"
-                                        />
+                                    <div class="alert alert-info">
+                                        <h6><strong>Link Record for Testing</strong></h6>
+                                        <p>Specify a record to test {{get_related_record()}} functions in your prompt.</p>
                                     </div>
-                                    <!-- Hidden fields for technical use -->
-                                    <field name="related_record_model" invisible="1"/>
-                                    <field name="related_record_id" invisible="1"/>
+
+                                    <!-- Manual record selection -->
+                                    <field name="related_record_model"
+                                           string="Model Name"
+                                           placeholder="e.g. res.partner, product.product"/>
+                                    <field name="related_record_id"
+                                           string="Record ID"
+                                           placeholder="Enter the ID of the record"/>
+
+                                    <!-- Display current selection -->
+                                    <field name="related_record_display"
+                                           string="Selected Record"
+                                           readonly="1"
+                                           attrs="{'invisible': [('related_record_display', '=', '')]}"/>
+
+                                    <!-- Hidden field for technical use -->
+                                    <field name="mock_thread" invisible="1"/>
                                 </group>
                             </group>
 
@@ -80,9 +80,10 @@
                                 <h5>Testing Instructions:</h5>
                                 <ul>
                                     <li><strong>Test Context:</strong> Provide arguments in JSON format that match your prompt's schema</li>
-                                    <li><strong>Related Record:</strong> Optionally link a record to test {{get_related_record()}} functions</li>
+                                    <li><strong>Related Record:</strong> Link a record to test {{get_related_record()}} functions</li>
                                     <li><strong>Evaluation:</strong> Click "Evaluate Prompt" to see the rendered results</li>
                                 </ul>
+                                <p><strong>Note:</strong> You can either use the record selector above or manually enter model name and ID in the fields.</p>
                             </div>
                         </page>
 
@@ -161,6 +162,13 @@
                                     <field name="has_error" readonly="1"/>
                                     <field name="error_message" readonly="1" attrs="{'invisible': [('has_error', '=', False)]}"/>
                                 </group>
+                            </group>
+
+                            <!-- Current Related Record Info -->
+                            <group string="Related Record Info" attrs="{'invisible': [('related_record_display', '=', '')]}">
+                                <field name="related_record_display" readonly="1"/>
+                                <field name="related_record_model" readonly="1"/>
+                                <field name="related_record_id" readonly="1"/>
                             </group>
 
                             <!-- Raw Template Display -->

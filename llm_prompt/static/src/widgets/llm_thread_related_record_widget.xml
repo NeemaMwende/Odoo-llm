@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="llm_prompt.LLMThreadRelatedRecordWidget">
+        <div class="o_field_widget o_field_llm_thread_related_record">
+            <div class="mb-2">
+                <strong>Link Record for Testing</strong>
+                <div class="form-text text-muted">
+                    Select a record to test {{get_related_record()}} functions in your prompt
+                </div>
+            </div>
+
+            <div t-if="hasValidThread and mockThread">
+                <!-- Create a simple component that uses the thread data -->
+                <div class="o_LLMChatThreadRelatedRecord">
+                    <t t-if="mockThread.relatedThreadModel and mockThread.relatedThreadId">
+                        <div class="btn-group" role="group">
+                            <!-- Display current record -->
+                            <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 px-2 py-1"
+                                    type="button"
+                                    style="height: 32px;">
+                                <i class="fa fa-file-o text-primary" aria-hidden="true"/>
+                                <span class="text-truncate small" style="max-width: 100px;">
+                                    <t t-esc="mockThread.relatedThreadModel"/> #<t t-esc="mockThread.relatedThreadId"/>
+                                </span>
+                            </button>
+
+                            <!-- Clear button -->
+                            <button class="btn btn-sm btn-outline-danger px-2 py-1"
+                                    type="button"
+                                    t-on-click="_clearRecord"
+                                    title="Clear linked record"
+                                    style="height: 32px;">
+                                <i class="fa fa-times" aria-hidden="true"/>
+                            </button>
+                        </div>
+                    </t>
+                    <t t-else="">
+                        <div class="alert alert-info">
+                            <p><strong>Link a Record for Testing</strong></p>
+                            <p>Use the manual selection fields below to specify a record for testing {{get_related_record()}} functions.</p>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+            <div t-else="" class="alert alert-warning">
+                <i class="fa fa-exclamation-triangle me-2"></i>
+                Unable to initialize thread component. Use manual selection below.
+            </div>
+        </div>
+    </t>
+</templates>
