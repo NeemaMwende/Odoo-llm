@@ -168,6 +168,26 @@ class LLMPromptTest(models.TransientModel):
             except Exception as e:
                 _logger.warning("Error updating context with related record: %s", str(e))
 
+    def _create_mock_thread(self):
+        """
+        Create a mock thread record for testing purposes.
+        This allows us to reuse the thread's methods without duplicating logic.
+
+        Returns:
+            llm.thread: Mock thread record
+        """
+        # Create a mock thread record (not saved to database)
+        mock_thread = self.env['llm.thread'].new({
+            'name': f'Test Thread for {self.prompt_id.name}',
+            'prompt_id': self.prompt_id.id,
+        })
+
+        # Set the related record if one is selected
+        if self.related_record_ref:
+            mock_thread.related_record = self.related_record_ref
+
+        return mock_thread
+
     def action_evaluate_prompt(self):
         """Evaluate the prompt with the given context"""
         self.ensure_one()
@@ -183,32 +203,24 @@ class LLMPromptTest(models.TransientModel):
             except json.JSONDecodeError as e:
                 raise ValidationError(_("Invalid JSON in test context: %s") % str(e))
 
-            # Add related record to context if specified
-            if self.related_record_ref:
-                try:
-                    record = self.related_record_ref
-                    context['related_record'] = json.dumps({
-                        "model": record._name,
-                        "id": record.id,
-                        "display_name": record.display_name,
-                    })
+            # Create a mock thread to leverage existing thread methods
+            mock_thread = self._create_mock_thread()
 
-                    # Create a mock thread context for testing
-                    thread_context = {
-                        'thread_id': 0,  # Mock thread ID
-                        'related_record': context['related_record'],
-                    }
+            # Get the enhanced context using the thread's method
+            # This ensures we use the same logic as the real thread
+            enhanced_context = mock_thread._get_prompt_context(context)
 
-                    # Temporarily set context for the prompt evaluation
-                    context.update(thread_context)
-                except Exception as e:
-                    _logger.warning("Error setting up related record context: %s", str(e))
+            # Render the template using the prompt's render method
+            try:
+                self.rendered_template = self.prompt_id.render(enhanced_context)
+            except Exception as e:
+                raise ValidationError(_("Error rendering template: %s") % str(e))
 
-            # Render the template
-            self.rendered_template = self.prompt_id.render(context)
-
-            # Generate messages
-            messages = self.prompt_id.get_messages(context)
+            # Generate messages using the prompt's get_messages method
+            try:
+                messages = self.prompt_id.get_messages(enhanced_context)
+            except Exception as e:
+                raise ValidationError(_("Error generating messages: %s") % str(e))
 
             # Convert messages to different formats
             self.messages_json = json.dumps(messages, indent=2, ensure_ascii=False)
@@ -219,15 +231,18 @@ class LLMPromptTest(models.TransientModel):
             except Exception as e:
                 self.messages_yaml = f"Error converting to YAML: {str(e)}"
 
-            # Convert to readable text
+            # Convert to readable text using the same method as the thread
             text_parts = []
             for i, message in enumerate(messages, 1):
                 role = message.get('role', 'unknown')
-                content = self._extract_message_content(message)
+                content = mock_thread._extract_message_content(message)
                 text_parts.append(f"Message {i} ({role.upper()}):\n{content}\n")
 
             self.messages_text = "\n" + "="*50 + "\n".join(text_parts)
 
+        except ValidationError:
+            # Re-raise validation errors as-is
+            raise
         except Exception as e:
             self.has_error = True
             self.error_message = str(e)
@@ -247,24 +262,19 @@ class LLMPromptTest(models.TransientModel):
             'context': self.env.context,
         }
 
-    def _extract_message_content(self, message):
-        """Extract text content from a message regardless of format"""
-        content = message.get("content", "")
-
-        if isinstance(content, list) and len(content) > 0:
-            # Handle new format with content array
-            return content[0].get("text", "")
-        elif isinstance(content, str):
-            # Handle old format with direct content string
-            return content
-        else:
-            return str(content)
-
     def action_reset_context(self):
         """Reset context to defaults"""
         self.ensure_one()
         self.test_context = self._get_default_context()
         self.related_record_ref = False
+
+        # Clear results
+        self.rendered_template = ""
+        self.messages_json = ""
+        self.messages_yaml = ""
+        self.messages_text = ""
+        self.has_error = False
+        self.error_message = ""
 
         # Return an action to keep the wizard open
         return {
@@ -317,7 +327,8 @@ class LLMPromptTest(models.TransientModel):
 
             # Add some common fields from the record as sample data
             sample_fields = ['name', 'display_name', 'email', 'phone', 'mobile',
-                             'street', 'city', 'country_id', 'state_id', 'website']
+                             'street', 'city', 'country_id', 'state_id', 'website',
+                             'description', 'notes', 'comment']
 
             for field_name in sample_fields:
                 if hasattr(record, field_name):

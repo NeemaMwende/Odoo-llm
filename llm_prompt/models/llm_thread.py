@@ -85,6 +85,112 @@ class LLMThreadPrompt(models.Model):
         else:
             return ""
 
+    def get_related_field(self, field_name, key_name=None):
+        """
+        Access fields or dictionary keys from a related record.
+
+        Args:
+            field_name (str): The field name to access
+            key_name (str, optional): If the field is a dictionary, the key to access
+
+        Returns:
+            str: The value of the field/key or an empty string if not available
+        """
+        # If we don't have a related record, return empty string
+        if not self.related_record:
+            _logger.debug(
+                f"No related record available, returning empty value for {field_name}"
+            )
+            return ""
+
+        # Access the field
+        if hasattr(self.related_record, field_name):
+            try:
+                attr_value = getattr(self.related_record, field_name)
+
+                if key_name is not None:  # We want to access an item from this attribute
+                    if isinstance(attr_value, dict):
+                        if key_name in attr_value:
+                            final_value = attr_value[key_name]
+                        else:
+                            _logger.debug(
+                                "Key '%s' not found in dictionary field '%s'",
+                                key_name,
+                                field_name,
+                            )
+                            return ""
+                    else:
+                        _logger.debug(
+                            "Field '%s' is not a dictionary, cannot access key '%s'",
+                            field_name,
+                            key_name,
+                        )
+                        return ""
+                else:  # No key, just return the attribute value
+                    final_value = attr_value
+
+                # Convert to string with proper JSON handling for booleans
+                if isinstance(final_value, bool):
+                    return "true" if final_value else "false"
+                elif final_value is None:
+                    return ""
+                else:
+                    return str(final_value)
+
+            except Exception as e:
+                _logger.error(
+                    "Error getting field %s (key: %s) from record: %s",
+                    field_name,
+                    key_name,
+                    str(e),
+                )
+                return ""
+        else:
+            _logger.debug("Record doesn't have field: %s", field_name)
+            return ""
+
+    def _get_template_functions(self):
+        """
+        Get template functions to provide to prompt rendering.
+        Override this method in other modules to add more functions.
+
+        Returns:
+            dict: Dictionary of function name -> callable mappings
+        """
+        return {
+            'get_related_field': self.get_related_field,
+            'get_related_record': self.get_related_field,  # Alias for backward compatibility
+        }
+
+    def _get_prompt_context(self, base_context=None):
+        """
+        Get the context to pass to prompt rendering.
+        Override this method in other modules to add more context.
+
+        Args:
+            base_context (dict): Base context from the caller
+
+        Returns:
+            dict: Enhanced context for prompt rendering
+        """
+        context = dict(base_context or {})
+
+        # Add thread-specific context
+        context['thread_id'] = self.id
+
+        # Add related record information if available
+        if self.related_record:
+            context['related_record'] = json.dumps({
+                "model": self.related_record._name,
+                "id": self.related_record.id,
+                "display_name": self.related_record.display_name,
+            })
+
+        # Add template functions to the context
+        context['template_functions'] = self._get_template_functions()
+
+        return context
+
     # override to include prompt messages
     def _get_prepend_messages(self, context=None):
         """Hook: return a list of formatted messages to prepend to the conversation.
@@ -102,83 +208,22 @@ class LLMThreadPrompt(models.Model):
         messages = super()._get_prepend_messages(context=context)
 
         if self.prompt_id:
-            context["thread_id"] = self.id
-            context["related_record"] = json.dumps(
-                {
-                    "model": self.related_record._name,
-                    "id": self.related_record.id,
-                    "display_name": self.related_record.display_name,
-                }
-            ) if self.related_record else False
-            context["get_related_field"] = self.get_related_field
-            # Use the prompt to get messages with the new context
-            prompt_messages = self.prompt_id.get_messages(context)
-            if prompt_messages:
-                messages = self.merge_message_lists(prompt_messages, messages)
-                _logger.info("Added %d messages from prompt", len(prompt_messages))
-
-        return messages
-
-    def get_related_field(self, field_name, key_name=None):
-        """
-        Access fields or dictionary keys from a related record.
-
-        Args:
-            field_name (str): The field name to access
-            key_name (str, optional): If the field is a dictionary, the key to access
-            related_record (Model, optional): The record to access.
-
-        Returns:
-            str: The value of the field/key or an empty string if not available
-        """
-        # If we still don't have a related record, return empty string
-        if not self.related_record:
-            _logger.info(
-                f"No related record available, returning empty value for {field_name}"
-            )
-            return ""
-
-        # Access the field
-        if hasattr(self.related_record, field_name):
             try:
-                attr_value = getattr(self.related_record, field_name)
+                # Get enhanced context for prompt rendering (includes template_functions)
+                prompt_context = self._get_prompt_context(context)
 
-                if (
-                        key_name is not None
-                ):  # We want to access an item from this attribute
-                    if isinstance(attr_value, dict):
-                        if key_name in attr_value:
-                            final_value = attr_value[key_name]
-                        else:
-                            _logger.warning(
-                                "Key '%s' not found in dictionary field '%s'",
-                                key_name,
-                                field_name,
-                            )
-                            return ""  # Return empty string instead of error message
-                    else:
-                        _logger.warning(
-                            "Field '%s' is not a dictionary, cannot access key '%s'",
-                            field_name,
-                            key_name,
-                        )
-                        return ""  # Return empty string instead of error message
-                else:  # No key, just return the attribute value
-                    final_value = attr_value
+                # Get messages from the prompt with enhanced context
+                prompt_messages = self.prompt_id.get_messages(prompt_context)
 
-                # Convert to string with proper JSON handling for booleans
-                if isinstance(final_value, bool):
-                    return "true" if final_value else "false"
-                return final_value
+                if prompt_messages:
+                    messages = self.merge_message_lists(prompt_messages, messages)
+                    _logger.info("Added %d messages from prompt '%s'", len(prompt_messages), self.prompt_id.name)
 
             except Exception as e:
-                _logger.error(
-                    "Error getting field %s (key: %s) from record: %s",
-                    field_name,
-                    key_name,
-                    str(e),
+                _logger.error("Error getting messages from prompt '%s': %s", self.prompt_id.name, str(e))
+                # Continue without prompt messages rather than failing completely
+                self.message_post(
+                    body=f"Warning: Could not load prompt messages from '{self.prompt_id.name}': {str(e)}"
                 )
-                return ""  # Return empty string instead of error message
-        else:
-            _logger.warning("Record doesn't have field: %s", field_name)
-            return ""  # Return empty string instead of error message
+
+        return messages

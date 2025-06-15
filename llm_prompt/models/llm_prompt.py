@@ -224,17 +224,18 @@ class LLMPrompt(models.Model):
             "arguments": formatted_args,
         }
 
-    def get_messages(self, arguments={}):
+    def get_messages(self, arguments=None):
         """
         Generate messages for this prompt with the given arguments
 
         Args:
-            arguments (dict): Dictionary of argument values
+            arguments (dict): Dictionary of argument values and template functions
 
         Returns:
             list: List of messages for this prompt
         """
         self.ensure_one()
+        arguments = arguments or {}
 
         # Fill default values for missing arguments
         arguments = self.sudo()._fill_default_values(arguments)
@@ -242,6 +243,7 @@ class LLMPrompt(models.Model):
         # Validate arguments against schema
         self._validate_arguments(arguments)
 
+        # Render the template with arguments (including template_functions)
         content = self.render(arguments)
 
         # Parse template based on format
@@ -249,20 +251,22 @@ class LLMPrompt(models.Model):
             if self.format == "text":
                 messages = self._parse_text_messages(content)
             elif self.format == "yaml":
-                messages = self._parse_dict_messages(yaml.safe_load_all(content))
+                messages = list(self._parse_dict_messages(yaml.safe_load_all(content)))
             elif self.format == "json":
-                messages = self._parse_dict_messages(json.loads(content))
+                messages = list(self._parse_dict_messages(json.loads(content)))
             else:
                 raise ValidationError(
                     _("Unsupported template format: %s") % self.format
                 )
         except Exception as e:
             _logger.error("Error parsing %s template for prompt %s: %s", self.format, self.name, str(e))
-            raise ValidationError(_("Error parsing %s template: %s") % self.format, str(e))
+            raise ValidationError(_("Error parsing %s template: %s") % (self.format, str(e)))
 
         # Update usage statistics
-        self.usage_count += 1
-        self.last_used = fields.Datetime.now()
+        self.sudo().write({
+            'usage_count': self.usage_count + 1,
+            'last_used': fields.Datetime.now()
+        })
 
         return messages
 
@@ -361,7 +365,7 @@ class LLMPrompt(models.Model):
             # If schema is invalid, skip validation
             return
 
-        # Check for required arguments
+        # Check for required arguments (excluding template_functions which is internal)
         for arg_name, arg_schema in schema.items():
             if arg_schema.get("required", False) and arg_name not in arguments:
                 raise ValidationError(_("Missing required argument: %s") % arg_name)
@@ -390,33 +394,48 @@ class LLMPrompt(models.Model):
         if not template_content:
             return set()
 
-        # Find all {{argument}} placeholders
-        pattern = r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}"
-        matches = re.findall(pattern, template_content)
+        # Find all {{argument}} placeholders and function calls
+        # Match simple variables: {{variable_name}}
+        simple_pattern = r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}"
+        simple_matches = re.findall(simple_pattern, template_content)
 
-        return set(matches)
+        # Match function calls: {{function_name("arg")}}
+        function_pattern = r"\{\{\s*([a-zA-Z0-9_]+)\s*\([^}]*\)\s*\}\}"
+        function_matches = re.findall(function_pattern, template_content)
+
+        # Filter out known Jinja2 functions that will be provided via template_functions
+        known_functions = {'get_related_field', 'get_related_record'}
+        filtered_function_matches = [match for match in function_matches if match not in known_functions]
+
+        all_matches = simple_matches + filtered_function_matches
+        return set(all_matches)
 
     def render(self, context):
         """
         Replace argument placeholders in content with their values using Jinja2.
 
         Args:
-            context (dict): Dictionary of argument values
+            context (dict): Dictionary of argument values (may include template_functions)
 
         Returns:
             str: Content with placeholders replaced by values
         """
+        # Make a copy of context to avoid modifying the original
+        context_copy = dict(context)
+
+        # Extract template functions from context copy
+        template_functions = context_copy.pop('template_functions', {})
 
         # Process boolean values for JSON compatibility
-        processed_args = dict(context)
-        for arg_name, arg_value in context.items():
+        processed_args = dict(context_copy)
+        for arg_name, arg_value in context_copy.items():
             if isinstance(arg_value, bool):
                 # Convert Python True/False to JSON true/false
                 processed_args[arg_name] = "true" if arg_value else "false"
             else:
                 processed_args[arg_name] = arg_value
 
-        # Create Jinja2 environment with custom functions
+        # Create Jinja2 environment
         env = Environment(
             variable_start_string="{{",
             variable_end_string="}}",
@@ -425,9 +444,17 @@ class LLMPrompt(models.Model):
             undefined=Undefined,  # Handle missing variables gracefully
         )
 
+        # Register template functions provided by the caller
+        for func_name, func in template_functions.items():
+            env.globals[func_name] = func
+
         # Create and render the template
-        template = env.from_string(self.template)
-        return template.render(**processed_args)
+        try:
+            template = env.from_string(self.template)
+            return template.render(**processed_args)
+        except Exception as e:
+            _logger.error("Error rendering template for prompt %s: %s", self.name, str(e))
+            raise ValidationError(_("Error rendering template: %s") % str(e))
 
     def auto_detect_arguments(self):
         """
