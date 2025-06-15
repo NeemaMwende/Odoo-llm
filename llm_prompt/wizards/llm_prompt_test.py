@@ -25,28 +25,11 @@ class LLMPromptTest(models.TransientModel):
         default=lambda self: self._get_default_context(),
     )
 
-    # Related record selection - simplified to just store the info
-    related_record_model = fields.Char(
-        string="Related Record Model",
-        help="Model name for the related record (e.g. 'res.partner')",
-    )
-
-    related_record_id = fields.Integer(
-        string="Related Record ID",
-        help="ID of the related record to use in testing",
-    )
-
-    related_record_display = fields.Char(
+    # Reference field for related record selection - no model limitations
+    related_record_ref = fields.Reference(
+        selection=[],  # Empty selection - allows all models
         string="Related Record",
-        compute="_compute_related_record_display",
-        help="Display name of the selected related record",
-    )
-
-    # Create a mock thread for the component to work with
-    mock_thread = fields.Json(
-        string="Mock Thread Data",
-        compute="_compute_mock_thread",
-        help="Mock thread data for the related record component",
+        help="Select any record to use as context for testing get_related_record() functions",
     )
 
     # Results
@@ -94,32 +77,29 @@ class LLMPromptTest(models.TransientModel):
         help="Error message if evaluation failed",
     )
 
-    @api.depends('related_record_model', 'related_record_id')
-    def _compute_related_record_display(self):
-        for wizard in self:
-            if wizard.related_record_model and wizard.related_record_id:
-                try:
-                    record = self.env[wizard.related_record_model].browse(wizard.related_record_id)
-                    if record.exists():
-                        wizard.related_record_display = f"{record.display_name} ({wizard.related_record_model})"
-                    else:
-                        wizard.related_record_display = f"Record not found: {wizard.related_record_model}({wizard.related_record_id})"
-                except Exception as e:
-                    wizard.related_record_display = f"Error: {str(e)}"
-            else:
-                wizard.related_record_display = ""
+    # Additional fields for displaying prompt info
+    original_template = fields.Text(
+        string="Original Template",
+        compute="_compute_prompt_info",
+        help="Original template content from the prompt",
+    )
 
-    @api.depends('related_record_model', 'related_record_id')
-    def _compute_mock_thread(self):
-        """Create mock thread data for the LLMChatThreadRelatedRecord component"""
+    arguments_schema = fields.Text(
+        string="Arguments Schema",
+        compute="_compute_prompt_info",
+        help="Arguments schema from the prompt",
+    )
+
+    @api.depends('prompt_id')
+    def _compute_prompt_info(self):
+        """Compute prompt information for display"""
         for wizard in self:
-            mock_thread = {
-                'id': 0,  # Mock thread ID
-                'relatedThreadModel': wizard.related_record_model or None,
-                'relatedThreadId': wizard.related_record_id or None,
-                'relatedThread': bool(wizard.related_record_model and wizard.related_record_id),
-            }
-            wizard.mock_thread = mock_thread
+            if wizard.prompt_id:
+                wizard.original_template = wizard.prompt_id.template or ""
+                wizard.arguments_schema = wizard.prompt_id.arguments_json or "{}"
+            else:
+                wizard.original_template = ""
+                wizard.arguments_schema = "{}"
 
     def _get_default_context(self):
         """Get default context based on prompt's schema"""
@@ -153,29 +133,27 @@ class LLMPromptTest(models.TransientModel):
         except (json.JSONDecodeError, Exception):
             return "{}"
 
-    @api.onchange('related_record_model', 'related_record_id')
-    def _onchange_related_record(self):
+    @api.onchange('related_record_ref')
+    def _onchange_related_record_ref(self):
         """Update context when related record changes"""
-        if self.related_record_model and self.related_record_id:
+        if self.related_record_ref:
             try:
-                record = self.env[self.related_record_model].browse(self.related_record_id)
-                if record.exists():
-                    # Parse existing context
-                    try:
-                        context = json.loads(self.test_context or "{}")
-                    except json.JSONDecodeError:
-                        context = {}
+                # Parse existing context
+                try:
+                    context = json.loads(self.test_context or "{}")
+                except json.JSONDecodeError:
+                    context = {}
 
-                    # Add related record info to context
-                    context['related_record'] = json.dumps({
-                        "model": record._name,
-                        "id": record.id,
-                        "display_name": record.display_name,
-                    })
+                # Add related record info to context
+                context['related_record'] = json.dumps({
+                    "model": self.related_record_ref._name,
+                    "id": self.related_record_ref.id,
+                    "display_name": self.related_record_ref.display_name,
+                })
 
-                    self.test_context = json.dumps(context, indent=2)
-            except Exception:
-                pass
+                self.test_context = json.dumps(context, indent=2)
+            except Exception as e:
+                _logger.warning("Error updating context with related record: %s", str(e))
 
     def action_evaluate_prompt(self):
         """Evaluate the prompt with the given context"""
@@ -193,24 +171,23 @@ class LLMPromptTest(models.TransientModel):
                 raise ValidationError(_("Invalid JSON in test context: %s") % str(e))
 
             # Add related record to context if specified
-            if self.related_record_model and self.related_record_id:
+            if self.related_record_ref:
                 try:
-                    record = self.env[self.related_record_model].browse(self.related_record_id)
-                    if record.exists():
-                        context['related_record'] = json.dumps({
-                            "model": record._name,
-                            "id": record.id,
-                            "display_name": record.display_name,
-                        })
+                    record = self.related_record_ref
+                    context['related_record'] = json.dumps({
+                        "model": record._name,
+                        "id": record.id,
+                        "display_name": record.display_name,
+                    })
 
-                        # Create a mock thread context for testing
-                        thread_context = {
-                            'thread_id': 0,  # Mock thread ID
-                            'related_record': context['related_record'],
-                        }
+                    # Create a mock thread context for testing
+                    thread_context = {
+                        'thread_id': 0,  # Mock thread ID
+                        'related_record': context['related_record'],
+                    }
 
-                        # Temporarily set context for the prompt evaluation
-                        context.update(thread_context)
+                    # Temporarily set context for the prompt evaluation
+                    context.update(thread_context)
                 except Exception as e:
                     _logger.warning("Error setting up related record context: %s", str(e))
 
@@ -274,8 +251,7 @@ class LLMPromptTest(models.TransientModel):
         """Reset context to defaults"""
         self.ensure_one()
         self.test_context = self._get_default_context()
-        self.related_record_model = ""
-        self.related_record_id = 0
+        self.related_record_ref = False
 
         # Return an action to keep the wizard open
         return {
@@ -287,12 +263,81 @@ class LLMPromptTest(models.TransientModel):
             'context': self.env.context,
         }
 
-    def update_related_record(self, model, record_id):
-        """Called by the frontend component to update the related record"""
+    def action_clear_related_record(self):
+        """Clear the related record selection"""
         self.ensure_one()
-        self.write({
-            'related_record_model': model,
-            'related_record_id': record_id,
-        })
-        self._onchange_related_record()
-        return True
+        self.related_record_ref = False
+
+        # Also remove related_record from test context
+        try:
+            context = json.loads(self.test_context or "{}")
+            if 'related_record' in context:
+                del context['related_record']
+                self.test_context = json.dumps(context, indent=2)
+        except json.JSONDecodeError:
+            pass
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'llm.prompt.test',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': self.env.context,
+        }
+
+    def action_populate_sample_context(self):
+        """Populate context with sample data from the related record"""
+        self.ensure_one()
+
+        if not self.related_record_ref:
+            raise ValidationError(_("Please select a related record first."))
+
+        try:
+            record = self.related_record_ref
+
+            # Parse existing context
+            try:
+                context = json.loads(self.test_context or "{}")
+            except json.JSONDecodeError:
+                context = {}
+
+            # Add some common fields from the record as sample data
+            sample_fields = ['name', 'display_name', 'email', 'phone', 'mobile',
+                             'street', 'city', 'country_id', 'state_id', 'website']
+
+            for field_name in sample_fields:
+                if hasattr(record, field_name):
+                    try:
+                        value = getattr(record, field_name)
+                        if value:
+                            # Handle different field types
+                            if hasattr(value, 'name'):  # Many2one field
+                                context[f"record_{field_name}"] = value.name
+                            elif hasattr(value, 'ids'):  # Many2many/One2many field
+                                context[f"record_{field_name}"] = [r.name for r in value[:3]]  # Limit to 3
+                            else:
+                                context[f"record_{field_name}"] = str(value)
+                    except Exception:
+                        continue
+
+            # Add the related record reference
+            context['related_record'] = json.dumps({
+                "model": record._name,
+                "id": record.id,
+                "display_name": record.display_name,
+            })
+
+            self.test_context = json.dumps(context, indent=2)
+
+        except Exception as e:
+            raise ValidationError(_("Error populating sample context: %s") % str(e))
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'llm.prompt.test',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': self.env.context,
+        }
