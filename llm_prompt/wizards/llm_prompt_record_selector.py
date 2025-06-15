@@ -12,12 +12,13 @@ class LLMPromptRecordSelector(models.TransientModel):
         ondelete="cascade",
     )
 
-    # Step 1: Model selection
+    # Model selection
     model_id = fields.Many2one(
         "ir.model",
-        string="Model",
+        string="Model Type",
         domain=[('transient', '=', False)],
         help="Select the model type for the related record",
+        required=True,
     )
 
     model_name = fields.Char(
@@ -26,87 +27,91 @@ class LLMPromptRecordSelector(models.TransientModel):
         readonly=True,
     )
 
-    # Step 2: Record selection
-    record_ids = fields.One2many(
-        "llm.prompt.record.selector.line",
-        "selector_id",
-        string="Available Records",
+    # Record selection - dynamically populated based on model
+    record_selection = fields.Selection(
+        string="Record",
+        selection="_get_record_selection",
+        help="Select a specific record from the chosen model",
     )
 
+    # Store the selected record info
     selected_record_id = fields.Integer(
         string="Selected Record ID",
     )
 
-    # UI State
-    step = fields.Selection([
-        ('model', 'Select Model'),
-        ('record', 'Select Record'),
-    ], default='model', string="Current Step")
+    selected_record_name = fields.Char(
+        string="Selected Record Name",
+        compute="_compute_selected_record_name",
+    )
 
-    def action_next_step(self):
-        """Move to record selection step"""
-        self.ensure_one()
-        if self.step == 'model' and self.model_id:
-            self.step = 'record'
-            self._load_records()
-        return self._return_form_view()
+    @api.depends('record_selection')
+    def _compute_selected_record_name(self):
+        """Compute the display name of the selected record"""
+        for wizard in self:
+            if wizard.record_selection and wizard.model_name:
+                try:
+                    record_id = int(wizard.record_selection)
+                    record = self.env[wizard.model_name].browse(record_id)
+                    if record.exists():
+                        wizard.selected_record_name = record.display_name
+                        wizard.selected_record_id = record_id
+                    else:
+                        wizard.selected_record_name = "Record not found"
+                        wizard.selected_record_id = 0
+                except (ValueError, KeyError):
+                    wizard.selected_record_name = ""
+                    wizard.selected_record_id = 0
+            else:
+                wizard.selected_record_name = ""
+                wizard.selected_record_id = 0
 
-    def action_previous_step(self):
-        """Go back to model selection"""
-        self.ensure_one()
-        self.step = 'model'
-        self.record_ids.unlink()  # Clear loaded records
-        return self._return_form_view()
-
-    def _load_records(self):
-        """Load records for the selected model"""
-        self.ensure_one()
-        if not self.model_id:
-            return
-
-        # Clear existing records
-        self.record_ids.unlink()
+    def _get_record_selection(self):
+        """Generate selection options for records based on the selected model"""
+        if not self.model_id or not self.model_name:
+            return []
 
         try:
-            # Get records from the selected model
+            # Get records from the selected model (limit for performance)
             model = self.env[self.model_name]
-            records = model.search([], limit=100, order='id desc')
+            records = model.search([], limit=50, order='id desc')
 
-            # Create selector lines
-            lines = []
+            # Create selection tuples (value, label)
+            selection = []
             for record in records:
-                lines.append((0, 0, {
-                    'record_id': record.id,
-                    'display_name': record.display_name,
-                    'model_name': self.model_name,
-                }))
+                selection.append((str(record.id), record.display_name))
 
-            self.record_ids = lines
+            return selection
 
-        except Exception as e:
-            # If there's an error, go back to model selection
-            self.step = 'model'
-            raise models.ValidationError(_("Error loading records: %s") % str(e))
+        except Exception:
+            # Return empty list if there's any error accessing the model
+            return []
 
-    def action_select_record(self, record_id):
-        """Select a specific record"""
-        self.ensure_one()
-        self.selected_record_id = record_id
-        return self.action_confirm_selection()
+    @api.onchange('model_id')
+    def _onchange_model_id(self):
+        """Clear record selection when model changes"""
+        if self.model_id:
+            self.record_selection = False
+        else:
+            self.record_selection = False
 
     def action_confirm_selection(self):
         """Confirm the record selection and return to test wizard"""
         self.ensure_one()
 
-        if self.selected_record_id and self.model_name:
-            # Update the test wizard with the selected record
-            self.test_wizard_id.write({
-                'related_record_model': self.model_name,
-                'related_record_id': self.selected_record_id,
-            })
+        if not self.model_id:
+            raise models.ValidationError(_("Please select a model type."))
 
-            # Trigger the onchange to update context
-            self.test_wizard_id._onchange_related_record()
+        if not self.record_selection:
+            raise models.ValidationError(_("Please select a record."))
+
+        # Update the test wizard with the selected record
+        self.test_wizard_id.write({
+            'related_record_model': self.model_name,
+            'related_record_id': self.selected_record_id,
+        })
+
+        # Trigger the onchange to update context
+        self.test_wizard_id._onchange_related_record()
 
         # Return to the test wizard
         return {
@@ -117,44 +122,3 @@ class LLMPromptRecordSelector(models.TransientModel):
             'target': 'new',
         }
 
-    def _return_form_view(self):
-        """Return the form view for this wizard"""
-        return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'llm.prompt.record.selector',
-            'view_mode': 'form',
-            'res_id': self.id,
-            'target': 'new',
-        }
-
-
-class LLMPromptRecordSelectorLine(models.TransientModel):
-    _name = "llm.prompt.record.selector.line"
-    _description = "Record Selector Line"
-
-    selector_id = fields.Many2one(
-        "llm.prompt.record.selector",
-        string="Selector",
-        required=True,
-        ondelete="cascade",
-    )
-
-    record_id = fields.Integer(
-        string="Record ID",
-        required=True,
-    )
-
-    display_name = fields.Char(
-        string="Display Name",
-        required=True,
-    )
-
-    model_name = fields.Char(
-        string="Model Name",
-        required=True,
-    )
-
-    def action_select_this_record(self):
-        """Select this specific record"""
-        self.ensure_one()
-        return self.selector_id.action_select_record(self.record_id)
