@@ -7,6 +7,27 @@ from odoo.exceptions import ValidationError
 _logger = logging.getLogger(__name__)
 
 
+class LLMThreadMock(models.TransientModel):
+    """
+    Mock thread model for testing that inherits from llm.thread
+    but doesn't require model_id and provider_id to be set.
+    """
+    _name = "llm.thread.mock"
+    _description = "Mock LLM Thread for Testing"
+    _inherit = "llm.thread"
+
+    provider_id = fields.Many2one(
+        "llm.provider",
+        string="Provider",
+        required=False,
+    )
+    model_id = fields.Many2one(
+        "llm.model",
+        string="Model",
+        required=False,
+    )
+
+
 class LLMPromptTest(models.TransientModel):
     _name = "llm.prompt.test"
     _description = "LLM Prompt Test Wizard"
@@ -125,22 +146,23 @@ class LLMPromptTest(models.TransientModel):
         defaults = prompt.get_default_test_context()
         return json.dumps(defaults, indent=2) if defaults else "{}"
 
-    def _create_test_thread(self):
+    def _create_mock_thread(self):
         """
-        Create a temporary test thread to use for testing.
-        This ensures we test using the thread's get_context() method.
+        Create a mock thread that inherits from llm.thread but doesn't require
+        model_id or provider_id to be set.
 
         Returns:
-            llm.thread: Temporary test thread
+            llm.thread.mock: Mock thread with same interface as llm.thread
         """
-        return self.env['llm.thread'].create({
+        related_record_ref = self.related_record_ref
+        return self.env['llm.thread.mock'].sudo().create({
             'name': f'Test Thread for {self.prompt_id.name}',
             'prompt_id': self.prompt_id.id,
-            'related_record': self.related_record_ref and f"{self.related_record_ref._name},{self.related_record_ref.id}" or False,
+            'related_record': related_record_ref and f"{related_record_ref._name},{related_record_ref.id}" or False,
         })
 
     def _populate_context_from_record(self):
-        """Populate context using thread's get_context method"""
+        """Populate context using direct field access instead of mock thread"""
         if not self.related_record_ref:
             return
 
@@ -154,34 +176,73 @@ class LLMPromptTest(models.TransientModel):
             except json.JSONDecodeError:
                 existing_context = {}
 
-            # Create a temporary test thread to use its get_context method
-            test_thread = self._create_test_thread()
+            # Generate sample context directly from the record
+            sample_context = self._generate_sample_context_direct(self.related_record_ref)
 
-            try:
-                # Use the thread's get_context method to get the canonical context
-                thread_context = test_thread.get_context()
+            # Merge contexts, preserving existing user data
+            for key, value in sample_context.items():
+                if key not in existing_context:  # Only add if not already present
+                    existing_context[key] = value
 
-                # Use the thread's method to generate sample context
-                sample_context = test_thread.generate_sample_context_from_record()
+            self.test_context = json.dumps(existing_context, indent=2)
 
-                # Merge contexts, preserving existing user data
-                for key, value in sample_context.items():
-                    if key not in existing_context:  # Only add if not already present
-                        existing_context[key] = value
-
-                self.test_context = json.dumps(existing_context, indent=2)
-
-                _logger.info("Auto-populated context with %d fields", len(sample_context))
-            finally:
-                # Clean up test thread
-                test_thread.unlink()
+            _logger.info("Auto-populated context with %d fields", len(sample_context))
 
         except Exception as e:
             _logger.exception("Error auto-populating context from record")
 
+    def _generate_sample_context_direct(self, record):
+        """
+        Generate sample context data directly from a record without using mock thread.
+
+        Args:
+            record: The record to extract sample data from
+
+        Returns:
+            dict: Sample context data
+        """
+        if not record:
+            return {}
+
+        context = {}
+
+        # Add record metadata
+        context['related_model_name'] = record._name
+        context['related_model_id'] = record._name
+        context['related_res_id'] = record.id
+
+        # Add some common fields from the record as sample data
+        sample_fields = ['name', 'display_name', 'email', 'phone', 'mobile',
+                         'street', 'city', 'country_id', 'state_id', 'website',
+                         'description', 'notes', 'comment', 'reference', 'code']
+
+        for field_name in sample_fields:
+            field_key = f"record_{field_name}"
+            if hasattr(record, field_name):
+                try:
+                    value = getattr(record, field_name)
+                    if value:
+                        # Handle different field types
+                        if hasattr(value, 'name'):  # Many2one field
+                            context[field_key] = value.name
+                        elif hasattr(value, 'ids'):  # Many2many/One2many field
+                            names = [r.name for r in value[:3]]  # Limit to 3
+                            if names:
+                                context[field_key] = names
+                        else:
+                            context[field_key] = str(value)
+                except Exception as e:
+                    _logger.debug("Could not get field %s: %s", field_name, str(e))
+                    continue
+
+        # Add a help note
+        context['_related_record_help'] = "Use {{ related_record.get_field('field_name') }} in your template to access record fields directly"
+
+        return context
+
     def test_prompt_with_context(self, user_context=None):
         """
-        Test the prompt with given parameters using thread's get_context method.
+        Test the prompt with given parameters using mock thread's get_context method.
 
         Args:
             user_context (dict): Additional context from user (optional)
@@ -199,12 +260,12 @@ class LLMPromptTest(models.TransientModel):
             }
 
         try:
-            # Create a temporary test thread
-            test_thread = self._create_test_thread()
+            # Create a mock thread that inherits from llm.thread
+            mock_thread = self._create_mock_thread()
 
             try:
-                # Get context using the thread's canonical get_context method
-                context = test_thread.get_context(user_context)
+                # Get context using the mock thread's canonical get_context method
+                context = mock_thread.get_context(user_context)
 
                 # Mark as test to avoid updating usage statistics
                 context['is_test'] = True
@@ -221,8 +282,8 @@ class LLMPromptTest(models.TransientModel):
                     'error': None
                 }
             finally:
-                # Clean up test thread
-                test_thread.unlink()
+                # Clean up mock thread (it's transient so will be cleaned up automatically)
+                mock_thread.unlink()
 
         except Exception as e:
             _logger.exception("Error testing prompt %s", self.prompt_id.name)
@@ -237,11 +298,16 @@ class LLMPromptTest(models.TransientModel):
     @api.onchange('related_record_ref')
     def _onchange_related_record_ref(self):
         """Auto-populate context and evaluate when record is selected"""
-        if self.related_record_ref:
+        # Store the current value to prevent it from being cleared
+        current_record = self.related_record_ref
+
+        if current_record:
             # Auto-populate context with record data
             self._populate_context_from_record()
             # Auto-evaluate the prompt
             self._auto_evaluate_prompt()
+            # Ensure the record reference is preserved
+            self.related_record_ref = current_record
         else:
             # Clear related record metadata from context when record is cleared
             try:
@@ -250,12 +316,15 @@ class LLMPromptTest(models.TransientModel):
                 context.pop('related_model_name', None)
                 context.pop('related_model_id', None)
                 context.pop('related_res_id', None)
+                context.pop('_related_record_help', None)
+                # Remove all record_* fields
+                context = {k: v for k, v in context.items() if not k.startswith('record_')}
                 self.test_context = json.dumps(context, indent=2)
             except (json.JSONDecodeError, Exception):
                 pass
 
     def _auto_evaluate_prompt(self):
-        """Auto-evaluate prompt using test method"""
+        """Auto-evaluate prompt with minimal mock thread usage"""
         try:
             # Parse test context
             try:
@@ -263,8 +332,8 @@ class LLMPromptTest(models.TransientModel):
             except json.JSONDecodeError:
                 return  # Skip if invalid JSON
 
-            # Use our test method - this uses thread's get_context
-            result = self.test_prompt_with_context(user_context)
+            # For auto-evaluation, use a lighter approach to avoid reference field issues
+            result = self._test_prompt_light(user_context)
 
             # Update wizard fields based on result
             self._update_wizard_from_result(result)
@@ -273,6 +342,69 @@ class LLMPromptTest(models.TransientModel):
             _logger.debug("Auto-evaluation failed: %s", str(e))
             self.has_error = True
             self.error_message = f"Auto-evaluation error: {str(e)}"
+
+    def _test_prompt_light(self, user_context=None):
+        """
+        Lightweight test of the prompt that avoids creating mock threads during onchange.
+        Used for auto-evaluation to prevent reference field clearing.
+
+        Args:
+            user_context (dict): Additional context from user (optional)
+
+        Returns:
+            dict: Result containing rendered_template, messages, and any errors
+        """
+        if not self.prompt_id:
+            return {
+                'success': False,
+                'rendered_template': "",
+                'messages': [],
+                'context_used': {},
+                'error': "No prompt configured"
+            }
+
+        try:
+            # Build context directly without mock thread
+            context = dict(user_context or {})
+
+            # Add thread-specific context manually
+            context['thread_id'] = 'test'
+            context['is_test'] = True
+
+            # Add related_record proxy if we have a record
+            if self.related_record_ref:
+                from ..models.llm_thread import RelatedRecordProxy
+                context['related_record'] = RelatedRecordProxy(self.related_record_ref)
+                context['related_model_name'] = self.related_record_ref._name
+                context['related_model_id'] = self.related_record_ref._name
+                context['related_res_id'] = self.related_record_ref.id
+            else:
+                context['related_record'] = RelatedRecordProxy(None)
+                context['related_model_name'] = None
+                context['related_model_id'] = None
+                context['related_res_id'] = None
+
+            # Use the prompt to render and generate messages (same as production)
+            rendered_template = self.prompt_id.render(context)
+            messages = self.prompt_id.get_messages(context)
+
+            return {
+                'success': True,
+                'rendered_template': rendered_template,
+                'messages': messages,
+                'context_used': context,
+                'error': None
+            }
+
+        except Exception as e:
+            _logger.exception("Error testing prompt %s (light mode)", self.prompt_id.name)
+            return {
+                'success': False,
+                'rendered_template': "",
+                'messages': [],
+                'context_used': user_context or {},
+                'error': str(e)
+            }
 
     def _update_wizard_from_result(self, result):
         """Update wizard fields from test result"""
@@ -321,7 +453,7 @@ class LLMPromptTest(models.TransientModel):
         return "\n" + "="*50 + "\n".join(text_parts)
 
     def action_evaluate_prompt(self):
-        """Evaluate the prompt using test method"""
+        """Evaluate the prompt using mock thread's test method"""
         self.ensure_one()
 
         if not self.prompt_id:
@@ -334,7 +466,7 @@ class LLMPromptTest(models.TransientModel):
             except json.JSONDecodeError as e:
                 raise ValidationError(_("Invalid JSON in test context: %s") % str(e))
 
-            # Use our test method - this uses thread's get_context
+            # Use our test method - this uses mock thread's get_context
             result = self.test_prompt_with_context(user_context)
 
             # Update wizard fields based on result
@@ -389,6 +521,66 @@ class LLMPromptTest(models.TransientModel):
         """Clear the related record selection"""
         self.ensure_one()
         self.related_record_ref = False
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'llm.prompt.test',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': dict(self.env.context, keep_context=True),
+        }
+
+    def action_populate_with_defaults(self):
+        """Populate context with prompt's default values"""
+        self.ensure_one()
+
+        if self.prompt_id:
+            defaults = self.prompt_id.get_default_test_context()
+
+            # Merge with existing context
+            try:
+                existing_context = json.loads(self.test_context or "{}")
+            except json.JSONDecodeError:
+                existing_context = {}
+
+            # Add defaults for missing keys
+            for key, value in defaults.items():
+                if key not in existing_context:
+                    existing_context[key] = value
+
+            self.test_context = json.dumps(existing_context, indent=2)
+
+            # Auto-evaluate after populating
+            self._auto_evaluate_prompt()
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'llm.prompt.test',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': dict(self.env.context, keep_context=True),
+        }
+
+    def action_format_context(self):
+        """Format the context JSON for better readability"""
+        self.ensure_one()
+
+        try:
+            context = json.loads(self.test_context or "{}")
+            self.test_context = json.dumps(context, indent=2, sort_keys=True)
+        except json.JSONDecodeError:
+            # If invalid JSON, try to fix common issues
+            try:
+                # Remove trailing commas and other common issues
+                fixed_json = self.test_context.strip()
+                if fixed_json.endswith(','):
+                    fixed_json = fixed_json[:-1]
+                context = json.loads(fixed_json)
+                self.test_context = json.dumps(context, indent=2, sort_keys=True)
+            except:
+                pass  # Keep original if we can't fix it
 
         return {
             'type': 'ir.actions.act_window',
