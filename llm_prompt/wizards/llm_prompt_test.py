@@ -1,10 +1,12 @@
 import json
 import logging
+
 import yaml
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
+from ..utils import render_template
 
 
 class LLMThreadMock(models.TransientModel):
@@ -271,7 +273,7 @@ class LLMPromptTest(models.TransientModel):
                 context['is_test'] = True
 
                 # Use the prompt to render and generate messages (same as production)
-                rendered_template = self.prompt_id.render(context)
+                rendered_template = render_template(template=self.prompt_id.template, context=context)
                 messages = self.prompt_id.get_messages(context)
 
                 return {
@@ -385,7 +387,7 @@ class LLMPromptTest(models.TransientModel):
                 context['related_res_id'] = None
 
             # Use the prompt to render and generate messages (same as production)
-            rendered_template = self.prompt_id.render(context)
+            rendered_template = render_template(template=self.prompt_id.template, context=context)
             messages = self.prompt_id.get_messages(context)
 
             return {
@@ -450,7 +452,7 @@ class LLMPromptTest(models.TransientModel):
 
             text_parts.append(f"Message {i} ({role.upper()}):\n{text_content}\n")
 
-        return "\n" + "="*50 + "\n".join(text_parts)
+        return "\n" + "=" * 50 + "\n".join(text_parts)
 
     def action_evaluate_prompt(self):
         """Evaluate the prompt using mock thread's test method"""

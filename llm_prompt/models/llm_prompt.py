@@ -4,12 +4,11 @@ import re
 from collections.abc import Iterable
 
 import yaml
-from jinja2 import Environment, Undefined
-
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 from .arguments_schema import validate_arguments_schema
+from ..utils import render_template
 
 _logger = logging.getLogger(__name__)
 
@@ -90,7 +89,7 @@ class LLMPrompt(models.Model):
         default="text",
         required=True,
         tracking=True,
-        help="Format of the template content",
+        help="Format of the template content after rendering",
     )
 
     # Arguments JSON field
@@ -178,24 +177,31 @@ class LLMPrompt(models.Model):
             if not is_valid:
                 raise ValidationError(error)
 
-    @api.constrains("template", "format")
-    def _validate_template_format(self):
-        """Validate template content matches the selected format"""
-        for prompt in self:
-            if not prompt.template:
-                continue
+    def _validate_rendered_format(self, rendered_content):
+        """
+        Validate rendered content matches the selected format
 
-            try:
-                if prompt.format == "json":
-                    json.loads(prompt.template)
-                elif prompt.format == "yaml":
-                    yaml.safe_load_all(prompt.template)
-                # Text format doesn't need validation
-            except (json.JSONDecodeError, yaml.YAMLError) as e:
-                raise ValidationError(
-                    _("Invalid %s format in template: %s")
-                    % (prompt.format.upper(), str(e))
-                ) from e
+        Args:
+            rendered_content (str): The rendered template content
+
+        Raises:
+            ValidationError: If rendered content doesn't match format
+        """
+        if not rendered_content:
+            return
+
+        try:
+            if self.format == "json":
+                json.loads(rendered_content)
+            elif self.format == "yaml":
+                # For YAML, we need to handle multiple documents
+                list(yaml.safe_load_all(rendered_content))
+            # Text format doesn't need validation
+        except (json.JSONDecodeError, yaml.YAMLError) as e:
+            raise ValidationError(
+                _("Rendered template doesn't match %s format: %s")
+                % (self.format.upper(), str(e))
+            ) from e
 
     def get_prompt_data(self):
         """Returns the prompt data in the MCP format"""
@@ -272,23 +278,26 @@ class LLMPrompt(models.Model):
         self._validate_arguments(arguments)
 
         # Render the template with arguments
-        content = self.render(arguments)
+        rendered_content = render_template(template=self.template, context=arguments)
+
+        # Validate the rendered content matches the expected format
+        self._validate_rendered_format(rendered_content)
 
         # Parse template based on format
         try:
             if self.format == "text":
-                messages = self._parse_text_messages(content)
+                messages = self._parse_text_messages(rendered_content)
             elif self.format == "yaml":
-                messages = list(self._parse_dict_messages(yaml.safe_load_all(content)))
+                messages = list(self._parse_dict_messages(yaml.safe_load_all(rendered_content)))
             elif self.format == "json":
-                messages = list(self._parse_dict_messages(json.loads(content)))
+                messages = list(self._parse_dict_messages(json.loads(rendered_content)))
             else:
                 raise ValidationError(
                     _("Unsupported template format: %s") % self.format
                 )
         except Exception as e:
-            _logger.error("Error parsing %s template for prompt %s: %s", self.format, self.name, str(e))
-            raise ValidationError(_("Error parsing %s template: %s") % (self.format, str(e)))
+            _logger.error("Error parsing %s rendered content for prompt %s: %s", self.format, self.name, str(e))
+            raise ValidationError(_("Error parsing %s rendered content: %s") % (self.format, str(e)))
 
         # Update usage statistics (only for non-test contexts)
         if not arguments.get('is_test', False):
@@ -418,45 +427,6 @@ class LLMPrompt(models.Model):
         simple_matches = re.findall(simple_pattern, template_content)
 
         return set(simple_matches)
-
-    def render(self, context):
-        """
-        Replace argument placeholders in content with their values using Jinja2.
-
-        Args:
-            context (dict): Dictionary of argument values
-
-        Returns:
-            str: Content with placeholders replaced by values
-        """
-        # Make a copy of context to avoid modifying the original
-        context_copy = dict(context)
-
-        # Process boolean values for JSON compatibility
-        processed_args = {}
-        for arg_name, arg_value in context_copy.items():
-            if isinstance(arg_value, bool):
-                # Convert Python True/False to JSON true/false
-                processed_args[arg_name] = "true" if arg_value else "false"
-            else:
-                processed_args[arg_name] = arg_value
-
-        # Create Jinja2 environment
-        env = Environment(
-            variable_start_string="{{",
-            variable_end_string="}}",
-            trim_blocks=True,
-            lstrip_blocks=True,
-            undefined=Undefined,  # Handle missing variables gracefully
-        )
-
-        # Create and render the template
-        try:
-            template = env.from_string(self.template)
-            return template.render(**processed_args)
-        except Exception as e:
-            _logger.error("Error rendering template for prompt %s: %s", self.name, str(e))
-            raise ValidationError(_("Error rendering template: %s") % str(e))
 
     def auto_detect_arguments(self):
         """
