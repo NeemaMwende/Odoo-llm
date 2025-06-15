@@ -7,6 +7,61 @@ from odoo.exceptions import ValidationError
 _logger = logging.getLogger(__name__)
 
 
+class RelatedRecordProxy:
+    """
+    A proxy object that provides clean access to related record fields in Jinja templates.
+    Usage in templates: {{ related_record.get_field('field_name', 'default_value') }}
+    """
+
+    def __init__(self, record):
+        self._record = record
+
+    def get_field(self, field_name, default=""):
+        """
+        Get a field value from the related record.
+
+        Args:
+            field_name (str): The field name to access
+            default: Default value if field doesn't exist or is empty
+
+        Returns:
+            The field value, or default if not available
+        """
+        if not self._record:
+            return default
+
+        try:
+            if hasattr(self._record, field_name):
+                value = getattr(self._record, field_name)
+
+                # Handle different field types
+                if value is None:
+                    return default
+                elif isinstance(value, bool):
+                    return value  # Keep as boolean for Jinja
+                elif hasattr(value, 'name'):  # Many2one field
+                    return value.name
+                elif hasattr(value, 'mapped'):  # Many2many/One2many field
+                    return value.mapped('name')
+                else:
+                    return value
+            else:
+                _logger.debug("Field '%s' not found on record %s", field_name, self._record)
+                return default
+
+        except Exception as e:
+            _logger.error("Error getting field '%s' from record: %s", field_name, str(e))
+            return default
+
+    def __getattr__(self, name):
+        """Allow direct attribute access as fallback"""
+        return self.get_field(name)
+
+    def __bool__(self):
+        """Return True if we have a record"""
+        return bool(self._record)
+
+
 class LLMPromptTest(models.TransientModel):
     _name = "llm.prompt.test"
     _description = "LLM Prompt Test Wizard"
@@ -29,15 +84,12 @@ class LLMPromptTest(models.TransientModel):
     related_record_ref = fields.Reference(
         selection="_get_reference_models",
         string="Related Record",
-        help="Select any record to use as context for testing get_related_record() functions",
+        help="Select any record to use as context for testing related_record.get_field() functions",
     )
 
     @api.model
     def _get_reference_models(self):
-        """
-        Get list of all available models for reference selection.
-        """
-        # Get all models from ir.model that are not abstract/transient
+        """Get list of all available models for reference selection."""
         models = self.env['ir.model'].search([
             ('state', '!=', 'manual'),
             ('transient', '=', False),
@@ -146,47 +198,20 @@ class LLMPromptTest(models.TransientModel):
         except (json.JSONDecodeError, Exception):
             return "{}"
 
-    @api.onchange('related_record_ref')
-    def _onchange_related_record_ref(self):
-        """Update context when related record changes"""
-        if self.related_record_ref:
-            try:
-                # Parse existing context
-                try:
-                    context = json.loads(self.test_context or "{}")
-                except json.JSONDecodeError:
-                    context = {}
-
-                # Add related record info to context
-                context['related_record'] = json.dumps({
-                    "model": self.related_record_ref._name,
-                    "id": self.related_record_ref.id,
-                    "display_name": self.related_record_ref.display_name,
-                })
-
-                self.test_context = json.dumps(context, indent=2)
-            except Exception as e:
-                _logger.warning("Error updating context with related record: %s", str(e))
-
     def _create_mock_thread(self):
-        """
-        Create a mock thread record for testing purposes.
-        This allows us to reuse the thread's methods without duplicating logic.
+        """Create a mock context for testing purposes."""
+        # Create basic context with simplified related_record access
+        context = {
+            'thread_id': 'test_thread',
+        }
 
-        Returns:
-            llm.thread: Mock thread record
-        """
-        # Create a mock thread record (not saved to database)
-        mock_thread = self.env['llm.thread'].new({
-            'name': f'Test Thread for {self.prompt_id.name}',
-            'prompt_id': self.prompt_id.id,
-        })
-
-        # Set the related record if one is selected
+        # Add simplified related_record object
         if self.related_record_ref:
-            mock_thread.related_record = self.related_record_ref
+            context['related_record'] = RelatedRecordProxy(self.related_record_ref)
+        else:
+            context['related_record'] = RelatedRecordProxy(None)  # Empty proxy
 
-        return mock_thread
+        return context
 
     def action_evaluate_prompt(self):
         """Evaluate the prompt with the given context"""
@@ -199,16 +224,13 @@ class LLMPromptTest(models.TransientModel):
 
             # Parse test context
             try:
-                context = json.loads(self.test_context or "{}")
+                user_context = json.loads(self.test_context or "{}")
             except json.JSONDecodeError as e:
                 raise ValidationError(_("Invalid JSON in test context: %s") % str(e))
 
-            # Create a mock thread to leverage existing thread methods
-            mock_thread = self._create_mock_thread()
-
-            # Get the enhanced context using the thread's method
-            # This ensures we use the same logic as the real thread
-            enhanced_context = mock_thread._get_prompt_context(context)
+            # Create enhanced context with simplified related_record access
+            enhanced_context = self._create_mock_thread()
+            enhanced_context.update(user_context)  # Add user's test context
 
             # Render the template using the prompt's render method
             try:
@@ -231,12 +253,21 @@ class LLMPromptTest(models.TransientModel):
             except Exception as e:
                 self.messages_yaml = f"Error converting to YAML: {str(e)}"
 
-            # Convert to readable text using the same method as the thread
+            # Convert to readable text
             text_parts = []
             for i, message in enumerate(messages, 1):
                 role = message.get('role', 'unknown')
-                content = mock_thread._extract_message_content(message)
-                text_parts.append(f"Message {i} ({role.upper()}):\n{content}\n")
+                content = message.get('content', '')
+
+                # Extract text content
+                if isinstance(content, list) and len(content) > 0:
+                    text_content = content[0].get('text', '')
+                elif isinstance(content, str):
+                    text_content = content
+                else:
+                    text_content = str(content)
+
+                text_parts.append(f"Message {i} ({role.upper()}):\n{text_content}\n")
 
             self.messages_text = "\n" + "="*50 + "\n".join(text_parts)
 
@@ -276,7 +307,6 @@ class LLMPromptTest(models.TransientModel):
         self.has_error = False
         self.error_message = ""
 
-        # Return an action to keep the wizard open
         return {
             'type': 'ir.actions.act_window',
             'res_model': 'llm.prompt.test',
@@ -290,15 +320,6 @@ class LLMPromptTest(models.TransientModel):
         """Clear the related record selection"""
         self.ensure_one()
         self.related_record_ref = False
-
-        # Also remove related_record from test context
-        try:
-            context = json.loads(self.test_context or "{}")
-            if 'related_record' in context:
-                del context['related_record']
-                self.test_context = json.dumps(context, indent=2)
-        except json.JSONDecodeError:
-            pass
 
         return {
             'type': 'ir.actions.act_window',
@@ -344,13 +365,6 @@ class LLMPromptTest(models.TransientModel):
                                 context[f"record_{field_name}"] = str(value)
                     except Exception:
                         continue
-
-            # Add the related record reference
-            context['related_record'] = json.dumps({
-                "model": record._name,
-                "id": record.id,
-                "display_name": record.display_name,
-            })
 
             self.test_context = json.dumps(context, indent=2)
 

@@ -229,7 +229,7 @@ class LLMPrompt(models.Model):
         Generate messages for this prompt with the given arguments
 
         Args:
-            arguments (dict): Dictionary of argument values and template functions
+            arguments (dict): Dictionary of argument values (may include related_record object)
 
         Returns:
             list: List of messages for this prompt
@@ -243,7 +243,7 @@ class LLMPrompt(models.Model):
         # Validate arguments against schema
         self._validate_arguments(arguments)
 
-        # Render the template with arguments (including template_functions)
+        # Render the template with arguments
         content = self.render(arguments)
 
         # Parse template based on format
@@ -322,7 +322,7 @@ class LLMPrompt(models.Model):
 
     def _fill_default_values(self, arguments):
         """
-        Fill in default values for missing arguments
+        Fill in default values for missing arguments (excluding related_record)
 
         Args:
             arguments (dict): Provided argument values
@@ -362,23 +362,12 @@ class LLMPrompt(models.Model):
             _logger.warning(
                 "Skipping: Invalid JSON in arguments schema: %s", self.arguments_json
             )
-            # If schema is invalid, skip validation
             return
 
-        # Check for required arguments (excluding template_functions which is internal)
+        # Check for required arguments (excluding related_record which is system-provided)
         for arg_name, arg_schema in schema.items():
             if arg_schema.get("required", False) and arg_name not in arguments:
                 raise ValidationError(_("Missing required argument: %s") % arg_name)
-
-        # Handle special types like context and resource
-        for arg_name, value in arguments.items():
-            if arg_name in schema:
-                arg_type = schema[arg_name].get("type")
-
-                # Handle context type (automatically filled from Odoo context)
-                if arg_type == "context" and not value:
-                    # This would be filled in runtime
-                    pass
 
     @api.model
     def _extract_arguments_from_template(self, template_content):
@@ -394,28 +383,22 @@ class LLMPrompt(models.Model):
         if not template_content:
             return set()
 
-        # Find all {{argument}} placeholders and function calls
+        # Find all {{argument}} placeholders
         # Match simple variables: {{variable_name}}
         simple_pattern = r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}"
         simple_matches = re.findall(simple_pattern, template_content)
 
-        # Match function calls: {{function_name("arg")}}
-        function_pattern = r"\{\{\s*([a-zA-Z0-9_]+)\s*\([^}]*\)\s*\}\}"
-        function_matches = re.findall(function_pattern, template_content)
+        # Filter out 'related_record' as it's provided by the system
+        filtered_matches = [match for match in simple_matches if match != 'related_record']
 
-        # Filter out known Jinja2 functions that will be provided via template_functions
-        known_functions = {'get_related_field', 'get_related_record'}
-        filtered_function_matches = [match for match in function_matches if match not in known_functions]
-
-        all_matches = simple_matches + filtered_function_matches
-        return set(all_matches)
+        return set(filtered_matches)
 
     def render(self, context):
         """
         Replace argument placeholders in content with their values using Jinja2.
 
         Args:
-            context (dict): Dictionary of argument values (may include template_functions)
+            context (dict): Dictionary of argument values (may include related_record object)
 
         Returns:
             str: Content with placeholders replaced by values
@@ -423,14 +406,14 @@ class LLMPrompt(models.Model):
         # Make a copy of context to avoid modifying the original
         context_copy = dict(context)
 
-        # Extract template functions from context copy
-        template_functions = context_copy.pop('template_functions', {})
-
-        # Process boolean values for JSON compatibility
-        processed_args = dict(context_copy)
+        # Process boolean values for JSON compatibility (except related_record)
+        processed_args = {}
         for arg_name, arg_value in context_copy.items():
-            if isinstance(arg_value, bool):
-                # Convert Python True/False to JSON true/false
+            if arg_name == 'related_record':
+                # Keep related_record object as-is for Jinja2
+                processed_args[arg_name] = arg_value
+            elif isinstance(arg_value, bool):
+                # Convert Python True/False to JSON true/false for other values
                 processed_args[arg_name] = "true" if arg_value else "false"
             else:
                 processed_args[arg_name] = arg_value
@@ -443,10 +426,6 @@ class LLMPrompt(models.Model):
             lstrip_blocks=True,
             undefined=Undefined,  # Handle missing variables gracefully
         )
-
-        # Register template functions provided by the caller
-        for func_name, func in template_functions.items():
-            env.globals[func_name] = func
 
         # Create and render the template
         try:
