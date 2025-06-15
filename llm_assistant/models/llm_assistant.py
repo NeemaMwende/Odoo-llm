@@ -211,8 +211,47 @@ class LLMAssistant(models.Model):
         action["context"] = {"default_assistant_id": self.id}
         return action
 
+    def _generate_template_json_from_schema(self, args_schema):
+        """
+        Generate a template JSON structure from the prompt's argument schema.
+        Creates placeholders for all arguments, using defaults when available.
+
+        Args:
+            args_schema (dict): The arguments schema from the prompt
+
+        Returns:
+            dict: Template values with placeholders or defaults
+        """
+        template_values = {}
+
+        for arg_name, arg_schema in args_schema.items():
+            # If there's a default value, use it
+            if "default" in arg_schema:
+                template_values[arg_name] = arg_schema["default"]
+            else:
+                # Generate appropriate placeholder based on type
+                arg_type = arg_schema.get("type", "string")
+                description = arg_schema.get("description", f"Value for {arg_name}")
+
+                if arg_type == "string":
+                    # Create a descriptive placeholder
+                    template_values[arg_name] = f"<Enter {description.lower()}>"
+                elif arg_type == "boolean":
+                    template_values[arg_name] = False
+                elif arg_type in ["integer", "number"]:
+                    template_values[arg_name] = 0
+                elif arg_type == "array":
+                    template_values[arg_name] = []
+                elif arg_type == "object":
+                    template_values[arg_name] = {}
+                else:
+                    # Default to descriptive string placeholder
+                    template_values[arg_name] = f"<Enter {description.lower()}>"
+
+        return template_values
+
     def action_reset_defaults(self):
-        """Reset default values from the prompt's arguments schema defaults"""
+        """Reset default values to create template JSON from prompt's arguments schema"""
         self.ensure_one()
 
         if not self.prompt_id:
@@ -229,25 +268,42 @@ class LLMAssistant(models.Model):
         try:
             # Get the prompt arguments schema
             args_schema = json.loads(self.prompt_id.arguments_json or "{}")
-            default_values = {}
 
-            # Extract default values from schema
-            for arg_name, arg_schema in args_schema.items():
-                if "default" in arg_schema:
-                    default_values[arg_name] = arg_schema["default"]
+            if not args_schema:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'No Arguments Schema',
+                        'message': 'The selected prompt template has no arguments schema defined.',
+                        'type': 'info',
+                    }
+                }
 
-            # Update default_values field
-            if default_values:
-                self.default_values = json.dumps(default_values, indent=2)
-            else:
-                self.default_values = "{}"
+            # Generate template JSON from schema
+            template_values = self._generate_template_json_from_schema(args_schema)
+
+            # Update default_values field with pretty-formatted JSON
+            self.default_values = json.dumps(template_values, indent=2)
+
+            # Count how many were defaults vs placeholders
+            defaults_count = sum(1 for arg_schema in args_schema.values() if "default" in arg_schema)
+            placeholders_count = len(template_values) - defaults_count
+
+            message_parts = []
+            if defaults_count > 0:
+                message_parts.append(f"{defaults_count} default values")
+            if placeholders_count > 0:
+                message_parts.append(f"{placeholders_count} placeholder values")
+
+            message = f"Template JSON created with {' and '.join(message_parts)}."
 
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
                 'params': {
-                    'title': 'Defaults Reset',
-                    'message': f'Default values have been reset from the prompt template schema. Found {len(default_values)} default values.',
+                    'title': 'Template JSON Generated',
+                    'message': message,
                     'type': 'success',
                 }
             }
@@ -269,7 +325,7 @@ class LLMAssistant(models.Model):
                 'tag': 'display_notification',
                 'params': {
                     'title': 'Error',
-                    'message': f'Error resetting defaults: {str(e)}',
+                    'message': f'Error generating template JSON: {str(e)}',
                     'type': 'danger',
                 }
             }
@@ -328,23 +384,23 @@ class LLMAssistant(models.Model):
 
     @api.onchange("prompt_id")
     def _onchange_prompt_id(self):
-        """Update default_values when prompt_id changes"""
+        """Update default_values when prompt_id changes to create template JSON"""
         if self.prompt_id:
             # Get the prompt arguments schema
             try:
                 args_schema = json.loads(self.prompt_id.arguments_json or "{}")
-                default_values = {}
 
-                # Extract default values from schema
-                for arg_name, arg_schema in args_schema.items():
-                    if "default" in arg_schema:
-                        default_values[arg_name] = arg_schema["default"]
+                # If there are arguments defined, generate template JSON
+                if args_schema:
+                    template_values = self._generate_template_json_from_schema(args_schema)
+                    self.default_values = json.dumps(template_values, indent=2)
+                else:
+                    # No arguments schema, keep empty JSON
+                    self.default_values = "{}"
 
-                # If we have any defaults, update default_values
-                if default_values:
-                    self.default_values = json.dumps(default_values, indent=2)
             except json.JSONDecodeError:
-                pass
+                # Invalid JSON in arguments_json, keep empty
+                self.default_values = "{}"
 
     def _get_json_fields(self):
         """Return fields that should be serialized as JSON in the API"""
