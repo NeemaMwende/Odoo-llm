@@ -121,7 +121,6 @@ class LLMAssistant(models.Model):
         string="System Prompt Preview",
         compute="_compute_system_prompt_preview",
         help="Preview of the formatted system prompt based on the prompt template",
-        tracking=True,
     )
 
     # Template fields - computed from prompt
@@ -384,23 +383,34 @@ class LLMAssistant(models.Model):
 
     @api.onchange("prompt_id")
     def _onchange_prompt_id(self):
-        """Update default_values when prompt_id changes to create template JSON"""
-        if self.prompt_id:
-            # Get the prompt arguments schema
-            try:
-                args_schema = json.loads(self.prompt_id.arguments_json or "{}")
+        """Update default_values when prompt_id changes to create template JSON
 
-                # If there are arguments defined, generate template JSON
-                if args_schema:
-                    template_values = self._generate_template_json_from_schema(args_schema)
-                    self.default_values = json.dumps(template_values, indent=2)
-                else:
-                    # No arguments schema, keep empty JSON
-                    self.default_values = "{}"
+        ONLY triggers when prompt_id actually changes, not on every field change.
+        """
+        # Only proceed if we have a prompt_id and this is actually a change in prompt_id
+        if not self.prompt_id:
+            return
 
-            except json.JSONDecodeError:
-                # Invalid JSON in arguments_json, keep empty
+        # Check if this is a new record or if prompt_id actually changed
+        if self._origin.prompt_id == self.prompt_id:
+            # No change in prompt_id, don't regenerate defaults
+            return
+
+        # Get the prompt arguments schema
+        try:
+            args_schema = json.loads(self.prompt_id.arguments_json or "{}")
+
+            # If there are arguments defined, generate template JSON
+            if args_schema:
+                template_values = self._generate_template_json_from_schema(args_schema)
+                self.default_values = json.dumps(template_values, indent=2)
+            else:
+                # No arguments schema, keep empty JSON
                 self.default_values = "{}"
+
+        except json.JSONDecodeError:
+            # Invalid JSON in arguments_json, keep empty
+            self.default_values = "{}"
 
     def _get_json_fields(self):
         """Return fields that should be serialized as JSON in the API"""
