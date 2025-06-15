@@ -14,61 +14,6 @@ from .arguments_schema import validate_arguments_schema
 _logger = logging.getLogger(__name__)
 
 
-class RelatedRecordProxy:
-    """
-    A proxy object that provides clean access to related record fields in Jinja templates.
-    Usage in templates: {{ related_record.get_field('field_name', 'default_value') }}
-    """
-
-    def __init__(self, record):
-        self._record = record
-
-    def get_field(self, field_name, default=""):
-        """
-        Get a field value from the related record.
-
-        Args:
-            field_name (str): The field name to access
-            default: Default value if field doesn't exist or is empty
-
-        Returns:
-            The field value, or default if not available
-        """
-        if not self._record:
-            return default
-
-        try:
-            if hasattr(self._record, field_name):
-                value = getattr(self._record, field_name)
-
-                # Handle different field types
-                if value is None:
-                    return default
-                elif isinstance(value, bool):
-                    return value  # Keep as boolean for Jinja
-                elif hasattr(value, 'name'):  # Many2one field
-                    return value.name
-                elif hasattr(value, 'mapped'):  # Many2many/One2many field
-                    return value.mapped('name')
-                else:
-                    return value
-            else:
-                _logger.debug("Field '%s' not found on record %s", field_name, self._record)
-                return default
-
-        except Exception as e:
-            _logger.error("Error getting field '%s' from record: %s", field_name, str(e))
-            return default
-
-    def __getattr__(self, name):
-        """Allow direct attribute access as fallback"""
-        return self.get_field(name)
-
-    def __bool__(self):
-        """Return True if we have a record"""
-        return bool(self._record)
-
-
 class LLMPrompt(models.Model):
     _name = "llm.prompt"
     _description = "LLM Prompt Template"
@@ -279,101 +224,6 @@ class LLMPrompt(models.Model):
             "arguments": formatted_args,
         }
 
-    def create_related_record_proxy(self, record):
-        """
-        Create a RelatedRecordProxy for a given record.
-        This is the canonical method for creating related record proxies.
-
-        Args:
-            record: The record to wrap in a proxy (can be None)
-
-        Returns:
-            RelatedRecordProxy: Proxy object for template access
-        """
-        return RelatedRecordProxy(record)
-
-    def create_test_context(self, related_record=None, user_context=None):
-        """
-        Create a test context similar to what llm.thread would create.
-        This mirrors the _get_prompt_context method from llm.thread.
-
-        Args:
-            related_record: Record to use as related_record (optional)
-            user_context (dict): Additional context from user (optional)
-
-        Returns:
-            dict: Context ready for prompt rendering
-        """
-        context = dict(user_context or {})
-
-        # Add thread-like context (but mark as test)
-        context['thread_id'] = 'test_thread'
-        context['is_test'] = True
-
-        # Add related_record proxy
-        context['related_record'] = self.create_related_record_proxy(related_record)
-
-        # Add metadata about the related record
-        if related_record:
-            context['related_model_name'] = related_record._name
-            context['related_model_id'] = related_record._name
-            context['related_res_id'] = related_record.id
-        else:
-            context['related_model_name'] = None
-            context['related_model_id'] = None
-            context['related_res_id'] = None
-
-        return context
-
-    def generate_sample_context_from_record(self, record):
-        """
-        Generate sample context data from a record for testing purposes.
-
-        Args:
-            record: The record to extract sample data from
-
-        Returns:
-            dict: Sample context data
-        """
-        if not record:
-            return {}
-
-        context = {}
-
-        # Add record metadata
-        context['related_model_name'] = record._name
-        context['related_model_id'] = record._name
-        context['related_res_id'] = record.id
-
-        # Add some common fields from the record as sample data
-        sample_fields = ['name', 'display_name', 'email', 'phone', 'mobile',
-                         'street', 'city', 'country_id', 'state_id', 'website',
-                         'description', 'notes', 'comment', 'reference', 'code']
-
-        for field_name in sample_fields:
-            field_key = f"record_{field_name}"
-            if hasattr(record, field_name):
-                try:
-                    value = getattr(record, field_name)
-                    if value:
-                        # Handle different field types
-                        if hasattr(value, 'name'):  # Many2one field
-                            context[field_key] = value.name
-                        elif hasattr(value, 'ids'):  # Many2many/One2many field
-                            names = [r.name for r in value[:3]]  # Limit to 3
-                            if names:
-                                context[field_key] = names
-                        else:
-                            context[field_key] = str(value)
-                except Exception as e:
-                    _logger.debug("Could not get field %s: %s", field_name, str(e))
-                    continue
-
-        # Add a help note
-        context['_related_record_help'] = "Use {{ related_record.get_field('field_name') }} in your template to access record fields directly"
-
-        return context
-
     def get_default_test_context(self):
         """
         Get default test context based on prompt's arguments schema.
@@ -402,51 +252,12 @@ class LLMPrompt(models.Model):
         except (json.JSONDecodeError, Exception):
             return {}
 
-    def test_prompt(self, related_record=None, user_context=None):
-        """
-        Test the prompt with given parameters, mirroring real thread execution.
-
-        Args:
-            related_record: Record to use as related_record (optional)
-            user_context (dict): Additional context from user (optional)
-
-        Returns:
-            dict: Result containing rendered_template, messages, and any errors
-        """
-        try:
-            # Create context using the same method as llm.thread
-            context = self.create_test_context(related_record, user_context)
-
-            # Render template
-            rendered_template = self.render(context)
-
-            # Generate messages
-            messages = self.get_messages(context)
-
-            return {
-                'success': True,
-                'rendered_template': rendered_template,
-                'messages': messages,
-                'context_used': context,
-                'error': None
-            }
-
-        except Exception as e:
-            _logger.exception("Error testing prompt %s", self.name)
-            return {
-                'success': False,
-                'rendered_template': "",
-                'messages': [],
-                'context_used': user_context or {},
-                'error': str(e)
-            }
-
     def get_messages(self, arguments=None):
         """
         Generate messages for this prompt with the given arguments
 
         Args:
-            arguments (dict): Dictionary of argument values (may include related_record object)
+            arguments (dict): Dictionary of argument values
 
         Returns:
             list: List of messages for this prompt
@@ -540,7 +351,7 @@ class LLMPrompt(models.Model):
 
     def _fill_default_values(self, arguments):
         """
-        Fill in default values for missing arguments (excluding related_record)
+        Fill in default values for missing arguments
 
         Args:
             arguments (dict): Provided argument values
@@ -582,7 +393,7 @@ class LLMPrompt(models.Model):
             )
             return
 
-        # Check for required arguments (excluding related_record which is system-provided)
+        # Check for required arguments
         for arg_name, arg_schema in schema.items():
             if arg_schema.get("required", False) and arg_name not in arguments:
                 raise ValidationError(_("Missing required argument: %s") % arg_name)
@@ -606,17 +417,14 @@ class LLMPrompt(models.Model):
         simple_pattern = r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}"
         simple_matches = re.findall(simple_pattern, template_content)
 
-        # Filter out 'related_record' as it's provided by the system
-        filtered_matches = [match for match in simple_matches if match != 'related_record']
-
-        return set(filtered_matches)
+        return set(simple_matches)
 
     def render(self, context):
         """
         Replace argument placeholders in content with their values using Jinja2.
 
         Args:
-            context (dict): Dictionary of argument values (may include related_record object)
+            context (dict): Dictionary of argument values
 
         Returns:
             str: Content with placeholders replaced by values
@@ -624,14 +432,11 @@ class LLMPrompt(models.Model):
         # Make a copy of context to avoid modifying the original
         context_copy = dict(context)
 
-        # Process boolean values for JSON compatibility (except related_record)
+        # Process boolean values for JSON compatibility
         processed_args = {}
         for arg_name, arg_value in context_copy.items():
-            if arg_name == 'related_record':
-                # Keep related_record object as-is for Jinja2
-                processed_args[arg_name] = arg_value
-            elif isinstance(arg_value, bool):
-                # Convert Python True/False to JSON true/false for other values
+            if isinstance(arg_value, bool):
+                # Convert Python True/False to JSON true/false
                 processed_args[arg_name] = "true" if arg_value else "false"
             else:
                 processed_args[arg_name] = arg_value

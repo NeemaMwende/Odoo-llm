@@ -10,6 +10,7 @@ class RelatedRecordProxy:
     """
     A proxy object that provides clean access to related record fields in Jinja templates.
     Usage in templates: {{ related_record.get_field('field_name', 'default_value') }}
+    When called directly, returns JSON with model name, id, and display name.
     """
 
     def __init__(self, record):
@@ -59,6 +60,25 @@ class RelatedRecordProxy:
     def __bool__(self):
         """Return True if we have a record"""
         return bool(self._record)
+
+    def __str__(self):
+        """When called by itself, return JSON of model name, id, and display name"""
+        if not self._record:
+            return json.dumps({
+                "model": None,
+                "id": None,
+                "display_name": None
+            })
+
+        return json.dumps({
+            "model": self._record._name,
+            "id": self._record.id,
+            "display_name": getattr(self._record, 'display_name', str(self._record))
+        })
+
+    def __repr__(self):
+        """Same as __str__ for consistency"""
+        return self.__str__()
 
 
 class LLMThreadPrompt(models.Model):
@@ -123,9 +143,91 @@ class LLMThreadPrompt(models.Model):
         else:
             return ""
 
+    def get_context(self, base_context=None):
+        """
+        Get the context to pass to prompt rendering with thread-specific enhancements.
+        This is the canonical method for creating prompt context in both production and testing.
+
+        Args:
+            base_context (dict): Additional context from caller (optional)
+
+        Returns:
+            dict: Context ready for prompt rendering
+        """
+        context = dict(base_context or {})
+
+        # Add thread-specific context
+        context['thread_id'] = self.id
+
+        # Add related_record proxy and metadata
+        context['related_record'] = RelatedRecordProxy(self.related_record)
+
+        if self.related_record:
+            context['related_model_name'] = self.related_record._name
+            context['related_model_id'] = self.related_record._name
+            context['related_res_id'] = self.related_record.id
+        else:
+            context['related_model_name'] = None
+            context['related_model_id'] = None
+            context['related_res_id'] = None
+
+        return context
+
+    def generate_sample_context_from_record(self, record=None):
+        """
+        Generate sample context data from a record for testing purposes.
+
+        Args:
+            record: The record to extract sample data from (defaults to self.related_record)
+
+        Returns:
+            dict: Sample context data
+        """
+        target_record = record if record is not None else self.related_record
+
+        if not target_record:
+            return {}
+
+        context = {}
+
+        # Add record metadata
+        context['related_model_name'] = target_record._name
+        context['related_model_id'] = target_record._name
+        context['related_res_id'] = target_record.id
+
+        # Add some common fields from the record as sample data
+        sample_fields = ['name', 'display_name', 'email', 'phone', 'mobile',
+                         'street', 'city', 'country_id', 'state_id', 'website',
+                         'description', 'notes', 'comment', 'reference', 'code']
+
+        for field_name in sample_fields:
+            field_key = f"record_{field_name}"
+            if hasattr(target_record, field_name):
+                try:
+                    value = getattr(target_record, field_name)
+                    if value:
+                        # Handle different field types
+                        if hasattr(value, 'name'):  # Many2one field
+                            context[field_key] = value.name
+                        elif hasattr(value, 'ids'):  # Many2many/One2many field
+                            names = [r.name for r in value[:3]]  # Limit to 3
+                            if names:
+                                context[field_key] = names
+                        else:
+                            context[field_key] = str(value)
+                except Exception as e:
+                    _logger.debug("Could not get field %s: %s", field_name, str(e))
+                    continue
+
+        # Add a help note
+        context['_related_record_help'] = "Use {{ related_record.get_field('field_name') }} in your template to access record fields directly"
+
+        return context
+
     def _get_prompt_context(self, base_context=None):
         """
-        Get the context to pass to prompt rendering with simplified related_record access.
+        Get the context to pass to prompt rendering.
+        This is the production method that uses get_context.
 
         Args:
             base_context (dict): Base context from the caller
@@ -133,18 +235,7 @@ class LLMThreadPrompt(models.Model):
         Returns:
             dict: Enhanced context for prompt rendering
         """
-        context = dict(base_context or {})
-
-        # Add thread-specific context
-        context['thread_id'] = self.id
-
-        # Add simplified related_record object
-        if self.related_record:
-            context['related_record'] = RelatedRecordProxy(self.related_record)
-        else:
-            context['related_record'] = RelatedRecordProxy(None)  # Empty proxy
-
-        return context
+        return self.get_context(base_context)
 
     def _get_prepend_messages(self, context=None):
         """Hook: return a list of formatted messages to prepend to the conversation."""
@@ -156,7 +247,7 @@ class LLMThreadPrompt(models.Model):
 
         if self.prompt_id:
             try:
-                # Get enhanced context for prompt rendering
+                # Get enhanced context for prompt rendering using the canonical method
                 prompt_context = self._get_prompt_context(context)
 
                 # Get messages from the prompt with enhanced context
