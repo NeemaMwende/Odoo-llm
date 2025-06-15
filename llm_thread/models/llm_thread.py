@@ -270,7 +270,7 @@ class LLMThread(models.Model):
             )
         return last_tool_msg
 
-    def _get_prepend_messages(self, context=None):
+    def get_prepend_messages(self):
         """Hook: return a list of formatted messages to prepend to the conversation.
         Override in other modules if needed.
 
@@ -280,9 +280,7 @@ class LLMThread(models.Model):
                  {"role": "user", "content": "..."},
                  ...]
         """
-        context = context or {}
-        self.ensure_one()
-        return context
+        return []
 
     def _get_assistant_response(self):
         self.ensure_one()
@@ -292,7 +290,7 @@ class LLMThread(models.Model):
             "messages": message_history_rs,
             "tools": tool_rs,
             "stream": True,
-            "prepend_messages": self._get_prepend_messages(),
+            "prepend_messages": self.get_prepend_messages(),
         }
         stream_response = self.sudo().model_id.chat(**chat_kwargs)
         assistant_msg = yield from self.env["mail.message"].create_message_from_stream(
@@ -345,6 +343,9 @@ class LLMThread(models.Model):
         self.env["bus.bus"]._sendone(
             self.env.user.partner_id, "llm.thread/delete", {"ids": unlink_ids}
         )
+
+    def get_context(self, base_context=None):
+        return base_context or {}
 
     @api.model
     def get_email_from(

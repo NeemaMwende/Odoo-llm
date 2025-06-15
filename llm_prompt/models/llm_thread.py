@@ -154,13 +154,10 @@ class LLMThreadPrompt(models.Model):
         Returns:
             dict: Context ready for prompt rendering
         """
-        context = dict(base_context or {})
-
-        # Add thread-specific context
-        context['thread_id'] = self.id
-
-        # Add related_record proxy and metadata
-        context['related_record'] = RelatedRecordProxy(self.related_record)
+        context = {
+            **super().get_context(base_context or {}),
+            'thread_id': self.id, 'related_record': RelatedRecordProxy(self.related_record)
+        }
 
         if self.related_record:
             context['related_model_name'] = self.related_record._name
@@ -173,85 +170,16 @@ class LLMThreadPrompt(models.Model):
 
         return context
 
-    def generate_sample_context_from_record(self, record=None):
-        """
-        Generate sample context data from a record for testing purposes.
-
-        Args:
-            record: The record to extract sample data from (defaults to self.related_record)
-
-        Returns:
-            dict: Sample context data
-        """
-        target_record = record if record is not None else self.related_record
-
-        if not target_record:
-            return {}
-
-        context = {}
-
-        # Add record metadata
-        context['related_model_name'] = target_record._name
-        context['related_model_id'] = target_record._name
-        context['related_res_id'] = target_record.id
-
-        # Add some common fields from the record as sample data
-        sample_fields = ['name', 'display_name', 'email', 'phone', 'mobile',
-                         'street', 'city', 'country_id', 'state_id', 'website',
-                         'description', 'notes', 'comment', 'reference', 'code']
-
-        for field_name in sample_fields:
-            field_key = f"record_{field_name}"
-            if hasattr(target_record, field_name):
-                try:
-                    value = getattr(target_record, field_name)
-                    if value:
-                        # Handle different field types
-                        if hasattr(value, 'name'):  # Many2one field
-                            context[field_key] = value.name
-                        elif hasattr(value, 'ids'):  # Many2many/One2many field
-                            names = [r.name for r in value[:3]]  # Limit to 3
-                            if names:
-                                context[field_key] = names
-                        else:
-                            context[field_key] = str(value)
-                except Exception as e:
-                    _logger.debug("Could not get field %s: %s", field_name, str(e))
-                    continue
-
-        # Add a help note
-        context['_related_record_help'] = "Use {{ related_record.get_field('field_name') }} in your template to access record fields directly"
-
-        return context
-
-    def _get_prompt_context(self, base_context=None):
-        """
-        Get the context to pass to prompt rendering.
-        This is the production method that uses get_context.
-
-        Args:
-            base_context (dict): Base context from the caller
-
-        Returns:
-            dict: Enhanced context for prompt rendering
-        """
-        return self.get_context(base_context)
-
-    def _get_prepend_messages(self, context=None):
+    def get_prepend_messages(self):
         """Hook: return a list of formatted messages to prepend to the conversation."""
-        context = context or {}
         self.ensure_one()
-
-        # Get base messages from parent class
-        messages = super()._get_prepend_messages(context=context)
+        messages = super().get_prepend_messages()
 
         if self.prompt_id:
             try:
-                # Get enhanced context for prompt rendering using the canonical method
-                prompt_context = self._get_prompt_context(context)
 
                 # Get messages from the prompt with enhanced context
-                prompt_messages = self.prompt_id.get_messages(prompt_context)
+                prompt_messages = self.prompt_id.get_messages(self.get_context())
 
                 if prompt_messages:
                     messages = self.merge_message_lists(prompt_messages, messages)

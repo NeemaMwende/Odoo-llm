@@ -77,7 +77,7 @@ class LLMThread(models.Model):
         }
 
     # override to include assistant's messages
-    def _get_prepend_messages(self, context=None):
+    def get_context(self):
         """Hook: return a list of formatted messages to prepend to the conversation.
         Override in other modules if needed.
 
@@ -88,10 +88,7 @@ class LLMThread(models.Model):
                  ...]
         """
         self.ensure_one()
-        context = context or {}
-        default_values = self.assistant_id.get_evaluated_default_values(self) if self.assistant_id else {}
-
-        return super()._get_prepend_messages(context={**context, **default_values})
+        return super().get_context(self.assistant_id.get_evaluated_default_values(self) if self.assistant_id else {})
 
     @api.model
     def get_thread_by_id(self, thread_id):
