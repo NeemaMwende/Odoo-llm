@@ -304,6 +304,10 @@ class LLMAssistant(models.Model):
                     'title': 'Template JSON Generated',
                     'message': message,
                     'type': 'success',
+                    'next': {
+                        'type': 'ir.actions.client',
+                        'tag': 'reload',
+                    }
                 }
             }
 
