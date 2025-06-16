@@ -4,7 +4,7 @@ import json
 import logging
 from odoo import http
 from odoo.http import request
-from odoo.addons.llm_thread.llm_thread.main import LLMThreadController
+from odoo.addons.llm_thread.controllers.llm_thread import LLMThreadController
 
 _logger = logging.getLogger(__name__)
 

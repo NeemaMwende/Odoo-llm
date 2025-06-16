@@ -14,51 +14,29 @@ class LLMThread(models.Model):
 
     @api.model
     def get_rendered_prompt_defaults(self, thread_id, assistant_id=None):
-        """Get rendered prompt defaults for a specific thread and optional assistant.
-        
+        """Get assistant defaults from thread context for media generation.
+
         Args:
             thread_id (int): ID of the thread
             assistant_id (int, optional): ID of the assistant to use instead of thread's assistant
-            
+
         Returns:
-            dict: Rendered default values for the prompt template
+            dict: Assistant default values from context
         """
         thread, error = self.get_thread_by_id(thread_id)
         if error:
-            return {}
-
-        # Use provided assistant_id or thread's assistant
-        assistant = None
-        if assistant_id:
-            assistant = self.env['llm.assistant'].browse(assistant_id)
-            if not assistant.exists():
-                _logger.warning(f"Assistant {assistant_id} not found")
-                return {}
-        elif thread.assistant_id:
-            assistant = thread.assistant_id
-
-        # If no assistant or assistant has no prompt, try thread's direct prompt
-        prompt = None
-        if assistant and assistant.prompt_id:
-            prompt = assistant.prompt_id
-        elif thread.prompt_id:
-            prompt = thread.prompt_id
-
-        if not prompt:
             return {}
 
         try:
             # Get thread context (which includes assistant defaults and related record context)
             context = thread.get_context()
 
-            # Render template and extract defaults
-            rendered_defaults = self._render_prompt_template_defaults(prompt, context)
-
-            _logger.debug(f"Rendered defaults for thread {thread_id}: {rendered_defaults}")
-            return rendered_defaults
+            # Return the context as-is - it should contain the assistant defaults
+            # The frontend will filter what's relevant for the form
+            return context or {}
 
         except Exception as e:
-            _logger.error(f"Error rendering prompt defaults for thread {thread_id}: {e}")
+            _logger.error(f"Error getting thread context for thread {thread_id}: {e}")
             return {}
 
     @api.model
@@ -145,6 +123,54 @@ class LLMThread(models.Model):
         except Exception as e:
             _logger.error(f"Error combining generation inputs for thread {thread_id}: {e}")
             return generation_inputs
+
+    @api.model
+    def render_prompt_template_with_context(self, thread_id, context_override=None):
+        """Render the prompt template with the given context to show final generation JSON.
+
+        Args:
+            thread_id (int): ID of the thread
+            context_override (dict, optional): Context values to override/merge
+
+        Returns:
+            dict or str: The rendered prompt template content
+        """
+        thread, error = self.get_thread_by_id(thread_id)
+        if error:
+            return {"error": error}
+
+        # Determine which prompt to use
+        prompt = None
+        if thread.assistant_id and thread.assistant_id.prompt_id:
+            prompt = thread.assistant_id.prompt_id
+        elif thread.prompt_id:
+            prompt = thread.prompt_id
+
+        if not prompt or not prompt.template:
+            return {"error": "No prompt template found"}
+
+        try:
+            # Get thread context (includes assistant defaults and related record context)
+            context = thread.get_context()
+
+            # Override/merge with provided context (current form values)
+            if context_override:
+                context.update(context_override)
+
+            # Render the template with the context
+            rendered_content = render_template(template=prompt.template, context=context)
+
+            # Try to parse as JSON first (if template produces JSON)
+            try:
+                parsed_json = json.loads(rendered_content)
+                return parsed_json
+            except json.JSONDecodeError:
+                # If not JSON, return the raw rendered content
+                return rendered_content.strip()
+
+        except Exception as e:
+            _logger.error(f"Error rendering prompt template for thread {thread_id}: {e}")
+            return {"error": f"Template rendering failed: {str(e)}"}
 
     def _render_prompt_template_defaults(self, prompt, context):
         """Render prompt template and extract default values for form fields.
@@ -275,11 +301,6 @@ class LLMThread(models.Model):
     def _extract_from_content_patterns(self, rendered_template):
         """Extract defaults from common content patterns.
 
-        Looks for patterns like:
-        prompt: Generate an image of...
-        style: photographic
-        quality: hd
-
         Args:
             rendered_template (str): Rendered template content
 
@@ -288,45 +309,8 @@ class LLMThread(models.Model):
         """
         defaults = {}
 
-        # Common field patterns - customize based on your templates
-        patterns = {
-            'prompt': [
-                r'prompt:\s*([^\n]+)',
-                r'description:\s*([^\n]+)',
-                r'generate:\s*([^\n]+)',
-            ],
-            'negative_prompt': [
-                r'negative_prompt:\s*([^\n]+)',
-                r'avoid:\s*([^\n]+)',
-                r'exclude:\s*([^\n]+)',
-            ],
-            'style': [
-                r'style:\s*([^\n]+)',
-                r'art_style:\s*([^\n]+)',
-            ],
-            'quality': [
-                r'quality:\s*([^\n]+)',
-                r'resolution:\s*([^\n]+)',
-            ],
-            'size': [
-                r'size:\s*([^\n]+)',
-                r'dimensions:\s*([^\n]+)',
-            ],
-            'model': [
-                r'model:\s*([^\n]+)',
-                r'version:\s*([^\n]+)',
-            ],
-        }
-
-        for field_name, field_patterns in patterns.items():
-            for pattern in field_patterns:
-                match = re.search(pattern, rendered_template, re.IGNORECASE)
-                if match:
-                    value = match.group(1).strip().strip('"\'')
-                    if value and field_name not in defaults:
-                        defaults[field_name] = value
-                        break  # Use first match for this field
-
+        # Just return empty - let the prompt template itself handle the structure
+        # The template should produce the final JSON/content to send to the model
         return defaults
 
     @api.model
@@ -408,3 +392,4 @@ class LLMThread(models.Model):
         except Exception as e:
             _logger.error(f"Error refreshing assistant defaults for thread {thread_id}: {e}")
             return {}
+        
