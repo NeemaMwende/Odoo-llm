@@ -16,7 +16,8 @@ export class LLMMediaForm extends Component {
       isJsonValid: true,
       jsonEditorError: null,
       showTemplatePreview: false,
-      templatePreviewJson: null,
+      templatePreviewContent: null,
+      isLoadingPreview: false,
       assistantDefaults: {},
       threadConfig: {
         input_schema: {},
@@ -248,18 +249,54 @@ export class LLMMediaForm extends Component {
   }
 
   /**
-   * Toggle template preview visibility
+   * Toggle template preview visibility and load preview content
    */
-  toggleTemplatePreview() {
+  async toggleTemplatePreview() {
     this.state.showTemplatePreview = !this.state.showTemplatePreview;
 
     if (this.state.showTemplatePreview) {
-      // Generate template preview by merging defaults with current form values
-      const mergedValues = {
+      await this._loadTemplatePreview();
+    }
+  }
+
+  /**
+   * Load template preview by calling the backend to render the prompt
+   */
+  async _loadTemplatePreview() {
+    if (!this.thread?.id) {
+      this.state.templatePreviewContent = "No thread available for template preview";
+      return;
+    }
+
+    this.state.isLoadingPreview = true;
+    try {
+      // Merge defaults with current form values (same logic as submission)
+      const mergedInputs = {
         ...this.state.assistantDefaults,
         ...this.state.formValues
       };
-      this.state.templatePreviewJson = JSON.stringify(mergedValues, null, 2);
+
+      // Call backend method to prepare generation inputs (which handles template rendering)
+      const result = await this.thread.messaging.rpc({
+        model: "llm.thread",
+        method: "prepare_generation_inputs",
+        args: [this.thread.id, mergedInputs],
+      });
+
+      // Display the result based on its type
+      if (typeof result === 'string') {
+        this.state.templatePreviewContent = result;
+      } else if (typeof result === 'object') {
+        this.state.templatePreviewContent = JSON.stringify(result, null, 2);
+      } else {
+        this.state.templatePreviewContent = String(result);
+      }
+
+    } catch (error) {
+      console.error("Error loading template preview:", error);
+      this.state.templatePreviewContent = `Error loading preview: ${error.message}`;
+    } finally {
+      this.state.isLoadingPreview = false;
     }
   }
 
@@ -267,7 +304,7 @@ export class LLMMediaForm extends Component {
    * Get formatted template preview
    */
   get formattedTemplatePreview() {
-    return this.state.templatePreviewJson || "{}";
+    return this.state.templatePreviewContent || "Loading preview...";
   }
 
   /**
@@ -345,6 +382,11 @@ export class LLMMediaForm extends Component {
       ...this.state.formValues,
       [fieldName]: value,
     };
+
+    // If template preview is open, refresh it with the new values
+    if (this.state.showTemplatePreview) {
+      this._loadTemplatePreview();
+    }
   }
 
   /**

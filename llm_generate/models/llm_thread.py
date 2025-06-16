@@ -1,6 +1,8 @@
 import json
 import logging
+
 from odoo import api, models
+from odoo.addons.llm_prompt.utils import render_template
 
 _logger = logging.getLogger(__name__)
 
@@ -60,18 +62,14 @@ class LLMThread(models.Model):
 
     def prepare_generation_inputs(self, generation_inputs):
         """Prepare final inputs for media generation.
-        
+
         Args:
             generation_inputs (dict): Raw inputs from form
-            
+
         Returns:
             dict or str: Final inputs ready for model generation
         """
         self.ensure_one()
-
-        # If no prompt, send generation_inputs directly to model
-        if not self.prompt_id:
-            return generation_inputs
 
         # Get defaults from context (includes assistant defaults)
         defaults = self.get_context()
@@ -79,10 +77,19 @@ class LLMThread(models.Model):
         # Merge defaults with generation inputs (generation_inputs take precedence)
         merged_context = {**defaults, **generation_inputs}
 
+        # If no prompt, send generation_inputs directly to model
+        if not self.prompt_id:
+            return merged_context
+
         # Render the prompt with merged context
-        if hasattr(self.prompt_id, 'render_prompt'):
-            rendered_content = self.prompt_id.render_prompt(context=merged_context)
-            return rendered_content
+        if self.prompt_id:
+            try:
+                return render_template(template=self.prompt_id.template, context=merged_context)
+
+            except Exception as e:
+                _logger.error(f"Error rendering prompt: {e}")
+                # Fallback to merged inputs if rendering fails
+                return merged_context
         else:
             # Fallback: return merged inputs if render_prompt not available
             return merged_context
@@ -105,7 +112,6 @@ class LLMThread(models.Model):
 
             # Prepare final inputs using prompt rendering or direct pass-through
             final_inputs = self.prepare_generation_inputs(generation_inputs)
-
             # Generate media using model
             if self.model_id._is_media_generation_model():
                 return self._generate_media_stream(final_inputs)

@@ -43,8 +43,10 @@
                             type="button"
                             class="btn btn-outline-info btn-sm"
                             t-on-click="() => this.toggleTemplatePreview()"
+                            t-att-disabled="state.isLoadingPreview ? 'disabled' : null"
                     >
-                        <i class="fa fa-eye me-1" />
+                        <i t-if="state.isLoadingPreview" class="fa fa-spinner fa-spin me-1" />
+                        <i t-else="" class="fa fa-eye me-1" />
                         <t t-if="!state.showTemplatePreview">Show Rendered Template</t>
                         <t t-else="">Hide Rendered Template</t>
                     </button>
@@ -53,11 +55,16 @@
                 <div t-if="state.showTemplatePreview" class="mb-3">
                     <div class="card border-info">
                         <div class="card-header bg-info text-white">
-                            <small><i class="fa fa-info-circle me-1" />This shows the final JSON that will be sent for generation (form values + template defaults)</small>
+                            <small><i class="fa fa-info-circle me-1" />This shows the final rendered template/prompt that will be sent to the model</small>
                         </div>
                         <div class="card-body p-2">
-                            <t t-if="state.templatePreviewJson">
-                                <pre class="bg-light p-2 rounded small mb-0"><t t-esc="formattedTemplatePreview" /></pre>
+                            <t t-if="state.isLoadingPreview">
+                                <div class="text-center text-muted">
+                                    <i class="fa fa-spinner fa-spin me-1" /> Loading template preview...
+                                </div>
+                            </t>
+                            <t t-elif="state.templatePreviewContent">
+                                <pre class="bg-light p-2 rounded small mb-0" style="max-height: 400px; overflow-y: auto;"><t t-esc="formattedTemplatePreview" /></pre>
                             </t>
                             <t t-else="">
                                 <div class="text-muted small">No template preview available</div>
