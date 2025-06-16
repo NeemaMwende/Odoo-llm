@@ -182,3 +182,31 @@ class LLMThread(models.Model):
                 "model_id": None,
                 "model_name": None,
             }
+
+    # @saiful... why...? not dry....
+    @api.model
+    def build_update_vals(
+            self,
+            subtype_xmlid,
+            tool_call_id=None,
+            tool_calls=None,
+            tool_call_definition=None,
+            tool_call_result=None,
+            **kwargs,
+    ):
+        base_vals = super().build_update_vals(
+            subtype_xmlid,
+            tool_call_id=tool_call_id,
+            tool_calls=tool_calls,
+            tool_call_definition=tool_call_definition,
+            tool_call_result=tool_call_result,
+        )
+        if base_vals:
+            return base_vals
+        generation_inputs = kwargs.get("generation_inputs")
+        attachment_ids = kwargs.get("attachment_ids")
+        vals = {
+            "generation_inputs": generation_inputs,
+            "attachment_ids": attachment_ids,
+        }
+        return {k: v for k, v in vals.items() if v is not None}
