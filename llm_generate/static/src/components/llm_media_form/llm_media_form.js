@@ -15,6 +15,9 @@ export class LLMMediaForm extends Component {
       inputMode: "form",
       isJsonValid: true,
       jsonEditorError: null,
+      showTemplatePreview: false,
+      templatePreviewJson: null,
+      assistantDefaults: {},
       threadConfig: {
         input_schema: {},
         form_defaults: {},
@@ -237,8 +240,34 @@ export class LLMMediaForm extends Component {
     // Apply thread defaults (these take precedence over schema defaults)
     Object.assign(initialValues, defaults);
 
+    // Set assistant defaults for display
+    this.state.assistantDefaults = defaults || {};
+
     this.state.formValues = initialValues;
     console.log("Initialized form values:", initialValues);
+  }
+
+  /**
+   * Toggle template preview visibility
+   */
+  toggleTemplatePreview() {
+    this.state.showTemplatePreview = !this.state.showTemplatePreview;
+
+    if (this.state.showTemplatePreview) {
+      // Generate template preview by merging defaults with current form values
+      const mergedValues = {
+        ...this.state.assistantDefaults,
+        ...this.state.formValues
+      };
+      this.state.templatePreviewJson = JSON.stringify(mergedValues, null, 2);
+    }
+  }
+
+  /**
+   * Get formatted template preview
+   */
+  get formattedTemplatePreview() {
+    return this.state.templatePreviewJson || "{}";
   }
 
   /**

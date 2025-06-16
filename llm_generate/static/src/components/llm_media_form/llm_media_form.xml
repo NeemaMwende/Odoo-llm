@@ -69,10 +69,10 @@
                 <!-- Form View -->
                 <div t-if="state.inputMode === 'form'">
                     <!-- Show assistant defaults info if available -->
-                    <div t-if="Object.keys(state.assistantDefaults).length > 0" class="alert alert-info small mb-3">
+                    <div t-if="state.assistantDefaults and Object.keys(state.assistantDefaults || {}).length > 0" class="alert alert-info small mb-3">
                         <i class="fa fa-robot me-1" />
                         <strong>Assistant defaults applied:</strong>
-                        <span t-esc="Object.keys(state.assistantDefaults).join(', ')" />
+                        <span t-esc="Object.keys(state.assistantDefaults || {}).join(', ')" />
                     </div>
 
                     <LLMFormFieldsView
