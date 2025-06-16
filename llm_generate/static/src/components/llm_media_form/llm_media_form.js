@@ -97,7 +97,7 @@ export class LLMMediaForm extends Component {
     const schema = this.state.threadConfig.input_schema;
 
     if (!schema || typeof schema !== 'object') {
-      return null;
+      return {}; // Return empty object instead of null
     }
 
     let parsedSchema;
@@ -106,7 +106,7 @@ export class LLMMediaForm extends Component {
         parsedSchema = JSON.parse(schema);
       } catch (e) {
         console.error("Error parsing input schema:", e);
-        return null;
+        return {}; // Return empty object instead of null
       }
     } else {
       parsedSchema = schema;
