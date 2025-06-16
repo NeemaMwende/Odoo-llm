@@ -95,9 +95,21 @@ export class LLMMediaForm extends Component {
     }
 
     try {
-      const defaults = await this.llmChat.getRenderedPromptDefaults(this.llmAssistant?.id);
-      this.state.assistantDefaults = defaults || {};
-      console.log("Loaded assistant defaults:", this.state.assistantDefaults);
+      const context = await this.llmChat.getRenderedPromptDefaults(this.llmAssistant?.id);
+
+      // Filter context to only include fields that match the form schema
+      const filteredDefaults = {};
+      if (context && this.formFields.length > 0) {
+        const formFieldNames = this.formFields.map(f => f.name);
+        for (const [key, value] of Object.entries(context)) {
+          if (formFieldNames.includes(key) && value !== undefined && value !== null && value !== '') {
+            filteredDefaults[key] = value;
+          }
+        }
+      }
+
+      this.state.assistantDefaults = filteredDefaults;
+      console.log("Loaded assistant defaults:", filteredDefaults);
     } catch (error) {
       console.error("Error loading assistant defaults:", error);
       this.state.assistantDefaults = {};
@@ -153,7 +165,7 @@ export class LLMMediaForm extends Component {
         delete fieldDef.required; // Remove invalid field-level required
       }
 
-      // Handle other common schema issues
+      // Handle nested schemas and other common schema issues
       if (fieldDef.allOf && Array.isArray(fieldDef.allOf)) {
         fieldDef.allOf.forEach(subSchema => {
           if (subSchema.required === true) {
@@ -163,6 +175,35 @@ export class LLMMediaForm extends Component {
             delete subSchema.required;
           }
         });
+      }
+
+      // Handle oneOf schemas
+      if (fieldDef.oneOf && Array.isArray(fieldDef.oneOf)) {
+        fieldDef.oneOf.forEach(subSchema => {
+          if (subSchema.required === true) {
+            if (!requiredFields.includes(fieldName)) {
+              requiredFields.push(fieldName);
+            }
+            delete subSchema.required;
+          }
+        });
+      }
+
+      // Handle anyOf schemas
+      if (fieldDef.anyOf && Array.isArray(fieldDef.anyOf)) {
+        fieldDef.anyOf.forEach(subSchema => {
+          if (subSchema.required === true) {
+            if (!requiredFields.includes(fieldName)) {
+              requiredFields.push(fieldName);
+            }
+            delete subSchema.required;
+          }
+        });
+      }
+
+      // Recursively handle nested objects
+      if (fieldDef.type === 'object' && fieldDef.properties) {
+        normalizedSchema.properties[fieldName] = this._normalizeSchema(fieldDef);
       }
     });
 
@@ -200,7 +241,53 @@ export class LLMMediaForm extends Component {
     }
 
     // Normalize the schema to fix JSON Schema compliance issues
-    return this._normalizeSchema(parsedSchema);
+    const normalizedSchema = this._normalizeSchema(parsedSchema);
+
+    // Debug log to help troubleshoot schema issues
+    console.log("Normalized schema:", normalizedSchema);
+
+    return normalizedSchema;
+  }
+
+  /**
+   * Get a safe schema for the JSON editor (falls back to null if invalid)
+   */
+  get safeInputSchema() {
+    try {
+      const schema = this.inputSchema;
+      if (!schema) {
+        return null;
+      }
+
+      // Additional validation to catch potential issues
+      if (typeof schema === 'object' && schema.properties) {
+        // Check for any remaining invalid required properties
+        for (const [fieldName, fieldDef] of Object.entries(schema.properties)) {
+          if (fieldDef.required === true) {
+            console.warn(`Found invalid field-level required property on ${fieldName}, this should have been normalized`);
+            return null; // Fall back to no schema validation
+          }
+        }
+      }
+
+      return schema;
+    } catch (error) {
+      console.error("Error preparing schema for JSON editor:", error);
+      return null; // Fall back to no schema validation
+    }
+  }
+
+  /**
+   * Get the effective JSON values for the JSON editor
+   */
+  get jsonEditorValue() {
+    if (this.state.renderedTemplate && this.state.inputMode === "json") {
+      return {
+        ...this.state.renderedTemplate,
+        ...this.state.formValues,
+      };
+    }
+    return this.state.formValues;
   }
 
   get formFields() {
@@ -338,7 +425,7 @@ export class LLMMediaForm extends Component {
   }
 
   /**
-   * Generate template preview JSON
+   * Generate template preview JSON - shows the actual rendered prompt template
    */
   async _generateTemplatePreview() {
     if (!this.thread?.id) {
@@ -347,24 +434,25 @@ export class LLMMediaForm extends Component {
     }
 
     try {
-      // Combine current form values with assistant defaults
-      const combinedInputs = {
+      // Get the current form values combined with assistant defaults
+      const currentContext = {
         ...this.state.assistantDefaults,
         ...this.state.formValues
       };
 
-      // Call the backend to render the final JSON that would be sent
+      // Call backend to render the actual prompt template with this context
+      // This should return the rendered template content, not just the merged inputs
       const result = await this.messaging.rpc({
         model: "llm.thread",
-        method: "render_generation_json",
-        args: [this.thread.id, combinedInputs],
+        method: "render_prompt_template_with_context",
+        args: [this.thread.id],
         kwargs: {
-          without_prompt_template: false
+          context_override: currentContext
         }
       });
 
       this.state.templatePreviewJson = result;
-      console.log("Generated template preview:", result);
+      console.log("Generated template preview (rendered prompt):", result);
     } catch (error) {
       console.error("Error generating template preview:", error);
       this.state.templatePreviewJson = null;
@@ -393,19 +481,6 @@ export class LLMMediaForm extends Component {
       this.state.inputMode = "form";
     }
     this.state.jsonEditorError = null;
-  }
-
-  /**
-   * Get the effective JSON values for the JSON editor
-   */
-  get jsonEditorValue() {
-    if (this.state.renderedTemplate && this.state.inputMode === "json") {
-      return {
-        ...this.state.renderedTemplate,
-        ...this.state.formValues,
-      };
-    }
-    return this.state.formValues;
   }
 
   /**
@@ -447,7 +522,16 @@ export class LLMMediaForm extends Component {
    * Handle general JSON editor errors
    */
   onJsonEditorError(error) {
+    console.error("JSON Editor Error:", error);
     this.state.jsonEditorError = error.message || "An error occurred in the JSON editor.";
+
+    // If it's a schema validation error, try to provide a fallback
+    if (error.message && error.message.includes("schema is invalid")) {
+      console.warn("Schema validation failed, falling back to schemaless mode");
+      this.state.jsonEditorError = "Schema validation failed. The editor will work without schema validation.";
+      // You might want to trigger a re-render with a null schema
+      this.render();
+    }
   }
 
   /**

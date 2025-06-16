@@ -392,4 +392,3 @@ class LLMThread(models.Model):
         except Exception as e:
             _logger.error(f"Error refreshing assistant defaults for thread {thread_id}: {e}")
             return {}
-        
