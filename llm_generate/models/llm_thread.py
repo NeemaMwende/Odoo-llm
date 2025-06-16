@@ -84,7 +84,7 @@ class LLMThread(models.Model):
         # Render the prompt with merged context
         if self.prompt_id:
             try:
-                return render_template(template=self.prompt_id.template, context=merged_context)
+                return json.loads(render_template(template=self.prompt_id.template, context=merged_context))
 
             except Exception as e:
                 _logger.error(f"Error rendering prompt: {e}")
