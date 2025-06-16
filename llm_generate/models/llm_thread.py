@@ -2,6 +2,7 @@ import json
 import logging
 
 from odoo import api, models
+
 from odoo.addons.llm_prompt.utils import render_template
 
 _logger = logging.getLogger(__name__)
@@ -21,15 +22,41 @@ class LLMThread(models.Model):
             dict: Input schema for form generation
         """
         self.ensure_one()
-
+        
+        schema = {}
+        
         # Priority 1: Thread's prompt schema
         if self.prompt_id and hasattr(self.prompt_id, 'input_schema_json') and self.prompt_id.input_schema_json:
-            return self.prompt_id.input_schema_json
-
+            raw_schema = self.prompt_id.input_schema_json
+            schema = self._ensure_dict(raw_schema)
+            
         # Priority 2: Model's schema  
-        if self.model_id and self.model_id.input_schema:
-            return self.model_id.input_schema
-
+        elif self.model_id and self.model_id.input_schema:
+            raw_schema = self.model_id.input_schema
+            schema = self._ensure_dict(raw_schema)
+            
+        return schema
+        
+    def _ensure_dict(self, value):
+        """Ensure the value is a dictionary.
+        
+        If the value is a string, try to parse it as JSON.
+        
+        Args:
+            value: The value to convert
+            
+        Returns:
+            dict: The value as a dictionary
+        """
+        if isinstance(value, dict):
+            return value
+            
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError as e:
+                _logger.error("Failed to parse JSON string: %s", e)
+                
         return {}
 
     def get_form_defaults(self):
