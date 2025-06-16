@@ -47,63 +47,47 @@ registerPatch({
     },
 
     /**
-     * Get rendered prompt defaults for the current thread
-     * @param {number} assistantId - Optional assistant ID to use instead of thread's assistant
-     * @returns {Promise<Object>} Rendered default values
+     * Get input schema and form defaults for the current thread
+     * @returns {Promise<Object>} Schema and defaults information
      */
-    async getRenderedPromptDefaults(assistantId = null) {
+    async getThreadFormConfiguration() {
       if (!this.activeThread?.id) {
-        return {};
+        return {
+          input_schema: {},
+          form_defaults: {},
+          error: "No active thread"
+        };
       }
 
       try {
         const result = await this.messaging.rpc({
           model: "llm.thread",
-          method: "get_rendered_prompt_defaults",
+          method: "get_input_schema",
           args: [this.activeThread.id],
-          kwargs: {
-            assistant_id: assistantId || this.activeThread.llmAssistant?.id || false,
-          },
         });
 
-        return result || {};
-      } catch (error) {
-        console.error("Error getting rendered prompt defaults:", error);
-        return {};
-      }
-    },
-
-    /**
-     * Render template for JSON editor
-     * @param {number} promptId - Optional prompt ID to use
-     * @param {Object} currentValues - Current form values to merge
-     * @returns {Promise<Object>} Rendered template values
-     */
-    async renderTemplateForJson(promptId = null, currentValues = null) {
-      if (!this.activeThread?.id) {
-        return currentValues || {};
-      }
-
-      try {
-        const result = await this.messaging.rpc({
+        const defaults = await this.messaging.rpc({
           model: "llm.thread",
-          method: "render_template_for_json",
+          method: "get_form_defaults",
           args: [this.activeThread.id],
-          kwargs: {
-            prompt_id: promptId || this.activeThread.llmAssistant?.llmPrompt?.id || this.activeThread.prompt_id?.id || false,
-            current_values: currentValues,
-          },
         });
 
-        return result || currentValues || {};
+        return {
+          input_schema: result || {},
+          form_defaults: defaults || {},
+        };
       } catch (error) {
-        console.error("Error rendering template for JSON:", error);
-        return currentValues || {};
+        console.error("Error getting thread form configuration:", error);
+        return {
+          input_schema: {},
+          form_defaults: {},
+          error: error.message,
+        };
       }
     },
 
     /**
-     * Get model generation I/O schema by model ID
+     * Get model generation I/O schema by model ID (kept for compatibility)
      * @param {number} modelId - Model ID
      * @returns {Promise<Object>} Model schema information
      */
@@ -125,33 +109,6 @@ registerPatch({
           model_id: modelId,
           model_name: null,
         };
-      }
-    },
-
-    /**
-     * Refresh assistant's evaluated defaults
-     * @param {number} assistantId - Optional assistant ID
-     * @returns {Promise<Object>} Refreshed default values
-     */
-    async refreshAssistantDefaults(assistantId = null) {
-      if (!this.activeThread?.id) {
-        return {};
-      }
-
-      try {
-        const result = await this.messaging.rpc({
-          model: "llm.thread",
-          method: "refresh_assistant_defaults",
-          args: [this.activeThread.id],
-          kwargs: {
-            assistant_id: assistantId || this.activeThread.llmAssistant?.id || false,
-          },
-        });
-
-        return result || {};
-      } catch (error) {
-        console.error("Error refreshing assistant defaults:", error);
-        return {};
       }
     },
   },

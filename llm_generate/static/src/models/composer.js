@@ -41,12 +41,12 @@ registerPatch({
       this._reset();
 
       try {
-        // Ensure all URL parameters are properly converted to strings
+        // Use the existing /llm/thread/generate endpoint with generation_inputs parameter
         const threadId = String(thread.id);
         const encodedMessage = encodeURIComponent(String(messageBody));
         const encodedInputs = encodeURIComponent(JSON.stringify(inputs));
 
-        const url = `/llm/thread/generate-media?thread_id=${threadId}&message=${encodedMessage}&generation_inputs=${encodedInputs}`;
+        const url = `/llm/thread/generate?thread_id=${threadId}&message=${encodedMessage}&generation_inputs=${encodedInputs}`;
 
         console.log("Creating EventSource for media generation:", url);
 
