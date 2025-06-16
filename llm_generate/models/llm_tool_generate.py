@@ -36,12 +36,7 @@ class LLMToolGenerate(models.Model):
             return {
                 "error": f"Model {model.name} is not configured for image generation"
             }
-        result = model.generate_media(inputs, stream=False)
-
-        if isinstance(result, list):
-            image_urls = result
-        else:
-            image_urls = [result]
+        image_urls = list(model.generate_media(inputs, stream=False))
 
         markdown_images = []
         for i, url in enumerate(image_urls):
