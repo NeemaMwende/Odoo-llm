@@ -156,14 +156,16 @@ class LLMThreadPrompt(models.Model):
         """
         context = {
             **super().get_context(base_context or {}),
-            'thread_id': self.id, 'related_record': RelatedRecordProxy(self.related_record)
+            'thread_id': self.id,
         }
 
         if self.related_record:
+            context['related_record'] = RelatedRecordProxy(self.related_record)
             context['related_model_name'] = self.related_record._name
             context['related_model_id'] = self.related_record._name
             context['related_res_id'] = self.related_record.id
         else:
+            context['related_record'] = None
             context['related_model_name'] = None
             context['related_model_id'] = None
             context['related_res_id'] = None
