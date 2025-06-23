@@ -85,6 +85,7 @@ class LLMThread(models.Model):
     )
 
     # Computed Reference field for related record
+    # TODO: the selection should be removed - ti is computed every time we access the model
     related_record = fields.Reference(
         selection='_get_related_record_selection',
         string='Related Record',
@@ -113,7 +114,7 @@ class LLMThread(models.Model):
 
         Returns all available models in the system.
         """
-        models = self.env['ir.model'].search([])
+        models = self.env['ir.model'].sudo().search([])
         return [(model.model, model.name) for model in models]
 
     @api.depends('model', 'res_id')
