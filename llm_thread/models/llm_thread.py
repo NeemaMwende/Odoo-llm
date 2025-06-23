@@ -171,6 +171,7 @@ class LLMThread(models.Model):
         """Get messages from the thread
 
         Args:
+            order: Optional order for messages ('ASC' or 'DESC')
             limit: Optional limit on number of messages to retrieve
 
         Returns:
@@ -183,16 +184,24 @@ class LLMThread(models.Model):
             self.env.ref(LLM_TOOL_RESULT_SUBTYPE_XMLID, raise_if_not_found=False),
         ]
         subtype_ids = [st.id for st in subtypes_to_fetch if st]
-        order_clause = f"create_date {order}, id {order}"
+
+        # Default to descending order to get the most recent messages
+        order_clause = "create_date DESC, write_date DESC, id DESC"
         domain = [
             ("model", "=", self._name),
             ("res_id", "=", self.id),
             ("message_type", "=", "comment"),
             ("subtype_id", "in", subtype_ids),
         ]
+
+        # Fetch messages (most recent first)
         messages = self.env["mail.message"].search(
             domain, order=order_clause, limit=limit
         )
+
+        if order == "ASC":
+            messages = messages[::-1]
+
         return messages
 
     def _get_last_message_from_history(self):
