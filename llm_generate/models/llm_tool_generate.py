@@ -15,16 +15,16 @@ class LLMToolGenerate(models.Model):
         return implementations + [("odoo_generate", "Odoo Media Generator")]
 
     def odoo_generate_execute(
-        self, model_id: int, inputs: dict[str, Any]
+            self, model_id: int, inputs: dict[str, Any]
     ) -> dict[str, Any]:
-        """Generate an image using the specified model and prompt.
+        """Generate media using the specified model and inputs.
 
         Parameters:
             model_id: The ID of the llm.model to use for generation
-            inputs: The dictionary to generate an image from based on model's input schema
+            inputs: The dictionary to generate media from based on model's input schema
 
         Returns:
-            A dictionary with the generated image URLs and markdown
+            A dictionary with the generated media URLs and markdown
         """
         self.ensure_one()
 
@@ -32,18 +32,47 @@ class LLMToolGenerate(models.Model):
         if not model.exists():
             return {"error": f"Model with ID {model_id} not found"}
 
-        if model.model_use != "image_generation":
+        if not model._is_media_generation_model():
             return {
-                "error": f"Model {model.name} is not configured for image generation"
+                "error": f"Model {model.name} is not configured for media generation"
             }
-        image_urls = list(model.generate_media(inputs, stream=False))
 
-        markdown_images = []
-        for i, url in enumerate(image_urls):
-            markdown_images.append(f"![Generated Image {i+1}]({url})")
+        try:
+            # Generate media using the model
+            media_urls = next(model.generate_media(inputs, stream=False))['content']
 
-        return {
-            "success": True,
-            "image_urls": image_urls,
-            "markdown": "\n".join(markdown_images),
-        }
+            # Check if we have a message in context for processing attachments
+            context_message = self.env.context.get('message')
+            attachment_ids = []
+
+            if context_message:
+                _logger.info(f"Processing generated media for message {context_message.id}")
+
+                attachment_ids, remaining_urls = context_message.process_generated_medias(
+                    media_urls, download_urls=True
+                )
+
+            # Generate markdown for display
+            markdown_images = []
+            for i, url in enumerate(media_urls):
+                markdown_images.append(f"![Generated Media {i+1}]({url})")
+
+            result = {
+                "success": True,
+                "media_urls": media_urls,
+                "markdown": "\n".join(markdown_images),
+            }
+
+            # Add attachment info if we processed any
+            if context_message and attachment_ids:
+                result["attachments_created"] = len(attachment_ids)
+                result["attachment_ids"] = attachment_ids
+
+            return result
+
+        except Exception as e:
+            _logger.error(f"Error in media generation: {e}")
+            return {
+                "error": f"Media generation failed: {str(e)}",
+                "success": False
+            }
