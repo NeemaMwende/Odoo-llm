@@ -136,7 +136,7 @@ class MailMessage(models.Model):
                     {
                         "name": filename,
                         "type": "binary",
-                        "content_type": response.headers.get('Content-Type', None),
+                        "mimetype": response.headers.get('Content-Type', None),
                         "datas": base64.b64encode(response.content),
                         "res_model": self._name,
                         "res_id": self.id,
