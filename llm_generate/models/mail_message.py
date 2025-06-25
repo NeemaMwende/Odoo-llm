@@ -55,8 +55,7 @@ class MailMessage(models.Model):
                     attachment_ids=attachment_ids,
                 )
 
-                for attachment_id in attachment_ids:
-                    self.env["ir.attachment"].browse(attachment_id).write({ 'res_id': msg.id })
+                self.env["ir.attachment"].browse(attachment_ids).write({ 'res_id': msg.id })
 
                 yield {"type": "message_create", "message": msg.message_format()[0]}
                 return
