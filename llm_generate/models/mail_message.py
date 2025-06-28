@@ -89,9 +89,10 @@ class MailMessage(models.Model):
                     media_urls.append(media)
             else:
                 # Assume it's base64 data, create an attachment
-                attachment = self.env["ir.attachment"].create(
+                attachment = self.env["ir.attachment"].sudo().create(
                     {
                         "name": "Generated Media",
+                        "create_uid": self.env.user.id,
                         "type": "binary",
                         "datas": media,
                         "res_model": self._name,
@@ -132,9 +133,10 @@ class MailMessage(models.Model):
                     filename = f"media_{timestamp}"
 
                 # Create attachment with binary data
-                attachment = self.env["ir.attachment"].create(
+                attachment = self.env["ir.attachment"].sudo().create(
                     {
                         "name": filename,
+                        "create_uid": self.env.user.id,
                         "type": "binary",
                         "mimetype": response.headers.get('Content-Type', None),
                         "datas": base64.b64encode(response.content),
