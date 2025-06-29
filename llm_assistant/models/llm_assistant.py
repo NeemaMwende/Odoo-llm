@@ -103,6 +103,13 @@ class LLMAssistant(models.Model):
         help="Tools that this assistant can use",
         tracking=True,
     )
+    
+    tool_calls_max = fields.Integer(
+        string="Max Tool Calls",
+        default=5,
+        help="Maximum number of consecutive tool calls allowed before breaking the loop to prevent infinite tool calling",
+        tracking=True,
+    )
 
     # Stats
     thread_count = fields.Integer(

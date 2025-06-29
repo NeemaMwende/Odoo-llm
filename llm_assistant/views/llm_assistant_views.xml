@@ -150,9 +150,15 @@
                                         options="{'no_create': True}"
                                         placeholder="Select tools for this assistant..."
                                 />
+                                <field
+                                        name="tool_calls_max"
+                                        help="Maximum number of consecutive tool calls allowed before breaking the loop to prevent infinite tool calling"
+                                />
                             </group>
                             <div class="text-muted px-3 py-2">
-                                Select the tools this assistant may need. These tools will be auto selected when you assign this assistant on LLM Chat Thread
+                                Select the tools this assistant may need. These tools will be auto selected when you assign this assistant on LLM Chat Thread.
+                                <br/>
+                                <strong>Max Tool Calls:</strong> Prevents infinite loops by limiting consecutive tool executions (default: 5).
                             </div>
                         </page>
                         <page string="Template" name="template">

@@ -97,7 +97,6 @@ class LLMThread(models.Model):
     is_locked = fields.Boolean(
         string="Locked, Preventing Concurrent Generation",
         default=False,
-        readonly=True,
         copy=False,
         help="Indicates if the thread is currently locked to prevent concurrent generation.",
     )

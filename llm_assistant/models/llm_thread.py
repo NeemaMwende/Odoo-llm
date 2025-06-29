@@ -1,3 +1,4 @@
+import json
 import logging
 
 from odoo import api, fields, models
@@ -149,3 +150,50 @@ class LLMThread(models.Model):
             return thread, None, error
 
         return thread, assistant, None
+
+    def _process_tool_calls(self, assistant_msg):
+        """Override _process_tool_calls to implement circuit breaker using assistant's tool_calls_max"""
+        self.ensure_one()
+        
+        # Get the tool calls max from the assistant, default to 5 if no assistant
+        tool_calls_max = self.assistant_id.tool_calls_max if self.assistant_id else 5
+        
+        # Count recent consecutive assistant messages with tool calls to detect loops
+        # We need to look at messages BEFORE the current one to count previous iterations
+        recent_messages = self.get_message_history_recordset(order="DESC", limit=20)
+        consecutive_tool_calls = 0
+        
+        for msg in recent_messages:
+            # Skip the current message since we're about to process it
+            if msg.id == assistant_msg.id:
+                continue
+                
+            if msg.is_llm_assistant_message() and msg.tool_calls:
+                consecutive_tool_calls += 1
+                _logger.debug(f"Thread {self.id}: Found assistant message {msg.id} with tool calls (count: {consecutive_tool_calls})")
+            elif msg.is_llm_user_message():
+                # Stop counting when we hit a user message (new conversation turn)
+                _logger.debug(f"Thread {self.id}: Hit user message {msg.id}, stopping count")
+                break
+            elif msg.is_llm_assistant_message() and msg.body and msg.body.strip():
+                # Stop counting when we hit an assistant message with meaningful content
+                _logger.debug(f"Thread {self.id}: Hit assistant message {msg.id} with content, stopping count")
+                break
+            # Continue through tool result messages without stopping the count
+        
+        # Circuit breaker: if too many consecutive tool calling assistant messages, clear tool_calls and stop
+        if consecutive_tool_calls >= tool_calls_max:
+            _logger.warning(
+                f"Thread {self.id}: Circuit breaker activated! Found {consecutive_tool_calls} consecutive assistant messages with tool calls, "
+                f"which exceeds the assistant's limit of {tool_calls_max}. Clearing tool_calls from message {assistant_msg.id}"
+            )
+            assistant_msg.write({"tool_calls": None})
+            return assistant_msg
+        
+        # If we're under the limit, proceed with normal tool processing
+        _logger.info(
+            f"Thread {self.id}: Processing tool calls ({consecutive_tool_calls}/{tool_calls_max} consecutive assistant tool call messages)"
+        )
+        
+        # Call the parent method for normal processing
+        return (yield from super()._process_tool_calls(assistant_msg))
