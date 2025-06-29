@@ -167,7 +167,7 @@ class LLMThread(models.Model):
             message.write(extra_vals)
         return message
 
-    def _get_message_history_recordset(self, order="ASC", limit=None):
+    def get_message_history_recordset(self, order="ASC", limit=None):
         """Get messages from the thread
 
         Args:
@@ -208,7 +208,7 @@ class LLMThread(models.Model):
         """Get the last message from the message history."""
         self.ensure_one()
         last_message = None
-        result = self._get_message_history_recordset(order="DESC", limit=1)
+        result = self.get_message_history_recordset(order="DESC", limit=1)
         if result:
             last_message = result[0]
         if not last_message:
@@ -294,7 +294,7 @@ class LLMThread(models.Model):
 
     def _get_assistant_response(self):
         self.ensure_one()
-        message_history_rs = self._get_message_history_recordset()
+        message_history_rs = self.get_message_history_recordset()
         tool_rs = self.tool_ids
         chat_kwargs = {
             "messages": message_history_rs,
