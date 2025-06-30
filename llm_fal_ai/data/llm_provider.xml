@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<odoo>
+<odoo noupdate="1">
     <record id="llm_provider_fal_ai" model="llm.provider">
         <field name="name">Fal ai</field>
         <field name="service">fal_ai</field>
