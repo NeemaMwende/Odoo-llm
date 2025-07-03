@@ -124,8 +124,7 @@
   >
         <!--
         Replace the main content rendering area.
-        We rely on is_note=True (set by backend message_format for LLM subtypes)
-        to get the desired overall bubble style from the base mail.Message template.
+        We use the stored llm_role field for direct comparison.
         -->
         <xpath expr="//div[hasclass('o_Message_content')]" position="replace">
             <div
@@ -137,14 +136,11 @@
         t-ref="content"
       >
 
-                <t
-          t-if="messageView.message.messageSubtypeXmlid === 'llm.mt_assistant'"
-        >
+                <!-- Use the stored llm_role field for direct comparison -->
+                <t t-if="messageView.message.llmRole === 'assistant'">
                     <t t-call="llm_thread.Message.AssistantContent" />
                 </t>
-                <t
-          t-elif="messageView.message.messageSubtypeXmlid === 'llm.mt_tool'"
-        >
+                <t t-elif="messageView.message.llmRole === 'tool'">
                     <t t-call="llm_thread.Message.ToolResultContent" />
                 </t>
                 <t t-else="">

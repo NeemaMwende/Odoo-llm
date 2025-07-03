@@ -16,15 +16,14 @@ class MailMessage(models.Model):
         help="Vote status given by the user. 0: No vote, 1: Upvoted, -1: Downvoted.",
     )
 
-    @api.constrains("tool_call_id", "subtype_id")
+    @api.constrains("tool_call_id", "llm_role")
     def _check_tool_message_integrity(self):
+        """Ensure tool_call_id is only set for tool messages."""
         for record in self:
-            if record.tool_call_id and record.subtype_id:
-                tool_subtype_id = self.env['ir.model.data']._xmlid_to_res_id('llm.mt_tool')
-                if record.subtype_id.id != tool_subtype_id:
-                    raise ValidationError(
-                        "Tool Call ID can only be set for Tool Messages."
-                    )
+            if record.tool_call_id and record.llm_role != 'tool':
+                raise ValidationError(
+                    "Tool Call ID can only be set for Tool Messages."
+                )
 
     def _get_llm_message_format_fields(self):
         """Extend the list of fields fetched by the base message_format."""
@@ -32,18 +31,30 @@ class MailMessage(models.Model):
         fields_list.extend(
             [
                 "tool_calls",
-                "tool_call_id",
+                "tool_call_id", 
                 "tool_call_definition",
                 "tool_call_result",
                 "user_vote",
+                "llm_role",  # Include the stored llm_role field
             ]
         )
         return fields_list
 
+    def message_format(self):
+        """Override to include LLM role information and set proper styling."""
+        result = super().message_format()
+        
+        # Set is_note=True for LLM messages to get the right bubble style
+        for message_data, message in zip(result, self):
+            if message.llm_role:
+                message_data['is_note'] = True
+        
+        return result
+
     def set_user_vote(self, message_id, vote_value):
         """
         Finds a message by ID and sets the user vote, performing validation checks.
-        Raises MissingError, ValidationError, or UserError if checks fail.
+        Uses the stored llm_role field for efficient checking.
         """
         message = self.env["mail.message"].browse(message_id)
         if not message.exists():
@@ -58,7 +69,8 @@ class MailMessage(models.Model):
                 )
             )
 
-        if message.is_llm_assistant_message() or message.is_llm_tool_message():
+        # Use the stored llm_role field for efficient checking
+        if message.llm_role in ('assistant', 'tool'):
             message.sudo().write({"user_vote": vote_value})
             return vote_value
         else:

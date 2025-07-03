@@ -17,7 +17,6 @@ function safeJsonParse(jsonString, defaultValue = undefined) {
   try {
     return JSON.parse(jsonString);
   } catch (e) {
-    // Console.warn("Failed to parse JSON string:", jsonString, e); // Optional logging
     return defaultValue;
   }
 }
@@ -48,6 +47,10 @@ registerPatch({
       if ("tool_call_id" in data && data.tool_call_id !== null) {
         data2.toolCallId = data.tool_call_id;
       }
+      // Add LLM role data from the stored field
+      if ("llm_role" in data) {
+        data2.llmRole = data.llm_role;
+      }
       return data2;
     },
   },
@@ -55,6 +58,15 @@ registerPatch({
     user_vote: attr({
       default: 0,
     }),
+    
+    /**
+     * LLM role for this message ('user', 'assistant', 'tool', 'system')
+     * This comes directly from the backend stored field
+     */
+    llmRole: attr({
+      default: null,
+    }),
+    
     /**
      * Compute parsed tool call definition from llm_tool_call_definition field.
      */
@@ -75,7 +87,6 @@ registerPatch({
      */
     toolCallResultData: attr({
       compute() {
-        // Uses the field added by llm_thread's python patch
         return safeJsonParse(this.toolCallResult);
       },
     }),
@@ -85,7 +96,6 @@ registerPatch({
     toolCallResultIsError: attr({
       compute() {
         const resultData = this.toolCallResultData;
-        // Check if it's an object and has an 'error' key
         return (
           typeof resultData === "object" &&
           resultData !== null &&
@@ -103,7 +113,6 @@ registerPatch({
           return "";
         }
         try {
-          // Only pretty print if it's likely an object/array
           return typeof resultData === "object"
             ? JSON.stringify(resultData, null, 2)
             : String(resultData);
@@ -121,8 +130,6 @@ registerPatch({
      */
     formattedToolCalls: attr({
       compute() {
-        // Uses the field added by llm_thread's python patch
-        // parseJson returns undefined on failure, default to empty array for template
         return safeJsonParse(this.toolCallCalls, []);
       },
     }),

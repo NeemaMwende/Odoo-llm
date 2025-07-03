@@ -13,6 +13,13 @@ Key Features:
 - Full Odoo Integration: Link chats to any Odoo record for context
 - Tool Integration: Enable AI to execute custom tools and functions
 - Function Calling: Select specific tools for each thread to enhance AI capabilities
+- Optimized Performance: Efficient role-based message handling for better performance
+
+Recent Updates:
+- Refactored to use stored llm_role field for maximum efficiency
+- Improved performance with direct field filtering and comparison
+- Better integration with LLM base module's stored role field
+- Enhanced database performance with proper indexing on llm_role field
 
 Getting Started:
 1. Install this module and the "LLM Integration Base" dependency
@@ -25,7 +32,7 @@ Use cases include customer support automation, data analysis, training assistanc
 Contact: support@apexive.com
     """,
     "category": "Productivity, Discuss",
-    "version": "16.0.1.2.0",
+    "version": "16.0.1.3.0",
     "depends": ["base", "mail", "web", "llm", "llm_tool"],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",

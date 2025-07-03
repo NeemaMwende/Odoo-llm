@@ -17,6 +17,7 @@ class MailMessage(models.Model):
         string="LLM Role",
         compute="_compute_llm_role",
         store=True,
+        index=True,  # Add index for better query performance
         help="The LLM role for this message (user, assistant, tool, system)"
     )
 
@@ -65,41 +66,47 @@ class MailMessage(models.Model):
         return self.llm_role
 
     def is_llm_message(self):
-        """Check if messages are LLM messages."""
-        id_to_role, _ = self.get_llm_roles()
-        llm_subtype_ids = set(id_to_role.keys())
-
+        """Check if messages are LLM messages using the stored field."""
         return {
-            message: bool(message.subtype_id and message.subtype_id.id in llm_subtype_ids)
+            message: bool(message.llm_role)
             for message in self
         }
 
     def is_llm_user_message(self):
-        """Check if messages are LLM user messages."""
-        return self._check_llm_role('user')
+        """Check if messages are LLM user messages using the stored field."""
+        return {
+            message: message.llm_role == 'user'
+            for message in self
+        }
 
     def is_llm_assistant_message(self):
-        """Check if messages are LLM assistant messages."""
-        return self._check_llm_role('assistant')
+        """Check if messages are LLM assistant messages using the stored field."""
+        return {
+            message: message.llm_role == 'assistant'
+            for message in self
+        }
 
     def is_llm_tool_message(self):
-        """Check if messages are LLM tool messages."""
-        return self._check_llm_role('tool')
+        """Check if messages are LLM tool messages using the stored field."""
+        return {
+            message: message.llm_role == 'tool'
+            for message in self
+        }
 
     def is_llm_system_message(self):
-        """Check if messages are LLM system messages."""
-        return self._check_llm_role('system')
+        """Check if messages are LLM system messages using the stored field."""
+        return {
+            message: message.llm_role == 'system'
+            for message in self
+        }
 
     def _check_llm_role(self, role):
-        """Check if messages match a specific LLM role.
+        """Check if messages match a specific LLM role using the stored field.
 
         Args:
             role (str): The role name ('user', 'assistant', 'tool', 'system')
         """
-        _, role_to_id = self.get_llm_roles()
-        target_subtype_id = role_to_id.get(role)
-
         return {
-            message: bool(message.subtype_id and message.subtype_id.id == target_subtype_id)
+            message: message.llm_role == role
             for message in self
         }

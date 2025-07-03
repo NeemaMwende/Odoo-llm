@@ -8,12 +8,6 @@ import markdown2
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
-# LLM Message Subtype XML IDs (from llm base module)
-LLM_USER_SUBTYPE_XMLID = 'llm.mt_user'
-LLM_ASSISTANT_SUBTYPE_XMLID = 'llm.mt_assistant'
-LLM_TOOL_RESULT_SUBTYPE_XMLID = 'llm.mt_tool'
-LLM_SYSTEM_SUBTYPE_XMLID = 'llm.mt_system'
-
 _logger = logging.getLogger(__name__)
 
 
@@ -104,15 +98,33 @@ class LLMThread(models.Model):
     # ============================================================================
 
     @api.returns('mail.message', lambda value: value.id)
-    def message_post(self, *, subtype_xmlid=None, tool_name=None, tool_call_id=None, message_type='comment',
+    def message_post(self, *, llm_role=None, tool_name=None, tool_call_id=None, message_type='comment',
                      tool_calls=None, tool_call_definition=None, tool_call_result=None, 
                      **kwargs):
-        """Override to handle LLM-specific message types and metadata."""
+        """Override to handle LLM-specific message types and metadata.
+        
+        Args:
+            llm_role (str): The LLM role ('user', 'assistant', 'tool', 'system')
+                           If provided, will automatically set the appropriate subtype
+            tool_name (str): Name of the tool (for tool messages)
+            tool_call_id (str): ID of the tool call
+            tool_calls (str): JSON string of tool calls
+            tool_call_definition (str): JSON string of tool call definition
+            tool_call_result (str): JSON string of tool call result
+        """
+        
+        # Convert LLM role to subtype_xmlid if provided
+        if llm_role:
+            _, role_to_id = self.env['mail.message'].get_llm_roles()
+            if llm_role in role_to_id:
+                # Get the xmlid from the role
+                subtype_xmlid = f"llm.mt_{llm_role}"
+                kwargs['subtype_xmlid'] = subtype_xmlid
         
         # Handle LLM-specific subtypes and email_from generation
         if not kwargs.get('author_id') and not kwargs.get('email_from'):
             kwargs['email_from'] = self._get_llm_email_from(
-                subtype_xmlid, kwargs.get('author_id'), tool_name
+                kwargs.get('subtype_xmlid'), kwargs.get('author_id'), tool_name
             )
         
         # Convert markdown to HTML if needed
@@ -120,7 +132,7 @@ class LLMThread(models.Model):
             kwargs['body'] = self._process_llm_body(kwargs['body'])
 
         # Create the message using standard mail.thread flow
-        message = super().message_post(subtype_xmlid=subtype_xmlid, message_type=message_type, **kwargs)
+        message = super().message_post(message_type=message_type, **kwargs)
 
         # Add LLM-specific fields after creation
         llm_fields = {}
@@ -146,10 +158,10 @@ class LLMThread(models.Model):
         provider_name = self.provider_id.name
         model_name = self.model_id.name
         
-        if subtype_xmlid == LLM_TOOL_RESULT_SUBTYPE_XMLID:
+        if subtype_xmlid == 'llm.mt_tool':
             name = tool_name or "Tool"
             return f"{name} <tool@{provider_name.lower().replace(' ', '')}.ai>"
-        elif subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID:
+        elif subtype_xmlid == 'llm.mt_assistant':
             return f"{model_name} <ai@{provider_name.lower().replace(' ', '')}.ai>"
         
         return None
@@ -164,8 +176,14 @@ class LLMThread(models.Model):
     # STREAMING MESSAGE CREATION
     # ============================================================================
 
-    def message_post_from_stream(self, stream, subtype_xmlid, placeholder_text="…", **kwargs):
-        """Create and update a message from a streaming response."""
+    def message_post_from_stream(self, stream, llm_role, placeholder_text="…", **kwargs):
+        """Create and update a message from a streaming response.
+        
+        Args:
+            stream: Generator yielding chunks of response data
+            llm_role (str): The LLM role ('user', 'assistant', 'tool', 'system')
+            placeholder_text (str): Text to show while streaming
+        """
         message = None
         accumulated_content = ""
         accumulated_calls = []
@@ -175,7 +193,7 @@ class LLMThread(models.Model):
                 # Create initial message with placeholder
                 message = self.message_post(
                     body=placeholder_text,
-                    subtype_xmlid=subtype_xmlid,
+                    llm_role=llm_role,
                     author_id=False,
                     **kwargs
                 )
@@ -221,7 +239,7 @@ class LLMThread(models.Model):
         # Create placeholder message
         message = self.message_post(
             body=f"Executing: {name}…",
-            subtype_xmlid=LLM_TOOL_RESULT_SUBTYPE_XMLID,
+            llm_role='tool',
             author_id=False,
             tool_call_id=call_id,
             tool_call_definition=json.dumps(tool_call_def),
@@ -252,7 +270,7 @@ class LLMThread(models.Model):
         return message
 
     # ============================================================================
-    # GENERATION FLOW - Refactored to use message_post
+    # GENERATION FLOW - Refactored to use message_post with roles
     # ============================================================================
 
     def generate(self, user_message_body, **kwargs):
@@ -267,7 +285,7 @@ class LLMThread(models.Model):
             if user_message_body:
                 user_msg = self.message_post(
                     body=user_message_body,
-                    subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
+                    llm_role='user',
                     author_id=self.env.user.partner_id.id,
                     **kwargs
                 )
@@ -279,15 +297,10 @@ class LLMThread(models.Model):
 
             # Continue generation loop
             while self._should_continue(last_message):
-                print(last_message.subtype_id)
-                print(last_message.body)
-                print(last_message.is_llm_user_message())
-
-                if (last_message.is_llm_user_message() or
-                    last_message.is_llm_tool_message()):
+                if last_message.llm_role in ('user', 'tool'):
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
-                elif (last_message.is_llm_assistant_message() and 
+                elif (last_message.llm_role == 'assistant' and 
                       last_message.tool_calls):
                     # Process tool calls
                     last_message = yield from self._process_tool_calls(last_message)
@@ -311,7 +324,7 @@ class LLMThread(models.Model):
         stream_response = self.sudo().model_id.chat(**chat_kwargs)
         return (yield from self.message_post_from_stream(
             stream_response,
-            LLM_ASSISTANT_SUBTYPE_XMLID,
+            'assistant',
             placeholder_text="Thinking..."
         ))
 
@@ -325,70 +338,54 @@ class LLMThread(models.Model):
         return last_tool_msg
 
     # ============================================================================
-    # HELPER METHODS
+    # HELPER METHODS - Optimized with stored llm_role field
     # ============================================================================
 
     def get_message_history_recordset(self, order="ASC", limit=None):
-        """Get messages from the thread
+        """Get LLM messages from the thread using efficient stored field filtering.
 
         Args:
             order: Optional order for messages ('ASC' or 'DESC')
             limit: Optional limit on number of messages to retrieve
 
         Returns:
-            mail.message recordset containing the messages
+            mail.message recordset containing the LLM messages
         """
         self.ensure_one()
-        subtype_ids = [
-            self.env['ir.model.data']._xmlid_to_res_id(LLM_USER_SUBTYPE_XMLID, raise_if_not_found=True),
-            self.env['ir.model.data']._xmlid_to_res_id(LLM_ASSISTANT_SUBTYPE_XMLID, raise_if_not_found=True),
-            self.env['ir.model.data']._xmlid_to_res_id(LLM_TOOL_RESULT_SUBTYPE_XMLID,raise_if_not_found=True),
-        ]
-        # Filter out any None values in case XML IDs don't exist
-        subtype_ids = [sid for sid in subtype_ids if sid]
-
-        print(subtype_ids)
-
-        # Default to descending order to get the most recent messages
-        order_clause = "create_date DESC, write_date DESC, id DESC"
+        
+        # Use the stored llm_role field for efficient filtering
         domain = [
             ("model", "=", self._name),
             ("res_id", "=", self.id),
-            ("subtype_id", "in", subtype_ids),
+            ("llm_role", "!=", False),  # Only LLM messages
         ]
-        # Fetch messages (most recent first)
-        messages = self.env["mail.message"].search(
-            domain, order=order_clause, limit=limit
-        )
-
+        
+        order_clause = "create_date DESC, write_date DESC, id DESC"
         if order == "ASC":
-            messages = messages[::-1]
-        return messages
+            order_clause = "create_date ASC, write_date ASC, id ASC"
+        
+        return self.env["mail.message"].search(domain, order=order_clause, limit=limit)
 
     def _get_last_message_from_history(self):
-        """Get the last message from the message history."""
+        """Get the last LLM message from the message history."""
         self.ensure_one()
-        last_message = None
         result = self.get_message_history_recordset(order="DESC", limit=1)
-        if result:
-            last_message = result[0]
-        if not last_message:
-            raise UserError("No message found to process.")
-        return last_message
+        if not result:
+            raise UserError("No LLM message found to process.")
+        return result[0]
 
     def _should_continue(self, last_message):
-        """Whether to keep looping on the last_message."""
+        """Whether to keep looping based on the last message role and content."""
         if not last_message:
             return False
 
-        if (last_message.is_llm_user_message() or 
-            last_message.is_llm_tool_message()):
+        # Use the stored llm_role field for efficient checking
+        if last_message.llm_role in ('user', 'tool'):
             return True
-        print("HERE")
-        print(last_message.tool_calls)
-        if last_message.is_llm_assistant_message() and last_message.tool_calls:
+            
+        if last_message.llm_role == 'assistant' and last_message.tool_calls:
             return True
-        print("NOT HERE")
+            
         return False
 
     def get_prepend_messages(self):
