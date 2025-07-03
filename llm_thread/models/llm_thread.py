@@ -77,17 +77,6 @@ class LLMThread(models.Model):
         model_field="model",
         help="ID of the related record"
     )
-
-    # Computed Reference field for related record
-    # TODO: the selection should be removed - ti is computed every time we access the model
-    related_record = fields.Reference(
-        selection='_get_related_record_selection',
-        string='Related Record',
-        compute='_compute_related_record',
-        readonly=True,
-        help="The record this chat thread is related to"
-    )
-
     is_locked = fields.Boolean(
         string="Locked, Preventing Concurrent Generation",
         default=False,
