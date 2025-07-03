@@ -160,7 +160,8 @@ class LLMPromptTest(models.TransientModel):
         return self.env['llm.thread.mock'].sudo().create({
             'name': f'Test Thread for {self.prompt_id.name}',
             'prompt_id': self.prompt_id.id,
-            'related_record': related_record_ref and f"{related_record_ref._name},{related_record_ref.id}" or False,
+            'model': related_record_ref._name if related_record_ref else False,
+            'res_id': related_record_ref.id if related_record_ref else False,
         })
 
     def _populate_context_from_record(self):

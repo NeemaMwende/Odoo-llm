@@ -92,6 +92,20 @@ class LLMThreadPrompt(models.Model):
         help="Prompt to use for workflow",
     )
 
+    @property
+    def related_record(self):
+        """
+        Property to get the related record from model/res_id fields.
+        This maintains backward compatibility with existing code.
+        """
+        if self.model and self.res_id:
+            try:
+                return self.env[self.model].browse(self.res_id)
+            except Exception as e:
+                _logger.warning("Error accessing related record %s,%s: %s", self.model, self.res_id, e)
+                return None
+        return None
+
     def merge_message_lists(self, source_messages, target_messages):
         """Merge two lists of messages, handling system messages appropriately"""
         if not source_messages:
@@ -159,11 +173,13 @@ class LLMThreadPrompt(models.Model):
             'thread_id': self.id,
         }
 
-        if self.related_record:
-            context['related_record'] = RelatedRecordProxy(self.related_record)
-            context['related_model_name'] = self.related_record._name
-            context['related_model_id'] = self.related_record._name
-            context['related_res_id'] = self.related_record.id
+        # Use the new res_id system instead of related_record
+        related_record = self.res_id
+        if related_record:
+            context['related_record'] = RelatedRecordProxy(related_record)
+            context['related_model_name'] = self.model
+            context['related_model_id'] = self.model  # Keep for backward compatibility
+            context['related_res_id'] = self.res_id
         else:
             context['related_record'] = None
             context['related_model_name'] = None

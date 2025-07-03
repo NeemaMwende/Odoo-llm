@@ -77,6 +77,7 @@ class LLMThread(models.Model):
         model_field="model",
         help="ID of the related record"
     )
+
     is_locked = fields.Boolean(
         string="Locked, Preventing Concurrent Generation",
         default=False,
@@ -89,36 +90,6 @@ class LLMThread(models.Model):
         string="Available Tools",
         help="Tools that can be used by the LLM in this thread",
     )
-
-    @api.model
-    def _get_related_record_selection(self):
-        """Get the selection options for the Reference field dynamically.
-
-        Returns all available models in the system.
-        """
-        models = self.env['ir.model'].sudo().search([])
-        return [(model.model, model.name) for model in models]
-
-    @api.depends('model', 'res_id')
-    def _compute_related_record(self):
-        """Compute the related record reference."""
-        for record in self:
-            if record.model and record.res_id:
-                # Validate that the model exists and the record exists
-                try:
-                    if record.model in self.env:
-                        related_record = self.env[record.model].browse(record.res_id)
-                        if related_record.exists():
-                            record.related_record = f"{record.model},{record.res_id}"
-                        else:
-                            record.related_record = False
-                    else:
-                        record.related_record = False
-                except Exception as e:
-                    _logger.warning(f"Error computing related record for thread {record.id}: {e}")
-                    record.related_record = False
-            else:
-                record.related_record = False
 
     @api.model_create_multi
     def create(self, vals_list):
