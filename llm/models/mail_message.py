@@ -12,18 +12,46 @@ class MailMessage(models.Model):
         'llm.mt_system',
     )
 
-    @tools.ormcache('xmlid', 'model')
-    def _get_subtype_id_for_xmlid(self, xmlid, model='mail.message.subtype'):
-        """Resolve and cache a single XML ID to subtype record ID."""
-        return self.env['ir.model.data']._xmlid_to_res_id(xmlid, raise_if_not_found=False) or False
+    @tools.ormcache()
+    def get_llm_roles(self):
+        """Get cached mapping of LLM subtype IDs to clean role names and vice versa.
+
+        Returns:
+            tuple: (id_to_role_dict, role_to_id_dict) where:
+                - id_to_role_dict: {subtype_id: 'user', subtype_id: 'assistant', ...}
+                - role_to_id_dict: {'user': subtype_id, 'assistant': subtype_id, ...}
+        """
+        id_to_role = {}
+        role_to_id = {}
+
+        for xmlid in self.LLM_XMLIDS:
+            subtype_id = self.env['ir.model.data']._xmlid_to_res_id(xmlid, raise_if_not_found=False)
+            if subtype_id:
+                # Extract clean role name (e.g., 'user' from 'llm.mt_user')
+                role = xmlid.split('.')[-1][3:]  # Remove 'mt_' prefix
+                id_to_role[subtype_id] = role
+                role_to_id[role] = subtype_id
+
+        return id_to_role, role_to_id
+
+    def get_llm_role(self):
+        """Get the LLM role for this message (ensure_one).
+
+        Returns:
+            str or False: The role name ('user', 'assistant', 'tool', 'system') or False if not an LLM message
+        """
+        self.ensure_one()
+        id_to_role, _ = self.get_llm_roles()
+
+        if self.subtype_id:
+            return id_to_role.get(self.subtype_id.id, False)
+        return False
 
     def is_llm_message(self):
         """Check if messages are LLM messages."""
-        llm_subtype_ids = set(
-            self._get_subtype_id_for_xmlid(xmlid)
-            for xmlid in self.LLM_XMLIDS
-            if self._get_subtype_id_for_xmlid(xmlid)
-        )
+        id_to_role, _ = self.get_llm_roles()
+        llm_subtype_ids = set(id_to_role.keys())
+
         return {
             message: bool(message.subtype_id and message.subtype_id.id in llm_subtype_ids)
             for message in self
@@ -31,23 +59,29 @@ class MailMessage(models.Model):
 
     def is_llm_user_message(self):
         """Check if messages are LLM user messages."""
-        return self._check_llm_subtype('llm.mt_user')
+        return self._check_llm_role('user')
 
     def is_llm_assistant_message(self):
         """Check if messages are LLM assistant messages."""
-        return self._check_llm_subtype('llm.mt_assistant')
+        return self._check_llm_role('assistant')
 
     def is_llm_tool_message(self):
         """Check if messages are LLM tool messages."""
-        return self._check_llm_subtype('llm.mt_tool')
+        return self._check_llm_role('tool')
 
     def is_llm_system_message(self):
         """Check if messages are LLM system messages."""
-        return self._check_llm_subtype('llm.mt_system')
+        return self._check_llm_role('system')
 
-    def _check_llm_subtype(self, xmlid):
-        """Check if messages match a specific LLM subtype."""
-        target_subtype_id = self._get_subtype_id_for_xmlid(xmlid)
+    def _check_llm_role(self, role):
+        """Check if messages match a specific LLM role.
+
+        Args:
+            role (str): The role name ('user', 'assistant', 'tool', 'system')
+        """
+        _, role_to_id = self.get_llm_roles()
+        target_subtype_id = role_to_id.get(role)
+
         return {
             message: bool(message.subtype_id and message.subtype_id.id == target_subtype_id)
             for message in self
