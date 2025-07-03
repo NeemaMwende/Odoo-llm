@@ -1,4 +1,5 @@
-from odoo import models, tools
+from odoo import api, fields, models, tools
+
 
 class MailMessage(models.Model):
     """Extension of mail.message to handle LLM-specific message subtypes."""
@@ -11,6 +12,24 @@ class MailMessage(models.Model):
         'llm.mt_assistant',
         'llm.mt_system',
     )
+
+    llm_role = fields.Char(
+        string="LLM Role",
+        compute="_compute_llm_role",
+        store=True,
+        help="The LLM role for this message (user, assistant, tool, system)"
+    )
+
+    @api.depends('subtype_id')
+    def _compute_llm_role(self):
+        """Compute the LLM role for messages based on their subtype."""
+        id_to_role, _ = self.get_llm_roles()
+
+        for message in self:
+            if message.subtype_id and message.subtype_id.id in id_to_role:
+                message.llm_role = id_to_role[message.subtype_id.id]
+            else:
+                message.llm_role = False
 
     @tools.ormcache()
     def get_llm_roles(self):
@@ -37,15 +56,13 @@ class MailMessage(models.Model):
     def get_llm_role(self):
         """Get the LLM role for this message (ensure_one).
 
+        DEPRECATED: Use the llm_role computed field instead.
+
         Returns:
             str or False: The role name ('user', 'assistant', 'tool', 'system') or False if not an LLM message
         """
         self.ensure_one()
-        id_to_role, _ = self.get_llm_roles()
-
-        if self.subtype_id:
-            return id_to_role.get(self.subtype_id.id, False)
-        return False
+        return self.llm_role
 
     def is_llm_message(self):
         """Check if messages are LLM messages."""
