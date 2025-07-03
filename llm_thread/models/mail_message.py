@@ -4,10 +4,6 @@ import logging
 from odoo import _, api, fields, models
 from odoo.exceptions import MissingError, UserError, ValidationError
 
-from odoo.addons.llm_mail_message_subtypes.const import (
-    LLM_TOOL_RESULT_SUBTYPE_XMLID,
-)
-
 _logger = logging.getLogger(__name__)
 
 
@@ -24,8 +20,8 @@ class MailMessage(models.Model):
     def _check_tool_message_integrity(self):
         for record in self:
             if record.tool_call_id and record.subtype_id:
-                tool_message_subtype = self.env.ref(LLM_TOOL_RESULT_SUBTYPE_XMLID)
-                if record.subtype_id.id != tool_message_subtype.id:
+                tool_subtype_id = self.env['ir.model.data']._xmlid_to_res_id('llm.mt_tool')
+                if record.subtype_id.id != tool_subtype_id:
                     raise ValidationError(
                         "Tool Call ID can only be set for Tool Messages."
                     )
@@ -62,7 +58,7 @@ class MailMessage(models.Model):
                 )
             )
 
-        if message.is_llm_assistant_message() or message.is_llm_tool_result_message():
+        if message.is_llm_assistant_message() or message.is_llm_tool_message():
             message.sudo().write({"user_vote": vote_value})
             return vote_value
         else:

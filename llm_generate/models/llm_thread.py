@@ -164,7 +164,7 @@ class LLMThread(models.Model):
             message_stream = self.env['mail.message'].create_message_from_media_gen_stream(
                 thread=self,
                 stream=stream,
-                subtype_xmlid='llm_mail_message_subtypes.mt_llm_assistant'
+                subtype_xmlid='llm.mt_assistant'
             )
 
             # Yield events from message creation stream

@@ -66,7 +66,7 @@ registerPatch({
     isLLMUserMediaGenMessage: attr({
       compute() {
         return (
-            this.messageSubtypeXmlid === 'llm_mail_message_subtypes.mt_llm_user' &&
+            this.messageSubtypeXmlid === 'llm.mt_user' &&
             Boolean(this.generationInputs)
         );
       },

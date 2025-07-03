@@ -11,7 +11,7 @@
         <xpath expr="//div[hasclass('o_Message_content')]" position="inside">
             <!-- Add our media generation parameters display for user messages with generation inputs -->
             <t
-        t-if="messageView.message.messageSubtypeXmlid === 'llm_mail_message_subtypes.mt_llm_user' and messageView.message.generationInputsFormatted"
+        t-if="messageView.message.messageSubtypeXmlid === 'llm.mt_user' and messageView.message.generationInputsFormatted"
       >
                 <!-- Media Generation Parameters Summary -->
                 <div class="o_llm_media_gen_params mt-2 small border-top pt-2">

@@ -8,11 +8,11 @@ import markdown2
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
-from odoo.addons.llm_mail_message_subtypes.const import (
-    LLM_ASSISTANT_SUBTYPE_XMLID,
-    LLM_TOOL_RESULT_SUBTYPE_XMLID,
-    LLM_USER_SUBTYPE_XMLID,
-)
+# LLM Message Subtype XML IDs (from llm base module)
+LLM_USER_SUBTYPE_XMLID = 'llm.mt_user'
+LLM_ASSISTANT_SUBTYPE_XMLID = 'llm.mt_assistant'
+LLM_TOOL_RESULT_SUBTYPE_XMLID = 'llm.mt_tool'
+LLM_SYSTEM_SUBTYPE_XMLID = 'llm.mt_system'
 
 _logger = logging.getLogger(__name__)
 
@@ -276,11 +276,15 @@ class LLMThread(models.Model):
             
             # Get last message to continue from
             last_message = self._get_last_message_from_history()
-            
+
             # Continue generation loop
             while self._should_continue(last_message):
-                if (last_message.is_llm_user_message() or 
-                    last_message.is_llm_tool_result_message()):
+                print(last_message.subtype_id)
+                print(last_message.body)
+                print(last_message.is_llm_user_message())
+
+                if (last_message.is_llm_user_message() or
+                    last_message.is_llm_tool_message()):
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
                 elif (last_message.is_llm_assistant_message() and 
@@ -335,12 +339,15 @@ class LLMThread(models.Model):
             mail.message recordset containing the messages
         """
         self.ensure_one()
-        subtypes_to_fetch = [
-            self.env.ref(LLM_USER_SUBTYPE_XMLID, raise_if_not_found=True),
-            self.env.ref(LLM_ASSISTANT_SUBTYPE_XMLID, raise_if_not_found=True),
-            self.env.ref(LLM_TOOL_RESULT_SUBTYPE_XMLID, raise_if_not_found=True),
+        subtype_ids = [
+            self.env['ir.model.data']._xmlid_to_res_id(LLM_USER_SUBTYPE_XMLID, raise_if_not_found=True),
+            self.env['ir.model.data']._xmlid_to_res_id(LLM_ASSISTANT_SUBTYPE_XMLID, raise_if_not_found=True),
+            self.env['ir.model.data']._xmlid_to_res_id(LLM_TOOL_RESULT_SUBTYPE_XMLID,raise_if_not_found=True),
         ]
-        subtype_ids = [st.id for st in subtypes_to_fetch if st]
+        # Filter out any None values in case XML IDs don't exist
+        subtype_ids = [sid for sid in subtype_ids if sid]
+
+        print(subtype_ids)
 
         # Default to descending order to get the most recent messages
         order_clause = "create_date DESC, write_date DESC, id DESC"
@@ -373,11 +380,15 @@ class LLMThread(models.Model):
         """Whether to keep looping on the last_message."""
         if not last_message:
             return False
+
         if (last_message.is_llm_user_message() or 
-            last_message.is_llm_tool_result_message()):
+            last_message.is_llm_tool_message()):
             return True
+        print("HERE")
+        print(last_message.tool_calls)
         if last_message.is_llm_assistant_message() and last_message.tool_calls:
             return True
+        print("NOT HERE")
         return False
 
     def get_prepend_messages(self):

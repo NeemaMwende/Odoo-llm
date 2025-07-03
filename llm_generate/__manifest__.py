@@ -18,7 +18,6 @@
     "depends": [
         "llm",
         "llm_thread",
-        "llm_mail_message_subtypes",
         "web_json_editor",
         "llm_prompt",
         "llm_assistant",

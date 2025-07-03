@@ -138,12 +138,12 @@
       >
 
                 <t
-          t-if="messageView.message.messageSubtypeXmlid === 'llm_mail_message_subtypes.mt_llm_assistant'"
+          t-if="messageView.message.messageSubtypeXmlid === 'llm.mt_assistant'"
         >
                     <t t-call="llm_thread.Message.AssistantContent" />
                 </t>
                 <t
-          t-elif="messageView.message.messageSubtypeXmlid === 'llm_mail_message_subtypes.mt_llm_tool_result'"
+          t-elif="messageView.message.messageSubtypeXmlid === 'llm.mt_tool'"
         >
                     <t t-call="llm_thread.Message.ToolResultContent" />
                 </t>
