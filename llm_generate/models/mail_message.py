@@ -114,8 +114,8 @@ class MailMessage(models.Model):
             int: attachment ID if successful, False otherwise
         """
         try:
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
+            response = requests.options(url, timeout=10)
+            if response.status_code < 300:
                 # Try to get filename from URL or use generic name
                 filename = os.path.basename(urlparse(url).path)
 
@@ -137,9 +137,8 @@ class MailMessage(models.Model):
                     {
                         "name": filename,
                         "create_uid": self.env.user.id,
-                        "type": "binary",
+                        "type": "url",
                         "mimetype": response.headers.get('Content-Type', None),
-                        "datas": base64.b64encode(response.content),
                         "res_model": self._name,
                         "res_id": self.id,
                         "url": url,  # Store original URL for reference
