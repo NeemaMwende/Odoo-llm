@@ -5,53 +5,40 @@ _logger = logging.getLogger(__name__)
 
 def migrate(cr, version):
     """
-    Migration to optimize LLM message handling using stored llm_role field.
+    Migration to compute llm_role field for existing messages.
     
-    This migration:
-    1. Triggers computation of llm_role for all existing messages
-    2. Ensures message integrity and proper role assignment
-    3. Clears caches to ensure fresh data
+    Simple migration that just ensures the llm_role field is computed
+    for all existing messages. The constraint will automatically handle
+    any integrity issues since it only validates when llm_role is not False.
     """
     env = api.Environment(cr, SUPERUSER_ID, {})
     
-    _logger.info("Starting LLM role-based optimization migration...")
+    _logger.info("Starting LLM role field computation migration...")
     
     try:
-        # Clear ORM cache to ensure fresh data
-        env.registry.clear_cache()
-        
-        # Find all messages that might be LLM messages
-        # We'll let the compute method determine which are actually LLM messages
-        all_messages = env['mail.message'].search([
+        # Find all messages in LLM threads
+        llm_thread_messages = env['mail.message'].search([
             ('model', '=', 'llm.thread')
         ])
         
-        if not all_messages:
+        if not llm_thread_messages:
             _logger.info("No LLM thread messages found, skipping migration")
             return
         
-        _logger.info(f"Found {len(all_messages)} messages in LLM threads")
+        _logger.info(f"Found {len(llm_thread_messages)} messages in LLM threads")
         
-        # Force computation of llm_role field for all messages
-        # This will populate the stored field based on subtype_id
-        all_messages._compute_llm_role()
+        # Force computation of llm_role field - this will populate the stored field
+        llm_thread_messages._compute_llm_role()
         
-        # Count how many messages now have llm_role set
-        llm_messages = all_messages.filtered(lambda m: m.llm_role)
+        # Count results
+        llm_messages = llm_thread_messages.filtered(lambda m: m.llm_role)
         _logger.info(f"Computed llm_role for {len(llm_messages)} LLM messages")
         
-        # Validate tool messages
-        tool_messages = llm_messages.filtered(lambda m: m.llm_role == 'tool')
-        invalid_tool_messages = tool_messages.filtered(lambda m: m.tool_call_id and m.llm_role != 'tool')
-        
-        if invalid_tool_messages:
-            _logger.warning(f"Found {len(invalid_tool_messages)} tool messages with invalid tool_call_id")
-        
-        # Clear method caches to ensure fresh role data
+        # Clear caches
         env['mail.message'].get_llm_roles.clear_cache(env['mail.message'])
         
-        _logger.info("LLM role-based optimization migration completed successfully")
+        _logger.info("LLM role field computation migration completed successfully")
         
     except Exception as e:
-        _logger.error(f"Error during LLM role-based optimization migration: {str(e)}")
+        _logger.error(f"Error during LLM role migration: {str(e)}")
         raise

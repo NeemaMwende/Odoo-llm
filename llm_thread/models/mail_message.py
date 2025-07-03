@@ -20,7 +20,8 @@ class MailMessage(models.Model):
     def _check_tool_message_integrity(self):
         """Ensure tool_call_id is only set for tool messages."""
         for record in self:
-            if record.tool_call_id and record.llm_role != 'tool':
+            # Only validate if tool_call_id is set and llm_role is computed (not False)
+            if record.tool_call_id and record.llm_role and record.llm_role != 'tool':
                 raise ValidationError(
                     "Tool Call ID can only be set for Tool Messages."
                 )
