@@ -66,12 +66,6 @@ class LLMThread(models.Model):
         ondelete="restrict",
     )
     active = fields.Boolean(default=True)
-    message_ids = fields.One2many(
-        comodel_name="mail.message",
-        inverse_name="res_id",
-        string="Messages",
-        domain=lambda self: [("model", "=", self._name)],
-    )
 
     # Updated fields for related record reference
     model = fields.Char(
