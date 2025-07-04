@@ -32,7 +32,6 @@ class LLMProvider(models.Model):
         messages,
         stream,
         tools,
-        system_prompt=None,
         prepend_messages=None,
         **kwargs,
     ):
@@ -44,16 +43,15 @@ class LLMProvider(models.Model):
 
         messages = messages or []
 
-        # Handle prepend_messages parameter (new approach)
+        # Handle prepend_messages parameter
         if prepend_messages and isinstance(prepend_messages, list):
             # Format the messages from the thread
             formatted_messages = self.format_messages(messages)
             # Prepend the additional messages
             params["messages"] = prepend_messages + formatted_messages
         else:
-            # Legacy approach using system_prompt
-            system_prompt = system_prompt or None
-            formatted_messages = self.format_messages(messages, system_prompt)
+            # Just format the messages without any system prompt
+            formatted_messages = self.format_messages(messages)
             params["messages"] = formatted_messages
 
         if tools:

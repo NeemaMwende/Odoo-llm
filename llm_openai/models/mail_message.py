@@ -27,9 +27,20 @@ class MailMessage(models.Model):
             if body:
                 formatted_message["content"] = body
             
-            # For assistant messages, we don't store tool_calls in the message anymore
-            # Tool calls are stored as separate tool messages
-            # This section is kept for backward compatibility but won't be used
+            # Add tool calls if present in body_json
+            tool_calls = self.get_tool_calls()
+            if tool_calls:
+                formatted_message["tool_calls"] = [
+                    {
+                        "id": tc["id"],
+                        "type": tc.get("type", "function"),
+                        "function": {
+                            "name": tc["function"]["name"],
+                            "arguments": tc["function"]["arguments"],
+                        },
+                    }
+                    for tc in tool_calls
+                ]
             
             return formatted_message
 

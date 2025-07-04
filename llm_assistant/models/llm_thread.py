@@ -255,13 +255,16 @@ class LLMThread(models.Model):
 
             # Continue generation loop
             while self._should_continue(last_message):
-                if last_message.llm_role == 'user' or last_message.llm_role == 'tool' and last_message.is_tool_message_with_status('completed'):
+                if last_message.llm_role in ('user', 'tool'):
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
-                elif last_message.llm_role == 'tool' and last_message.is_tool_message_with_status('requested'):
-                    # Execute the tool directly - much simpler than complex searching!
-                    last_message = yield from last_message.execute_tool_call(thread_model=self)
-                    self.env.cr.commit()
+                elif last_message.llm_role == 'assistant' and last_message.has_tool_calls():
+                    # Execute ALL tool calls from assistant message
+                    tool_calls = last_message.get_tool_calls()
+                    for tool_call in tool_calls:
+                        tool_message = yield from self._execute_tool_call(tool_call, last_message)
+                        last_message = tool_message  # Update last_message to latest tool message
+                        self.env.cr.commit()
                 else:
                     break
 
@@ -327,10 +330,20 @@ class LLMThread(models.Model):
         return result[0]
 
     def _should_continue(self, last_message):
-        """Whether to keep looping based on the last message role and content."""
-        if not last_message or last_message.llm_role == 'assistant':
+        """Simplified continue logic based on message history."""
+        if not last_message:
             return False
-        return True
+        
+        # Continue if:
+        # 1. Last message is user message → generate assistant response
+        # 2. Last message is tool message → generate assistant response  
+        # 3. Last message is assistant with tool calls → execute tools
+        if last_message.llm_role in ('user', 'tool'):
+            return True
+        elif last_message.llm_role == 'assistant' and last_message.has_tool_calls():
+            return True
+        
+        return False
 
     def _handle_streaming_response(self, stream_response):
         """Handle streaming response from LLM provider with tool call processing."""
@@ -364,17 +377,24 @@ class LLMThread(models.Model):
                 yield {"type": "error", "error": chunk["error"]}
                 return message
 
-        # Final update for assistant message
-        if message and accumulated_content:
+        # Store tool calls in assistant message body_json
+        if collected_tool_calls:
+            body_json = {'tool_calls': collected_tool_calls}
+            if message:
+                message.write({'body_json': body_json})
+            else:
+                message = self.message_post(
+                    body=self._process_llm_body(accumulated_content),
+                    body_json=body_json,
+                    llm_role='assistant',
+                    author_id=False
+                )
+            
+            yield {"type": "message_update", "message": message.message_format()[0]}
+        elif message and accumulated_content:
+            # Final update for assistant message without tool calls
             message.write({"body": self._process_llm_body(accumulated_content)})
             yield {"type": "message_update", "message": message.message_format()[0]}
-
-        # Process tool calls if present using the new method
-        if collected_tool_calls:
-            _logger.info(f"Thread {self.id}: Processing {len(collected_tool_calls)} tool calls")
-            tool_message = yield from self._create_tool_messages(collected_tool_calls)
-            # Return the tool message as the last message so the main loop can process it
-            return tool_message if tool_message else message
 
         return message
 
@@ -387,57 +407,44 @@ class LLMThread(models.Model):
         if not content and not tool_calls:
             content = "No response from model"
         
-        # Create assistant message
+        # Prepare body_json with tool calls if present
+        body_json = {'tool_calls': tool_calls} if tool_calls else None
+        
+        # Create assistant message with both content and tool calls
         assistant_message = self.message_post(
             body=self._process_llm_body(content) if content else "",
+            body_json=body_json,
             llm_role='assistant',
             author_id=False
         )
         
         yield {"type": "message_create", "message": assistant_message.message_format()[0]}
-        
-        # Process tool calls if present using the new method
-        if tool_calls:
-            _logger.info(f"Thread {self.id}: Processing {len(tool_calls)} tool calls")
-            tool_message = yield from self._create_tool_messages(tool_calls)
-            # Return the tool message as the last message so the main loop can process it
-            return tool_message if tool_message else assistant_message
-        
         return assistant_message
 
-    def _create_tool_messages(self, tool_calls):
-        """Create tool messages from tool calls data using the new mail.message method.
+    def _execute_tool_call(self, tool_call, assistant_message):
+        """Execute a single tool call and return the tool message.
         
-        NOTE: This method currently creates only the FIRST tool call and returns it.
-        This simplifies the execution flow - the returned tool message becomes the 
-        last_message and gets processed by the main generation loop.
-        
-        TODO: In the future, we may want to handle multiple tool calls at once,
-        but for now this single-tool approach keeps the logic simple and clear.
+        Args:
+            tool_call (dict): Tool call data from assistant message
+            assistant_message (mail.message): The assistant message that contains the tool calls
+            
+        Yields:
+            dict: Status updates for streaming
+            
+        Returns:
+            mail.message: The tool message with execution result
         """
-        if not tool_calls:
-            _logger.debug("No tool calls to process")
-            return None
-        
-        if not isinstance(tool_calls, list):
-            _logger.error(f"Tool calls is not a list: {type(tool_calls)}")
-            return None
-        
-        # For now, only process the first tool call to keep things simple
-        # The main generation loop will handle it and then process any remaining ones
-        tool_call = tool_calls[0]
-        
-        if len(tool_calls) > 1:
-            _logger.info(f"Thread {self.id}: Multiple tool calls received ({len(tool_calls)}), processing first one only")
-        
         try:
-            # Use the new post_tool_call method from mail.message
+            # Create tool message using the post_tool_call method
             tool_msg = self.env['mail.message'].post_tool_call(tool_call, thread_model=self)
             yield {"type": "message_create", "message": tool_msg.message_format()[0]}
-            return tool_msg
+            
+            # Execute the tool call
+            result_msg = yield from tool_msg.execute_tool_call(thread_model=self)
+            return result_msg
             
         except Exception as e:
-            _logger.error(f"Error creating tool message: {e}")
+            _logger.error(f"Error executing tool call: {e}")
             
             # Create error tool message using the new method
             try:

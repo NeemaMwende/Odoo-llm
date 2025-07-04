@@ -11,6 +11,18 @@ class MailMessage(models.Model):
 
     _inherit = "mail.message"
 
+    def get_tool_calls(self):
+        """Get tool calls from assistant message body_json."""
+        self.ensure_one()
+        if self.llm_role != 'assistant' or not self.body_json:
+            return []
+        return self.body_json.get('tool_calls', [])
+
+    def has_tool_calls(self):
+        """Check if assistant message has tool calls."""
+        self.ensure_one()
+        return bool(self.get_tool_calls())
+
     def post_tool_call(self, tool_call, thread_model=None):
         """Create a tool message from tool call data.
         
@@ -238,6 +250,18 @@ class MailMessage(models.Model):
                 'subtype_xmlid': 'llm.mt_tool',
                 'author_id': False,
             })
+
+    def get_tool_calls(self):
+        """Get tool calls from assistant message body_json."""
+        self.ensure_one()
+        if self.llm_role != 'assistant' or not self.body_json:
+            return []
+        return self.body_json.get('tool_calls', [])
+
+    def has_tool_calls(self):
+        """Check if assistant message has tool calls."""
+        self.ensure_one()
+        return bool(self.get_tool_calls())
 
     def get_tool_data(self):
         """Get tool data from body_json if this is a tool message.

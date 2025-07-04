@@ -30,47 +30,57 @@ class MailMessage(models.Model):
             if content:
                 formatted_message["content"] = content
 
-            # For assistant messages, we don't store tool_calls in the message anymore
-            # Tool calls are stored as separate tool messages
-            # This section is kept for backward compatibility but won't be used
+            # Add tool calls if present in body_json
+            tool_calls = self.get_tool_calls()
+            if tool_calls:
+                formatted_message["tool_calls"] = [
+                    {
+                        "id": tc["id"],
+                        "type": tc.get("type", "function"),
+                        "function": {
+                            "name": tc["function"]["name"],
+                            "arguments": tc["function"]["arguments"],
+                        },
+                    }
+                    for tc in tool_calls
+                ]
 
             return formatted_message
 
-        elif self.is_llm_tool_result_message():
-            try:
-                tool_data = json.loads(self.body)
-                if tool_data.get("type") == "tool_execution":
-                    tool_name = tool_data.get("tool_name")
-                    if not tool_name:
-                        # Fallback to extracting from tool_call_id
-                        tool_call_id = tool_data.get("tool_call_id")
-                        if tool_call_id:
-                            tool_name = OllamaToolCallIdUtils.extract_tool_name_from_id(tool_call_id)
-                    
-                    if not tool_name:
-                        _logger.warning(
-                            f"Ollama Format: Skipping tool result message {self.id}: missing tool_name."
-                        )
-                        return None
-                    
-                    # Get result content
-                    if "result" in tool_data:
-                        content = json.dumps(tool_data["result"])
-                    elif "error" in tool_data:
-                        content = json.dumps({"error": tool_data["error"]})
-                    else:
-                        content = ""
-                    
-                    formatted_message = {
-                        "role": "tool",
-                        "name": tool_name,
-                        "content": content,
-                    }
-                    return formatted_message
-            except (json.JSONDecodeError, TypeError):
+        elif self.llm_role == 'tool':
+            tool_data = self.body_json
+            if not tool_data:
                 _logger.warning(
-                    f"Ollama Format: Skipping tool result message {self.id}: invalid JSON in body."
+                    f"Ollama Format: Skipping tool message {self.id}: no tool data found."
                 )
                 return None
+                
+            tool_name = tool_data.get("tool_name")
+            if not tool_name:
+                # Fallback to extracting from tool_call_id
+                tool_call_id = tool_data.get("tool_call_id")
+                if tool_call_id:
+                    tool_name = OllamaToolCallIdUtils.extract_tool_name_from_id(tool_call_id)
+            
+            if not tool_name:
+                _logger.warning(
+                    f"Ollama Format: Skipping tool message {self.id}: missing tool_name."
+                )
+                return None
+            
+            # Get result content
+            if "result" in tool_data:
+                content = json.dumps(tool_data["result"])
+            elif "error" in tool_data:
+                content = json.dumps({"error": tool_data["error"]})
+            else:
+                content = ""
+            
+            formatted_message = {
+                "role": "tool",
+                "name": tool_name,
+                "content": content,
+            }
+            return formatted_message
         else:
             return None
