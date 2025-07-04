@@ -11,6 +11,7 @@
         - Simple prompt rendering with context merging
         - Direct integration with main LLM module's generate() method
         - Minimal, clean code with focused functionality
+        - Works with details field for schema storage
     """,
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
@@ -27,6 +28,7 @@
     "assets": {
         "web.assets_backend": [
             # JavaScript Models
+            "llm_generate/static/src/models/llm_model.js",
             "llm_generate/static/src/models/llm_chat.js",
             "llm_generate/static/src/models/composer.js",
             "llm_generate/static/src/models/message.js",

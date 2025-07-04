@@ -35,7 +35,9 @@ registerPatch({
               : undefined,
           default: model.default,
           modelUse: model.model_use,
-          // Extract schemas from details field
+          // Store details field directly
+          details: model.details || {},
+          // Extract schemas from details field for backwards compatibility
           inputSchema: model.details?.input_schema || null,
           outputSchema: model.details?.output_schema || null,
         }));
