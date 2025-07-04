@@ -256,7 +256,6 @@ class LLMThread(models.Model):
             # Continue generation loop
             while self._should_continue(last_message):
                 if last_message.llm_role in ('user', 'tool'):
-                    print(self.model_id.model_use)
                     if self.model_id.model_use in ("image_generation", "generation"):
                         last_message = self._generate_response(last_message)
                     else:
