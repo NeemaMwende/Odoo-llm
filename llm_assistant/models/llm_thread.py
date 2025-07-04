@@ -364,21 +364,38 @@ class LLMThread(models.Model):
             self._unlock()
 
     def _generate_assistant_response(self):
-        """Generate assistant response using streaming with actual AI intelligence."""
+        """Generate assistant response and handle tool calls."""
         message_history = self.get_message_history_recordset()
+        
+        # Determine if we should use streaming
+        use_streaming = getattr(self.model_id, 'supports_streaming', True)
+        
         chat_kwargs = {
             "messages": message_history,
             "tools": self.tool_ids,
-            "stream": True,
+            "stream": use_streaming,
             "prepend_messages": self.get_prepend_messages(),
         }
 
-        stream_response = self.sudo().model_id.chat(**chat_kwargs)
-        return (yield from self.message_post_from_stream(
-            stream_response,
-            'assistant',
-            placeholder_text="Thinking..."
-        ))
+        if use_streaming:
+            # Handle streaming response
+            stream_response = self.sudo().model_id.chat(**chat_kwargs)
+            assistant_message, response_data = yield from self.message_post_from_stream(
+                stream_response,
+                'assistant',
+                placeholder_text="Thinking..."
+            )
+        else:
+            # Handle non-streaming response
+            response = self.sudo().model_id.chat(**chat_kwargs)
+            assistant_message, response_data = yield from self._handle_non_streaming_response(response)
+        
+        # Handle tool calls if present
+        if response_data and response_data.get("tool_calls"):
+            _logger.info(f"Thread {self.id}: Processing {len(response_data['tool_calls'])} tool calls")
+            yield from self._create_tool_messages(response_data["tool_calls"])
+        
+        return assistant_message
 
     def get_message_history_recordset(self, order="ASC", limit=25):
         """Get LLM messages from the thread using efficient stored field filtering.
@@ -487,5 +504,151 @@ class LLMThread(models.Model):
             raise UserError(f"Tool '{tool_name}' not found in this thread")
         arguments = json.loads(arguments_str)
         return tool.execute(arguments)
+
+    def _handle_non_streaming_response(self, response):
+        """Handle non-streaming response from LLM provider."""
+        # Extract content and tool calls from response
+        content = response.get("content", "")
+        tool_calls = response.get("tool_calls", [])
+        
+        if not content and not tool_calls:
+            content = "No response from model"
+        
+        # Create assistant message
+        assistant_message = self.message_post(
+            body=self._process_llm_body(content) if content else "",
+            llm_role='assistant',
+            author_id=False
+        )
+        
+        yield {"type": "message_create", "message": assistant_message.message_format()[0]}
+        
+        # Prepare response data
+        response_data = {
+            "content": content,
+            "tool_calls": tool_calls if tool_calls else None
+        }
+        
+        return assistant_message, response_data
+
+    def _create_tool_messages(self, tool_calls):
+        """Create tool messages from tool calls data."""
+        if not tool_calls:
+            _logger.debug("No tool calls to process")
+            return []
+        
+        if not isinstance(tool_calls, list):
+            _logger.error(f"Tool calls is not a list: {type(tool_calls)}")
+            return []
+        
+        created_messages = []
+        _logger.debug(f"Creating {len(tool_calls)} tool messages")
+        
+        for i, tool_call in enumerate(tool_calls):
+            try:
+                # Validate and create tool message
+                if not self._validate_tool_call(tool_call):
+                    _logger.warning(f"Skipping invalid tool call {i}: {tool_call}")
+                    continue
+                    
+                tool_msg = self._create_single_tool_message(tool_call)
+                created_messages.append(tool_msg)
+                yield {"type": "message_create", "message": tool_msg.message_format()[0]}
+                
+            except Exception as e:
+                _logger.error(f"Error creating tool message {i}: {e}")
+                
+                # Create error tool message to maintain flow
+                try:
+                    error_msg = self._create_tool_error_message(tool_call, str(e))
+                    created_messages.append(error_msg)
+                    yield {"type": "message_create", "message": error_msg.message_format()[0]}
+                except Exception as e2:
+                    _logger.error(f"Failed to create error message: {e2}")
+                    continue
+        
+        _logger.info(f"Created {len(created_messages)} tool messages")
+        return created_messages
+
+    def _validate_tool_call(self, tool_call):
+        """Validate tool call structure."""
+        if not isinstance(tool_call, dict):
+            _logger.error(f"Tool call is not a dict: {tool_call}")
+            return False
+            
+        if not tool_call.get("id"):
+            _logger.error(f"Tool call missing ID: {tool_call}")
+            return False
+            
+        function = tool_call.get("function", {})
+        if not function.get("name"):
+            _logger.error(f"Tool call missing function name: {tool_call}")
+            return False
+            
+        return True
+
+    def _create_single_tool_message(self, tool_call):
+        """Create a single tool message from tool call data."""
+        function = tool_call.get("function", {})
+        tool_name = function.get("name", "unknown_tool")
+        
+        # Validate tool exists in thread
+        if not self._tool_exists_in_thread(tool_name):
+            raise UserError(f"Tool '{tool_name}' not found in thread")
+        
+        # Validate and parse arguments
+        arguments = self._parse_tool_arguments(function.get("arguments", "{}"))
+        
+        tool_data = {
+            "type": "tool_execution",
+            "tool_call_id": tool_call["id"],
+            "tool_call": tool_call,
+            "status": "requested",
+            "tool_name": tool_name,
+            "arguments": arguments
+        }
+        
+        _logger.debug(f"Creating tool message for {tool_name} with args: {arguments}")
+        
+        return self.message_post(
+            body=json.dumps(tool_data),
+            llm_role='tool',
+            author_id=False
+        )
+
+    def _tool_exists_in_thread(self, tool_name):
+        """Check if tool exists in thread."""
+        return bool(self.tool_ids.filtered(lambda t: t.name == tool_name))
+
+    def _parse_tool_arguments(self, arguments_str):
+        """Parse and validate tool arguments."""
+        try:
+            if isinstance(arguments_str, str):
+                return json.loads(arguments_str)
+            elif isinstance(arguments_str, dict):
+                return arguments_str
+            else:
+                _logger.warning(f"Unexpected arguments type: {type(arguments_str)}")
+                return {}
+        except json.JSONDecodeError as e:
+            _logger.error(f"Invalid JSON in tool arguments: {arguments_str}")
+            raise UserError(f"Invalid tool arguments format: {e}")
+
+    def _create_tool_error_message(self, tool_call, error_msg):
+        """Create an error tool message."""
+        tool_data = {
+            "type": "tool_execution",
+            "tool_call_id": tool_call.get("id", "unknown"),
+            "tool_call": tool_call,
+            "status": "error",
+            "error": error_msg,
+            "tool_name": tool_call.get("function", {}).get("name", "unknown_tool")
+        }
+        
+        return self.message_post(
+            body=json.dumps(tool_data),
+            llm_role='tool',
+            author_id=False
+        )
 
 

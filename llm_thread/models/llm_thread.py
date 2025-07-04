@@ -234,14 +234,20 @@ class LLMThread(models.Model):
             stream: Generator yielding chunks of response data
             llm_role (str): The LLM role ('user', 'assistant', 'tool', 'system')
             placeholder_text (str): Text to show while streaming
+            
+        Returns:
+            tuple: (message, final_response_data)
+                message: The created/updated message record
+                final_response_data: Complete response data for further processing
         """
         message = None
         accumulated_content = ""
-        tool_messages = {}  # Map tool_call_id to tool message
+        collected_tool_calls = []
+        final_response_data = {}
 
         for chunk in stream:
+            # Initialize message on first content or tool call
             if message is None and (chunk.get("content") or chunk.get("tool_calls")):
-                # Create initial message with placeholder
                 message = self.message_post(
                     body=placeholder_text,
                     llm_role=llm_role,
@@ -250,50 +256,35 @@ class LLMThread(models.Model):
                 )
                 yield {"type": "message_create", "message": message.message_format()[0]}
 
+            # Handle content streaming
             if chunk.get("content"):
                 accumulated_content += chunk["content"]
                 message.write({"body": self._process_llm_body(accumulated_content)})
                 yield {"type": "message_chunk", "message": message.message_format()[0]}
 
+            # Collect tool calls for later processing
             if chunk.get("tool_calls"):
-                # Create tool messages for each tool call immediately
-                for tool_call in chunk["tool_calls"]:
-                    if not isinstance(tool_call, dict) or not tool_call.get("id"):
-                        continue
-                    
-                    tool_call_id = tool_call.get("id")
-                    if tool_call_id not in tool_messages:
-                        # Create tool message with initial data
-                        fn = tool_call.get("function", {})
-                        tool_name = fn.get("name", "unknown_tool")
-                        
-                        tool_data = {
-                            "type": "tool_execution",
-                            "tool_call_id": tool_call_id,
-                            "tool_call": tool_call,
-                            "status": "requested",
-                            "tool_name": tool_name
-                        }
-                        
-                        tool_msg = self.message_post(
-                            body=json.dumps(tool_data),
-                            llm_role='tool',
-                            author_id=False,
-                            **kwargs
-                        )
-                        tool_messages[tool_call_id] = tool_msg
-                        yield {"type": "message_create", "message": tool_msg.message_format()[0]}
+                collected_tool_calls.extend(chunk["tool_calls"])
+                _logger.debug(f"Collected {len(chunk['tool_calls'])} tool calls from chunk")
 
+            # Handle errors
             if chunk.get("error"):
                 yield {"type": "error", "error": chunk["error"]}
-                return message
+                return message, {"error": chunk["error"]}
 
         # Final update for assistant message
         if message and accumulated_content:
             message.write({"body": self._process_llm_body(accumulated_content)})
             yield {"type": "message_update", "message": message.message_format()[0]}
 
-        return message
+        # Return message and collected data for further processing
+        final_response_data = {
+            "content": accumulated_content,
+            "tool_calls": collected_tool_calls if collected_tool_calls else None
+        }
+        
+        _logger.debug(f"Stream completed with {len(collected_tool_calls)} total tool calls")
+        return message, final_response_data
 
     # ============================================================================
     # GENERATION FLOW - Refactored to use message_post with roles

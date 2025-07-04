@@ -15,13 +15,6 @@ class LLMModel(models.Model):
         store=True,
     )
 
-    @api.model
-    def _get_available_model_usages(self):
-        available_usages = super()._get_available_model_usages()
-        return available_usages + [
-            ("image_generation", "Image Generation"),
-        ]
-
     def _is_media_generation_model(self):
         """Helper to check if model_use indicates a non-chat/embedding generative task."""
         self.ensure_one()

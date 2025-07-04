@@ -37,6 +37,8 @@ class LLMModel(models.Model):
             ("completion", "Completion"),
             ("chat", "Chat"),
             ("multimodal", "Multimodal"),
+            ("generation", "Generic binary generation"),
+            ("image_generation", "Image Generation"),
         ]
 
     @api.model_create_multi
