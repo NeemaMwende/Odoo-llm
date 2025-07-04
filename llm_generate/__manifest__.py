@@ -19,7 +19,6 @@
         "llm",
         "llm_thread",
         "web_json_editor",
-        "llm_prompt",
         "llm_assistant",
     ],
     "data": [

@@ -4,7 +4,7 @@ import re
 
 from odoo import api, fields, models
 from odoo.tools.safe_eval import safe_eval
-from odoo.addons.llm_prompt.utils import render_template
+from ..utils import render_template
 
 _logger = logging.getLogger(__name__)
 

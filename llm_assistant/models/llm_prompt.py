@@ -483,7 +483,7 @@ class LLMPrompt(models.Model):
             "view_mode": "form",
             "res_id": wizard.id,
             "target": "new",
-            "view_id": self.env.ref("llm_prompt.llm_prompt_test_view_form").id,
+            "view_id": self.env.ref("llm_assistant.llm_prompt_test_view_form").id,
             "context": {
                 "default_prompt_id": self.id,
             },

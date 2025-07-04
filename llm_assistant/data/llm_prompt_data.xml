@@ -6,10 +6,10 @@
         <field
       name="description"
     >Specialized prompt template for the Assistant Creator assistant</field>
-        <field name="category_id" ref="llm_prompt.category_general" />
+        <field name="category_id" ref="llm_assistant.category_general" />
         <field
       name="tag_ids"
-      eval="[(6, 0, [ref('llm_prompt.tag_assistant')])]"
+      eval="[(6, 0, [ref('llm_assistant.tag_assistant')])]"
     />
         <field name="format">text</field>
         <field
@@ -96,10 +96,10 @@ IMPORTANT: Learn from your own mistakes during the assistant creation process. W
         <field
       name="description"
     >Specialized prompt template for the Website Builder assistant</field>
-        <field name="category_id" ref="llm_prompt.category_general" />
+        <field name="category_id" ref="llm_assistant.category_general" />
         <field
       name="tag_ids"
-      eval="[(6, 0, [ref('llm_prompt.tag_assistant')])]"
+      eval="[(6, 0, [ref('llm_assistant.tag_assistant')])]"
     />
         <field name="format">text</field>
         <field
@@ -188,10 +188,10 @@ IMPORTANT: Always ensure changes are made in is_published = False state for the 
         <field
       name="description"
     >General template for assistant system prompts with role, goal, background, and instructions</field>
-        <field name="category_id" ref="llm_prompt.category_general" />
+        <field name="category_id" ref="llm_assistant.category_general" />
         <field
       name="tag_ids"
-      eval="[(6, 0, [ref('llm_prompt.tag_assistant')])]"
+      eval="[(6, 0, [ref('llm_assistant.tag_assistant')])]"
     />
         <field name="format">text</field>
         <field

@@ -3,7 +3,7 @@ import logging
 
 from odoo import api, models
 
-from odoo.addons.llm_prompt.utils import render_template
+from odoo.addons.llm_assistant.utils import render_template
 
 _logger = logging.getLogger(__name__)
 
