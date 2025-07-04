@@ -244,14 +244,8 @@ class MailMessage(models.Model):
             dict or None: Tool data if this is a tool message, None otherwise
         """
         self.ensure_one()
-        
-        if self.llm_role != 'tool':
-            return None
-            
-        try:
-            return json.loads(self.body)
-        except (json.JSONDecodeError, TypeError):
-            return None
+
+        return
 
     def is_tool_message_with_status(self, status):
         """Check if this is a tool message with a specific status.

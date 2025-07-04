@@ -259,6 +259,7 @@ class LLMThread(models.Model):
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
                 elif last_message.llm_role == 'tool' and last_message.is_tool_message_with_status('requested'):
+                    print("EECUCUCUUC")
                     # Execute the tool directly - much simpler than complex searching!
                     last_message = yield from last_message.execute_tool_call(thread_model=self)
                 else:
@@ -281,7 +282,6 @@ class LLMThread(models.Model):
             "stream": use_streaming,
             "prepend_messages": self.get_prepend_messages(),
         }
-
         if use_streaming:
             # Handle streaming response - process tool calls directly from stream
             stream_response = self.sudo().model_id.chat(**chat_kwargs)
@@ -327,19 +327,12 @@ class LLMThread(models.Model):
         return result[0]
 
     def _should_continue(self, last_message):
+        print(last_message.llm_role)
         """Whether to keep looping based on the last message role and content."""
-        if not last_message:
+        if not last_message or last_message.llm_role == 'assistant':
             return False
 
-        # Continue if we have a user message (need assistant response)
-        if last_message.llm_role == 'user':
-            return True
-            
-        # Continue if we have a tool message with 'requested' status (need to execute)
-        if last_message.llm_role == 'tool' and last_message.is_tool_message_with_status('requested'):
-            return True
-
-        return False
+        return True
 
     def _handle_streaming_response(self, stream_response):
         """Handle streaming response from LLM provider with tool call processing."""
@@ -458,16 +451,3 @@ class LLMThread(models.Model):
             except Exception as e2:
                 _logger.error(f"Failed to create error message: {e2}")
                 return None
-
-    # ============================================================================
-    # LEGACY METHODS - These should be removed after refactoring is complete
-    # ============================================================================
-    
-    # NOTE: The following methods are no longer needed after refactoring:
-    # - execute_tool_message() -> moved to mail.message.execute_tool_call()
-    # - _execute_tool() -> moved to mail.message._execute_tool_with_context()
-    # - _validate_tool_call() -> moved to mail.message._validate_tool_call()
-    # - _create_single_tool_message() -> replaced by mail.message.post_tool_call()
-    # - _tool_exists_in_thread() -> integrated into mail.message.post_tool_call()
-    # - _parse_tool_arguments() -> moved to mail.message._parse_tool_arguments()
-    # - _create_tool_error_message() -> moved to mail.message.create_tool_error_message()
