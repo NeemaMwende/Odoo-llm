@@ -109,6 +109,7 @@ class OpenAIMessageValidator:
                     # Try to extract from content if it's JSON
                     try:
                         import json
+
                         content = msg.get("content", "")
                         if content:
                             tool_data = json.loads(content)
@@ -116,7 +117,7 @@ class OpenAIMessageValidator:
                                 tool_call_id = tool_data.get("tool_call_id")
                     except (json.JSONDecodeError, TypeError):
                         pass
-                
+
                 if tool_call_id:
                     self.tool_response_map[tool_call_id] = {"index": i, "message": msg}
                     if self.verbose_logging:
@@ -140,6 +141,7 @@ class OpenAIMessageValidator:
                     # Try to extract from content if it's JSON
                     try:
                         import json
+
                         content = msg.get("content", "")
                         if content:
                             tool_data = json.loads(content)
@@ -147,7 +149,7 @@ class OpenAIMessageValidator:
                                 tool_call_id = tool_data.get("tool_call_id")
                     except (json.JSONDecodeError, TypeError):
                         pass
-                
+
                 if tool_call_id and tool_call_id not in self.tool_call_map:
                     self.logger.warning(
                         f"Removing tool message with ID {tool_call_id} because it has no "

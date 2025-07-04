@@ -5,6 +5,7 @@ This Odoo module provides comprehensive AI assistant capabilities with integrate
 ## Features
 
 ### Assistant Management
+
 - **Assistant Configuration**: Create and configure AI assistants with specific roles and goals
 - **Tool Integration**: Assign preferred tools to each assistant for specialized capabilities
 - **System Prompt Generation**: Automatically generate system prompts based on assistant configuration
@@ -12,6 +13,7 @@ This Odoo module provides comprehensive AI assistant capabilities with integrate
 - **UI Integration**: Seamlessly switch between assistants in the chat interface
 
 ### Prompt Template Management
+
 - **Reusable Templates**: Create and manage prompt templates that can be reused across LLM interactions
 - **Multiple Formats**: Support for Text, YAML, and JSON template formats
 - **Dynamic Arguments**: Define arguments within prompts using {{argument_name}} syntax
@@ -91,11 +93,13 @@ The arguments schema defines the structure of arguments used in prompt templates
 ### Template Formats
 
 #### Text Format
+
 ```
 Hello {{user_name}}, please analyze the following data: {{data_input}}
 ```
 
 #### YAML Format
+
 ```yaml
 messages:
   - type: system
@@ -107,6 +111,7 @@ messages:
 ```
 
 #### JSON Format
+
 ```json
 {
   "messages": [

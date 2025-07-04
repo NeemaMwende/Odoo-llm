@@ -47,27 +47,29 @@ class MailMessage(models.Model):
 
             return formatted_message
 
-        elif self.llm_role == 'tool':
+        elif self.llm_role == "tool":
             tool_data = self.body_json
             if not tool_data:
                 _logger.warning(
                     f"Ollama Format: Skipping tool message {self.id}: no tool data found."
                 )
                 return None
-                
+
             tool_name = tool_data.get("tool_name")
             if not tool_name:
                 # Fallback to extracting from tool_call_id
                 tool_call_id = tool_data.get("tool_call_id")
                 if tool_call_id:
-                    tool_name = OllamaToolCallIdUtils.extract_tool_name_from_id(tool_call_id)
-            
+                    tool_name = OllamaToolCallIdUtils.extract_tool_name_from_id(
+                        tool_call_id
+                    )
+
             if not tool_name:
                 _logger.warning(
                     f"Ollama Format: Skipping tool message {self.id}: missing tool_name."
                 )
                 return None
-            
+
             # Get result content
             if "result" in tool_data:
                 content = json.dumps(tool_data["result"])
@@ -75,7 +77,7 @@ class MailMessage(models.Model):
                 content = json.dumps({"error": tool_data["error"]})
             else:
                 content = ""
-            
+
             formatted_message = {
                 "role": "tool",
                 "name": tool_name,

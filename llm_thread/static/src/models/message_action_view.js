@@ -79,17 +79,17 @@ registerPatch({
 
       try {
         // Use the ORM service to call the instance method
-        await this.env.services.orm.call(
-          "mail.message",
-          "set_user_vote",
-          [[message.id], newVote]
-        );
+        await this.env.services.orm.call("mail.message", "set_user_vote", [
+          [message.id],
+          newVote,
+        ]);
       } catch (error) {
         // On failure, revert the UI change and notify the user
         message.update({ user_vote: currentVote });
         console.error("Failed to record vote:", error);
         this.env.services.notification.add(
-          _t("Failed to record vote: ") + (error.data?.message || error.message),
+          _t("Failed to record vote: ") +
+            (error.data?.message || error.message),
           { type: "danger" }
         );
       }

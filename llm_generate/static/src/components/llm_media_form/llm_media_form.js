@@ -32,15 +32,15 @@ export class LLMMediaForm extends Component {
 
     // Watch for changes in the model/thread context
     useEffect(
-        () => {
-          this._handleContextChange();
-        },
-        () => [
-          this.thread?.id,
-          this.llmAssistant?.id,
-          this.thread?.prompt_id?.id,
-          this.llmModel?.id,
-        ]
+      () => {
+        this._handleContextChange();
+      },
+      () => [
+        this.thread?.id,
+        this.llmAssistant?.id,
+        this.thread?.prompt_id?.id,
+        this.llmModel?.id,
+      ]
     );
   }
 
@@ -96,18 +96,18 @@ export class LLMMediaForm extends Component {
   get inputSchema() {
     // First try to get from thread config (includes prompt and assistant processing)
     let schema = this.state.threadConfig.input_schema;
-    
+
     // If no thread config schema, try model's effective schema
     if (!schema || Object.keys(schema).length === 0) {
       schema = this.llmModel?.effectiveInputSchema;
     }
-    
+
     // If still no schema, fallback to model details
     if (!schema && this.llmModel?.details?.input_schema) {
       schema = this.llmModel.details.input_schema;
     }
 
-    if (!schema || typeof schema !== 'object') {
+    if (!schema || typeof schema !== "object") {
       console.warn("No input schema found for model:", this.llmModel?.name);
       return {}; // Return empty object instead of null
     }
@@ -135,7 +135,7 @@ export class LLMMediaForm extends Component {
    * Normalize schema to fix field-level required issue
    */
   _normalizeSchema(schema) {
-    if (!schema || typeof schema !== 'object') {
+    if (!schema || typeof schema !== "object") {
       return schema;
     }
 
@@ -155,17 +155,19 @@ export class LLMMediaForm extends Component {
     const requiredFields = [];
 
     // Process each property
-    Object.entries(normalizedSchema.properties).forEach(([fieldName, fieldDef]) => {
-      // Move field-level required to schema-level required array
-      if (fieldDef.required === true) {
-        requiredFields.push(fieldName);
-        delete fieldDef.required; // Remove invalid field-level required
+    Object.entries(normalizedSchema.properties).forEach(
+      ([fieldName, fieldDef]) => {
+        // Move field-level required to schema-level required array
+        if (fieldDef.required === true) {
+          requiredFields.push(fieldName);
+          delete fieldDef.required; // Remove invalid field-level required
+        }
       }
-    });
+    );
 
     // Merge with existing required array if present
     if (Array.isArray(normalizedSchema.required)) {
-      requiredFields.forEach(field => {
+      requiredFields.forEach((field) => {
         if (!normalizedSchema.required.includes(field)) {
           normalizedSchema.required.push(field);
         }
@@ -185,47 +187,51 @@ export class LLMMediaForm extends Component {
     }
 
     // Extract required fields array
-    const requiredFields = Array.isArray(inputSchema.required) ? inputSchema.required : [];
+    const requiredFields = Array.isArray(inputSchema.required)
+      ? inputSchema.required
+      : [];
 
     // Convert properties object to array of field definitions
     return Object.entries(inputSchema.properties)
-        .map(([name, fieldDef]) => {
-          // Check if field name is 'prompt' (case insensitive)
-          const isPromptField = name.toLowerCase() === "prompt";
+      .map(([name, fieldDef]) => {
+        // Check if field name is 'prompt' (case insensitive)
+        const isPromptField = name.toLowerCase() === "prompt";
 
-          // Handle enum types
-          let choices;
-          let fieldType = fieldDef.type;
+        // Handle enum types
+        let choices;
+        let fieldType = fieldDef.type;
 
-          if (fieldDef.allOf?.[0]?.enum) {
-            choices = fieldDef.allOf[0].enum.map((item) => ({
-              value: item,
-              label: typeof item === "object" ? item.label || item.value : item,
-            }));
-            fieldType = "enum";
-          } else if (fieldDef.enum) {
-            choices = fieldDef.enum.map((item) => ({
-              value: item,
-              label: typeof item === "object" ? item.label || item.value : item,
-            }));
-            fieldType = "enum";
-          }
+        if (fieldDef.allOf?.[0]?.enum) {
+          choices = fieldDef.allOf[0].enum.map((item) => ({
+            value: item,
+            label: typeof item === "object" ? item.label || item.value : item,
+          }));
+          fieldType = "enum";
+        } else if (fieldDef.enum) {
+          choices = fieldDef.enum.map((item) => ({
+            value: item,
+            label: typeof item === "object" ? item.label || item.value : item,
+          }));
+          fieldType = "enum";
+        }
 
-          return {
-            name: name,
-            label: fieldDef.title || name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-            type: fieldType,
-            required: isPromptField || requiredFields.includes(name),
-            description: fieldDef.description,
-            default: fieldDef.default,
-            choices: choices,
-            minimum: fieldDef.minimum,
-            maximum: fieldDef.maximum,
-            format: fieldDef.format,
-            order: fieldDef["x-order"] ?? 999,
-          };
-        })
-        .sort((a, b) => a.order - b.order);
+        return {
+          name: name,
+          label:
+            fieldDef.title ||
+            name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+          type: fieldType,
+          required: isPromptField || requiredFields.includes(name),
+          description: fieldDef.description,
+          default: fieldDef.default,
+          choices: choices,
+          minimum: fieldDef.minimum,
+          maximum: fieldDef.maximum,
+          format: fieldDef.format,
+          order: fieldDef["x-order"] ?? 999,
+        };
+      })
+      .sort((a, b) => a.order - b.order);
   }
 
   get requiredFields() {
@@ -276,7 +282,8 @@ export class LLMMediaForm extends Component {
    */
   async _loadTemplatePreview() {
     if (!this.thread?.id) {
-      this.state.templatePreviewContent = "No thread available for template preview";
+      this.state.templatePreviewContent =
+        "No thread available for template preview";
       return;
     }
 
@@ -285,7 +292,7 @@ export class LLMMediaForm extends Component {
       // Merge defaults with current form values (same logic as submission)
       const mergedInputs = {
         ...this.state.assistantDefaults,
-        ...this.state.formValues
+        ...this.state.formValues,
       };
 
       // Call backend method to prepare generation inputs (which handles template rendering)
@@ -296,14 +303,13 @@ export class LLMMediaForm extends Component {
       });
 
       // Display the result based on its type
-      if (typeof result === 'string') {
+      if (typeof result === "string") {
         this.state.templatePreviewContent = result;
-      } else if (typeof result === 'object') {
+      } else if (typeof result === "object") {
         this.state.templatePreviewContent = JSON.stringify(result, null, 2);
       } else {
         this.state.templatePreviewContent = String(result);
       }
-
     } catch (error) {
       console.error("Error loading template preview:", error);
       this.state.templatePreviewContent = `Error loading preview: ${error.message}`;
@@ -361,7 +367,8 @@ export class LLMMediaForm extends Component {
    */
   onJsonEditorError(error) {
     console.error("JSON Editor Error:", error);
-    this.state.jsonEditorError = error.message || "An error occurred in the JSON editor.";
+    this.state.jsonEditorError =
+      error.message || "An error occurred in the JSON editor.";
   }
 
   /**
@@ -411,14 +418,14 @@ export class LLMMediaForm extends Component {
     for (const schemaField of this.formFields) {
       const fieldName = schemaField.name;
       const label = schemaField.label || fieldName;
-      let value = this.state.formValues[fieldName];
+      const value = this.state.formValues[fieldName];
 
       // Check required fields
       if (schemaField.required) {
         const isMissingOrEmpty =
-            value === undefined ||
-            value === null ||
-            (typeof value === "string" && value.trim() === "");
+          value === undefined ||
+          value === null ||
+          (typeof value === "string" && value.trim() === "");
 
         if (isMissingOrEmpty) {
           errors.push(`Field "${label}" is required.`);
@@ -504,10 +511,10 @@ export class LLMMediaForm extends Component {
 
       // Submit through composer - now uses body_json
       composer.postUserGenerationMessageForLLM(validationResult.values);
-
     } catch (error) {
       console.error("Error submitting generation form:", error);
-      this.state.error = error.message || "An unexpected error occurred during submission.";
+      this.state.error =
+        error.message || "An unexpected error occurred during submission.";
     } finally {
       this.state.isLoading = false;
     }

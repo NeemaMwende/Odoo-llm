@@ -1,6 +1,7 @@
 import logging
 
 from jinja2 import Environment, Undefined
+
 from odoo import _
 from odoo.exceptions import ValidationError
 

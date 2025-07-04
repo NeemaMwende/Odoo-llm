@@ -11,7 +11,7 @@ registerPatch({
      */
     isLLMUserGenerationMessage: attr({
       compute() {
-        return (this.llmRole === 'user' && Boolean(this.bodyJson));
+        return this.llmRole === "user" && Boolean(this.bodyJson);
       },
     }),
 
@@ -23,7 +23,7 @@ registerPatch({
         if (!this.bodyJson || Object.keys(this.bodyJson).length === 0) {
           return "{}";
         }
-        
+
         try {
           return JSON.stringify(this.bodyJson, null, 2);
         } catch (e) {

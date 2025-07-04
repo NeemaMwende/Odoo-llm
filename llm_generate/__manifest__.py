@@ -5,7 +5,7 @@
     "summary": "Content generation capabilities for LLM models",
     "description": """
         Clean content generation using LLM models with the new generate() API.
-        
+
         Features:
         - Uses body_json for structured generation data
         - Simple prompt rendering with context merging
@@ -32,18 +32,15 @@
             "llm_generate/static/src/models/llm_chat.js",
             "llm_generate/static/src/models/composer.js",
             "llm_generate/static/src/models/message.js",
-
             # Components
             "llm_generate/static/src/components/llm_media_form/llm_form_fields_view.js",
             "llm_generate/static/src/components/llm_media_form/llm_media_form.js",
             "llm_generate/static/src/components/llm_chat_composer/llm_chat_composer.js",
-
             # Templates
             "llm_generate/static/src/components/llm_media_form/llm_form_fields_view.xml",
             "llm_generate/static/src/components/llm_media_form/llm_media_form.xml",
             "llm_generate/static/src/components/llm_chat_composer/llm_chat_composer.xml",
             "llm_generate/static/src/components/message/message.xml",
-
             # Styles
             "llm_generate/static/src/components/llm_media_form/llm_media_form.scss",
             "llm_generate/static/src/components/message/message.scss",

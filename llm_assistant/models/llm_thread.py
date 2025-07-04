@@ -15,7 +15,7 @@ class LLMThread(models.Model):
         ondelete="restrict",
         help="The assistant used for this thread",
     )
-    
+
     prompt_id = fields.Many2one(
         "llm.prompt",
         string="Prompt for workflow",
@@ -216,9 +216,15 @@ class LLMThread(models.Model):
                 # Get messages from the prompt with enhanced context
                 return self.prompt_id.get_messages(self.get_context())
             except Exception as e:
-                _logger.error("Error getting messages from prompt '%s': %s", self.prompt_id.name, str(e))
+                _logger.error(
+                    "Error getting messages from prompt '%s': %s",
+                    self.prompt_id.name,
+                    str(e),
+                )
                 # Continue without prompt messages rather than failing completely
-                self.message_post(body=f"Warning: Could not load prompt messages from '{self.prompt_id.name}': {str(e)}")
+                self.message_post(
+                    body=f"Warning: Could not load prompt messages from '{self.prompt_id.name}': {str(e)}"
+                )
 
         return []
 
@@ -242,33 +248,45 @@ class LLMThread(models.Model):
             if user_message_body:
                 user_msg = self.message_post(
                     body=user_message_body,
-                    llm_role='user',
+                    llm_role="user",
                     author_id=self.env.user.partner_id.id,
-                    **kwargs
+                    **kwargs,
                 )
                 self.env.cr.commit()
-                yield {"type": "message_create", "message": user_msg.message_format()[0]}
+                yield {
+                    "type": "message_create",
+                    "message": user_msg.message_format()[0],
+                }
 
             # Get last message to continue from
             last_message = self._get_last_message_from_history()
 
             # Continue generation loop
             while self._should_continue(last_message):
-                if last_message.llm_role in ('user', 'tool'):
+                if last_message.llm_role in ("user", "tool"):
                     if self.model_id.model_use in ("image_generation", "generation"):
                         last_message = self._generate_response(last_message)
                     else:
                         # Generate assistant response
                         last_message = yield from self._generate_assistant_response()
-                elif last_message.llm_role == 'assistant' and last_message.has_tool_calls():
+                elif (
+                    last_message.llm_role == "assistant"
+                    and last_message.has_tool_calls()
+                ):
                     # Execute ALL tool calls from assistant message
                     tool_calls = last_message.get_tool_calls()
                     for tool_call in tool_calls:
-                        tool_message = yield from self._execute_tool_call(tool_call, last_message)
-                        last_message = tool_message  # Update last_message to latest tool message
+                        tool_message = yield from self._execute_tool_call(
+                            tool_call, last_message
+                        )
+                        last_message = (
+                            tool_message  # Update last_message to latest tool message
+                        )
                         self.env.cr.commit()
                 else:
-                    _logger.info(f"Breaking loop. Last message role: {last_message.llm_role}, has_tool_calls: {last_message.has_tool_calls()}")
+                    _logger.info(
+                        f"Breaking loop. Last message role: {last_message.llm_role}, has_tool_calls: {last_message.has_tool_calls()}"
+                    )
                     break
 
             return last_message
@@ -283,10 +301,10 @@ class LLMThread(models.Model):
         # FIXED: Get messages in chronological order directly
         # Increase limit to ensure we get recent messages
         message_history = self.get_message_history_recordset(order="ASC", limit=25)
-        
+
         # Determine if we should use streaming
-        use_streaming = getattr(self.model_id, 'supports_streaming', True)
-        
+        use_streaming = getattr(self.model_id, "supports_streaming", True)
+
         chat_kwargs = {
             "messages": message_history,
             "tools": self.tool_ids,
@@ -296,12 +314,14 @@ class LLMThread(models.Model):
         if use_streaming:
             # Handle streaming response - process tool calls directly from stream
             stream_response = self.sudo().model_id.chat(**chat_kwargs)
-            assistant_message = yield from self._handle_streaming_response(stream_response)
+            assistant_message = yield from self._handle_streaming_response(
+                stream_response
+            )
         else:
             # Handle non-streaming response
             response = self.sudo().model_id.chat(**chat_kwargs)
             assistant_message = yield from self._handle_non_streaming_response(response)
-        
+
         return assistant_message
 
     def get_message_history_recordset(self, order="ASC", limit=25):
@@ -328,9 +348,7 @@ class LLMThread(models.Model):
         if order == "ASC" and limit:
             # First get messages in DESC order to get the most recent ones
             messages = self.env["mail.message"].search(
-                domain, 
-                order="create_date DESC, write_date DESC, id DESC", 
-                limit=limit
+                domain, order="create_date DESC, write_date DESC, id DESC", limit=limit
             )
             # Then sort them in ascending order for chronological sequence
             return messages.sorted(lambda m: (m.create_date, m.write_date, m.id))
@@ -339,7 +357,9 @@ class LLMThread(models.Model):
             order_clause = "create_date DESC, write_date DESC, id DESC"
             if order == "ASC":
                 order_clause = "create_date ASC, write_date ASC, id ASC"
-            return self.env["mail.message"].search(domain, order=order_clause, limit=limit)
+            return self.env["mail.message"].search(
+                domain, order=order_clause, limit=limit
+            )
 
     def _get_last_message_from_history(self):
         """Get the last LLM message from the message history."""
@@ -353,16 +373,16 @@ class LLMThread(models.Model):
         """Simplified continue logic based on message history."""
         if not last_message:
             return False
-        
+
         # Continue if:
         # 1. Last message is user message → generate assistant response
-        # 2. Last message is tool message → generate assistant response  
+        # 2. Last message is tool message → generate assistant response
         # 3. Last message is assistant with tool calls → execute tools
-        if last_message.llm_role in ('user', 'tool'):
+        if last_message.llm_role in ("user", "tool"):
             return True
-        elif last_message.llm_role == 'assistant' and last_message.has_tool_calls():
+        elif last_message.llm_role == "assistant" and last_message.has_tool_calls():
             return True
-        
+
         return False
 
     def _handle_streaming_response(self, stream_response):
@@ -375,9 +395,7 @@ class LLMThread(models.Model):
             # Initialize message on first content
             if message is None and chunk.get("content"):
                 message = self.message_post(
-                    body="Thinking...",
-                    llm_role='assistant',
-                    author_id=False
+                    body="Thinking...", llm_role="assistant", author_id=False
                 )
                 yield {"type": "message_create", "message": message.message_format()[0]}
 
@@ -390,7 +408,9 @@ class LLMThread(models.Model):
             # Collect tool calls for processing
             if chunk.get("tool_calls"):
                 collected_tool_calls.extend(chunk["tool_calls"])
-                _logger.debug(f"Collected {len(chunk['tool_calls'])} tool calls from chunk")
+                _logger.debug(
+                    f"Collected {len(chunk['tool_calls'])} tool calls from chunk"
+                )
 
             # Handle errors
             if chunk.get("error"):
@@ -399,22 +419,22 @@ class LLMThread(models.Model):
 
         # CRITICAL FIX: Create assistant message IMMEDIATELY if we have tool calls
         if collected_tool_calls:
-            body_json = {'tool_calls': collected_tool_calls}
-            
+            body_json = {"tool_calls": collected_tool_calls}
+
             if not message:
                 # Create assistant message NOW, before returning to generate loop
                 message = self.message_post(
                     body="",  # Empty body for tool-only responses
                     body_json=body_json,
-                    llm_role='assistant',
-                    author_id=False
+                    llm_role="assistant",
+                    author_id=False,
                 )
                 # Commit to ensure message is saved before tool execution
                 self.env.cr.commit()
                 yield {"type": "message_create", "message": message.message_format()[0]}
             else:
                 # Update existing message with tool calls
-                message.write({'body_json': body_json})
+                message.write({"body_json": body_json})
                 # Commit to ensure update is saved
                 self.env.cr.commit()
                 yield {"type": "message_update", "message": message.message_format()[0]}
@@ -430,55 +450,63 @@ class LLMThread(models.Model):
         # Extract content and tool calls from response
         content = response.get("content", "")
         tool_calls = response.get("tool_calls", [])
-        
+
         if not content and not tool_calls:
             content = "No response from model"
-        
+
         # Prepare body_json with tool calls if present
-        body_json = {'tool_calls': tool_calls} if tool_calls else None
-        
+        body_json = {"tool_calls": tool_calls} if tool_calls else None
+
         # Create assistant message with both content and tool calls
         assistant_message = self.message_post(
             body=self._process_llm_body(content) if content else "",
             body_json=body_json,
-            llm_role='assistant',
-            author_id=False
+            llm_role="assistant",
+            author_id=False,
         )
-        
-        yield {"type": "message_create", "message": assistant_message.message_format()[0]}
+
+        yield {
+            "type": "message_create",
+            "message": assistant_message.message_format()[0],
+        }
         return assistant_message
 
     def _execute_tool_call(self, tool_call, assistant_message):
         """Execute a single tool call and return the tool message.
-        
+
         Args:
             tool_call (dict): Tool call data from assistant message
             assistant_message (mail.message): The assistant message that contains the tool calls
-            
+
         Yields:
             dict: Status updates for streaming
-            
+
         Returns:
             mail.message: The tool message with execution result
         """
         try:
             # Create tool message using the post_tool_call method
-            tool_msg = self.env['mail.message'].post_tool_call(tool_call, thread_model=self)
+            tool_msg = self.env["mail.message"].post_tool_call(
+                tool_call, thread_model=self
+            )
             yield {"type": "message_create", "message": tool_msg.message_format()[0]}
-            
+
             # Execute the tool call
             result_msg = yield from tool_msg.execute_tool_call(thread_model=self)
             return result_msg
-            
+
         except Exception as e:
             _logger.error(f"Error executing tool call: {e}")
-            
+
             # Create error tool message using the new method
             try:
-                error_msg = self.env['mail.message'].create_tool_error_message(
+                error_msg = self.env["mail.message"].create_tool_error_message(
                     tool_call, str(e), thread_model=self
                 )
-                yield {"type": "message_create", "message": error_msg.message_format()[0]}
+                yield {
+                    "type": "message_create",
+                    "message": error_msg.message_format()[0],
+                }
                 return error_msg
             except Exception as e2:
                 _logger.error(f"Failed to create error message: {e2}")

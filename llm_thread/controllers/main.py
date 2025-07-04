@@ -102,5 +102,3 @@ class LLMThreadController(http.Controller):
             direct_passthrough=True,
             headers=headers,
         )
-
-

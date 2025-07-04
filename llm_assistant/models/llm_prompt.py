@@ -4,11 +4,12 @@ import re
 from collections.abc import Iterable
 
 import yaml
+
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
-from .arguments_schema import validate_arguments_schema
 from ..utils import render_template
+from .arguments_schema import validate_arguments_schema
 
 _logger = logging.getLogger(__name__)
 
@@ -241,15 +242,15 @@ class LLMPrompt(models.Model):
             schema = json.loads(self.arguments_json or "{}")
             defaults = {}
             for arg_name, arg_schema in schema.items():
-                if 'default' in arg_schema:
-                    defaults[arg_name] = arg_schema['default']
-                elif arg_schema.get('type') == 'string':
+                if "default" in arg_schema:
+                    defaults[arg_name] = arg_schema["default"]
+                elif arg_schema.get("type") == "string":
                     defaults[arg_name] = f"sample_{arg_name}"
-                elif arg_schema.get('type') == 'number':
+                elif arg_schema.get("type") == "number":
                     defaults[arg_name] = 42
-                elif arg_schema.get('type') == 'boolean':
+                elif arg_schema.get("type") == "boolean":
                     defaults[arg_name] = True
-                elif arg_schema.get('type') == 'array':
+                elif arg_schema.get("type") == "array":
                     defaults[arg_name] = ["item1", "item2"]
                 else:
                     defaults[arg_name] = f"sample_{arg_name}"
@@ -288,7 +289,9 @@ class LLMPrompt(models.Model):
             if self.format == "text":
                 messages = self._parse_text_messages(rendered_content)
             elif self.format == "yaml":
-                messages = list(self._parse_dict_messages(yaml.safe_load_all(rendered_content)))
+                messages = list(
+                    self._parse_dict_messages(yaml.safe_load_all(rendered_content))
+                )
             elif self.format == "json":
                 messages = list(self._parse_dict_messages(json.loads(rendered_content)))
             else:
@@ -296,15 +299,24 @@ class LLMPrompt(models.Model):
                     _("Unsupported template format: %s") % self.format
                 )
         except Exception as e:
-            _logger.error("Error parsing %s rendered content for prompt %s: %s", self.format, self.name, str(e))
-            raise ValidationError(_("Error parsing %s rendered content: %s") % (self.format, str(e)))
+            _logger.error(
+                "Error parsing %s rendered content for prompt %s: %s",
+                self.format,
+                self.name,
+                str(e),
+            )
+            raise ValidationError(
+                _("Error parsing %s rendered content: %s") % (self.format, str(e))
+            )
 
         # Update usage statistics (only for non-test contexts)
-        if not arguments.get('is_test', False):
-            self.sudo().write({
-                'usage_count': self.usage_count + 1,
-                'last_used': fields.Datetime.now()
-            })
+        if not arguments.get("is_test", False):
+            self.sudo().write(
+                {
+                    "usage_count": self.usage_count + 1,
+                    "last_used": fields.Datetime.now(),
+                }
+            )
 
         return messages
 
@@ -326,7 +338,11 @@ class LLMPrompt(models.Model):
         """Parse messages from dict, list, or iterator of dicts recursively"""
 
         # Handle single dict or iterable of items
-        items = data if isinstance(data, Iterable) and not isinstance(data, (str, dict)) else [data]
+        items = (
+            data
+            if isinstance(data, Iterable) and not isinstance(data, (str, dict))
+            else [data]
+        )
 
         for item in items:
             if isinstance(item, dict):
@@ -351,10 +367,14 @@ class LLMPrompt(models.Model):
                 else:
                     # If no 'content' key, recursively check all values in the dict
                     for value in item.values():
-                        if isinstance(value, (dict, list)) or (isinstance(value, Iterable) and not isinstance(value, str)):
+                        if isinstance(value, (dict, list)) or (
+                            isinstance(value, Iterable) and not isinstance(value, str)
+                        ):
                             yield from self._parse_dict_messages(value)
 
-            elif isinstance(item, (list, tuple)) or (isinstance(item, Iterable) and not isinstance(item, str)):
+            elif isinstance(item, (list, tuple)) or (
+                isinstance(item, Iterable) and not isinstance(item, str)
+            ):
                 # If item is iterable (but not string), recurse into it
                 yield from self._parse_dict_messages(item)
 
@@ -472,9 +492,11 @@ class LLMPrompt(models.Model):
         self.ensure_one()
 
         # Create a wizard record with the prompt pre-filled
-        wizard = self.env["llm.prompt.test"].create({
-            "prompt_id": self.id,
-        })
+        wizard = self.env["llm.prompt.test"].create(
+            {
+                "prompt_id": self.id,
+            }
+        )
 
         return {
             "name": _("Test Prompt: %s") % self.name,

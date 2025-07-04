@@ -31,8 +31,8 @@ registerPatch({
           id: model.id,
           name: model.name,
           llmProvider: model.provider_id
-              ? { id: model.provider_id[0], name: model.provider_id[1] }
-              : undefined,
+            ? { id: model.provider_id[0], name: model.provider_id[1] }
+            : undefined,
           default: model.default,
           modelUse: model.model_use,
           // Store details field directly
@@ -57,7 +57,7 @@ registerPatch({
         return {
           input_schema: {},
           form_defaults: {},
-          error: "No active thread"
+          error: "No active thread",
         };
       }
 
@@ -90,7 +90,7 @@ registerPatch({
 
     /**
      * Get model generation I/O schema by model ID (kept for compatibility)
-     * @param {number} modelId - Model ID
+     * @param {Number} modelId - Model ID
      * @returns {Promise<Object>} Model schema information
      */
     async getModelGenerationIO(modelId) {

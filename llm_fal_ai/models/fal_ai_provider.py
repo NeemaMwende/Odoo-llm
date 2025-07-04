@@ -75,7 +75,7 @@ class LLMProvider(models.Model):
         try:
             stream = client.stream(model_name, arguments=input_data)
             for event in stream:
-                if hasattr(event, 'data'):
+                if hasattr(event, "data"):
                     urls = self._fal_ai_extract_urls_from_result(event.data)
                     yield {"content": urls}
                 else:
@@ -239,7 +239,7 @@ class LLMProvider(models.Model):
         if result is None:
             return urls
 
-        # Example of fal_ai result: 
+        # Example of fal_ai result:
         # {'has_nsfw_concepts': [False], 'images': [{'content_type': 'image/png', 'height': 768, 'url': 'https://v3.fal.media/files/zebra/3Sa_l4tFKlX4-bai5Z0ST.png', 'width': 1024}], 'prompt': 'a blue cat', 'seed': 6252023, 'timings': {'inference': 2.1407407799270004}}
         if isinstance(result, list):
             # If result is a list, extract URLs from each item

@@ -8,9 +8,15 @@
         <field name="arch" type="xml">
             <!-- Add Generation Schema info in the details section -->
             <xpath expr="//field[@name='details']" position="after">
-                <div class="alert alert-info" role="alert" attrs="{'invisible': [('model_use', 'not in', ['generation', 'image_generation'])]}">
+                <div
+          class="alert alert-info"
+          role="alert"
+          attrs="{'invisible': [('model_use', 'not in', ['generation', 'image_generation'])]}"
+        >
                     <h5>Generation Schema Configuration</h5>
-                    <p>For generation models, add <code>input_schema</code> and <code>output_schema</code> keys to the details JSON field above.</p>
+                    <p>For generation models, add <code
+            >input_schema</code> and <code
+            >output_schema</code> keys to the details JSON field above.</p>
                     <p><strong>Example:</strong></p>
                     <pre>{
   "input_schema": {

@@ -82,17 +82,19 @@ class LLMProvider(models.Model):
 
     def generate(self, input_data, model=None, stream=False, **kwargs):
         """Generate content using this provider
-        
+
         Args:
             input_data: Input data for generation (could be text, prompt, or structured data)
             model: Optional specific model to use
             stream: Whether to stream the response
             **kwargs: Additional provider-specific parameters
-            
+
         Returns:
             Generated content from the provider
         """
-        return self._dispatch("generate", input_data, model=model, stream=stream, **kwargs)
+        return self._dispatch(
+            "generate", input_data, model=model, stream=stream, **kwargs
+        )
 
     def list_models(self, model_id=None):
         """List available models from the provider"""
@@ -185,15 +187,15 @@ class LLMProvider(models.Model):
             "model": model.name,
             "stream": stream,
         }
-        
+
         # Handle prepend_messages (new approach)
-        prepend_messages = kwargs.get('prepend_messages')
+        prepend_messages = kwargs.get("prepend_messages")
         if prepend_messages and isinstance(prepend_messages, list):
             formatted_messages = self.format_messages(messages)
             params["messages"] = prepend_messages + formatted_messages
         else:
             params["messages"] = self.format_messages(messages)
-        
+
         # Add tools if provided
         if tools:
             formatted_tools = self.format_tools(tools)
@@ -201,7 +203,7 @@ class LLMProvider(models.Model):
                 params["tools"] = formatted_tools
                 # Let each provider handle tool-specific parameters
                 params.update(self._get_provider_tool_params(tools, kwargs))
-        
+
         return params
 
     def _get_provider_tool_params(self, tools, kwargs):

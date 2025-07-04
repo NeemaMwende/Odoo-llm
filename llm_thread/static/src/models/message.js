@@ -55,7 +55,7 @@ registerPatch({
     user_vote: attr({
       default: 0,
     }),
-    
+
     /**
      * LLM role for this message ('user', 'assistant', 'tool', 'system')
      * This comes directly from the backend stored field
@@ -70,19 +70,19 @@ registerPatch({
     bodyJson: attr({
       default: null,
     }),
-    
+
     /**
      * Get tool data from body_json field for tool messages
      */
     toolData: attr({
       compute() {
-        if (this.llmRole === 'tool' && this.bodyJson) {
+        if (this.llmRole === "tool" && this.bodyJson) {
           return this.bodyJson;
         }
         return null;
       },
     }),
-    
+
     /**
      * Get tool call ID from tool data
      */
@@ -92,7 +92,7 @@ registerPatch({
         return toolData?.tool_call_id || null;
       },
     }),
-    
+
     /**
      * Get tool call definition from tool data
      */
@@ -102,7 +102,7 @@ registerPatch({
         return toolData?.tool_call || null;
       },
     }),
-    
+
     /**
      * Get tool call result from tool data
      */
@@ -110,26 +110,26 @@ registerPatch({
       compute() {
         const toolData = this.toolData;
         if (toolData) {
-          if ('result' in toolData) {
+          if ("result" in toolData) {
             return toolData.result;
-          } else if ('error' in toolData) {
+          } else if ("error" in toolData) {
             return { error: toolData.error };
           }
         }
         return null;
       },
     }),
-    
+
     /**
      * Check if tool call result is an error
      */
     toolCallResultIsError: attr({
       compute() {
         const toolData = this.toolData;
-        return toolData && toolData.status === 'error';
+        return toolData && toolData.status === "error";
       },
     }),
-    
+
     /**
      * Format tool call result for display
      */
@@ -149,7 +149,7 @@ registerPatch({
         }
       },
     }),
-    
+
     /**
      * Get tool name from tool data
      */
@@ -159,7 +159,7 @@ registerPatch({
         return toolData?.tool_name || null;
       },
     }),
-    
+
     /**
      * Legacy support for tool calls display (now handled via separate tool messages)
      */
@@ -169,7 +169,7 @@ registerPatch({
         return [];
       },
     }),
-    
+
     /**
      * Compute the subtype XML ID (useful for templates).
      * Requires message_format to add subtype_xmlid to the payload.

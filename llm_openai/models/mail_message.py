@@ -24,9 +24,9 @@ class MailMessage(models.Model):
 
         elif self.is_llm_assistant_message()[self]:
             formatted_message = {"role": "assistant"}
-            
+
             formatted_message["content"] = body
-            
+
             # Add tool calls if present in body_json
             tool_calls = self.get_tool_calls()
             if tool_calls:
@@ -41,7 +41,7 @@ class MailMessage(models.Model):
                     }
                     for tc in tool_calls
                 ]
-            
+
             return formatted_message
 
         elif self.is_llm_tool_message()[self]:
@@ -51,14 +51,14 @@ class MailMessage(models.Model):
                     f"OpenAI Format: Skipping tool message {self.id}: no tool data found."
                 )
                 return None
-                
+
             tool_call_id = tool_data.get("tool_call_id")
             if not tool_call_id:
                 _logger.warning(
                     f"OpenAI Format: Skipping tool message {self.id}: missing tool_call_id."
                 )
                 return None
-            
+
             # Get result content
             if "result" in tool_data:
                 content = json.dumps(tool_data["result"])
@@ -66,7 +66,7 @@ class MailMessage(models.Model):
                 content = json.dumps({"error": tool_data["error"]})
             else:
                 content = ""
-            
+
             formatted_message = {
                 "role": "tool",
                 "tool_call_id": tool_call_id,

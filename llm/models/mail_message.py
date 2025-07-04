@@ -1,4 +1,3 @@
-import json
 from odoo import api, fields, models, tools
 
 
@@ -8,10 +7,10 @@ class MailMessage(models.Model):
     _inherit = "mail.message"
 
     LLM_XMLIDS = (
-        'llm.mt_tool',
-        'llm.mt_user',
-        'llm.mt_assistant',
-        'llm.mt_system',
+        "llm.mt_tool",
+        "llm.mt_user",
+        "llm.mt_assistant",
+        "llm.mt_system",
     )
 
     llm_role = fields.Char(
@@ -19,15 +18,15 @@ class MailMessage(models.Model):
         compute="_compute_llm_role",
         store=True,
         index=True,  # Add index for better query performance
-        help="The LLM role for this message (user, assistant, tool, system)"
+        help="The LLM role for this message (user, assistant, tool, system)",
     )
 
     body_json = fields.Json(
         string="JSON Body",
-        help="JSON data for tool messages and other structured content"
+        help="JSON data for tool messages and other structured content",
     )
 
-    @api.depends('subtype_id')
+    @api.depends("subtype_id")
     def _compute_llm_role(self):
         """Compute the LLM role for messages based on their subtype."""
         id_to_role, _ = self.get_llm_roles()
@@ -51,10 +50,12 @@ class MailMessage(models.Model):
         role_to_id = {}
 
         for xmlid in self.LLM_XMLIDS:
-            subtype_id = self.env['ir.model.data']._xmlid_to_res_id(xmlid, raise_if_not_found=False)
+            subtype_id = self.env["ir.model.data"]._xmlid_to_res_id(
+                xmlid, raise_if_not_found=False
+            )
             if subtype_id:
                 # Extract clean role name (e.g., 'user' from 'llm.mt_user')
-                role = xmlid.split('.')[-1][3:]  # Remove 'mt_' prefix
+                role = xmlid.split(".")[-1][3:]  # Remove 'mt_' prefix
                 id_to_role[subtype_id] = role
                 role_to_id[role] = subtype_id
 
@@ -73,38 +74,23 @@ class MailMessage(models.Model):
 
     def is_llm_message(self):
         """Check if messages are LLM messages using the stored field."""
-        return {
-            message: bool(message.llm_role)
-            for message in self
-        }
+        return {message: bool(message.llm_role) for message in self}
 
     def is_llm_user_message(self):
         """Check if messages are LLM user messages using the stored field."""
-        return {
-            message: message.llm_role == 'user'
-            for message in self
-        }
+        return {message: message.llm_role == "user" for message in self}
 
     def is_llm_assistant_message(self):
         """Check if messages are LLM assistant messages using the stored field."""
-        return {
-            message: message.llm_role == 'assistant'
-            for message in self
-        }
+        return {message: message.llm_role == "assistant" for message in self}
 
     def is_llm_tool_message(self):
         """Check if messages are LLM tool messages using the stored field."""
-        return {
-            message: message.llm_role == 'tool'
-            for message in self
-        }
+        return {message: message.llm_role == "tool" for message in self}
 
     def is_llm_system_message(self):
         """Check if messages are LLM system messages using the stored field."""
-        return {
-            message: message.llm_role == 'system'
-            for message in self
-        }
+        return {message: message.llm_role == "system" for message in self}
 
     def _check_llm_role(self, role):
         """Check if messages match a specific LLM role using the stored field.
@@ -112,7 +98,4 @@ class MailMessage(models.Model):
         Args:
             role (str): The role name ('user', 'assistant', 'tool', 'system')
         """
-        return {
-            message: message.llm_role == role
-            for message in self
-        }
+        return {message: message.llm_role == role for message in self}

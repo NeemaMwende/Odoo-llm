@@ -109,6 +109,7 @@ class OllamaMessageValidator:
                     # Try to extract from content if it's JSON
                     try:
                         import json
+
                         content = msg.get("content", "")
                         if content:
                             tool_data = json.loads(content)
@@ -116,7 +117,7 @@ class OllamaMessageValidator:
                                 tool_name = tool_data.get("tool_name")
                     except (json.JSONDecodeError, TypeError):
                         pass
-                
+
                 if tool_name:
                     self.tool_response_map[tool_name] = {"index": i, "message": msg}
 
@@ -135,6 +136,7 @@ class OllamaMessageValidator:
                 # Try to extract from content if it's JSON
                 try:
                     import json
+
                     content = msg.get("content", "")
                     if content:
                         tool_data = json.loads(content)
@@ -142,7 +144,7 @@ class OllamaMessageValidator:
                             tool_name = tool_data.get("tool_name")
                 except (json.JSONDecodeError, TypeError):
                     pass
-            
+
             if not tool_name:
                 # Remove tool messages without tool names
                 self.messages[i] = None

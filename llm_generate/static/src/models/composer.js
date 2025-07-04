@@ -32,7 +32,9 @@ registerPatch({
       // Check if the model is configured for generation
       if (!thread.llmModel?.isMediaGenerationModel) {
         this.messaging.notify({
-          message: this.env._t("Selected model is not configured for generation."),
+          message: this.env._t(
+            "Selected model is not configured for generation."
+          ),
           type: "danger",
         });
         return;
@@ -42,24 +44,26 @@ registerPatch({
 
       try {
         // Post user message with body_json containing generation inputs
-        this.messaging.rpc({
-          model: "llm.thread",
-          method: "message_post",
-          args: [thread.id],
-          kwargs: {
-            body: messageBody,
-            body_json: inputs,
-            llm_role: 'user'
-          }
-        }).then(() => {
-          // After posting user message, trigger generation
-          this._startGeneration(thread.id);
-        });
-
+        this.messaging
+          .rpc({
+            model: "llm.thread",
+            method: "message_post",
+            args: [thread.id],
+            kwargs: {
+              body: messageBody,
+              body_json: inputs,
+              llm_role: "user",
+            },
+          })
+          .then(() => {
+            // After posting user message, trigger generation
+            this._startGeneration(thread.id);
+          });
       } catch (error) {
         console.error("Error posting generation message:", error);
         this.messaging.notify({
-          message: this.env._t("Failed to post generation message: ") + String(error),
+          message:
+            this.env._t("Failed to post generation message: ") + String(error),
           type: "danger",
           sticky: true,
         });
@@ -68,7 +72,7 @@ registerPatch({
 
     /**
      * Start generation process for the thread
-     * @param {number} threadId - Thread ID
+     * @param {Number} threadId - Thread ID
      */
     _startGeneration(threadId) {
       try {
@@ -103,12 +107,12 @@ registerPatch({
                 break;
               case "done":
                 const sameThread =
-                    this.thread?.id === this.thread?.llmChat?.activeThread?.id;
+                  this.thread?.id === this.thread?.llmChat?.activeThread?.id;
                 if (!sameThread) {
                   this.messaging.notify({
                     message:
-                        this.env._t("Generation completed for ") +
-                        (this.thread.displayName || "thread"),
+                      this.env._t("Generation completed for ") +
+                      (this.thread.displayName || "thread"),
                     type: "success",
                   });
                 }
@@ -130,14 +134,13 @@ registerPatch({
           console.error("EventSource failed:", error);
           this.messaging.notify({
             message: this.env._t(
-                "Connection to server lost. Please try again."
+              "Connection to server lost. Please try again."
             ),
             type: "danger",
             sticky: true,
           });
           this._closeEventSource();
         };
-
       } catch (error) {
         console.error("Error starting generation:", error);
         this.messaging.notify({

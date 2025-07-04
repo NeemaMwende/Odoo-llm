@@ -2,6 +2,7 @@ import json
 import logging
 
 import yaml
+
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -14,6 +15,7 @@ class LLMThreadMock(models.TransientModel):
     Mock thread model for testing that inherits from llm.thread
     but doesn't require model_id and provider_id to be set.
     """
+
     _name = "llm.thread.mock"
     _description = "Mock LLM Thread for Testing"
     _inherit = "llm.thread"
@@ -58,10 +60,13 @@ class LLMPromptTest(models.TransientModel):
     @api.model
     def _get_reference_models(self):
         """Get list of all available models for reference selection."""
-        models = self.env['ir.model'].search([
-            ('state', '!=', 'manual'),
-            ('transient', '=', False),
-        ], order='name')
+        models = self.env["ir.model"].search(
+            [
+                ("state", "!=", "manual"),
+                ("transient", "=", False),
+            ],
+            order="name",
+        )
 
         return [(model.model, model.name) for model in models]
 
@@ -91,11 +96,15 @@ class LLMPromptTest(models.TransientModel):
     )
 
     # Display options
-    result_format = fields.Selection([
-        ('json', 'JSON'),
-        ('yaml', 'YAML'),
-        ('text', 'Text'),
-    ], string="Result Format", default='json')
+    result_format = fields.Selection(
+        [
+            ("json", "JSON"),
+            ("yaml", "YAML"),
+            ("text", "Text"),
+        ],
+        string="Result Format",
+        default="json",
+    )
 
     # Status fields
     has_error = fields.Boolean(
@@ -123,7 +132,7 @@ class LLMPromptTest(models.TransientModel):
         help="Arguments schema from the prompt",
     )
 
-    @api.depends('prompt_id')
+    @api.depends("prompt_id")
     def _compute_prompt_info(self):
         """Compute prompt information for display"""
         for wizard in self:
@@ -136,11 +145,11 @@ class LLMPromptTest(models.TransientModel):
 
     def _get_default_context(self):
         """Get default context using prompt's method"""
-        prompt_id = self.env.context.get('default_prompt_id')
+        prompt_id = self.env.context.get("default_prompt_id")
         if not prompt_id:
             return "{}"
 
-        prompt = self.env['llm.prompt'].browse(prompt_id)
+        prompt = self.env["llm.prompt"].browse(prompt_id)
         if not prompt.exists():
             return "{}"
 
@@ -157,12 +166,18 @@ class LLMPromptTest(models.TransientModel):
             llm.thread.mock: Mock thread with same interface as llm.thread
         """
         related_record_ref = self.related_record_ref
-        return self.env['llm.thread.mock'].sudo().create({
-            'name': f'Test Thread for {self.prompt_id.name}',
-            'prompt_id': self.prompt_id.id,
-            'model': related_record_ref._name if related_record_ref else False,
-            'res_id': related_record_ref.id if related_record_ref else False,
-        })
+        return (
+            self.env["llm.thread.mock"]
+            .sudo()
+            .create(
+                {
+                    "name": f"Test Thread for {self.prompt_id.name}",
+                    "prompt_id": self.prompt_id.id,
+                    "model": related_record_ref._name if related_record_ref else False,
+                    "res_id": related_record_ref.id if related_record_ref else False,
+                }
+            )
+        )
 
     def _populate_context_from_record(self):
         """Populate context using direct field access instead of mock thread"""
@@ -170,8 +185,11 @@ class LLMPromptTest(models.TransientModel):
             return
 
         try:
-            _logger.info("Auto-populating context from record: %s (ID: %s)",
-                         self.related_record_ref, self.related_record_ref.id)
+            _logger.info(
+                "Auto-populating context from record: %s (ID: %s)",
+                self.related_record_ref,
+                self.related_record_ref.id,
+            )
 
             # Parse existing context, preserving user data
             try:
@@ -180,7 +198,9 @@ class LLMPromptTest(models.TransientModel):
                 existing_context = {}
 
             # Generate sample context directly from the record
-            sample_context = self._generate_sample_context_direct(self.related_record_ref)
+            sample_context = self._generate_sample_context_direct(
+                self.related_record_ref
+            )
 
             # Merge contexts, preserving existing user data
             for key, value in sample_context.items():
@@ -191,7 +211,7 @@ class LLMPromptTest(models.TransientModel):
 
             _logger.info("Auto-populated context with %d fields", len(sample_context))
 
-        except Exception as e:
+        except Exception:
             _logger.exception("Error auto-populating context from record")
 
     def _generate_sample_context_direct(self, record):
@@ -210,14 +230,28 @@ class LLMPromptTest(models.TransientModel):
         context = {}
 
         # Add record metadata
-        context['related_model_name'] = record._name
-        context['related_model_id'] = record._name
-        context['related_res_id'] = record.id
+        context["related_model_name"] = record._name
+        context["related_model_id"] = record._name
+        context["related_res_id"] = record.id
 
         # Add some common fields from the record as sample data
-        sample_fields = ['name', 'display_name', 'email', 'phone', 'mobile',
-                         'street', 'city', 'country_id', 'state_id', 'website',
-                         'description', 'notes', 'comment', 'reference', 'code']
+        sample_fields = [
+            "name",
+            "display_name",
+            "email",
+            "phone",
+            "mobile",
+            "street",
+            "city",
+            "country_id",
+            "state_id",
+            "website",
+            "description",
+            "notes",
+            "comment",
+            "reference",
+            "code",
+        ]
 
         for field_name in sample_fields:
             field_key = f"record_{field_name}"
@@ -226,9 +260,9 @@ class LLMPromptTest(models.TransientModel):
                     value = getattr(record, field_name)
                     if value:
                         # Handle different field types
-                        if hasattr(value, 'name'):  # Many2one field
+                        if hasattr(value, "name"):  # Many2one field
                             context[field_key] = value.name
-                        elif hasattr(value, 'ids'):  # Many2many/One2many field
+                        elif hasattr(value, "ids"):  # Many2many/One2many field
                             names = [r.name for r in value[:3]]  # Limit to 3
                             if names:
                                 context[field_key] = names
@@ -239,7 +273,9 @@ class LLMPromptTest(models.TransientModel):
                     continue
 
         # Add a help note
-        context['_related_record_help'] = "Use {{ related_record.get_field('field_name') }} in your template to access record fields directly"
+        context["_related_record_help"] = (
+            "Use {{ related_record.get_field('field_name') }} in your template to access record fields directly"
+        )
 
         return context
 
@@ -255,11 +291,11 @@ class LLMPromptTest(models.TransientModel):
         """
         if not self.prompt_id:
             return {
-                'success': False,
-                'rendered_template': "",
-                'messages': [],
-                'context_used': {},
-                'error': "No prompt configured"
+                "success": False,
+                "rendered_template": "",
+                "messages": [],
+                "context_used": {},
+                "error": "No prompt configured",
             }
 
         try:
@@ -271,18 +307,20 @@ class LLMPromptTest(models.TransientModel):
                 context = mock_thread.get_context(user_context)
 
                 # Mark as test to avoid updating usage statistics
-                context['is_test'] = True
+                context["is_test"] = True
 
                 # Use the prompt to render and generate messages (same as production)
-                rendered_template = render_template(template=self.prompt_id.template, context=context)
+                rendered_template = render_template(
+                    template=self.prompt_id.template, context=context
+                )
                 messages = self.prompt_id.get_messages(context)
 
                 return {
-                    'success': True,
-                    'rendered_template': rendered_template,
-                    'messages': messages,
-                    'context_used': context,
-                    'error': None
+                    "success": True,
+                    "rendered_template": rendered_template,
+                    "messages": messages,
+                    "context_used": context,
+                    "error": None,
                 }
             finally:
                 # Clean up mock thread (it's transient so will be cleaned up automatically)
@@ -291,14 +329,14 @@ class LLMPromptTest(models.TransientModel):
         except Exception as e:
             _logger.exception("Error testing prompt %s", self.prompt_id.name)
             return {
-                'success': False,
-                'rendered_template': "",
-                'messages': [],
-                'context_used': user_context or {},
-                'error': str(e)
+                "success": False,
+                "rendered_template": "",
+                "messages": [],
+                "context_used": user_context or {},
+                "error": str(e),
             }
 
-    @api.onchange('related_record_ref')
+    @api.onchange("related_record_ref")
     def _onchange_related_record_ref(self):
         """Auto-populate context and evaluate when record is selected"""
         # Store the current value to prevent it from being cleared
@@ -316,12 +354,14 @@ class LLMPromptTest(models.TransientModel):
             try:
                 context = json.loads(self.test_context or "{}")
                 # Remove related record metadata
-                context.pop('related_model_name', None)
-                context.pop('related_model_id', None)
-                context.pop('related_res_id', None)
-                context.pop('_related_record_help', None)
+                context.pop("related_model_name", None)
+                context.pop("related_model_id", None)
+                context.pop("related_res_id", None)
+                context.pop("_related_record_help", None)
                 # Remove all record_* fields
-                context = {k: v for k, v in context.items() if not k.startswith('record_')}
+                context = {
+                    k: v for k, v in context.items() if not k.startswith("record_")
+                }
                 self.test_context = json.dumps(context, indent=2)
             except (json.JSONDecodeError, Exception):
                 pass
@@ -359,11 +399,11 @@ class LLMPromptTest(models.TransientModel):
         """
         if not self.prompt_id:
             return {
-                'success': False,
-                'rendered_template': "",
-                'messages': [],
-                'context_used': {},
-                'error': "No prompt configured"
+                "success": False,
+                "rendered_template": "",
+                "messages": [],
+                "context_used": {},
+                "error": "No prompt configured",
             }
 
         try:
@@ -371,58 +411,65 @@ class LLMPromptTest(models.TransientModel):
             context = dict(user_context or {})
 
             # Add thread-specific context manually
-            context['thread_id'] = 'test'
-            context['is_test'] = True
+            context["thread_id"] = "test"
+            context["is_test"] = True
 
             # Add related_record proxy if we have a record
             if self.related_record_ref:
                 from ..models.llm_thread import RelatedRecordProxy
-                context['related_record'] = RelatedRecordProxy(self.related_record_ref)
-                context['related_model_name'] = self.related_record_ref._name
-                context['related_model_id'] = self.related_record_ref._name
-                context['related_res_id'] = self.related_record_ref.id
+
+                context["related_record"] = RelatedRecordProxy(self.related_record_ref)
+                context["related_model_name"] = self.related_record_ref._name
+                context["related_model_id"] = self.related_record_ref._name
+                context["related_res_id"] = self.related_record_ref.id
             else:
-                context['related_record'] = RelatedRecordProxy(None)
-                context['related_model_name'] = None
-                context['related_model_id'] = None
-                context['related_res_id'] = None
+                context["related_record"] = RelatedRecordProxy(None)
+                context["related_model_name"] = None
+                context["related_model_id"] = None
+                context["related_res_id"] = None
 
             # Use the prompt to render and generate messages (same as production)
-            rendered_template = render_template(template=self.prompt_id.template, context=context)
+            rendered_template = render_template(
+                template=self.prompt_id.template, context=context
+            )
             messages = self.prompt_id.get_messages(context)
 
             return {
-                'success': True,
-                'rendered_template': rendered_template,
-                'messages': messages,
-                'context_used': context,
-                'error': None
+                "success": True,
+                "rendered_template": rendered_template,
+                "messages": messages,
+                "context_used": context,
+                "error": None,
             }
 
         except Exception as e:
-            _logger.exception("Error testing prompt %s (light mode)", self.prompt_id.name)
+            _logger.exception(
+                "Error testing prompt %s (light mode)", self.prompt_id.name
+            )
             return {
-                'success': False,
-                'rendered_template': "",
-                'messages': [],
-                'context_used': user_context or {},
-                'error': str(e)
+                "success": False,
+                "rendered_template": "",
+                "messages": [],
+                "context_used": user_context or {},
+                "error": str(e),
             }
 
     def _update_wizard_from_result(self, result):
         """Update wizard fields from test result"""
-        if result['success']:
+        if result["success"]:
             self.has_error = False
             self.error_message = ""
-            self.rendered_template = result['rendered_template']
+            self.rendered_template = result["rendered_template"]
 
             # Convert messages to different formats
-            messages = result['messages']
+            messages = result["messages"]
             self.messages_json = json.dumps(messages, indent=2, ensure_ascii=False)
 
             # Convert to YAML
             try:
-                self.messages_yaml = yaml.dump(messages, default_flow_style=False, allow_unicode=True, indent=2)
+                self.messages_yaml = yaml.dump(
+                    messages, default_flow_style=False, allow_unicode=True, indent=2
+                )
             except Exception as e:
                 self.messages_yaml = f"Error converting to YAML: {str(e)}"
 
@@ -430,7 +477,7 @@ class LLMPromptTest(models.TransientModel):
             self.messages_text = self._format_messages_as_text(messages)
         else:
             self.has_error = True
-            self.error_message = result['error']
+            self.error_message = result["error"]
             self.rendered_template = ""
             self.messages_json = ""
             self.messages_yaml = ""
@@ -440,12 +487,12 @@ class LLMPromptTest(models.TransientModel):
         """Format messages as readable text"""
         text_parts = []
         for i, message in enumerate(messages, 1):
-            role = message.get('role', 'unknown')
-            content = message.get('content', '')
+            role = message.get("role", "unknown")
+            content = message.get("content", "")
 
             # Extract text content
             if isinstance(content, list) and len(content) > 0:
-                text_content = content[0].get('text', '')
+                text_content = content[0].get("text", "")
             elif isinstance(content, str):
                 text_content = content
             else:
@@ -489,12 +536,12 @@ class LLMPromptTest(models.TransientModel):
 
         # Return an action to keep the wizard open and preserve context
         return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'llm.prompt.test',
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-            'context': dict(self.env.context, keep_context=True),
+            "type": "ir.actions.act_window",
+            "res_model": "llm.prompt.test",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "new",
+            "context": dict(self.env.context, keep_context=True),
         }
 
     def action_reset_context(self):
@@ -512,12 +559,12 @@ class LLMPromptTest(models.TransientModel):
         self.error_message = ""
 
         return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'llm.prompt.test',
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-            'context': dict(self.env.context, keep_context=True),
+            "type": "ir.actions.act_window",
+            "res_model": "llm.prompt.test",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "new",
+            "context": dict(self.env.context, keep_context=True),
         }
 
     def action_clear_related_record(self):
@@ -526,12 +573,12 @@ class LLMPromptTest(models.TransientModel):
         self.related_record_ref = False
 
         return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'llm.prompt.test',
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-            'context': dict(self.env.context, keep_context=True),
+            "type": "ir.actions.act_window",
+            "res_model": "llm.prompt.test",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "new",
+            "context": dict(self.env.context, keep_context=True),
         }
 
     def action_populate_with_defaults(self):
@@ -558,12 +605,12 @@ class LLMPromptTest(models.TransientModel):
             self._auto_evaluate_prompt()
 
         return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'llm.prompt.test',
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-            'context': dict(self.env.context, keep_context=True),
+            "type": "ir.actions.act_window",
+            "res_model": "llm.prompt.test",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "new",
+            "context": dict(self.env.context, keep_context=True),
         }
 
     def action_format_context(self):
@@ -578,7 +625,7 @@ class LLMPromptTest(models.TransientModel):
             try:
                 # Remove trailing commas and other common issues
                 fixed_json = self.test_context.strip()
-                if fixed_json.endswith(','):
+                if fixed_json.endswith(","):
                     fixed_json = fixed_json[:-1]
                 context = json.loads(fixed_json)
                 self.test_context = json.dumps(context, indent=2, sort_keys=True)
@@ -586,10 +633,10 @@ class LLMPromptTest(models.TransientModel):
                 pass  # Keep original if we can't fix it
 
         return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'llm.prompt.test',
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-            'context': dict(self.env.context, keep_context=True),
+            "type": "ir.actions.act_window",
+            "res_model": "llm.prompt.test",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "new",
+            "context": dict(self.env.context, keep_context=True),
         }

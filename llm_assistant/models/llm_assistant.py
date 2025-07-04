@@ -1,9 +1,8 @@
 import json
 import logging
-import re
 
 from odoo import api, fields, models
-from odoo.tools.safe_eval import safe_eval
+
 from ..utils import render_template
 
 _logger = logging.getLogger(__name__)
@@ -103,7 +102,7 @@ class LLMAssistant(models.Model):
         help="Tools that this assistant can use",
         tracking=True,
     )
-    
+
     tool_calls_max = fields.Integer(
         string="Max Tool Calls",
         default=5,
@@ -262,13 +261,13 @@ class LLMAssistant(models.Model):
 
         if not self.prompt_id:
             return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'No Prompt Template',
-                    'message': 'Please select a prompt template first.',
-                    'type': 'warning',
-                }
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": "No Prompt Template",
+                    "message": "Please select a prompt template first.",
+                    "type": "warning",
+                },
             }
 
         try:
@@ -277,13 +276,13 @@ class LLMAssistant(models.Model):
 
             if not args_schema:
                 return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': 'No Arguments Schema',
-                        'message': 'The selected prompt template has no arguments schema defined.',
-                        'type': 'info',
-                    }
+                    "type": "ir.actions.client",
+                    "tag": "display_notification",
+                    "params": {
+                        "title": "No Arguments Schema",
+                        "message": "The selected prompt template has no arguments schema defined.",
+                        "type": "info",
+                    },
                 }
 
             # Generate template JSON from schema
@@ -293,7 +292,9 @@ class LLMAssistant(models.Model):
             self.default_values = json.dumps(template_values, indent=2)
 
             # Count how many were defaults vs placeholders
-            defaults_count = sum(1 for arg_schema in args_schema.values() if "default" in arg_schema)
+            defaults_count = sum(
+                1 for arg_schema in args_schema.values() if "default" in arg_schema
+            )
             placeholders_count = len(template_values) - defaults_count
 
             message_parts = []
@@ -305,39 +306,41 @@ class LLMAssistant(models.Model):
             message = f"Template JSON created with {' and '.join(message_parts)}."
 
             return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Template JSON Generated',
-                    'message': message,
-                    'type': 'success',
-                    'next': {
-                        'type': 'ir.actions.client',
-                        'tag': 'reload',
-                    }
-                }
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": "Template JSON Generated",
+                    "message": message,
+                    "type": "success",
+                    "next": {
+                        "type": "ir.actions.client",
+                        "tag": "reload",
+                    },
+                },
             }
 
         except json.JSONDecodeError:
             return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Error',
-                    'message': 'Invalid JSON in prompt arguments schema.',
-                    'type': 'danger',
-                }
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": "Error",
+                    "message": "Invalid JSON in prompt arguments schema.",
+                    "type": "danger",
+                },
             }
         except Exception as e:
-            _logger.error("Error resetting defaults for assistant %s: %s", self.name, str(e))
+            _logger.error(
+                "Error resetting defaults for assistant %s: %s", self.name, str(e)
+            )
             return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Error',
-                    'message': f'Error generating template JSON: {str(e)}',
-                    'type': 'danger',
-                }
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": "Error",
+                    "message": f"Error generating template JSON: {str(e)}",
+                    "type": "danger",
+                },
             }
 
     def get_evaluated_default_values(self, context):
@@ -357,7 +360,9 @@ class LLMAssistant(models.Model):
         try:
             default_values = json.loads(self.default_values or "{}")
         except json.JSONDecodeError:
-            _logger.warning("Invalid JSON in default_values for assistant %s", self.name)
+            _logger.warning(
+                "Invalid JSON in default_values for assistant %s", self.name
+            )
             return {}
 
         if not default_values:
@@ -372,9 +377,16 @@ class LLMAssistant(models.Model):
         for key, value in default_values.items():
             if isinstance(value, str) and "{{" in value and "}}" in value:
                 try:
-                    evaluated_values[key] = render_template(template=value, context=context)
+                    evaluated_values[key] = render_template(
+                        template=value, context=context
+                    )
                 except Exception as e:
-                    _logger.warning("Error evaluating default value '%s' for assistant %s: %s", key, self.name, str(e))
+                    _logger.warning(
+                        "Error evaluating default value '%s' for assistant %s: %s",
+                        key,
+                        self.name,
+                        str(e),
+                    )
                     evaluated_values[key] = value  # Keep original on error
             else:
                 evaluated_values[key] = value
@@ -460,7 +472,7 @@ class LLMAssistant(models.Model):
         self.ensure_one()
 
         # Get thread context and use it to evaluate default values
-        thread_context = thread.get_context() if hasattr(thread, 'get_context') else {}
+        thread_context = thread.get_context() if hasattr(thread, "get_context") else {}
         evaluated_values = self.get_evaluated_default_values(thread_context)
 
         result = {
@@ -468,7 +480,9 @@ class LLMAssistant(models.Model):
             "thread_id": thread.id,
             "assistant_id": self.id,
             "default_values": self.default_values,
-            "evaluated_default_values": json.dumps(evaluated_values, indent=2) if evaluated_values else "{}",
+            "evaluated_default_values": json.dumps(evaluated_values, indent=2)
+            if evaluated_values
+            else "{}",
         }
 
         # Get the prompt details if requested

@@ -10,22 +10,22 @@ registerPatch({
      * Model usage type (chat, embedding, image_generation, etc.)
      */
     modelUse: attr(),
-    
+
     /**
      * Model details JSON field
      */
     details: attr(),
-    
+
     /**
      * Input schema (for backwards compatibility)
      */
     inputSchema: attr(),
-    
+
     /**
      * Output schema (for backwards compatibility)
      */
     outputSchema: attr(),
-    
+
     /**
      * Check if this model is configured for media generation
      * Based purely on model_use field containing "generation"
@@ -35,13 +35,13 @@ registerPatch({
         if (!this.modelUse) {
           return false;
         }
-        
+
         // Check if model_use contains "generation"
         const generationTypes = ["image_generation", "generation"];
         return generationTypes.includes(this.modelUse);
       },
     }),
-    
+
     /**
      * Get the effective input schema from details or fallback
      */
@@ -54,7 +54,7 @@ registerPatch({
         return this.inputSchema || null;
       },
     }),
-    
+
     /**
      * Get the effective output schema from details or fallback
      */
