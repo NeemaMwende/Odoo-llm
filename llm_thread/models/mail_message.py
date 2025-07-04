@@ -32,7 +32,7 @@ class MailMessage(models.Model):
             for field in llm_fields_to_add:
                 if hasattr(message, field):
                     message_data[field] = getattr(message, field)
-
+            # Set is_note=True for LLM messages to get the right bubble style
             if message.llm_role:
                 message_data["is_note"] = True
 
