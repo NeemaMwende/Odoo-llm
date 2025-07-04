@@ -26,47 +26,42 @@ class MailMessage(models.Model):
             formatted_message = {"role": "assistant"}
             if body:
                 formatted_message["content"] = body
-            api_tool_calls = None
-            if self.tool_calls:
-                try:
-                    parsed_calls = json.loads(self.tool_calls)
-                    if isinstance(parsed_calls, list):
-                        valid_calls = []
-                        for call in parsed_calls:
-                            if (
-                                isinstance(call, dict)
-                                and "id" in call
-                                and "type" in call
-                                and "function" in call
-                            ):
-                                valid_calls.append(call)
-                            else:
-                                _logger.warning(
-                                    f"OpenAI Format Msg {self.id}: Invalid tool call structure skipped: {call}"
-                                )
-                        if valid_calls:
-                            api_tool_calls = valid_calls
-                except json.JSONDecodeError:
-                    _logger.warning(
-                        f"OpenAI Format Msg {self.id}: Failed to parse tool_calls JSON: {self.tool_calls}"
-                    )
-
-            if api_tool_calls:
-                formatted_message["tool_calls"] = api_tool_calls
-
+            
+            # For assistant messages, we don't store tool_calls in the message anymore
+            # Tool calls are stored as separate tool messages
+            # This section is kept for backward compatibility but won't be used
+            
             return formatted_message
 
         elif self.is_llm_tool_result_message():
-            if not self.tool_call_id or self.tool_call_result is None:
+            try:
+                tool_data = json.loads(self.body)
+                if tool_data.get("type") == "tool_execution":
+                    tool_call_id = tool_data.get("tool_call_id")
+                    if not tool_call_id:
+                        _logger.warning(
+                            f"OpenAI Format: Skipping tool result message {self.id}: missing tool_call_id."
+                        )
+                        return None
+                    
+                    # Get result content
+                    if "result" in tool_data:
+                        content = json.dumps(tool_data["result"])
+                    elif "error" in tool_data:
+                        content = json.dumps({"error": tool_data["error"]})
+                    else:
+                        content = ""
+                    
+                    formatted_message = {
+                        "role": "tool",
+                        "tool_call_id": tool_call_id,
+                        "content": content,
+                    }
+                    return formatted_message
+            except (json.JSONDecodeError, TypeError):
                 _logger.warning(
-                    f"OpenAI Format: Skipping tool result message {self.id}: missing tool_call_id or result."
+                    f"OpenAI Format: Skipping tool result message {self.id}: invalid JSON in body."
                 )
                 return None
-            formatted_message = {
-                "role": "tool",
-                "tool_call_id": self.tool_call_id,
-                "content": self.tool_call_result,
-            }
-            return formatted_message
         else:
             return None

@@ -173,19 +173,12 @@ class LLMThread(models.Model):
     # ============================================================================
 
     @api.returns('mail.message', lambda value: value.id)
-    def message_post(self, *, llm_role=None, tool_name=None, tool_call_id=None, message_type='comment',
-                     tool_calls=None, tool_call_definition=None, tool_call_result=None,
-                     **kwargs):
+    def message_post(self, *, llm_role=None, message_type='comment', **kwargs):
         """Override to handle LLM-specific message types and metadata.
         
         Args:
             llm_role (str): The LLM role ('user', 'assistant', 'tool', 'system')
                            If provided, will automatically set the appropriate subtype
-            tool_name (str): Name of the tool (for tool messages)
-            tool_call_id (str): ID of the tool call
-            tool_calls (str): JSON string of tool calls
-            tool_call_definition (str): JSON string of tool call definition
-            tool_call_result (str): JSON string of tool call result
         """
 
         # Convert LLM role to subtype_xmlid if provided
@@ -199,33 +192,17 @@ class LLMThread(models.Model):
         # Handle LLM-specific subtypes and email_from generation
         if not kwargs.get('author_id') and not kwargs.get('email_from'):
             kwargs['email_from'] = self._get_llm_email_from(
-                kwargs.get('subtype_xmlid'), kwargs.get('author_id'), tool_name
+                kwargs.get('subtype_xmlid'), kwargs.get('author_id'), llm_role
             )
 
-        # Convert markdown to HTML if needed
-        if kwargs.get('body'):
+        # Convert markdown to HTML if needed (except for tool messages which contain JSON)
+        if kwargs.get('body') and llm_role != 'tool':
             kwargs['body'] = self._process_llm_body(kwargs['body'])
 
         # Create the message using standard mail.thread flow
-        message = super().message_post(message_type=message_type, **kwargs)
+        return super().message_post(message_type=message_type, **kwargs)
 
-        # Add LLM-specific fields after creation
-        llm_fields = {}
-        if tool_calls:
-            llm_fields['tool_calls'] = tool_calls
-        if tool_call_id:
-            llm_fields.update({
-                'tool_call_id': tool_call_id,
-                'tool_call_definition': tool_call_definition,
-                'tool_call_result': tool_call_result,
-            })
-
-        if llm_fields:
-            message.write(llm_fields)
-
-        return message
-
-    def _get_llm_email_from(self, subtype_xmlid, author_id, tool_name=None):
+    def _get_llm_email_from(self, subtype_xmlid, author_id, llm_role=None):
         """Generate appropriate email_from for LLM messages."""
         if author_id:
             return None  # Let standard flow handle it
@@ -233,10 +210,9 @@ class LLMThread(models.Model):
         provider_name = self.provider_id.name
         model_name = self.model_id.name
 
-        if subtype_xmlid == 'llm.mt_tool':
-            name = tool_name or "Tool"
-            return f"{name} <tool@{provider_name.lower().replace(' ', '')}.ai>"
-        elif subtype_xmlid == 'llm.mt_assistant':
+        if subtype_xmlid == 'llm.mt_tool' or llm_role == 'tool':
+            return f"Tool <tool@{provider_name.lower().replace(' ', '')}.ai>"
+        elif subtype_xmlid == 'llm.mt_assistant' or llm_role == 'assistant':
             return f"{model_name} <ai@{provider_name.lower().replace(' ', '')}.ai>"
 
         return None
@@ -261,7 +237,7 @@ class LLMThread(models.Model):
         """
         message = None
         accumulated_content = ""
-        accumulated_calls = []
+        tool_messages = {}  # Map tool_call_id to tool message
 
         for chunk in stream:
             if message is None and (chunk.get("content") or chunk.get("tool_calls")):
@@ -280,26 +256,41 @@ class LLMThread(models.Model):
                 yield {"type": "message_chunk", "message": message.message_format()[0]}
 
             if chunk.get("tool_calls"):
-                valid_calls = [c for c in chunk["tool_calls"]
-                               if isinstance(c, dict) and c.get("id")]
-                accumulated_calls.extend(valid_calls)
-                message.write({"tool_calls": json.dumps(accumulated_calls)})
-                yield {"type": "message_update", "message": message.message_format()[0]}
+                # Create tool messages for each tool call immediately
+                for tool_call in chunk["tool_calls"]:
+                    if not isinstance(tool_call, dict) or not tool_call.get("id"):
+                        continue
+                    
+                    tool_call_id = tool_call.get("id")
+                    if tool_call_id not in tool_messages:
+                        # Create tool message with initial data
+                        fn = tool_call.get("function", {})
+                        tool_name = fn.get("name", "unknown_tool")
+                        
+                        tool_data = {
+                            "type": "tool_execution",
+                            "tool_call_id": tool_call_id,
+                            "tool_call": tool_call,
+                            "status": "requested",
+                            "tool_name": tool_name
+                        }
+                        
+                        tool_msg = self.message_post(
+                            body=json.dumps(tool_data),
+                            llm_role='tool',
+                            author_id=False,
+                            **kwargs
+                        )
+                        tool_messages[tool_call_id] = tool_msg
+                        yield {"type": "message_create", "message": tool_msg.message_format()[0]}
 
             if chunk.get("error"):
                 yield {"type": "error", "error": chunk["error"]}
                 return message
 
-        # Final update
-        if message:
-            final_updates = {}
-            if accumulated_content:
-                final_updates["body"] = self._process_llm_body(accumulated_content)
-            if accumulated_calls:
-                final_updates["tool_calls"] = json.dumps(accumulated_calls)
-
-            if final_updates:
-                message.write(final_updates)
+        # Final update for assistant message
+        if message and accumulated_content:
+            message.write({"body": self._process_llm_body(accumulated_content)})
             yield {"type": "message_update", "message": message.message_format()[0]}
 
         return message

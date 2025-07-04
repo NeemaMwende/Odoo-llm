@@ -226,14 +226,34 @@ class LLMThread(models.Model):
         return []
 
     def _process_tool_calls(self, assistant_msg):
-        """Override _process_tool_calls to implement circuit breaker using assistant's tool_calls_max"""
+        """Process tool calls by finding tool messages with 'requested' status."""
         self.ensure_one()
+        
+        # Find tool messages with 'requested' status that were created after this assistant message
+        tool_messages = self.env['mail.message'].search([
+            ('model', '=', self._name),
+            ('res_id', '=', self.id),
+            ('llm_role', '=', 'tool'),
+            ('create_date', '>', assistant_msg.create_date)
+        ], order='create_date ASC')
+        
+        # Filter for tool messages with 'requested' status
+        requested_tool_messages = []
+        for msg in tool_messages:
+            try:
+                tool_data = json.loads(msg.body)
+                if tool_data.get('status') == 'requested':
+                    requested_tool_messages.append(msg)
+            except (json.JSONDecodeError, TypeError):
+                continue
+        
+        if not requested_tool_messages:
+            return assistant_msg
         
         # Get the tool calls max from the assistant, default to 5 if no assistant
         tool_calls_max = self.assistant_id.tool_calls_max if self.assistant_id else 5
         
         # Count recent consecutive assistant messages with tool calls to detect loops
-        # We need to look at messages BEFORE the current one to count previous iterations
         recent_messages = self.get_message_history_recordset(order="DESC", limit=20)
         consecutive_tool_calls = 0
         
@@ -242,40 +262,65 @@ class LLMThread(models.Model):
             if msg.id == assistant_msg.id:
                 continue
                 
-            if msg.is_llm_assistant_message() and msg.tool_calls:
-                consecutive_tool_calls += 1
-                _logger.debug(f"Thread {self.id}: Found assistant message {msg.id} with tool calls (count: {consecutive_tool_calls})")
+            # Check if this is an assistant message followed by tool messages
+            if msg.is_llm_assistant_message():
+                # Check if there are tool messages after this assistant message
+                subsequent_tool_msgs = self.env['mail.message'].search([
+                    ('model', '=', self._name),
+                    ('res_id', '=', self.id),
+                    ('llm_role', '=', 'tool'),
+                    ('create_date', '>', msg.create_date)
+                ], limit=1)
+                
+                if subsequent_tool_msgs:
+                    consecutive_tool_calls += 1
+                    _logger.debug(f"Thread {self.id}: Found assistant message {msg.id} with tool calls (count: {consecutive_tool_calls})")
+                elif msg.body and msg.body.strip():
+                    # Stop counting when we hit an assistant message with meaningful content
+                    _logger.debug(f"Thread {self.id}: Hit assistant message {msg.id} with content, stopping count")
+                    break
             elif msg.is_llm_user_message():
                 # Stop counting when we hit a user message (new conversation turn)
                 _logger.debug(f"Thread {self.id}: Hit user message {msg.id}, stopping count")
                 break
-            elif msg.is_llm_assistant_message() and msg.body and msg.body.strip():
-                # Stop counting when we hit an assistant message with meaningful content
-                _logger.debug(f"Thread {self.id}: Hit assistant message {msg.id} with content, stopping count")
-                break
-            # Continue through tool result messages without stopping the count
         
-        # Circuit breaker: if too many consecutive tool calling assistant messages, clear tool_calls and stop
+        # Circuit breaker: if too many consecutive tool calling assistant messages, mark tools as cancelled
         if consecutive_tool_calls >= tool_calls_max:
             _logger.warning(
                 f"Thread {self.id}: Circuit breaker activated! Found {consecutive_tool_calls} consecutive assistant messages with tool calls, "
-                f"which exceeds the assistant's limit of {tool_calls_max}. Clearing tool_calls from message {assistant_msg.id}"
+                f"which exceeds the assistant's limit of {tool_calls_max}. Cancelling requested tool calls."
             )
-            assistant_msg.write({"tool_calls": None})
+            
+            # Cancel all requested tool messages
+            for tool_msg in requested_tool_messages:
+                try:
+                    tool_data = json.loads(tool_msg.body)
+                    tool_data['status'] = 'cancelled'
+                    tool_data['error'] = 'Circuit breaker activated - too many consecutive tool calls'
+                    tool_msg.write({'body': json.dumps(tool_data)})
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            
             return assistant_msg
         
         # If we're under the limit, proceed with normal tool processing
         _logger.info(
-            f"Thread {self.id}: Processing tool calls ({consecutive_tool_calls}/{tool_calls_max} consecutive assistant tool call messages)"
+            f"Thread {self.id}: Processing {len(requested_tool_messages)} tool calls ({consecutive_tool_calls}/{tool_calls_max} consecutive assistant tool call messages)"
         )
         
-        # Call the base tool processing logic directly
-        self.ensure_one()
-        defs = json.loads(assistant_msg.tool_calls or "[]")
+        # Process each tool message
         last_tool_msg = None
-        for tool_def in defs:
-            last_tool_msg = yield from self.message_post_tool_result(tool_def)
-        return last_tool_msg
+        for tool_msg in requested_tool_messages:
+            try:
+                tool_data = json.loads(tool_msg.body)
+                tool_call_def = tool_data.get('tool_call')
+                if tool_call_def:
+                    last_tool_msg = yield from self.execute_tool_message(tool_msg, tool_call_def)
+            except (json.JSONDecodeError, TypeError):
+                _logger.error(f"Thread {self.id}: Invalid tool message {tool_msg.id}")
+                continue
+        
+        return last_tool_msg or assistant_msg
 
     # ============================================================================
     # AI GENERATION LOGIC - Moved from llm_thread module
@@ -308,9 +353,8 @@ class LLMThread(models.Model):
                 if last_message.llm_role in ('user', 'tool'):
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
-                elif (last_message.llm_role == 'assistant' and
-                      last_message.tool_calls):
-                    # Process tool calls
+                elif last_message.llm_role == 'assistant':
+                    # Process tool calls (check for requested tool messages)
                     last_message = yield from self._process_tool_calls(last_message)
                 else:
                     break
@@ -336,7 +380,7 @@ class LLMThread(models.Model):
             placeholder_text="Thinking..."
         ))
 
-    def get_message_history_recordset(self, order="ASC", limit=None):
+    def get_message_history_recordset(self, order="ASC", limit=25):
         """Get LLM messages from the thread using efficient stored field filtering.
 
         Args:
@@ -369,6 +413,42 @@ class LLMThread(models.Model):
             raise UserError("No LLM message found to process.")
         return result[0]
 
+    def execute_tool_message(self, tool_msg, tool_call_def):
+        """Execute a tool and update the tool message with the result."""
+        fn = tool_call_def.get("function", {})
+        name = fn.get("name", "unknown_tool")
+        args = fn.get("arguments")
+
+        # Update status to executing
+        try:
+            tool_data = json.loads(tool_msg.body)
+            tool_data['status'] = 'executing'
+            tool_msg.write({'body': json.dumps(tool_data)})
+            yield {"type": "message_update", "message": tool_msg.message_format()[0]}
+        except (json.JSONDecodeError, TypeError):
+            _logger.error(f"Thread {self.id}: Invalid tool message {tool_msg.id}")
+            return tool_msg
+
+        # Execute tool and update message
+        try:
+            with self.env.cr.savepoint():
+                result = self.with_context(message=tool_msg)._execute_tool(name, args)
+                if not result:
+                    raise UserError(f"No result returned from tool '{name}'")
+
+                # Update tool data with result
+                tool_data['status'] = 'completed'
+                tool_data['result'] = result
+                tool_msg.write({'body': json.dumps(tool_data)})
+        except Exception as e:
+            # Update tool data with error
+            tool_data['status'] = 'error'
+            tool_data['error'] = str(e)
+            tool_msg.write({'body': json.dumps(tool_data)})
+
+        yield {"type": "message_update", "message": tool_msg.message_format()[0]}
+        return tool_msg
+
     def _should_continue(self, last_message):
         """Whether to keep looping based on the last message role and content."""
         if not last_message:
@@ -378,8 +458,24 @@ class LLMThread(models.Model):
         if last_message.llm_role in ('user', 'tool'):
             return True
 
-        if last_message.llm_role == 'assistant' and last_message.tool_calls:
-            return True
+        # Check if assistant message is followed by tool messages with 'requested' status
+        if last_message.llm_role == 'assistant':
+            # Look for tool messages with 'requested' status created after this assistant message
+            requested_tool_msgs = self.env['mail.message'].search([
+                ('model', '=', self._name),
+                ('res_id', '=', self.id),
+                ('llm_role', '=', 'tool'),
+                ('create_date', '>', last_message.create_date)
+            ])
+            
+            # Check if any of these tool messages have 'requested' status
+            for msg in requested_tool_msgs:
+                try:
+                    tool_data = json.loads(msg.body)
+                    if tool_data.get('status') == 'requested':
+                        return True
+                except (json.JSONDecodeError, TypeError):
+                    continue
 
         return False
 
@@ -392,42 +488,4 @@ class LLMThread(models.Model):
         arguments = json.loads(arguments_str)
         return tool.execute(arguments)
 
-    def message_post_tool_result(self, tool_call_def, **kwargs):
-        """Post a tool result message using standard message_post flow."""
-        call_id = tool_call_def.get("id")
-        fn = tool_call_def.get("function", {})
-        name = fn.get("name", "unknown_tool")
-        args = fn.get("arguments")
 
-        # Create placeholder message
-        message = self.message_post(
-            body=f"Executing: {name}…",
-            llm_role='tool',
-            author_id=False,
-            tool_call_id=call_id,
-            tool_call_definition=json.dumps(tool_call_def),
-            tool_name=name,
-            **kwargs
-        )
-        yield {"type": "message_create", "message": message.message_format()[0]}
-
-        # Execute tool and update message
-        try:
-            with self.env.cr.savepoint():
-                result = self.with_context(message=message)._execute_tool(name, args)
-                if not result:
-                    raise UserError(f"No result returned from tool '{name}'")
-
-                # Update message with result
-                message.write({
-                    "tool_call_result": json.dumps(result),
-                    "body": f"Result for {name}"
-                })
-        except Exception as e:
-            message.write({
-                "tool_call_result": json.dumps({"error": str(e)}),
-                "body": f"Error executing {name}"
-            })
-
-        yield {"type": "message_update", "message": message.message_format()[0]}
-        return message

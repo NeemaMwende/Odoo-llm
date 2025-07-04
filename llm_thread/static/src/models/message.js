@@ -35,17 +35,10 @@ registerPatch({
       if ("subtype_xmlid" in data) {
         data2.messageSubtypeXmlid = data.subtype_xmlid;
       }
-      if ("tool_call_definition" in data) {
-        data2.toolCallDefinition = data.tool_call_definition;
-      }
-      if ("tool_call_result" in data) {
-        data2.toolCallResult = data.tool_call_result;
-      }
+      // Still support tool_calls field for backward compatibility but it's not used anymore
       if ("tool_calls" in data) {
-        data2.toolCallCalls = data.tool_calls;
-      }
-      if ("tool_call_id" in data && data.tool_call_id !== null) {
-        data2.toolCallId = data.tool_call_id;
+        // This field is no longer used but kept for backward compatibility
+        // Tool calls are now stored as separate tool messages
       }
       // Add LLM role data from the stored field
       if ("llm_role" in data) {
@@ -68,43 +61,70 @@ registerPatch({
     }),
     
     /**
-     * Compute parsed tool call definition from llm_tool_call_definition field.
+     * Parse tool data from JSON body for tool messages
      */
-    toolCallDefinition: attr({}),
-    toolCallDefinitionFormatted: attr({
+    toolData: attr({
       compute() {
-        return safeJsonParse(this.toolCallDefinition);
+        if (this.llmRole === 'tool') {
+          try {
+            return JSON.parse(this.body);
+          } catch (e) {
+            return null;
+          }
+        }
+        return null;
       },
     }),
-    toolCallResult: attr({
-      default: "",
-    }),
-    toolCallId: attr({
-      default: null,
-    }),
+    
     /**
-     * Compute parsed tool call result data from llm_tool_call_result field.
+     * Get tool call ID from tool data
+     */
+    toolCallId: attr({
+      compute() {
+        const toolData = this.toolData;
+        return toolData?.tool_call_id || null;
+      },
+    }),
+    
+    /**
+     * Get tool call definition from tool data
+     */
+    toolCallDefinitionFormatted: attr({
+      compute() {
+        const toolData = this.toolData;
+        return toolData?.tool_call || null;
+      },
+    }),
+    
+    /**
+     * Get tool call result from tool data
      */
     toolCallResultData: attr({
       compute() {
-        return safeJsonParse(this.toolCallResult);
+        const toolData = this.toolData;
+        if (toolData) {
+          if ('result' in toolData) {
+            return toolData.result;
+          } else if ('error' in toolData) {
+            return { error: toolData.error };
+          }
+        }
+        return null;
       },
     }),
+    
     /**
-     * Compute boolean indicating if the tool call result is an error.
+     * Check if tool call result is an error
      */
     toolCallResultIsError: attr({
       compute() {
-        const resultData = this.toolCallResultData;
-        return (
-          typeof resultData === "object" &&
-          resultData !== null &&
-          "error" in resultData
-        );
+        const toolData = this.toolData;
+        return toolData && toolData.status === 'error';
       },
     }),
+    
     /**
-     * Compute formatted tool call result string (e.g., pretty JSON).
+     * Format tool call result for display
      */
     toolCallResultFormatted: attr({
       compute() {
@@ -122,17 +142,27 @@ registerPatch({
         }
       },
     }),
-    toolCallCalls: attr({
-      default: [],
-    }),
+    
     /**
-     * Compute parsed list of tool calls requested by an assistant message.
+     * Get tool name from tool data
+     */
+    toolName: attr({
+      compute() {
+        const toolData = this.toolData;
+        return toolData?.tool_name || null;
+      },
+    }),
+    
+    /**
+     * Legacy support for tool calls display (now handled via separate tool messages)
      */
     formattedToolCalls: attr({
       compute() {
-        return safeJsonParse(this.toolCallCalls, []);
+        // Return empty array since tool calls are now separate messages
+        return [];
       },
     }),
+    
     /**
      * Compute the subtype XML ID (useful for templates).
      * Requires message_format to add subtype_xmlid to the payload.

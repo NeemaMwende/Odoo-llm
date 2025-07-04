@@ -16,25 +16,11 @@ class MailMessage(models.Model):
         help="Vote status given by the user. 0: No vote, 1: Upvoted, -1: Downvoted.",
     )
 
-    @api.constrains("tool_call_id", "llm_role")
-    def _check_tool_message_integrity(self):
-        """Ensure tool_call_id is only set for tool messages."""
-        for record in self:
-            # Only validate if tool_call_id is set and llm_role is computed (not False)
-            if record.tool_call_id and record.llm_role and record.llm_role != 'tool':
-                raise ValidationError(
-                    "Tool Call ID can only be set for Tool Messages."
-                )
-
     def _get_llm_message_format_fields(self):
         """Extend the list of fields fetched by the base message_format."""
         fields_list = super()._get_llm_message_format_fields()
         fields_list.extend(
             [
-                "tool_calls",
-                "tool_call_id", 
-                "tool_call_definition",
-                "tool_call_result",
                 "user_vote",
                 "llm_role",  # Include the stored llm_role field
             ]

@@ -101,11 +101,24 @@ class OllamaMessageValidator:
                             "tool_call": tool_call,
                         }
 
-        # Second pass: collect all tool responses
+        # Second pass: collect all tool responses - now parse from content/body
         for i, msg in enumerate(self.messages):
-            if msg and msg.get("role") == "tool" and msg.get("name"):
+            if msg and msg.get("role") == "tool":
                 tool_name = msg.get("name")
-                self.tool_response_map[tool_name] = {"index": i, "message": msg}
+                if not tool_name:
+                    # Try to extract from content if it's JSON
+                    try:
+                        import json
+                        content = msg.get("content", "")
+                        if content:
+                            tool_data = json.loads(content)
+                            if tool_data.get("type") == "tool_execution":
+                                tool_name = tool_data.get("tool_name")
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                
+                if tool_name:
+                    self.tool_response_map[tool_name] = {"index": i, "message": msg}
 
     def remove_orphaned_tool_messages(self):
         """
@@ -118,6 +131,22 @@ class OllamaMessageValidator:
                 continue
 
             tool_name = msg.get("name")
+            if not tool_name:
+                # Try to extract from content if it's JSON
+                try:
+                    import json
+                    content = msg.get("content", "")
+                    if content:
+                        tool_data = json.loads(content)
+                        if tool_data.get("type") == "tool_execution":
+                            tool_name = tool_data.get("tool_name")
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            
+            if not tool_name:
+                # Remove tool messages without tool names
+                self.messages[i] = None
+                continue
 
             # Check if this tool name matches any function name in tool calls using all strategies
             found_match = False

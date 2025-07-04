@@ -30,50 +30,47 @@ class MailMessage(models.Model):
             if content:
                 formatted_message["content"] = content
 
-            if self.tool_calls:
-                try:
-                    parsed_calls = json.loads(self.tool_calls)
-                    if isinstance(parsed_calls, list):
-                        for call in parsed_calls:
-                            function_details = call.get("function", {})
-                            if isinstance(function_details, dict):
-                                arguments = function_details.get("arguments")
-                                if isinstance(arguments, str):
-                                    try:
-                                        function_details["arguments"] = json.loads(
-                                            arguments
-                                        )
-                                    except json.JSONDecodeError:
-                                        _logger.warning(
-                                            f"Ollama Format Msg {self.id}: Failed to parse arguments JSON string for tool call {call.get('id')}: {arguments}. Replacing with empty dict."
-                                        )
-                                        function_details["arguments"] = {}
-                        formatted_message["tool_calls"] = parsed_calls
-                    else:
-                        _logger.info(
-                            f"Ollama Format Msg {self.id}: Parsed tool_calls is not a list: {parsed_calls}"
-                        )
-                except json.JSONDecodeError:
-                    _logger.info(
-                        f"Ollama Format Msg {self.id}: Failed to parse tool_calls JSON: {self.tool_calls}"
-                    )
+            # For assistant messages, we don't store tool_calls in the message anymore
+            # Tool calls are stored as separate tool messages
+            # This section is kept for backward compatibility but won't be used
 
             return formatted_message
 
         elif self.is_llm_tool_result_message():
-            if not self.tool_call_id or self.tool_call_result is None:
+            try:
+                tool_data = json.loads(self.body)
+                if tool_data.get("type") == "tool_execution":
+                    tool_name = tool_data.get("tool_name")
+                    if not tool_name:
+                        # Fallback to extracting from tool_call_id
+                        tool_call_id = tool_data.get("tool_call_id")
+                        if tool_call_id:
+                            tool_name = OllamaToolCallIdUtils.extract_tool_name_from_id(tool_call_id)
+                    
+                    if not tool_name:
+                        _logger.warning(
+                            f"Ollama Format: Skipping tool result message {self.id}: missing tool_name."
+                        )
+                        return None
+                    
+                    # Get result content
+                    if "result" in tool_data:
+                        content = json.dumps(tool_data["result"])
+                    elif "error" in tool_data:
+                        content = json.dumps({"error": tool_data["error"]})
+                    else:
+                        content = ""
+                    
+                    formatted_message = {
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": content,
+                    }
+                    return formatted_message
+            except (json.JSONDecodeError, TypeError):
                 _logger.warning(
-                    f"Ollama Format: Skipping tool result message {self.id}: missing tool_call_id or result."
+                    f"Ollama Format: Skipping tool result message {self.id}: invalid JSON in body."
                 )
                 return None
-            tool_name = OllamaToolCallIdUtils.extract_tool_name_from_id(
-                self.tool_call_id
-            )
-            formatted_message = {
-                "role": "tool",
-                "name": tool_name,
-                "content": self.tool_call_result,
-            }
-            return formatted_message
         else:
             return None
