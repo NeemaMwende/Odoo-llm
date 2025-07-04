@@ -16,6 +16,7 @@ const THREAD_SEARCH_FIELDS = [
   "model",
   "res_id",
   "tool_ids",
+  "prompt_id",
 ];
 
 registerModel({
@@ -119,6 +120,7 @@ registerModel({
         relatedThreadModel: threadData.model,
         relatedThreadId: threadData.res_id,
         selectedToolIds: threadData.tool_ids || [],
+        promptId: threadData.prompt_id || null,
       };
 
       // Handle the llmModel field separately to avoid undefined errors

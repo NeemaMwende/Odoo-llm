@@ -19,6 +19,5 @@ registerModel({
     assistants: many("LLMAssistant", {
       inverse: "llmPrompt",
     }),
-
   },
 });
