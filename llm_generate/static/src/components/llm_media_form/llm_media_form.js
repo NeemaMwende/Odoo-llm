@@ -486,7 +486,7 @@ export class LLMMediaForm extends Component {
     }
 
     if (!this.llmModel?.isMediaGenerationModel) {
-      this.state.error = "Selected model is not configured for media generation.";
+      this.state.error = "Selected model is not configured for generation.";
       return;
     }
 
@@ -500,13 +500,13 @@ export class LLMMediaForm extends Component {
 
     try {
       const composer = this.thread.composer;
-      console.log("Submitting media generation request:", validationResult.values);
+      console.log("Submitting generation request:", validationResult.values);
 
-      // Submit through composer
-      composer.postUserMediaGenMessageForLLM(validationResult.values);
+      // Submit through composer - now uses body_json
+      composer.postUserGenerationMessageForLLM(validationResult.values);
 
     } catch (error) {
-      console.error("Error submitting media generation form:", error);
+      console.error("Error submitting generation form:", error);
       this.state.error = error.message || "An unexpected error occurred during submission.";
     } finally {
       this.state.isLoading = false;

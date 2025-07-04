@@ -11,22 +11,14 @@ class LLMThread(models.Model):
     _inherit = "llm.thread"
 
     def get_input_schema(self):
-        """Get input schema for generation forms from model details."""
+        """Get input schema for generation forms."""
         self.ensure_one()
         
-        # Try prompt schema first
+        # Try prompt schema first, then model schema
         if self.prompt_id and hasattr(self.prompt_id, 'input_schema_json'):
-            schema = self._ensure_dict(self.prompt_id.input_schema_json)
-            if schema:
-                return schema
-        
-        # Then try model details
-        if self.model_id and self.model_id.details:
-            details = self.model_id.details
-            input_schema = details.get('input_schema')
-            if input_schema:
-                return self._ensure_dict(input_schema)
-        
+            return self._ensure_dict(self.prompt_id.input_schema_json)
+        elif self.model_id and self.model_id.details:
+            return self._ensure_dict(self.model_id.details.get('input_schema'))
         return {}
         
     def _ensure_dict(self, value):
@@ -53,6 +45,33 @@ class LLMThread(models.Model):
         return {k: v for k, v in context.items() 
                 if k in schema['properties'] and v is not None}
 
+    def prepare_generation_inputs(self, inputs):
+        """Prepare final inputs for generation.
+        
+        Args:
+            inputs (dict): Raw inputs from form
+            
+        Returns:
+            dict: Final inputs ready for model generation
+        """
+        self.ensure_one()
+        
+        # Merge context with inputs
+        context = self.get_context()
+        merged_inputs = {**context, **inputs}
+        
+        # If no prompt, return merged inputs
+        if not self.prompt_id:
+            return merged_inputs
+        
+        # Render prompt with merged inputs
+        try:
+            rendered = render_template(self.prompt_id.template, merged_inputs)
+            return json.loads(rendered)
+        except Exception as e:
+            _logger.error(f"Error rendering prompt: {e}")
+            return merged_inputs
+
     def handle_generation_message(self, message):
         """Handle a user message with generation data in body_json."""
         self.ensure_one()
@@ -62,7 +81,7 @@ class LLMThread(models.Model):
             
         try:
             # Prepare final inputs
-            final_inputs = self._prepare_generation_inputs(message.body_json)
+            final_inputs = self.prepare_generation_inputs(message.body_json)
             
             # Generate using model
             result = self.model_id.generate(final_inputs)
@@ -84,26 +103,6 @@ class LLMThread(models.Model):
                 body=f"Generation failed: {str(e)}",
                 llm_role='assistant'
             )
-
-    def _prepare_generation_inputs(self, inputs):
-        """Prepare final inputs for generation."""
-        self.ensure_one()
-        
-        # Merge context with inputs
-        context = self.get_context()
-        merged_inputs = {**context, **inputs}
-        
-        # If no prompt, return merged inputs
-        if not self.prompt_id:
-            return merged_inputs
-        
-        # Render prompt with merged inputs
-        try:
-            rendered = render_template(self.prompt_id.template, merged_inputs)
-            return json.loads(rendered)
-        except Exception as e:
-            _logger.error(f"Error rendering prompt: {e}")
-            return merged_inputs
 
     def _create_generation_result_message(self, content):
         """Create a message with generation result."""
@@ -131,20 +130,15 @@ class LLMThread(models.Model):
 
     @api.model
     def get_model_generation_io_by_id(self, model_id):
-        """Get model generation I/O schema by ID from model details."""
+        """Get model generation I/O schema by ID."""
         try:
             model = self.env['llm.model'].browse(int(model_id))
             if not model.exists():
                 return {"error": f"Model {model_id} not found"}
-            
-            # Get schemas from model details
-            details = model.details or {}
-            input_schema = details.get('input_schema')
-            output_schema = details.get('output_schema')
                 
             return {
-                "input_schema": input_schema,
-                "output_schema": output_schema,
+                "input_schema": model.details.get('input_schema') if model.details else None,
+                "output_schema": model.details.get('output_schema') if model.details else None,
                 "model_id": model.id,
                 "model_name": model.name,
             }

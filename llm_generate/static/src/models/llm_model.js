@@ -7,6 +7,26 @@ registerPatch({
   name: "LLMModel",
   fields: {
     /**
+     * Model usage type (chat, embedding, image_generation, etc.)
+     */
+    modelUse: attr(),
+    
+    /**
+     * Model details JSON field
+     */
+    details: attr(),
+    
+    /**
+     * Input schema (for backwards compatibility)
+     */
+    inputSchema: attr(),
+    
+    /**
+     * Output schema (for backwards compatibility)
+     */
+    outputSchema: attr(),
+    
+    /**
      * Check if this model is configured for media generation
      * Based purely on model_use field containing "generation"
      */
