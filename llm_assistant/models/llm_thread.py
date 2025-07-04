@@ -1,4 +1,3 @@
-import json
 import logging
 
 from odoo import _, api, fields, models
@@ -269,6 +268,7 @@ class LLMThread(models.Model):
                         last_message = tool_message  # Update last_message to latest tool message
                         self.env.cr.commit()
                 else:
+                    _logger.info(f"Breaking loop. Last message role: {last_message.llm_role}, has_tool_calls: {last_message.has_tool_calls()}")
                     break
 
             return last_message
@@ -280,7 +280,9 @@ class LLMThread(models.Model):
 
     def _generate_assistant_response(self):
         """Generate assistant response and handle tool calls."""
-        message_history = self.get_message_history_recordset()
+        # FIXED: Get messages in chronological order directly
+        # Increase limit to ensure we get recent messages
+        message_history = self.get_message_history_recordset(order="ASC", limit=25)
         
         # Determine if we should use streaming
         use_streaming = getattr(self.model_id, 'supports_streaming', True)
@@ -321,11 +323,23 @@ class LLMThread(models.Model):
             ("llm_role", "!=", False),  # Only LLM messages
         ]
 
-        order_clause = "create_date DESC, write_date DESC, id DESC"
-        if order == "ASC":
-            order_clause = "create_date ASC, write_date ASC, id ASC"
-
-        return self.env["mail.message"].search(domain, order=order_clause, limit=limit)
+        # If we want ASC order with a limit, we need to get the LAST N messages
+        # then sort them in ascending order
+        if order == "ASC" and limit:
+            # First get messages in DESC order to get the most recent ones
+            messages = self.env["mail.message"].search(
+                domain, 
+                order="create_date DESC, write_date DESC, id DESC", 
+                limit=limit
+            )
+            # Then sort them in ascending order for chronological sequence
+            return messages.sorted(lambda m: (m.create_date, m.write_date, m.id))
+        else:
+            # For DESC or no limit, use the standard approach
+            order_clause = "create_date DESC, write_date DESC, id DESC"
+            if order == "ASC":
+                order_clause = "create_date ASC, write_date ASC, id ASC"
+            return self.env["mail.message"].search(domain, order=order_clause, limit=limit)
 
     def _get_last_message_from_history(self):
         """Get the last LLM message from the message history."""
@@ -383,20 +397,27 @@ class LLMThread(models.Model):
                 yield {"type": "error", "error": chunk["error"]}
                 return message
 
-        # Store tool calls in assistant message body_json
+        # CRITICAL FIX: Create assistant message IMMEDIATELY if we have tool calls
         if collected_tool_calls:
             body_json = {'tool_calls': collected_tool_calls}
-            if message:
-                message.write({'body_json': body_json})
-            else:
+            
+            if not message:
+                # Create assistant message NOW, before returning to generate loop
                 message = self.message_post(
-                    body=self._process_llm_body(accumulated_content),
+                    body="",  # Empty body for tool-only responses
                     body_json=body_json,
                     llm_role='assistant',
                     author_id=False
                 )
-            
-            yield {"type": "message_update", "message": message.message_format()[0]}
+                # Commit to ensure message is saved before tool execution
+                self.env.cr.commit()
+                yield {"type": "message_create", "message": message.message_format()[0]}
+            else:
+                # Update existing message with tool calls
+                message.write({'body_json': body_json})
+                # Commit to ensure update is saved
+                self.env.cr.commit()
+                yield {"type": "message_update", "message": message.message_format()[0]}
         elif message and accumulated_content:
             # Final update for assistant message without tool calls
             message.write({"body": self._process_llm_body(accumulated_content)})

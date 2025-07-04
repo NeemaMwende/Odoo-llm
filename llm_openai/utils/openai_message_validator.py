@@ -291,6 +291,11 @@ class OpenAIMessageValidator:
         if msg["role"] == "tool" and msg.get("tool_call_id"):
             return True
 
+        # Special case for assistant messages with tool_calls but no content
+        if msg["role"] == "assistant" and msg.get("tool_calls"):
+            # Assistant messages with tool_calls are valid even without content
+            return True
+
         # Check if message has content (can be string or dict)
         if "content" not in msg:
             self.logger.warning(

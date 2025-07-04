@@ -1,6 +1,7 @@
 import json
 import logging
-from odoo import api, fields, models
+
+from odoo import models
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -182,7 +183,7 @@ class MailMessage(models.Model):
                 return {}
         except json.JSONDecodeError as e:
             _logger.error(f"Invalid JSON in tool arguments: {arguments_str}")
-            raise UserError(f"Invalid tool arguments format: {e}")
+            raise UserError(f"Invalid tool arguments format: {e}") from e
 
     def _execute_tool_with_context(self, tool_name, arguments_str, thread_model=None):
         """Execute a tool with proper context.
@@ -250,18 +251,6 @@ class MailMessage(models.Model):
                 'subtype_xmlid': 'llm.mt_tool',
                 'author_id': False,
             })
-
-    def get_tool_calls(self):
-        """Get tool calls from assistant message body_json."""
-        self.ensure_one()
-        if self.llm_role != 'assistant' or not self.body_json:
-            return []
-        return self.body_json.get('tool_calls', [])
-
-    def has_tool_calls(self):
-        """Check if assistant message has tool calls."""
-        self.ensure_one()
-        return bool(self.get_tool_calls())
 
     def get_tool_data(self):
         """Get tool data from body_json if this is a tool message.

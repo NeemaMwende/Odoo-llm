@@ -389,7 +389,10 @@ class LLMProvider(models.Model):
                 formatted_messages.append(formatted_message)
 
         # Then validate and clean the messages for OpenAI
-        return self._validate_and_clean_messages(formatted_messages)
+        result_messages = self._validate_and_clean_messages(formatted_messages)
+        
+        return result_messages
+
 
     def openai_upload_file(self, file_tuple, purpose="fine-tune"):
         """Upload a file to OpenAI"""
