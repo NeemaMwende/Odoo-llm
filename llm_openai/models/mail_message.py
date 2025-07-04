@@ -16,16 +16,16 @@ class MailMessage(models.Model):
         if body:
             body = tools.html2plaintext(body)
 
-        if self.is_llm_user_message():
+        if self.is_llm_user_message()[self]:
             formatted_message = {"role": "user"}
             if body:
                 formatted_message["content"] = body
             return formatted_message
 
-        elif self.is_llm_assistant_message():
+        elif self.is_llm_assistant_message()[self]:
             formatted_message = {"role": "assistant"}
-            if body:
-                formatted_message["content"] = body
+            
+            formatted_message["content"] = body
             
             # Add tool calls if present in body_json
             tool_calls = self.get_tool_calls()
@@ -44,7 +44,7 @@ class MailMessage(models.Model):
             
             return formatted_message
 
-        elif self.llm_role == 'tool':
+        elif self.is_llm_tool_message()[self]:
             tool_data = self.body_json
             if not tool_data:
                 _logger.warning(
