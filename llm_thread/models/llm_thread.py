@@ -29,6 +29,81 @@ def execute_with_new_cursor(func_to_decorate):
     return wrapper
 
 
+class RelatedRecordProxy:
+    """
+    A proxy object that provides clean access to related record fields in Jinja templates.
+    Usage in templates: {{ related_record.get_field('field_name', 'default_value') }}
+    When called directly, returns JSON with model name, id, and display name.
+    """
+
+    def __init__(self, record):
+        self._record = record
+
+    def get_field(self, field_name, default=""):
+        """
+        Get a field value from the related record.
+
+        Args:
+            field_name (str): The field name to access
+            default: Default value if field doesn't exist or is empty
+
+        Returns:
+            The field value, or default if not available
+        """
+        if not self._record:
+            return default
+
+        try:
+            if hasattr(self._record, field_name):
+                value = getattr(self._record, field_name)
+
+                # Handle different field types
+                if value is None:
+                    return default
+                elif isinstance(value, bool):
+                    return value  # Keep as boolean for Jinja
+                elif hasattr(value, 'name'):  # Many2one field
+                    return value.name
+                elif hasattr(value, 'mapped'):  # Many2many/One2many field
+                    return value.mapped('name')
+                else:
+                    return value
+            else:
+                _logger.debug("Field '%s' not found on record %s", field_name, self._record)
+                return default
+
+        except Exception as e:
+            _logger.error("Error getting field '%s' from record: %s", field_name, str(e))
+            return default
+
+    def __getattr__(self, name):
+        """Allow direct attribute access as fallback"""
+        return self.get_field(name)
+
+    def __bool__(self):
+        """Return True if we have a record"""
+        return bool(self._record)
+
+    def __str__(self):
+        """When called by itself, return JSON of model name, id, and display name"""
+        if not self._record:
+            return json.dumps({
+                "model": None,
+                "id": None,
+                "display_name": None
+            })
+
+        return json.dumps({
+            "model": self._record._name,
+            "id": self._record.id,
+            "display_name": getattr(self._record, 'display_name', str(self._record))
+        })
+
+    def __repr__(self):
+        """Same as __str__ for consistency"""
+        return self.__str__()
+
+
 class LLMThread(models.Model):
     _name = "llm.thread"
     _description = "LLM Chat Thread"
@@ -99,7 +174,7 @@ class LLMThread(models.Model):
 
     @api.returns('mail.message', lambda value: value.id)
     def message_post(self, *, llm_role=None, tool_name=None, tool_call_id=None, message_type='comment',
-                     tool_calls=None, tool_call_definition=None, tool_call_result=None, 
+                     tool_calls=None, tool_call_definition=None, tool_call_result=None,
                      **kwargs):
         """Override to handle LLM-specific message types and metadata.
         
@@ -112,7 +187,7 @@ class LLMThread(models.Model):
             tool_call_definition (str): JSON string of tool call definition
             tool_call_result (str): JSON string of tool call result
         """
-        
+
         # Convert LLM role to subtype_xmlid if provided
         if llm_role:
             _, role_to_id = self.env['mail.message'].get_llm_roles()
@@ -120,13 +195,13 @@ class LLMThread(models.Model):
                 # Get the xmlid from the role
                 subtype_xmlid = f"llm.mt_{llm_role}"
                 kwargs['subtype_xmlid'] = subtype_xmlid
-        
+
         # Handle LLM-specific subtypes and email_from generation
         if not kwargs.get('author_id') and not kwargs.get('email_from'):
             kwargs['email_from'] = self._get_llm_email_from(
                 kwargs.get('subtype_xmlid'), kwargs.get('author_id'), tool_name
             )
-        
+
         # Convert markdown to HTML if needed
         if kwargs.get('body'):
             kwargs['body'] = self._process_llm_body(kwargs['body'])
@@ -144,26 +219,26 @@ class LLMThread(models.Model):
                 'tool_call_definition': tool_call_definition,
                 'tool_call_result': tool_call_result,
             })
-        
+
         if llm_fields:
             message.write(llm_fields)
-        
+
         return message
 
     def _get_llm_email_from(self, subtype_xmlid, author_id, tool_name=None):
         """Generate appropriate email_from for LLM messages."""
         if author_id:
             return None  # Let standard flow handle it
-            
+
         provider_name = self.provider_id.name
         model_name = self.model_id.name
-        
+
         if subtype_xmlid == 'llm.mt_tool':
             name = tool_name or "Tool"
             return f"{name} <tool@{provider_name.lower().replace(' ', '')}.ai>"
         elif subtype_xmlid == 'llm.mt_assistant':
             return f"{model_name} <ai@{provider_name.lower().replace(' ', '')}.ai>"
-        
+
         return None
 
     def _process_llm_body(self, body):
@@ -187,7 +262,7 @@ class LLMThread(models.Model):
         message = None
         accumulated_content = ""
         accumulated_calls = []
-        
+
         for chunk in stream:
             if message is None and (chunk.get("content") or chunk.get("tool_calls")):
                 # Create initial message with placeholder
@@ -198,23 +273,23 @@ class LLMThread(models.Model):
                     **kwargs
                 )
                 yield {"type": "message_create", "message": message.message_format()[0]}
-            
+
             if chunk.get("content"):
                 accumulated_content += chunk["content"]
                 message.write({"body": self._process_llm_body(accumulated_content)})
                 yield {"type": "message_chunk", "message": message.message_format()[0]}
-            
+
             if chunk.get("tool_calls"):
-                valid_calls = [c for c in chunk["tool_calls"] 
-                              if isinstance(c, dict) and c.get("id")]
+                valid_calls = [c for c in chunk["tool_calls"]
+                               if isinstance(c, dict) and c.get("id")]
                 accumulated_calls.extend(valid_calls)
                 message.write({"tool_calls": json.dumps(accumulated_calls)})
                 yield {"type": "message_update", "message": message.message_format()[0]}
-            
+
             if chunk.get("error"):
                 yield {"type": "error", "error": chunk["error"]}
                 return message
-        
+
         # Final update
         if message:
             final_updates = {}
@@ -222,11 +297,11 @@ class LLMThread(models.Model):
                 final_updates["body"] = self._process_llm_body(accumulated_content)
             if accumulated_calls:
                 final_updates["tool_calls"] = json.dumps(accumulated_calls)
-            
+
             if final_updates:
                 message.write(final_updates)
             yield {"type": "message_update", "message": message.message_format()[0]}
-        
+
         return message
 
     def message_post_tool_result(self, tool_call_def, **kwargs):
@@ -235,7 +310,7 @@ class LLMThread(models.Model):
         fn = tool_call_def.get("function", {})
         name = fn.get("name", "unknown_tool")
         args = fn.get("arguments")
-        
+
         # Create placeholder message
         message = self.message_post(
             body=f"Executing: {name}…",
@@ -247,14 +322,14 @@ class LLMThread(models.Model):
             **kwargs
         )
         yield {"type": "message_create", "message": message.message_format()[0]}
-        
+
         # Execute tool and update message
         try:
             with self.env.cr.savepoint():
                 result = self.with_context(message=message)._execute_tool(name, args)
                 if not result:
                     raise UserError(f"No result returned from tool '{name}'")
-                
+
                 # Update message with result
                 message.write({
                     "tool_call_result": json.dumps(result),
@@ -265,7 +340,7 @@ class LLMThread(models.Model):
                 "tool_call_result": json.dumps({"error": str(e)}),
                 "body": f"Error executing {name}"
             })
-        
+
         yield {"type": "message_update", "message": message.message_format()[0]}
         return message
 
@@ -278,7 +353,7 @@ class LLMThread(models.Model):
         self.ensure_one()
         if self.is_locked:
             raise UserError(_("This thread is already generating a response."))
-        
+
         self._lock()
         try:
             # Post user message if provided
@@ -291,7 +366,7 @@ class LLMThread(models.Model):
                 )
                 self.env.cr.commit()
                 yield {"type": "message_create", "message": user_msg.message_format()[0]}
-            
+
             # Get last message to continue from
             last_message = self._get_last_message_from_history()
 
@@ -300,13 +375,13 @@ class LLMThread(models.Model):
                 if last_message.llm_role in ('user', 'tool'):
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
-                elif (last_message.llm_role == 'assistant' and 
+                elif (last_message.llm_role == 'assistant' and
                       last_message.tool_calls):
                     # Process tool calls
                     last_message = yield from self._process_tool_calls(last_message)
                 else:
                     break
-            
+
             return last_message
         finally:
             self._unlock()
@@ -320,7 +395,7 @@ class LLMThread(models.Model):
             "stream": True,
             "prepend_messages": self.get_prepend_messages(),
         }
-        
+
         stream_response = self.sudo().model_id.chat(**chat_kwargs)
         return (yield from self.message_post_from_stream(
             stream_response,
@@ -352,18 +427,18 @@ class LLMThread(models.Model):
             mail.message recordset containing the LLM messages
         """
         self.ensure_one()
-        
+
         # Use the stored llm_role field for efficient filtering
         domain = [
             ("model", "=", self._name),
             ("res_id", "=", self.id),
             ("llm_role", "!=", False),  # Only LLM messages
         ]
-        
+
         order_clause = "create_date DESC, write_date DESC, id DESC"
         if order == "ASC":
             order_clause = "create_date ASC, write_date ASC, id ASC"
-        
+
         return self.env["mail.message"].search(domain, order=order_clause, limit=limit)
 
     def _get_last_message_from_history(self):
@@ -382,10 +457,10 @@ class LLMThread(models.Model):
         # Use the stored llm_role field for efficient checking
         if last_message.llm_role in ('user', 'tool'):
             return True
-            
+
         if last_message.llm_role == 'assistant' and last_message.tool_calls:
             return True
-            
+
         return False
 
     def get_prepend_messages(self):
@@ -450,4 +525,22 @@ class LLMThread(models.Model):
         )
 
     def get_context(self, base_context=None):
-        return base_context or {}
+        context = {
+            **(base_context or {}),
+            'thread_id': self.id,
+        }
+
+        try:
+            related_record = self.env[self.model].browse(self.res_id)
+            if related_record:
+                context['related_record'] = RelatedRecordProxy(related_record)
+                context['related_model'] = self.model
+                context['related_res_id'] = self.res_id
+            else:
+                context['related_record'] = None
+                context['related_model'] = None
+                context['related_res_id'] = None
+        except Exception as e:
+            _logger.warning("Error accessing related record %s,%s: %s", self.model, self.res_id, e)
+
+        return context

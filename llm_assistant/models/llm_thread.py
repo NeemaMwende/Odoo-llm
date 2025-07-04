@@ -1,4 +1,3 @@
-import json
 import logging
 
 from odoo import api, fields, models
@@ -6,79 +5,6 @@ from odoo import api, fields, models
 _logger = logging.getLogger(__name__)
 
 
-class RelatedRecordProxy:
-    """
-    A proxy object that provides clean access to related record fields in Jinja templates.
-    Usage in templates: {{ related_record.get_field('field_name', 'default_value') }}
-    When called directly, returns JSON with model name, id, and display name.
-    """
-
-    def __init__(self, record):
-        self._record = record
-
-    def get_field(self, field_name, default=""):
-        """
-        Get a field value from the related record.
-
-        Args:
-            field_name (str): The field name to access
-            default: Default value if field doesn't exist or is empty
-
-        Returns:
-            The field value, or default if not available
-        """
-        if not self._record:
-            return default
-
-        try:
-            if hasattr(self._record, field_name):
-                value = getattr(self._record, field_name)
-
-                # Handle different field types
-                if value is None:
-                    return default
-                elif isinstance(value, bool):
-                    return value  # Keep as boolean for Jinja
-                elif hasattr(value, 'name'):  # Many2one field
-                    return value.name
-                elif hasattr(value, 'mapped'):  # Many2many/One2many field
-                    return value.mapped('name')
-                else:
-                    return value
-            else:
-                _logger.debug("Field '%s' not found on record %s", field_name, self._record)
-                return default
-
-        except Exception as e:
-            _logger.error("Error getting field '%s' from record: %s", field_name, str(e))
-            return default
-
-    def __getattr__(self, name):
-        """Allow direct attribute access as fallback"""
-        return self.get_field(name)
-
-    def __bool__(self):
-        """Return True if we have a record"""
-        return bool(self._record)
-
-    def __str__(self):
-        """When called by itself, return JSON of model name, id, and display name"""
-        if not self._record:
-            return json.dumps({
-                "model": None,
-                "id": None,
-                "display_name": None
-            })
-
-        return json.dumps({
-            "model": self._record._name,
-            "id": self._record.id,
-            "display_name": getattr(self._record, 'display_name', str(self._record))
-        })
-
-    def __repr__(self):
-        """Same as __str__ for consistency"""
-        return self.__str__()
 
 
 class LLMThread(models.Model):
@@ -171,25 +97,7 @@ class LLMThread(models.Model):
         Returns:
             dict: Context ready for prompt rendering
         """
-        context = {
-            **super().get_context(base_context or {}),
-            'thread_id': self.id,
-        }
-
-        try:
-            related_record = self.env[self.model].browse(self.res_id)
-            if related_record:
-                context['related_record'] = RelatedRecordProxy(related_record)
-                context['related_model_name'] = self.model
-                context['related_model_id'] = self.model  # Keep for backward compatibility
-                context['related_res_id'] = self.res_id
-            else:
-                context['related_record'] = None
-                context['related_model_name'] = None
-                context['related_model_id'] = None
-                context['related_res_id'] = None
-        except Exception as e:
-            _logger.warning("Error accessing related record %s,%s: %s", self.model, self.res_id, e)
+        context = super().get_context(base_context or {})
 
         # If we have an assistant with default values, add them to the context
         if self.assistant_id:
@@ -199,8 +107,7 @@ class LLMThread(models.Model):
             # Merge assistant defaults into context
             # Assistant defaults are added first, so thread context takes precedence
             if assistant_defaults:
-                merged_context = {**assistant_defaults, **context}
-                return merged_context
+                context = {**assistant_defaults, **context}
 
         return context
 
