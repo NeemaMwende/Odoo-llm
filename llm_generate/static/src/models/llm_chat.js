@@ -22,8 +22,7 @@ registerPatch({
               "provider_id",
               "default",
               "model_use",
-              "input_schema",
-              "output_schema",
+              "details",
             ],
           },
         });
@@ -36,8 +35,9 @@ registerPatch({
               : undefined,
           default: model.default,
           modelUse: model.model_use,
-          inputSchema: model.input_schema,
-          outputSchema: model.output_schema,
+          // Extract schemas from details field
+          inputSchema: model.details?.input_schema || null,
+          outputSchema: model.details?.output_schema || null,
         }));
 
         this.update({ llmModels: llmModelData });

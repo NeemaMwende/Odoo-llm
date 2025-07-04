@@ -1,25 +1,24 @@
 {
-    "name": "LLM Media Generation",
-    "version": "16.0.1.0.2",
+    "name": "LLM Content Generation",
+    "version": "16.0.2.0.0",
     "category": "Productivity/Discuss",
-    "summary": "Media generation capabilities for LLM models",
+    "summary": "Content generation capabilities for LLM models",
     "description": """
-        Adds support for generating images, audio, and other media using LLM models.
+        Clean content generation using LLM models with the new generate() API.
         
         Features:
-        - Dynamic form generation based on model input schemas
-        - JSON editor for advanced configuration
-        - Prompt template integration with assistant defaults
-        - Streaming media generation responses
-        - Support for various media types (images, audio, etc.)
+        - Uses body_json for structured generation data
+        - Simple prompt rendering with context merging
+        - Direct integration with main LLM module's generate() method
+        - Minimal, clean code with focused functionality
     """,
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "depends": [
         "llm",
         "llm_thread",
-        "web_json_editor",
         "llm_assistant",
+        "web_json_editor",
     ],
     "data": [
         "data/llm_tool_data.xml",
@@ -28,7 +27,6 @@
     "assets": {
         "web.assets_backend": [
             # JavaScript Models
-            "llm_generate/static/src/models/llm_model.js",
             "llm_generate/static/src/models/llm_chat.js",
             "llm_generate/static/src/models/composer.js",
             "llm_generate/static/src/models/message.js",

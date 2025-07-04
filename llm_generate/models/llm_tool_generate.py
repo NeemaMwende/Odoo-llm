@@ -12,67 +12,53 @@ class LLMToolGenerate(models.Model):
     @api.model
     def _get_available_implementations(self):
         implementations = super()._get_available_implementations()
-        return implementations + [("odoo_generate", "Odoo Media Generator")]
+        return implementations + [("odoo_generate", "Odoo Content Generator")]
 
-    def odoo_generate_execute(
-            self, model_id: int, inputs: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Generate media using the specified model and inputs.
-
-        Parameters:
-            model_id: The ID of the llm.model to use for generation
-            inputs: The dictionary to generate media from based on model's input schema
-
-        Returns:
-            A dictionary with the generated media URLs and markdown
-        """
+    def odoo_generate_execute(self, model_id: int, inputs: dict[str, Any]) -> dict[str, Any]:
+        """Generate content using the specified model and inputs."""
         self.ensure_one()
 
-        model = self.env["llm.model"].browse(int(model_id))
-        if not model.exists():
-            return {"error": f"Model with ID {model_id} not found"}
-
-        if not model._is_media_generation_model():
-            return {
-                "error": f"Model {model.name} is not configured for media generation"
-            }
-
         try:
-            # Generate media using the model
-            media_urls = next(model.generate_media(inputs, stream=False))['content']
+            model = self.env["llm.model"].browse(int(model_id))
+            if not model.exists():
+                return {"error": f"Model {model_id} not found"}
 
-            # Check if we have a message in context for processing attachments
-            context_message = self.env.context.get('message')
-            attachment_ids = []
-
-            if context_message:
-                _logger.info(f"Processing generated media for message {context_message.id}")
-
-                attachment_ids, remaining_urls = context_message.process_generated_medias(
-                    media_urls, download_urls=True
-                )
-
-            # Generate markdown for display
-            markdown_images = []
-            for i, url in enumerate(media_urls):
-                markdown_images.append(f"![Generated Media {i+1}]({url})")
-
-            result = {
+            # Use model's generate method
+            result = model.generate(inputs)
+            
+            # Handle streaming response
+            if hasattr(result, '__iter__') and not isinstance(result, (str, dict)):
+                # Get first chunk for non-streaming tools
+                for chunk in result:
+                    if chunk.get("content"):
+                        result = chunk["content"]
+                        break
+            
+            # Format result
+            if isinstance(result, list):
+                # Handle multiple results (e.g., image URLs)
+                markdown = []
+                for i, item in enumerate(result):
+                    if isinstance(item, str) and item.startswith(('http://', 'https://')):
+                        markdown.append(f"![Generated Content {i+1}]({item})")
+                    else:
+                        markdown.append(str(item))
+                
+                return {
+                    "success": True,
+                    "content": result,
+                    "markdown": "\n".join(markdown)
+                }
+            
+            return {
                 "success": True,
-                "media_urls": media_urls,
-                "markdown": "\n".join(markdown_images),
+                "content": result,
+                "markdown": str(result)
             }
-
-            # Add attachment info if we processed any
-            if context_message and attachment_ids:
-                result["attachments_created"] = len(attachment_ids)
-                result["attachment_ids"] = attachment_ids
-
-            return result
 
         except Exception as e:
-            _logger.error(f"Error in media generation: {e}")
+            _logger.error(f"Error in content generation: {e}")
             return {
-                "error": f"Media generation failed: {str(e)}",
+                "error": f"Generation failed: {str(e)}",
                 "success": False
             }
