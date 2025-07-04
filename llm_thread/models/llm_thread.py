@@ -236,18 +236,14 @@ class LLMThread(models.Model):
             placeholder_text (str): Text to show while streaming
             
         Returns:
-            tuple: (message, final_response_data)
-                message: The created/updated message record
-                final_response_data: Complete response data for further processing
+            message: The created/updated message record
         """
         message = None
         accumulated_content = ""
-        collected_tool_calls = []
-        final_response_data = {}
 
         for chunk in stream:
-            # Initialize message on first content or tool call
-            if message is None and (chunk.get("content") or chunk.get("tool_calls")):
+            # Initialize message on first content
+            if message is None and chunk.get("content"):
                 message = self.message_post(
                     body=placeholder_text,
                     llm_role=llm_role,
@@ -262,29 +258,17 @@ class LLMThread(models.Model):
                 message.write({"body": self._process_llm_body(accumulated_content)})
                 yield {"type": "message_chunk", "message": message.message_format()[0]}
 
-            # Collect tool calls for later processing
-            if chunk.get("tool_calls"):
-                collected_tool_calls.extend(chunk["tool_calls"])
-                _logger.debug(f"Collected {len(chunk['tool_calls'])} tool calls from chunk")
-
             # Handle errors
             if chunk.get("error"):
                 yield {"type": "error", "error": chunk["error"]}
-                return message, {"error": chunk["error"]}
+                return message
 
         # Final update for assistant message
         if message and accumulated_content:
             message.write({"body": self._process_llm_body(accumulated_content)})
             yield {"type": "message_update", "message": message.message_format()[0]}
 
-        # Return message and collected data for further processing
-        final_response_data = {
-            "content": accumulated_content,
-            "tool_calls": collected_tool_calls if collected_tool_calls else None
-        }
-        
-        _logger.debug(f"Stream completed with {len(collected_tool_calls)} total tool calls")
-        return message, final_response_data
+        return message
 
     # ============================================================================
     # GENERATION FLOW - Refactored to use message_post with roles

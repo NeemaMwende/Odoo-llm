@@ -2,7 +2,6 @@ from . import llm_tool
 from . import llm_tool_record_retriever
 from . import llm_provider
 from . import llm_model
-from . import mail_message
 from . import llm_tool_consent_config
 from . import llm_tool_record_updater
 from . import llm_tool_record_creator

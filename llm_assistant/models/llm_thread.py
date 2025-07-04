@@ -378,22 +378,13 @@ class LLMThread(models.Model):
         }
 
         if use_streaming:
-            # Handle streaming response
+            # Handle streaming response - process tool calls directly from stream
             stream_response = self.sudo().model_id.chat(**chat_kwargs)
-            assistant_message, response_data = yield from self.message_post_from_stream(
-                stream_response,
-                'assistant',
-                placeholder_text="Thinking..."
-            )
+            assistant_message = yield from self._handle_streaming_response(stream_response)
         else:
             # Handle non-streaming response
             response = self.sudo().model_id.chat(**chat_kwargs)
-            assistant_message, response_data = yield from self._handle_non_streaming_response(response)
-        
-        # Handle tool calls if present
-        if response_data and response_data.get("tool_calls"):
-            _logger.info(f"Thread {self.id}: Processing {len(response_data['tool_calls'])} tool calls")
-            yield from self._create_tool_messages(response_data["tool_calls"])
+            assistant_message = yield from self._handle_non_streaming_response(response)
         
         return assistant_message
 
@@ -505,6 +496,50 @@ class LLMThread(models.Model):
         arguments = json.loads(arguments_str)
         return tool.execute(arguments)
 
+    def _handle_streaming_response(self, stream_response):
+        """Handle streaming response from LLM provider with tool call processing."""
+        message = None
+        accumulated_content = ""
+        collected_tool_calls = []
+
+        for chunk in stream_response:
+            # Initialize message on first content
+            if message is None and chunk.get("content"):
+                message = self.message_post(
+                    body="Thinking...",
+                    llm_role='assistant',
+                    author_id=False
+                )
+                yield {"type": "message_create", "message": message.message_format()[0]}
+
+            # Handle content streaming
+            if chunk.get("content"):
+                accumulated_content += chunk["content"]
+                message.write({"body": self._process_llm_body(accumulated_content)})
+                yield {"type": "message_chunk", "message": message.message_format()[0]}
+
+            # Collect tool calls for processing
+            if chunk.get("tool_calls"):
+                collected_tool_calls.extend(chunk["tool_calls"])
+                _logger.debug(f"Collected {len(chunk['tool_calls'])} tool calls from chunk")
+
+            # Handle errors
+            if chunk.get("error"):
+                yield {"type": "error", "error": chunk["error"]}
+                return message
+
+        # Final update for assistant message
+        if message and accumulated_content:
+            message.write({"body": self._process_llm_body(accumulated_content)})
+            yield {"type": "message_update", "message": message.message_format()[0]}
+
+        # Process tool calls if present
+        if collected_tool_calls:
+            _logger.info(f"Thread {self.id}: Processing {len(collected_tool_calls)} tool calls")
+            yield from self._create_tool_messages(collected_tool_calls)
+
+        return message
+
     def _handle_non_streaming_response(self, response):
         """Handle non-streaming response from LLM provider."""
         # Extract content and tool calls from response
@@ -523,13 +558,12 @@ class LLMThread(models.Model):
         
         yield {"type": "message_create", "message": assistant_message.message_format()[0]}
         
-        # Prepare response data
-        response_data = {
-            "content": content,
-            "tool_calls": tool_calls if tool_calls else None
-        }
+        # Process tool calls if present
+        if tool_calls:
+            _logger.info(f"Thread {self.id}: Processing {len(tool_calls)} tool calls")
+            yield from self._create_tool_messages(tool_calls)
         
-        return assistant_message, response_data
+        return assistant_message
 
     def _create_tool_messages(self, tool_calls):
         """Create tool messages from tool calls data."""
