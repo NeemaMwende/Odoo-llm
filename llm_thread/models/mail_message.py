@@ -15,16 +15,17 @@ class MailMessage(models.Model):
         help="Vote status given by the user. 0: No vote, 1: Upvoted, -1: Downvoted.",
     )
 
-    def _message_format_fields(self):
+    def _get_message_format_fields(self):
         """Extend the list of fields fetched by the base message_format."""
         
-        fields_list = ["user_vote", "llm_role", "body_json"]
+        fields_list = super()._get_message_format_fields()
+        fields_list.extend(["user_vote", "llm_role", "body_json"])
         return fields_list
 
     def message_format(self):
         """Override to include custom fields and set proper styling."""
         result = super().message_format()
-        llm_fields_to_add = self._message_format_fields()
+        llm_fields_to_add = self._get_message_format_fields()
 
         for message_data, message in zip(result, self):
             # Manually add the fields as requested to ensure they are in the payload
