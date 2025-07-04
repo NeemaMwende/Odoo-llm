@@ -214,10 +214,8 @@ class LLMThread(models.Model):
 
         if self.prompt_id:
             try:
-
                 # Get messages from the prompt with enhanced context
                 return self.prompt_id.get_messages(self.get_context())
-
             except Exception as e:
                 _logger.error("Error getting messages from prompt '%s': %s", self.prompt_id.name, str(e))
                 # Continue without prompt messages rather than failing completely
@@ -237,15 +235,8 @@ class LLMThread(models.Model):
             ('create_date', '>', assistant_msg.create_date)
         ], order='create_date ASC')
         
-        # Filter for tool messages with 'requested' status
-        requested_tool_messages = []
-        for msg in tool_messages:
-            try:
-                tool_data = json.loads(msg.body)
-                if tool_data.get('status') == 'requested':
-                    requested_tool_messages.append(msg)
-            except (json.JSONDecodeError, TypeError):
-                continue
+        # Filter for tool messages with 'requested' status using the new method
+        requested_tool_messages = tool_messages.filtered(lambda m: m.is_tool_message_with_status('requested'))
         
         if not requested_tool_messages:
             return assistant_msg
@@ -293,13 +284,11 @@ class LLMThread(models.Model):
             
             # Cancel all requested tool messages
             for tool_msg in requested_tool_messages:
-                try:
-                    tool_data = json.loads(tool_msg.body)
+                tool_data = tool_msg.get_tool_data()
+                if tool_data:
                     tool_data['status'] = 'cancelled'
                     tool_data['error'] = 'Circuit breaker activated - too many consecutive tool calls'
                     tool_msg.write({'body': json.dumps(tool_data)})
-                except (json.JSONDecodeError, TypeError):
-                    pass
             
             return assistant_msg
         
@@ -308,22 +297,20 @@ class LLMThread(models.Model):
             f"Thread {self.id}: Processing {len(requested_tool_messages)} tool calls ({consecutive_tool_calls}/{tool_calls_max} consecutive assistant tool call messages)"
         )
         
-        # Process each tool message
+        # Process each tool message using the new method
         last_tool_msg = None
         for tool_msg in requested_tool_messages:
             try:
-                tool_data = json.loads(tool_msg.body)
-                tool_call_def = tool_data.get('tool_call')
-                if tool_call_def:
-                    last_tool_msg = yield from self.execute_tool_message(tool_msg, tool_call_def)
-            except (json.JSONDecodeError, TypeError):
-                _logger.error(f"Thread {self.id}: Invalid tool message {tool_msg.id}")
+                # Use the new execute_tool_call method from mail.message
+                last_tool_msg = yield from tool_msg.execute_tool_call(thread_model=self)
+            except Exception as e:
+                _logger.error(f"Thread {self.id}: Error executing tool message {tool_msg.id}: {e}")
                 continue
         
         return last_tool_msg or assistant_msg
 
     # ============================================================================
-    # AI GENERATION LOGIC - Moved from llm_thread module
+    # AI GENERATION LOGIC - Refactored to use mail.message methods
     # ============================================================================
 
     def generate(self, user_message_body, **kwargs):
@@ -421,42 +408,6 @@ class LLMThread(models.Model):
             raise UserError("No LLM message found to process.")
         return result[0]
 
-    def execute_tool_message(self, tool_msg, tool_call_def):
-        """Execute a tool and update the tool message with the result."""
-        fn = tool_call_def.get("function", {})
-        name = fn.get("name", "unknown_tool")
-        args = fn.get("arguments")
-
-        # Update status to executing
-        try:
-            tool_data = json.loads(tool_msg.body)
-            tool_data['status'] = 'executing'
-            tool_msg.write({'body': json.dumps(tool_data)})
-            yield {"type": "message_update", "message": tool_msg.message_format()[0]}
-        except (json.JSONDecodeError, TypeError):
-            _logger.error(f"Thread {self.id}: Invalid tool message {tool_msg.id}")
-            return tool_msg
-
-        # Execute tool and update message
-        try:
-            with self.env.cr.savepoint():
-                result = self.with_context(message=tool_msg)._execute_tool(name, args)
-                if not result:
-                    raise UserError(f"No result returned from tool '{name}'")
-
-                # Update tool data with result
-                tool_data['status'] = 'completed'
-                tool_data['result'] = result
-                tool_msg.write({'body': json.dumps(tool_data)})
-        except Exception as e:
-            # Update tool data with error
-            tool_data['status'] = 'error'
-            tool_data['error'] = str(e)
-            tool_msg.write({'body': json.dumps(tool_data)})
-
-        yield {"type": "message_update", "message": tool_msg.message_format()[0]}
-        return tool_msg
-
     def _should_continue(self, last_message):
         """Whether to keep looping based on the last message role and content."""
         if not last_message:
@@ -466,15 +417,6 @@ class LLMThread(models.Model):
             return True
 
         return False
-
-    def _execute_tool(self, tool_name, arguments_str):
-        """Execute a tool and return the result."""
-        self.ensure_one()
-        tool = self.tool_ids.filtered(lambda t: t.name == tool_name)[:1]
-        if not tool:
-            raise UserError(f"Tool '{tool_name}' not found in this thread")
-        arguments = json.loads(arguments_str)
-        return tool.execute(arguments)
 
     def _handle_streaming_response(self, stream_response):
         """Handle streaming response from LLM provider with tool call processing."""
@@ -513,7 +455,7 @@ class LLMThread(models.Model):
             message.write({"body": self._process_llm_body(accumulated_content)})
             yield {"type": "message_update", "message": message.message_format()[0]}
 
-        # Process tool calls if present
+        # Process tool calls if present using the new method
         if collected_tool_calls:
             _logger.info(f"Thread {self.id}: Processing {len(collected_tool_calls)} tool calls")
             yield from self._create_tool_messages(collected_tool_calls)
@@ -538,7 +480,7 @@ class LLMThread(models.Model):
         
         yield {"type": "message_create", "message": assistant_message.message_format()[0]}
         
-        # Process tool calls if present
+        # Process tool calls if present using the new method
         if tool_calls:
             _logger.info(f"Thread {self.id}: Processing {len(tool_calls)} tool calls")
             yield from self._create_tool_messages(tool_calls)
@@ -546,7 +488,7 @@ class LLMThread(models.Model):
         return assistant_message
 
     def _create_tool_messages(self, tool_calls):
-        """Create tool messages from tool calls data."""
+        """Create tool messages from tool calls data using the new mail.message method."""
         if not tool_calls:
             _logger.debug("No tool calls to process")
             return []
@@ -560,21 +502,19 @@ class LLMThread(models.Model):
         
         for i, tool_call in enumerate(tool_calls):
             try:
-                # Validate and create tool message
-                if not self._validate_tool_call(tool_call):
-                    _logger.warning(f"Skipping invalid tool call {i}: {tool_call}")
-                    continue
-                    
-                tool_msg = self._create_single_tool_message(tool_call)
+                # Use the new post_tool_call method from mail.message
+                tool_msg = self.env['mail.message'].post_tool_call(tool_call, thread_model=self)
                 created_messages.append(tool_msg)
                 yield {"type": "message_create", "message": tool_msg.message_format()[0]}
                 
             except Exception as e:
                 _logger.error(f"Error creating tool message {i}: {e}")
                 
-                # Create error tool message to maintain flow
+                # Create error tool message using the new method
                 try:
-                    error_msg = self._create_tool_error_message(tool_call, str(e))
+                    error_msg = self.env['mail.message'].create_tool_error_message(
+                        tool_call, str(e), thread_model=self
+                    )
                     created_messages.append(error_msg)
                     yield {"type": "message_create", "message": error_msg.message_format()[0]}
                 except Exception as e2:
@@ -584,85 +524,15 @@ class LLMThread(models.Model):
         _logger.info(f"Created {len(created_messages)} tool messages")
         return created_messages
 
-    def _validate_tool_call(self, tool_call):
-        """Validate tool call structure."""
-        if not isinstance(tool_call, dict):
-            _logger.error(f"Tool call is not a dict: {tool_call}")
-            return False
-            
-        if not tool_call.get("id"):
-            _logger.error(f"Tool call missing ID: {tool_call}")
-            return False
-            
-        function = tool_call.get("function", {})
-        if not function.get("name"):
-            _logger.error(f"Tool call missing function name: {tool_call}")
-            return False
-            
-        return True
-
-    def _create_single_tool_message(self, tool_call):
-        """Create a single tool message from tool call data."""
-        function = tool_call.get("function", {})
-        tool_name = function.get("name", "unknown_tool")
-        
-        # Validate tool exists in thread
-        if not self._tool_exists_in_thread(tool_name):
-            raise UserError(f"Tool '{tool_name}' not found in thread")
-        
-        # Validate and parse arguments
-        arguments = self._parse_tool_arguments(function.get("arguments", "{}"))
-        
-        tool_data = {
-            "type": "tool_execution",
-            "tool_call_id": tool_call["id"],
-            "tool_call": tool_call,
-            "status": "requested",
-            "tool_name": tool_name,
-            "arguments": arguments
-        }
-        
-        _logger.debug(f"Creating tool message for {tool_name} with args: {arguments}")
-        
-        return self.message_post(
-            body=json.dumps(tool_data),
-            llm_role='tool',
-            author_id=False
-        )
-
-    def _tool_exists_in_thread(self, tool_name):
-        """Check if tool exists in thread."""
-        return bool(self.tool_ids.filtered(lambda t: t.name == tool_name))
-
-    def _parse_tool_arguments(self, arguments_str):
-        """Parse and validate tool arguments."""
-        try:
-            if isinstance(arguments_str, str):
-                return json.loads(arguments_str)
-            elif isinstance(arguments_str, dict):
-                return arguments_str
-            else:
-                _logger.warning(f"Unexpected arguments type: {type(arguments_str)}")
-                return {}
-        except json.JSONDecodeError as e:
-            _logger.error(f"Invalid JSON in tool arguments: {arguments_str}")
-            raise UserError(f"Invalid tool arguments format: {e}")
-
-    def _create_tool_error_message(self, tool_call, error_msg):
-        """Create an error tool message."""
-        tool_data = {
-            "type": "tool_execution",
-            "tool_call_id": tool_call.get("id", "unknown"),
-            "tool_call": tool_call,
-            "status": "error",
-            "error": error_msg,
-            "tool_name": tool_call.get("function", {}).get("name", "unknown_tool")
-        }
-        
-        return self.message_post(
-            body=json.dumps(tool_data),
-            llm_role='tool',
-            author_id=False
-        )
-
-
+    # ============================================================================
+    # LEGACY METHODS - These should be removed after refactoring is complete
+    # ============================================================================
+    
+    # NOTE: The following methods are no longer needed after refactoring:
+    # - execute_tool_message() -> moved to mail.message.execute_tool_call()
+    # - _execute_tool() -> moved to mail.message._execute_tool_with_context()
+    # - _validate_tool_call() -> moved to mail.message._validate_tool_call()
+    # - _create_single_tool_message() -> replaced by mail.message.post_tool_call()
+    # - _tool_exists_in_thread() -> integrated into mail.message.post_tool_call()
+    # - _parse_tool_arguments() -> moved to mail.message._parse_tool_arguments()
+    # - _create_tool_error_message() -> moved to mail.message.create_tool_error_message()
