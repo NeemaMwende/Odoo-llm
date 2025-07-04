@@ -256,8 +256,12 @@ class LLMThread(models.Model):
             # Continue generation loop
             while self._should_continue(last_message):
                 if last_message.llm_role in ('user', 'tool'):
-                    # Generate assistant response
-                    last_message = yield from self._generate_assistant_response()
+                    print(self.model_id.model_use)
+                    if self.model_id.model_use in ("image_generation", "generation"):
+                        last_message = self._generate_response(last_message)
+                    else:
+                        # Generate assistant response
+                        last_message = yield from self._generate_assistant_response()
                 elif last_message.llm_role == 'assistant' and last_message.has_tool_calls():
                     # Execute ALL tool calls from assistant message
                     tool_calls = last_message.get_tool_calls()
@@ -271,6 +275,9 @@ class LLMThread(models.Model):
             return last_message
         finally:
             self._unlock()
+
+    def _generate_response(self, last_message):
+        raise NotImplementedError
 
     def _generate_assistant_response(self):
         """Generate assistant response and handle tool calls."""

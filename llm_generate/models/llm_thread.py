@@ -72,7 +72,7 @@ class LLMThread(models.Model):
             _logger.error(f"Error rendering prompt: {e}")
             return merged_inputs
 
-    def handle_generation_message(self, message):
+    def _generate_response(self, message):
         """Handle a user message with generation data in body_json."""
         self.ensure_one()
         
