@@ -49,7 +49,7 @@ class MailMessage(models.Model):
         # Create the message on the thread model if provided, otherwise on self
         if thread_model:
             return thread_model.message_post(
-                body=json.dumps(tool_data),
+                body_json=tool_data,
                 llm_role='tool',
                 author_id=False
             )
@@ -58,7 +58,7 @@ class MailMessage(models.Model):
             return self.env['mail.message'].create({
                 'model': self.model,
                 'res_id': self.res_id,
-                'body': json.dumps(tool_data),
+                'body_json': tool_data,
                 'subtype_xmlid': 'llm.mt_tool',
                 'author_id': False,
             })
@@ -80,10 +80,9 @@ class MailMessage(models.Model):
         if self.llm_role != 'tool':
             raise UserError("Can only execute tool calls on tool messages")
             
-        try:
-            tool_data = json.loads(self.body)
-        except (json.JSONDecodeError, TypeError):
-            _logger.error(f"Invalid tool message body: {self.body}")
+        tool_data = self.get_tool_data()
+        if not tool_data:
+            _logger.error(f"No tool data found in message {self.id}")
             raise UserError("Invalid tool message format")
             
         if tool_data.get('status') != 'requested':
@@ -100,7 +99,7 @@ class MailMessage(models.Model):
 
         # Update status to executing
         tool_data['status'] = 'executing'
-        self.write({'body': json.dumps(tool_data)})
+        self.write({'body_json': tool_data})
         yield {"type": "message_update", "message": self.message_format()[0]}
 
         # Execute tool and update message
@@ -113,14 +112,14 @@ class MailMessage(models.Model):
                 # Update tool data with result
                 tool_data['status'] = 'completed'
                 tool_data['result'] = result
-                self.write({'body': json.dumps(tool_data)})
+                self.write({'body_json': tool_data})
                 
         except Exception as e:
             _logger.error(f"Error executing tool {name}: {e}")
             # Update tool data with error
             tool_data['status'] = 'error'
             tool_data['error'] = str(e)
-            self.write({'body': json.dumps(tool_data)})
+            self.write({'body_json': tool_data})
 
         yield {"type": "message_update", "message": self.message_format()[0]}
         return self
@@ -224,7 +223,7 @@ class MailMessage(models.Model):
         
         if thread_model:
             return thread_model.message_post(
-                body=json.dumps(tool_data),
+                body_json=tool_data,
                 llm_role='tool',
                 author_id=False
             )
@@ -232,34 +231,33 @@ class MailMessage(models.Model):
             return self.env['mail.message'].create({
                 'model': self.model,
                 'res_id': self.res_id,
-                'body': json.dumps(tool_data),
+                'body_json': tool_data,
                 'subtype_xmlid': 'llm.mt_tool',
                 'author_id': False,
             })
 
     def get_tool_data(self):
-        """Get tool data from this message if it's a tool message.
-        
+        """Get tool data from body_json if this is a tool message.
+
         Returns:
             dict or None: Tool data if this is a tool message, None otherwise
         """
         self.ensure_one()
-
-        return
+        if self.llm_role == 'tool' and self.body_json:
+            return self.body_json
+        return None
 
     def is_tool_message_with_status(self, status):
         """Check if this is a tool message with a specific status.
-        
+
         Args:
             status (str): Status to check for ('requested', 'executing', 'completed', 'error')
-            
+
         Returns:
             bool: True if this is a tool message with the specified status
         """
         self.ensure_one()
-        
         tool_data = self.get_tool_data()
         if not tool_data:
             return False
-            
         return tool_data.get('status') == status

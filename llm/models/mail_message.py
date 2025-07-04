@@ -1,3 +1,4 @@
+import json
 from odoo import api, fields, models, tools
 
 
@@ -19,6 +20,11 @@ class MailMessage(models.Model):
         store=True,
         index=True,  # Add index for better query performance
         help="The LLM role for this message (user, assistant, tool, system)"
+    )
+
+    body_json = fields.Json(
+        string="JSON Body",
+        help="JSON data for tool messages and other structured content"
     )
 
     @api.depends('subtype_id')

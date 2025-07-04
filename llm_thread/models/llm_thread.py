@@ -195,7 +195,7 @@ class LLMThread(models.Model):
                 kwargs.get('subtype_xmlid'), kwargs.get('author_id'), llm_role
             )
 
-        # Convert markdown to HTML if needed (except for tool messages which contain JSON)
+        # Convert markdown to HTML if needed (except for tool messages which use body_json)
         if kwargs.get('body') and llm_role != 'tool':
             kwargs['body'] = self._process_llm_body(kwargs['body'])
 

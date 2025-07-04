@@ -44,6 +44,10 @@ registerPatch({
       if ("llm_role" in data) {
         data2.llmRole = data.llm_role;
       }
+      // Add body_json data for tool messages
+      if ("body_json" in data) {
+        data2.bodyJson = data.body_json;
+      }
       return data2;
     },
   },
@@ -59,18 +63,21 @@ registerPatch({
     llmRole: attr({
       default: null,
     }),
+
+    /**
+     * JSON body data for tool messages
+     */
+    bodyJson: attr({
+      default: null,
+    }),
     
     /**
-     * Parse tool data from JSON body for tool messages
+     * Get tool data from body_json field for tool messages
      */
     toolData: attr({
       compute() {
-        if (this.llmRole === 'tool') {
-          try {
-            return JSON.parse(this.body);
-          } catch (e) {
-            return null;
-          }
+        if (this.llmRole === 'tool' && this.bodyJson) {
+          return this.bodyJson;
         }
         return null;
       },

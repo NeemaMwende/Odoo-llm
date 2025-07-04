@@ -259,7 +259,6 @@ class LLMThread(models.Model):
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
                 elif last_message.llm_role == 'tool' and last_message.is_tool_message_with_status('requested'):
-                    print("EECUCUCUUC")
                     # Execute the tool directly - much simpler than complex searching!
                     last_message = yield from last_message.execute_tool_call(thread_model=self)
                 else:
@@ -327,11 +326,9 @@ class LLMThread(models.Model):
         return result[0]
 
     def _should_continue(self, last_message):
-        print(last_message.llm_role)
         """Whether to keep looping based on the last message role and content."""
         if not last_message or last_message.llm_role == 'assistant':
             return False
-
         return True
 
     def _handle_streaming_response(self, stream_response):

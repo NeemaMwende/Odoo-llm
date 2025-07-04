@@ -33,35 +33,34 @@ class MailMessage(models.Model):
             
             return formatted_message
 
-        elif self.is_llm_tool_result_message():
-            try:
-                tool_data = json.loads(self.body)
-                if tool_data.get("type") == "tool_execution":
-                    tool_call_id = tool_data.get("tool_call_id")
-                    if not tool_call_id:
-                        _logger.warning(
-                            f"OpenAI Format: Skipping tool result message {self.id}: missing tool_call_id."
-                        )
-                        return None
-                    
-                    # Get result content
-                    if "result" in tool_data:
-                        content = json.dumps(tool_data["result"])
-                    elif "error" in tool_data:
-                        content = json.dumps({"error": tool_data["error"]})
-                    else:
-                        content = ""
-                    
-                    formatted_message = {
-                        "role": "tool",
-                        "tool_call_id": tool_call_id,
-                        "content": content,
-                    }
-                    return formatted_message
-            except (json.JSONDecodeError, TypeError):
+        elif self.llm_role == 'tool':
+            tool_data = self.get_tool_data()
+            if not tool_data:
                 _logger.warning(
-                    f"OpenAI Format: Skipping tool result message {self.id}: invalid JSON in body."
+                    f"OpenAI Format: Skipping tool message {self.id}: no tool data found."
                 )
                 return None
+                
+            tool_call_id = tool_data.get("tool_call_id")
+            if not tool_call_id:
+                _logger.warning(
+                    f"OpenAI Format: Skipping tool message {self.id}: missing tool_call_id."
+                )
+                return None
+            
+            # Get result content
+            if "result" in tool_data:
+                content = json.dumps(tool_data["result"])
+            elif "error" in tool_data:
+                content = json.dumps({"error": tool_data["error"]})
+            else:
+                content = ""
+            
+            formatted_message = {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": content,
+            }
+            return formatted_message
         else:
             return None

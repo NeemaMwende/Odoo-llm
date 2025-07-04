@@ -6,16 +6,17 @@ _logger = logging.getLogger(__name__)
 
 def migrate(cr, version):
     """
-    Migration script to convert existing tool messages from separate fields to JSON body format.
+    Migration script to convert existing tool messages directly to body_json format.
     
-    This migration:
-    1. Finds all messages with tool-related fields
-    2. Converts the field data to JSON format in the body
-    3. Removes the old field data (handled by ORM when fields are removed)
+    This migration handles both:
+    1. Old format: separate fields (tool_call_id, tool_call_definition, tool_call_result)
+    2. Intermediate format: JSON in body field
+    
+    All tool data is consolidated into the body_json field.
     """
-    _logger.info("Starting migration to convert tool messages to JSON body format")
+    _logger.info("Starting migration to convert tool messages to body_json format")
     
-    # Find all tool messages that have tool_call_id (these need conversion)
+    # First, handle messages with the old separate fields format
     cr.execute("""
         SELECT id, tool_call_id, tool_call_definition, tool_call_result, body, llm_role
         FROM mail_message 
@@ -23,13 +24,13 @@ def migrate(cr, version):
         ORDER BY id
     """)
     
-    tool_messages = cr.fetchall()
-    _logger.info(f"Found {len(tool_messages)} tool messages to migrate")
+    old_format_messages = cr.fetchall()
+    _logger.info(f"Found {len(old_format_messages)} tool messages with old field format to migrate")
     
     converted_count = 0
     error_count = 0
     
-    for msg_id, tool_call_id, tool_call_definition, tool_call_result, body, llm_role in tool_messages:
+    for msg_id, tool_call_id, tool_call_definition, tool_call_result, body, llm_role in old_format_messages:
         try:
             # Create new tool data structure
             tool_data = {
@@ -71,29 +72,79 @@ def migrate(cr, version):
                 # No result means it's still executing or failed without result
                 tool_data["status"] = "executing"
             
-            # Convert tool data to JSON string for body
-            new_body = json.dumps(tool_data)
-            
-            # Update the message body
+            # Store directly in body_json field and clear body
             cr.execute("""
                 UPDATE mail_message 
-                SET body = %s 
+                SET body_json = %s, body = NULL
                 WHERE id = %s
-            """, (new_body, msg_id))
+            """, (json.dumps(tool_data), msg_id))
             
             converted_count += 1
             
             if converted_count % 100 == 0:
-                _logger.info(f"Converted {converted_count} tool messages...")
+                _logger.info(f"Converted {converted_count} old format tool messages...")
                 
         except Exception as e:
             error_count += 1
-            _logger.error(f"Error converting tool message {msg_id}: {str(e)}")
+            _logger.error(f"Error converting old format tool message {msg_id}: {str(e)}")
             continue
     
-    _logger.info(f"Migration completed: {converted_count} messages converted, {error_count} errors")
+    _logger.info(f"Old format migration completed: {converted_count} messages converted, {error_count} errors")
     
-    # Also migrate assistant messages that have tool_calls field
+    # Second, handle messages that might have JSON in the body field (intermediate format)
+    cr.execute("""
+        SELECT id, body, llm_role
+        FROM mail_message 
+        WHERE llm_role = 'tool' 
+        AND body IS NOT NULL 
+        AND body_json IS NULL
+        AND tool_call_id IS NULL
+        ORDER BY id
+    """)
+    
+    intermediate_format_messages = cr.fetchall()
+    _logger.info(f"Found {len(intermediate_format_messages)} tool messages with intermediate JSON format")
+    
+    intermediate_converted_count = 0
+    intermediate_error_count = 0
+    
+    for msg_id, body, llm_role in intermediate_format_messages:
+        try:
+            # Skip messages that are already HTML (wrapped in <p> tags)
+            if body.strip().startswith('<p>') or not body.strip().startswith('{'):
+                _logger.debug(f"Skipping message {msg_id}: body appears to be HTML, not JSON")
+                continue
+                
+            # Try to parse the body as JSON
+            try:
+                tool_data = json.loads(body)
+                if not isinstance(tool_data, dict) or 'type' not in tool_data:
+                    _logger.debug(f"Skipping message {msg_id}: body is not tool data JSON")
+                    continue
+            except json.JSONDecodeError:
+                _logger.debug(f"Skipping message {msg_id}: body is not valid JSON")
+                continue
+            
+            # Move JSON data to body_json field and clear body
+            cr.execute("""
+                UPDATE mail_message 
+                SET body_json = %s, body = NULL 
+                WHERE id = %s
+            """, (json.dumps(tool_data), msg_id))
+            
+            intermediate_converted_count += 1
+            
+            if intermediate_converted_count % 100 == 0:
+                _logger.info(f"Converted {intermediate_converted_count} intermediate format tool messages...")
+                
+        except Exception as e:
+            intermediate_error_count += 1
+            _logger.error(f"Error converting intermediate format tool message {msg_id}: {str(e)}")
+            continue
+    
+    _logger.info(f"Intermediate format migration completed: {intermediate_converted_count} messages converted, {intermediate_error_count} errors")
+    
+    # Handle assistant messages that have tool_calls field (cleanup)
     cr.execute("""
         SELECT id, tool_calls, body
         FROM mail_message 
@@ -102,7 +153,7 @@ def migrate(cr, version):
     """)
     
     assistant_messages = cr.fetchall()
-    _logger.info(f"Found {len(assistant_messages)} assistant messages with tool_calls")
+    _logger.info(f"Found {len(assistant_messages)} assistant messages with tool_calls field")
     
     # These don't need body conversion, but we should validate the tool_calls JSON
     validated_count = 0
@@ -116,3 +167,8 @@ def migrate(cr, version):
             cr.execute("UPDATE mail_message SET tool_calls = NULL WHERE id = %s", (msg_id,))
     
     _logger.info(f"Validated {validated_count} assistant messages with tool_calls")
+    
+    # Summary
+    total_converted = converted_count + intermediate_converted_count
+    total_errors = error_count + intermediate_error_count
+    _logger.info(f"Migration summary: {total_converted} total messages converted, {total_errors} total errors")

@@ -1,3 +1,16 @@
+16.0.3.0.0 (2025-07-04)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [BREAKING] Refactored tool message storage to use body_json field instead of body field
+* [IMP] Tool data now stored directly in body_json field preventing HTML corruption
+* [IMP] Enhanced migration to handle both old separate fields and intermediate JSON-in-body formats
+* [IMP] Unified migration approach - converts directly from old format to body_json
+* [IMP] Better error handling and logging in migration process
+* [IMP] Tool messages now use get_tool_data() method for clean data access
+* [MIGRATION] Enhanced migration script to handle multiple data formats in single pass
+* [PERF] Eliminated JSON parsing overhead with direct field access
+* [MAINT] Cleaner separation between structured data (body_json) and display content
+
 16.0.2.0.0 (2025-07-03)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
