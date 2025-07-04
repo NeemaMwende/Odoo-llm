@@ -255,12 +255,13 @@ class LLMThread(models.Model):
 
             # Continue generation loop
             while self._should_continue(last_message):
-                if last_message.llm_role == 'user':
+                if last_message.llm_role == 'user' or last_message.llm_role == 'tool' and last_message.is_tool_message_with_status('completed'):
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
                 elif last_message.llm_role == 'tool' and last_message.is_tool_message_with_status('requested'):
                     # Execute the tool directly - much simpler than complex searching!
                     last_message = yield from last_message.execute_tool_call(thread_model=self)
+                    self.env.cr.commit()
                 else:
                     break
 

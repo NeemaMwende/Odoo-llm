@@ -23,18 +23,18 @@ class MailMessage(models.Model):
         """
         if not self._validate_tool_call(tool_call):
             raise UserError(f"Invalid tool call: {tool_call}")
-            
+
         function = tool_call.get("function", {})
         tool_name = function.get("name", "unknown_tool")
-        
+
         # Validate tool exists in thread if thread model is provided
         if thread_model and hasattr(thread_model, 'tool_ids'):
             if not thread_model.tool_ids.filtered(lambda t: t.name == tool_name):
                 raise UserError(f"Tool '{tool_name}' not found in thread")
-        
+
         # Validate and parse arguments
         arguments = self._parse_tool_arguments(function.get("arguments", "{}"))
-        
+
         tool_data = {
             "type": "tool_execution",
             "tool_call_id": tool_call["id"],
@@ -43,12 +43,13 @@ class MailMessage(models.Model):
             "tool_name": tool_name,
             "arguments": arguments
         }
-        
+
         _logger.debug(f"Creating tool message for {tool_name} with args: {arguments}")
-        
+
         # Create the message on the thread model if provided, otherwise on self
         if thread_model:
             return thread_model.message_post(
+                body=f"Executing {tool_name}",
                 body_json=tool_data,
                 llm_role='tool',
                 author_id=False
@@ -57,10 +58,13 @@ class MailMessage(models.Model):
             # If called on a message record, use its model and res_id
             return self.env['mail.message'].create({
                 'model': self.model,
+
                 'res_id': self.res_id,
                 'body_json': tool_data,
                 'subtype_xmlid': 'llm.mt_tool',
                 'author_id': False,
+                'body': f"Executing {tool_name}"
+
             })
 
     def execute_tool_call(self, thread_model=None):
@@ -76,23 +80,23 @@ class MailMessage(models.Model):
             mail.message: The updated tool message
         """
         self.ensure_one()
-        
+
         if self.llm_role != 'tool':
             raise UserError("Can only execute tool calls on tool messages")
-            
+
         tool_data = self.get_tool_data()
         if not tool_data:
             _logger.error(f"No tool data found in message {self.id}")
             raise UserError("Invalid tool message format")
-            
+
         if tool_data.get('status') != 'requested':
             _logger.warning(f"Tool message {self.id} status is not 'requested': {tool_data.get('status')}")
             return self
-            
+
         tool_call_def = tool_data.get('tool_call')
         if not tool_call_def:
             raise UserError("No tool call definition found in message")
-            
+
         fn = tool_call_def.get("function", {})
         name = fn.get("name", "unknown_tool")
         args = fn.get("arguments")
@@ -113,14 +117,13 @@ class MailMessage(models.Model):
                 tool_data['status'] = 'completed'
                 tool_data['result'] = result
                 self.write({'body_json': tool_data})
-                
+
         except Exception as e:
             _logger.error(f"Error executing tool {name}: {e}")
             # Update tool data with error
             tool_data['status'] = 'error'
             tool_data['error'] = str(e)
             self.write({'body_json': tool_data})
-
         yield {"type": "message_update", "message": self.message_format()[0]}
         return self
 
@@ -136,16 +139,16 @@ class MailMessage(models.Model):
         if not isinstance(tool_call, dict):
             _logger.error(f"Tool call is not a dict: {tool_call}")
             return False
-            
+
         if not tool_call.get("id"):
             _logger.error(f"Tool call missing ID: {tool_call}")
             return False
-            
+
         function = tool_call.get("function", {})
         if not function.get("name"):
             _logger.error(f"Tool call missing function name: {tool_call}")
             return False
-            
+
         return True
 
     def _parse_tool_arguments(self, arguments_str):
@@ -186,18 +189,18 @@ class MailMessage(models.Model):
                 thread_model = self.env[self.model].browse(self.res_id)
             else:
                 raise UserError("No thread model available for tool execution")
-        
+
         # Find the tool in the thread
         if not hasattr(thread_model, 'tool_ids'):
             raise UserError(f"Thread model {thread_model._name} does not support tools")
-            
+
         tool = thread_model.tool_ids.filtered(lambda t: t.name == tool_name)[:1]
         if not tool:
             raise UserError(f"Tool '{tool_name}' not found in thread")
-            
+
         # Parse arguments
         arguments = json.loads(arguments_str) if isinstance(arguments_str, str) else arguments_str
-        
+
         # Execute with message context
         return tool.with_context(message=self).execute(arguments)
 
@@ -220,7 +223,7 @@ class MailMessage(models.Model):
             "error": error_msg,
             "tool_name": tool_call.get("function", {}).get("name", "unknown_tool")
         }
-        
+
         if thread_model:
             return thread_model.message_post(
                 body_json=tool_data,

@@ -34,7 +34,7 @@ class MailMessage(models.Model):
             return formatted_message
 
         elif self.llm_role == 'tool':
-            tool_data = self.get_tool_data()
+            tool_data = self.body_json
             if not tool_data:
                 _logger.warning(
                     f"OpenAI Format: Skipping tool message {self.id}: no tool data found."
