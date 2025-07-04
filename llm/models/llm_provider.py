@@ -80,6 +80,20 @@ class LLMProvider(models.Model):
         """Generate embeddings using this provider"""
         return self._dispatch("embedding", texts, model=model)
 
+    def generate(self, input_data, model=None, stream=False, **kwargs):
+        """Generate content using this provider
+        
+        Args:
+            input_data: Input data for generation (could be text, prompt, or structured data)
+            model: Optional specific model to use
+            stream: Whether to stream the response
+            **kwargs: Additional provider-specific parameters
+            
+        Returns:
+            Generated content from the provider
+        """
+        return self._dispatch("generate", input_data, model=model, stream=stream, **kwargs)
+
     def list_models(self, model_id=None):
         """List available models from the provider"""
         return self._dispatch("models", model_id=model_id)
