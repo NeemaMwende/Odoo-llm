@@ -1,4 +1,3 @@
-import json
 import logging
 
 from odoo import _, api, fields, models
@@ -276,7 +275,8 @@ class LLMThread(models.Model):
     def _generate_assistant_response(self):
         """Generate assistant response and handle tool calls."""
         # FIXED: Get messages in chronological order directly
-        message_history = self.get_message_history_recordset(order="ASC")
+        # Increase limit to ensure we get recent messages
+        message_history = self.get_message_history_recordset(order="ASC", limit=25)
         
         # Determine if we should use streaming
         use_streaming = getattr(self.model_id, 'supports_streaming', True)
@@ -317,11 +317,23 @@ class LLMThread(models.Model):
             ("llm_role", "!=", False),  # Only LLM messages
         ]
 
-        order_clause = "create_date DESC, write_date DESC, id DESC"
-        if order == "ASC":
-            order_clause = "create_date ASC, write_date ASC, id ASC"
-
-        return self.env["mail.message"].search(domain, order=order_clause, limit=limit)
+        # If we want ASC order with a limit, we need to get the LAST N messages
+        # then sort them in ascending order
+        if order == "ASC" and limit:
+            # First get messages in DESC order to get the most recent ones
+            messages = self.env["mail.message"].search(
+                domain, 
+                order="create_date DESC, write_date DESC, id DESC", 
+                limit=limit
+            )
+            # Then sort them in ascending order for chronological sequence
+            return messages.sorted(lambda m: (m.create_date, m.write_date, m.id))
+        else:
+            # For DESC or no limit, use the standard approach
+            order_clause = "create_date DESC, write_date DESC, id DESC"
+            if order == "ASC":
+                order_clause = "create_date ASC, write_date ASC, id ASC"
+            return self.env["mail.message"].search(domain, order=order_clause, limit=limit)
 
     def _get_last_message_from_history(self):
         """Get the last LLM message from the message history."""

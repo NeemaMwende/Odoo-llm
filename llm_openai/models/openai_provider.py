@@ -391,7 +391,7 @@ class LLMProvider(models.Model):
 
         # Then validate and clean the messages for OpenAI
         result_messages = self._validate_and_clean_messages(formatted_messages)
-        _logger.info(f"Formatted messages: {result_messages}")
+        
         return result_messages
 
 
