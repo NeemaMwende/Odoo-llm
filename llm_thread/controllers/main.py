@@ -103,16 +103,4 @@ class LLMThreadController(http.Controller):
             headers=headers,
         )
 
-    @http.route("/llm/message/vote", type="json", auth="user", methods=["POST"])
-    def llm_message_vote(self, message_id, vote_value):
-        """Updates the user vote on a specific message by calling the model method."""
-        try:
-            msg_id = int(message_id)
-            vote_val = int(vote_value)
-            request.env["mail.message"].set_user_vote(msg_id, vote_val)
-            return {"success": True}
 
-        except (ValueError, TypeError):
-            return {"error": _("Invalid message ID or vote value format.")}
-        except Exception as e:
-            return {"error": str(e)}

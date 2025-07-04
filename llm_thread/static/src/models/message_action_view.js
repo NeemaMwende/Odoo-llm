@@ -56,65 +56,42 @@ registerPatch({
   recordMethods: {
     async onClick(ev) {
       const messageAction = this.messageAction;
-      if (!messageAction) return;
+      let message;
+      let newVote;
 
-      let message = null,
-        currentVote = null,
-        newVote = null,
-        voteValue = null;
-      let isVoteAction = false;
-
-      // Check if it's our thumb actions
       if (messageAction.messageActionListOwnerAsThumbUp) {
         message = messageAction.messageActionListOwnerAsThumbUp.message;
-        if (!message) return;
-        currentVote = message.user_vote;
-        newVote = currentVote === 1 ? 0 : 1;
-        voteValue = 1;
-        isVoteAction = true;
+        newVote = message.user_vote === 1 ? 0 : 1;
       } else if (messageAction.messageActionListOwnerAsThumbDown) {
         message = messageAction.messageActionListOwnerAsThumbDown.message;
-        if (!message) return;
-        currentVote = message.user_vote;
-        newVote = currentVote === -1 ? 0 : -1;
-        voteValue = -1;
-        isVoteAction = true;
+        newVote = message.user_vote === -1 ? 0 : -1;
+      } else {
+        return this._super(ev); // Not a vote action
       }
 
-      // If it was a vote action, perform the RPC
-      if (isVoteAction) {
-        try {
-          const result = await this.messaging.rpc({
-            route: "/llm/message/vote",
-            params: {
-              message_id: message.id,
-              vote_value: newVote,
-            },
-          });
-          if (result.error) {
-            throw new Error(result.error);
-          }
-          message.update({ user_vote: newVote });
-        } catch (error) {
-          console.error(
-            `Error voting ${voteValue === 1 ? "up" : "down"}:`,
-            error
-          );
-          if (this.env && this.env.services.notification) {
-            this.env.services.notification.add(
-              _t("Failed to record vote. " + error),
-              { type: "danger" }
-            );
-          } else {
-            console.warn(
-              "Notification service not available to display vote failure."
-            );
-          }
-          message.update({ user_vote: currentVote });
-        }
-      } else {
-        // Not our action, let the original onClick handle it
-        this._super(ev);
+      if (!message) {
+        return; // Should not happen
+      }
+
+      const currentVote = message.user_vote;
+      // Optimistically update the UI for a responsive feel
+      message.update({ user_vote: newVote });
+
+      try {
+        // Use the ORM service to call the instance method
+        await this.env.services.orm.call(
+          "mail.message",
+          "set_user_vote",
+          [[message.id], newVote]
+        );
+      } catch (error) {
+        // On failure, revert the UI change and notify the user
+        message.update({ user_vote: currentVote });
+        console.error("Failed to record vote:", error);
+        this.env.services.notification.add(
+          _t("Failed to record vote: ") + (error.data?.message || error.message),
+          { type: "danger" }
+        );
       }
     },
   },
