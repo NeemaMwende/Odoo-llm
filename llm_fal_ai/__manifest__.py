@@ -1,18 +1,22 @@
 {
     "name": "LLM - Fal.ai Provider",
-    "summary": "Integration with the fal.ai API for LLM services",
+    "summary": "Integration with the fal.ai API for LLM generation services",
     "description": """
         Integrates fal.ai services with the LLM module in Odoo.
-        Allows the use of models and generation capabilities offered by fal.ai.
-        Supports queue system for asynchronous processing.
+        Provides unified generate() endpoint for image generation using fal.ai models.
+        Uses model details field for schema storage and supports both sync and async generation.
     """,
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "category": "Technical",
-    "version": "16.0.1.1.3",
-    "depends": ["llm", "llm_generate"],
+    "version": "16.0.2.0.0",
+    "depends": ["llm"],
     "external_dependencies": {"python": ["fal_client"]},
-    "data": ["data/llm_publisher.xml", "data/llm_provider.xml", "data/llm_model.xml"],
+    "data": [
+        "data/llm_publisher.xml", 
+        "data/llm_provider.xml", 
+        "data/llm_model.xml"
+    ],
     "images": ["static/description/banner.jpeg"],
     "license": "LGPL-3",
     "installable": True,
