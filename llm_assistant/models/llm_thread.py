@@ -266,6 +266,7 @@ class LLMThread(models.Model):
                         last_message = tool_message  # Update last_message to latest tool message
                         self.env.cr.commit()
                 else:
+                    _logger.info(f"Breaking loop. Last message role: {last_message.llm_role}, has_tool_calls: {last_message.has_tool_calls()}")
                     break
 
             return last_message
@@ -274,7 +275,8 @@ class LLMThread(models.Model):
 
     def _generate_assistant_response(self):
         """Generate assistant response and handle tool calls."""
-        message_history = self.get_message_history_recordset()
+        # FIXED: Get messages in chronological order directly
+        message_history = self.get_message_history_recordset(order="ASC")
         
         # Determine if we should use streaming
         use_streaming = getattr(self.model_id, 'supports_streaming', True)
@@ -377,20 +379,27 @@ class LLMThread(models.Model):
                 yield {"type": "error", "error": chunk["error"]}
                 return message
 
-        # Store tool calls in assistant message body_json
+        # CRITICAL FIX: Create assistant message IMMEDIATELY if we have tool calls
         if collected_tool_calls:
             body_json = {'tool_calls': collected_tool_calls}
-            if message:
-                message.write({'body_json': body_json})
-            else:
+            
+            if not message:
+                # Create assistant message NOW, before returning to generate loop
                 message = self.message_post(
-                    body=self._process_llm_body(accumulated_content),
+                    body="",  # Empty body for tool-only responses
                     body_json=body_json,
                     llm_role='assistant',
                     author_id=False
                 )
-            
-            yield {"type": "message_update", "message": message.message_format()[0]}
+                # Commit to ensure message is saved before tool execution
+                self.env.cr.commit()
+                yield {"type": "message_create", "message": message.message_format()[0]}
+            else:
+                # Update existing message with tool calls
+                message.write({'body_json': body_json})
+                # Commit to ensure update is saved
+                self.env.cr.commit()
+                yield {"type": "message_update", "message": message.message_format()[0]}
         elif message and accumulated_content:
             # Final update for assistant message without tool calls
             message.write({"body": self._process_llm_body(accumulated_content)})
