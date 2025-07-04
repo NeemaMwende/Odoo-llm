@@ -16,26 +16,26 @@ class MailMessage(models.Model):
         help="Vote status given by the user. 0: No vote, 1: Upvoted, -1: Downvoted.",
     )
 
-    def _get_llm_message_format_fields(self):
+    def _message_format_fields(self):
         """Extend the list of fields fetched by the base message_format."""
-        fields_list = super()._get_llm_message_format_fields()
-        fields_list.extend(
-            [
-                "user_vote",
-                "llm_role",  # Include the stored llm_role field
-            ]
-        )
+        
+        fields_list = ["user_vote", "llm_role", "body_json"]
         return fields_list
 
     def message_format(self):
-        """Override to include LLM role information and set proper styling."""
+        """Override to include custom fields and set proper styling."""
         result = super().message_format()
-        
-        # Set is_note=True for LLM messages to get the right bubble style
+        llm_fields_to_add = self._message_format_fields()
+
         for message_data, message in zip(result, self):
+            # Manually add the fields as requested to ensure they are in the payload
+            for field in llm_fields_to_add:
+                if hasattr(message, field):
+                    message_data[field] = getattr(message, field)
+
             if message.llm_role:
-                message_data['is_note'] = True
-        
+                message_data["is_note"] = True
+
         return result
 
     def set_user_vote(self, message_id, vote_value):
