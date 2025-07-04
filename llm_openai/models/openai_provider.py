@@ -155,7 +155,6 @@ class LLMProvider(models.Model):
             tool_choice=tool_choice,
         )
 
-        print(params)
         # Make the API call
         response = self.client.chat.completions.create(**params)
 
