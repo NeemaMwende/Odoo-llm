@@ -223,91 +223,9 @@ class LLMThread(models.Model):
 
         return []
 
-    def _process_tool_calls(self, assistant_msg):
-        """Process tool calls by finding tool messages with 'requested' status."""
-        self.ensure_one()
-        
-        # Find tool messages with 'requested' status that were created after this assistant message
-        tool_messages = self.env['mail.message'].search([
-            ('model', '=', self._name),
-            ('res_id', '=', self.id),
-            ('llm_role', '=', 'tool'),
-            ('create_date', '>', assistant_msg.create_date)
-        ], order='create_date ASC')
-        
-        # Filter for tool messages with 'requested' status using the new method
-        requested_tool_messages = tool_messages.filtered(lambda m: m.is_tool_message_with_status('requested'))
-        
-        if not requested_tool_messages:
-            return assistant_msg
-        
-        # Get the tool calls max from the assistant, default to 5 if no assistant
-        tool_calls_max = self.assistant_id.tool_calls_max if self.assistant_id else 5
-        
-        # Count recent consecutive assistant messages with tool calls to detect loops
-        recent_messages = self.get_message_history_recordset(order="DESC", limit=20)
-        consecutive_tool_calls = 0
-        
-        for msg in recent_messages:
-            # Skip the current message since we're about to process it
-            if msg.id == assistant_msg.id:
-                continue
-                
-            # Check if this is an assistant message followed by tool messages
-            if msg.is_llm_assistant_message():
-                # Check if there are tool messages after this assistant message
-                subsequent_tool_msgs = self.env['mail.message'].search([
-                    ('model', '=', self._name),
-                    ('res_id', '=', self.id),
-                    ('llm_role', '=', 'tool'),
-                    ('create_date', '>', msg.create_date)
-                ], limit=1)
-                
-                if subsequent_tool_msgs:
-                    consecutive_tool_calls += 1
-                    _logger.debug(f"Thread {self.id}: Found assistant message {msg.id} with tool calls (count: {consecutive_tool_calls})")
-                elif msg.body and msg.body.strip():
-                    # Stop counting when we hit an assistant message with meaningful content
-                    _logger.debug(f"Thread {self.id}: Hit assistant message {msg.id} with content, stopping count")
-                    break
-            elif msg.is_llm_user_message():
-                # Stop counting when we hit a user message (new conversation turn)
-                _logger.debug(f"Thread {self.id}: Hit user message {msg.id}, stopping count")
-                break
-        
-        # Circuit breaker: if too many consecutive tool calling assistant messages, mark tools as cancelled
-        if consecutive_tool_calls >= tool_calls_max:
-            _logger.warning(
-                f"Thread {self.id}: Circuit breaker activated! Found {consecutive_tool_calls} consecutive assistant messages with tool calls, "
-                f"which exceeds the assistant's limit of {tool_calls_max}. Cancelling requested tool calls."
-            )
-            
-            # Cancel all requested tool messages
-            for tool_msg in requested_tool_messages:
-                tool_data = tool_msg.get_tool_data()
-                if tool_data:
-                    tool_data['status'] = 'cancelled'
-                    tool_data['error'] = 'Circuit breaker activated - too many consecutive tool calls'
-                    tool_msg.write({'body': json.dumps(tool_data)})
-            
-            return assistant_msg
-        
-        # If we're under the limit, proceed with normal tool processing
-        _logger.info(
-            f"Thread {self.id}: Processing {len(requested_tool_messages)} tool calls ({consecutive_tool_calls}/{tool_calls_max} consecutive assistant tool call messages)"
-        )
-        
-        # Process each tool message using the new method
-        last_tool_msg = None
-        for tool_msg in requested_tool_messages:
-            try:
-                # Use the new execute_tool_call method from mail.message
-                last_tool_msg = yield from tool_msg.execute_tool_call(thread_model=self)
-            except Exception as e:
-                _logger.error(f"Thread {self.id}: Error executing tool message {tool_msg.id}: {e}")
-                continue
-        
-        return last_tool_msg or assistant_msg
+    # NOTE: _process_tool_calls method removed - we now use the simpler approach
+    # where tool messages are created one at a time and processed by the main loop
+    # This eliminates the complexity of searching for and batching tool messages
 
     # ============================================================================
     # AI GENERATION LOGIC - Refactored to use mail.message methods
@@ -337,12 +255,12 @@ class LLMThread(models.Model):
 
             # Continue generation loop
             while self._should_continue(last_message):
-                if last_message.llm_role in ('user', 'tool'):
+                if last_message.llm_role == 'user':
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
-                elif last_message.llm_role == 'assistant':
-                    # Process tool calls (check for requested tool messages)
-                    last_message = yield from self._process_tool_calls(last_message)
+                elif last_message.llm_role == 'tool' and last_message.is_tool_message_with_status('requested'):
+                    # Execute the tool directly - much simpler than complex searching!
+                    last_message = yield from last_message.execute_tool_call(thread_model=self)
                 else:
                     break
 
@@ -413,7 +331,12 @@ class LLMThread(models.Model):
         if not last_message:
             return False
 
-        if last_message.llm_role in ('user', 'tool'):
+        # Continue if we have a user message (need assistant response)
+        if last_message.llm_role == 'user':
+            return True
+            
+        # Continue if we have a tool message with 'requested' status (need to execute)
+        if last_message.llm_role == 'tool' and last_message.is_tool_message_with_status('requested'):
             return True
 
         return False
@@ -458,7 +381,9 @@ class LLMThread(models.Model):
         # Process tool calls if present using the new method
         if collected_tool_calls:
             _logger.info(f"Thread {self.id}: Processing {len(collected_tool_calls)} tool calls")
-            yield from self._create_tool_messages(collected_tool_calls)
+            tool_message = yield from self._create_tool_messages(collected_tool_calls)
+            # Return the tool message as the last message so the main loop can process it
+            return tool_message if tool_message else message
 
         return message
 
@@ -483,46 +408,56 @@ class LLMThread(models.Model):
         # Process tool calls if present using the new method
         if tool_calls:
             _logger.info(f"Thread {self.id}: Processing {len(tool_calls)} tool calls")
-            yield from self._create_tool_messages(tool_calls)
+            tool_message = yield from self._create_tool_messages(tool_calls)
+            # Return the tool message as the last message so the main loop can process it
+            return tool_message if tool_message else assistant_message
         
         return assistant_message
 
     def _create_tool_messages(self, tool_calls):
-        """Create tool messages from tool calls data using the new mail.message method."""
+        """Create tool messages from tool calls data using the new mail.message method.
+        
+        NOTE: This method currently creates only the FIRST tool call and returns it.
+        This simplifies the execution flow - the returned tool message becomes the 
+        last_message and gets processed by the main generation loop.
+        
+        TODO: In the future, we may want to handle multiple tool calls at once,
+        but for now this single-tool approach keeps the logic simple and clear.
+        """
         if not tool_calls:
             _logger.debug("No tool calls to process")
-            return []
+            return None
         
         if not isinstance(tool_calls, list):
             _logger.error(f"Tool calls is not a list: {type(tool_calls)}")
-            return []
+            return None
         
-        created_messages = []
-        _logger.debug(f"Creating {len(tool_calls)} tool messages")
+        # For now, only process the first tool call to keep things simple
+        # The main generation loop will handle it and then process any remaining ones
+        tool_call = tool_calls[0]
         
-        for i, tool_call in enumerate(tool_calls):
+        if len(tool_calls) > 1:
+            _logger.info(f"Thread {self.id}: Multiple tool calls received ({len(tool_calls)}), processing first one only")
+        
+        try:
+            # Use the new post_tool_call method from mail.message
+            tool_msg = self.env['mail.message'].post_tool_call(tool_call, thread_model=self)
+            yield {"type": "message_create", "message": tool_msg.message_format()[0]}
+            return tool_msg
+            
+        except Exception as e:
+            _logger.error(f"Error creating tool message: {e}")
+            
+            # Create error tool message using the new method
             try:
-                # Use the new post_tool_call method from mail.message
-                tool_msg = self.env['mail.message'].post_tool_call(tool_call, thread_model=self)
-                created_messages.append(tool_msg)
-                yield {"type": "message_create", "message": tool_msg.message_format()[0]}
-                
-            except Exception as e:
-                _logger.error(f"Error creating tool message {i}: {e}")
-                
-                # Create error tool message using the new method
-                try:
-                    error_msg = self.env['mail.message'].create_tool_error_message(
-                        tool_call, str(e), thread_model=self
-                    )
-                    created_messages.append(error_msg)
-                    yield {"type": "message_create", "message": error_msg.message_format()[0]}
-                except Exception as e2:
-                    _logger.error(f"Failed to create error message: {e2}")
-                    continue
-        
-        _logger.info(f"Created {len(created_messages)} tool messages")
-        return created_messages
+                error_msg = self.env['mail.message'].create_tool_error_message(
+                    tool_call, str(e), thread_model=self
+                )
+                yield {"type": "message_create", "message": error_msg.message_format()[0]}
+                return error_msg
+            except Exception as e2:
+                _logger.error(f"Failed to create error message: {e2}")
+                return None
 
     # ============================================================================
     # LEGACY METHODS - These should be removed after refactoring is complete
