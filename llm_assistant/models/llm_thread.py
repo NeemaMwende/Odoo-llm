@@ -462,28 +462,8 @@ class LLMThread(models.Model):
         if not last_message:
             return False
 
-        # Use the stored llm_role field for efficient checking
         if last_message.llm_role in ('user', 'tool'):
             return True
-
-        # Check if assistant message is followed by tool messages with 'requested' status
-        if last_message.llm_role == 'assistant':
-            # Look for tool messages with 'requested' status created after this assistant message
-            requested_tool_msgs = self.env['mail.message'].search([
-                ('model', '=', self._name),
-                ('res_id', '=', self.id),
-                ('llm_role', '=', 'tool'),
-                ('create_date', '>', last_message.create_date)
-            ])
-            
-            # Check if any of these tool messages have 'requested' status
-            for msg in requested_tool_msgs:
-                try:
-                    tool_data = json.loads(msg.body)
-                    if tool_data.get('status') == 'requested':
-                        return True
-                except (json.JSONDecodeError, TypeError):
-                    continue
 
         return False
 
