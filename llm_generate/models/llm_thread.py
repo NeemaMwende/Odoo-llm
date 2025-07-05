@@ -82,7 +82,7 @@ class LLMThread(models.Model):
 
         if not message.body_json:
             return
-
+        message_data = None
         try:
             # Prepare final inputs
             final_inputs = self.prepare_generation_inputs(message.body_json)
@@ -97,13 +97,27 @@ class LLMThread(models.Model):
             markdown_content = self._generate_markdown_from_urls(urls)
 
             # Create assistant message with processed content
-            self._create_generation_result_message(
+            generated_message = self._create_generation_result_message(
                 markdown_content, output_data, attachments
             )
+            
+            message_data = generated_message.message_format()[0]
 
         except Exception as e:
             _logger.error(f"Error in generation: {e}")
-            self.message_post(body=f"Generation failed: {str(e)}", llm_role="assistant")
+            # Create error message instead
+            error_message = self.message_post(
+                body=f"Generation failed: {str(e)}", 
+                llm_role="assistant"
+            )
+            message_data = error_message.message_format()[0]
+        
+        # Single yield point for both success and error cases
+        if message_data:
+            yield {
+                "type": "message_create",
+                "message": message_data,
+            }
 
     def _process_generation_urls(self, urls):
         """Process URLs and create attachment records"""
