@@ -262,25 +262,25 @@ class LLMThread(models.Model):
         self.ensure_one()
         
         with self._generation_lock():
+            last_message = False
             # Post user message if provided
             if user_message_body:
-                user_msg = self.message_post(
+                last_message = self.message_post(
                     body=user_message_body,
                     llm_role="user",
                     author_id=self.env.user.partner_id.id,
                     **kwargs,
                 )
-                self.env.cr.commit()
                 yield {
                     "type": "message_create",
-                    "message": user_msg.message_format()[0],
+                    "message": last_message.message_format()[0],
                 }
 
             # Call the actual generation implementation
-            last_message = yield from self.generate_messages()
+            last_message = yield from self.generate_messages(last_message)
             return last_message
 
-    def generate_messages(self):
+    def generate_messages(self, last_message):
         """Generate messages - to be overridden by llm_assistant module."""
         raise UserError(
             _("Please install the llm_assistant module for actual AI generation.")

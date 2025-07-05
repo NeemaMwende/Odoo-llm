@@ -188,12 +188,9 @@ class LLMThread(models.Model):
 
         return []
 
-    def generate_messages(self):
+    def generate_messages(self, last_message):
         """Generate messages with actual AI intelligence."""
         self.ensure_one()
-        
-        # Get last message to continue from
-        last_message = self._get_last_message_from_history()
 
         # Continue generation loop
         while self._should_continue(last_message):
