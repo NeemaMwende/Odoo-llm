@@ -1,4 +1,4 @@
-import functools
+import contextlib
 import json
 import logging
 
@@ -7,32 +7,91 @@ import markdown2
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-
-from odoo.addons.llm_mail_message_subtypes.const import (
-    LLM_ASSISTANT_SUBTYPE_XMLID,
-    LLM_TOOL_RESULT_SUBTYPE_XMLID,
-    LLM_USER_SUBTYPE_XMLID,
-)
+from psycopg2 import OperationalError
 
 _logger = logging.getLogger(__name__)
 
 
-def execute_with_new_cursor(func_to_decorate):
-    """Decorator to execute a method within a new, immediately committed cursor context.
 
-    It injects the browsed record from the new environment as the first argument
-    after 'self'. Assumes the decorated method is called on a singleton recordset.
+
+
+class RelatedRecordProxy:
+    """
+    A proxy object that provides clean access to related record fields in Jinja templates.
+    Usage in templates: {{ related_record.get_field('field_name', 'default_value') }}
+    When called directly, returns JSON with model name, id, and display name.
     """
 
-    @functools.wraps(func_to_decorate)
-    def wrapper(self, *args, **kwargs):
-        self.ensure_one()
-        with self.pool.cursor() as cr:
-            env = api.Environment(cr, self.env.uid, self.env.context)
-            record_in_new_env = env[self._name].browse(self.ids)
-            return func_to_decorate(self, record_in_new_env, *args, **kwargs)
+    def __init__(self, record):
+        self._record = record
 
-    return wrapper
+    def get_field(self, field_name, default=""):
+        """
+        Get a field value from the related record.
+
+        Args:
+            field_name (str): The field name to access
+            default: Default value if field doesn't exist or is empty
+
+        Returns:
+            The field value, or default if not available
+        """
+        if not self._record:
+            return default
+
+        try:
+            if hasattr(self._record, field_name):
+                value = getattr(self._record, field_name)
+
+                # Handle different field types
+                if value is None:
+                    return default
+                elif isinstance(value, bool):
+                    return value  # Keep as boolean for Jinja
+                elif hasattr(value, "name"):  # Many2one field
+                    return value.name
+                elif hasattr(value, "mapped"):  # Many2many/One2many field
+                    return value.mapped("name")
+                else:
+                    return value
+            else:
+                _logger.debug(
+                    "Field '%s' not found on record %s", field_name, self._record
+                )
+                return default
+
+        except Exception as e:
+            _logger.error(
+                "Error getting field '%s' from record: %s", field_name, str(e)
+            )
+            return default
+
+    def __getattr__(self, name):
+        """Allow direct attribute access as fallback"""
+        return self.get_field(name)
+
+    def __bool__(self):
+        """Return True if we have a record"""
+        return bool(self._record)
+
+    def __str__(self):
+        """When called by itself, return JSON of model name, id, and display name"""
+        if not self._record:
+            return json.dumps({"model": None, "id": None, "display_name": None})
+
+        return json.dumps(
+            {
+                "model": self._record._name,
+                "id": self._record.id,
+                "display_name": getattr(
+                    self._record, "display_name", str(self._record)
+                ),
+            }
+        )
+
+    def __repr__(self):
+        """Same as __str__ for consistency"""
+        return self.__str__()
 
 
 class LLMThread(models.Model):
@@ -66,76 +125,24 @@ class LLMThread(models.Model):
         ondelete="restrict",
     )
     active = fields.Boolean(default=True)
-    message_ids = fields.One2many(
-        comodel_name="mail.message",
-        inverse_name="res_id",
-        string="Messages",
-        domain=lambda self: [("model", "=", self._name)],
-    )
 
     # Updated fields for related record reference
     model = fields.Char(
-        string="Related Document Model",
-        help="Technical name of the related model"
+        string="Related Document Model", help="Technical name of the related model"
     )
     res_id = fields.Many2oneReference(
         string="Related Document ID",
         model_field="model",
-        help="ID of the related record"
+        help="ID of the related record",
     )
 
-    # Computed Reference field for related record
-    # TODO: the selection should be removed - ti is computed every time we access the model
-    related_record = fields.Reference(
-        selection='_get_related_record_selection',
-        string='Related Record',
-        compute='_compute_related_record',
-        readonly=True,
-        help="The record this chat thread is related to"
-    )
 
-    is_locked = fields.Boolean(
-        string="Locked, Preventing Concurrent Generation",
-        default=False,
-        copy=False,
-        help="Indicates if the thread is currently locked to prevent concurrent generation.",
-    )
 
     tool_ids = fields.Many2many(
         "llm.tool",
         string="Available Tools",
         help="Tools that can be used by the LLM in this thread",
     )
-
-    @api.model
-    def _get_related_record_selection(self):
-        """Get the selection options for the Reference field dynamically.
-
-        Returns all available models in the system.
-        """
-        models = self.env['ir.model'].sudo().search([])
-        return [(model.model, model.name) for model in models]
-
-    @api.depends('model', 'res_id')
-    def _compute_related_record(self):
-        """Compute the related record reference."""
-        for record in self:
-            if record.model and record.res_id:
-                # Validate that the model exists and the record exists
-                try:
-                    if record.model in self.env:
-                        related_record = self.env[record.model].browse(record.res_id)
-                        if related_record.exists():
-                            record.related_record = f"{record.model},{record.res_id}"
-                        else:
-                            record.related_record = False
-                    else:
-                        record.related_record = False
-                except Exception as e:
-                    _logger.warning(f"Error computing related record for thread {record.id}: {e}")
-                    record.related_record = False
-            else:
-                record.related_record = False
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -145,206 +152,235 @@ class LLMThread(models.Model):
                 vals["name"] = f"Chat with {self.model_id.name}"
         return super().create(vals_list)
 
-    def _post_message(self, **kwargs):
-        self.ensure_one()
-        # if subtype_xmlid is not provided or wrong,message_post automatically
-        # uses the default subtype
-        subtype_xmlid = kwargs.get("subtype_xmlid")
-        author_id = kwargs.get("author_id")
-        body = kwargs.get("body", "")
-        email_from = self.get_email_from(
-            self.sudo().provider_id.name,
-            self.sudo().model_id.name,
-            subtype_xmlid,
-            author_id,
-            kwargs.get("tool_name"),
-        )
-        post_vals = self.build_post_vals(subtype_xmlid, body, author_id, email_from)
-        message = self.message_post(**post_vals)
-        extra_vals = self.build_update_vals(**kwargs)
-        if extra_vals:
-            message.write(extra_vals)
-        return message
+    # ============================================================================
+    # MESSAGE POST OVERRIDES - Clean integration with mail.thread
+    # ============================================================================
 
-    def get_message_history_recordset(self, order="ASC", limit=None):
-        """Get messages from the thread
+    @api.returns("mail.message", lambda value: value.id)
+    def message_post(self, *, llm_role=None, message_type="comment", **kwargs):
+        """Override to handle LLM-specific message types and metadata.
 
         Args:
-            order: Optional order for messages ('ASC' or 'DESC')
-            limit: Optional limit on number of messages to retrieve
+            llm_role (str): The LLM role ('user', 'assistant', 'tool', 'system')
+                           If provided, will automatically set the appropriate subtype
+        """
+
+        # Convert LLM role to subtype_xmlid if provided
+        if llm_role:
+            _, role_to_id = self.env["mail.message"].get_llm_roles()
+            if llm_role in role_to_id:
+                # Get the xmlid from the role
+                subtype_xmlid = f"llm.mt_{llm_role}"
+                kwargs["subtype_xmlid"] = subtype_xmlid
+
+        # Handle LLM-specific subtypes and email_from generation
+        if not kwargs.get("author_id") and not kwargs.get("email_from"):
+            kwargs["email_from"] = self._get_llm_email_from(
+                kwargs.get("subtype_xmlid"), kwargs.get("author_id"), llm_role
+            )
+
+        # Convert markdown to HTML if needed (except for tool messages which use body_json)
+        if kwargs.get("body") and llm_role != "tool":
+            kwargs["body"] = self._process_llm_body(kwargs["body"])
+
+        # Create the message using standard mail.thread flow
+        return super().message_post(message_type=message_type, **kwargs)
+
+    def _get_llm_email_from(self, subtype_xmlid, author_id, llm_role=None):
+        """Generate appropriate email_from for LLM messages."""
+        if author_id:
+            return None  # Let standard flow handle it
+
+        provider_name = self.provider_id.name
+        model_name = self.model_id.name
+
+        if subtype_xmlid == "llm.mt_tool" or llm_role == "tool":
+            return f"Tool <tool@{provider_name.lower().replace(' ', '')}.ai>"
+        elif subtype_xmlid == "llm.mt_assistant" or llm_role == "assistant":
+            return f"{model_name} <ai@{provider_name.lower().replace(' ', '')}.ai>"
+
+        return None
+
+    def _process_llm_body(self, body):
+        """Process body content for LLM messages (markdown to HTML conversion)."""
+        if not body:
+            return body
+        return markdown2.markdown(emoji.demojize(body))
+
+    # ============================================================================
+    # STREAMING MESSAGE CREATION
+    # ============================================================================
+
+    def message_post_from_stream(
+        self, stream, llm_role, placeholder_text="…", **kwargs
+    ):
+        """Create and update a message from a streaming response.
+
+        Args:
+            stream: Generator yielding chunks of response data
+            llm_role (str): The LLM role ('user', 'assistant', 'tool', 'system')
+            placeholder_text (str): Text to show while streaming
 
         Returns:
-            mail.message recordset containing the messages
+            message: The created/updated message record
         """
-        self.ensure_one()
-        subtypes_to_fetch = [
-            self.env.ref(LLM_USER_SUBTYPE_XMLID, raise_if_not_found=False),
-            self.env.ref(LLM_ASSISTANT_SUBTYPE_XMLID, raise_if_not_found=False),
-            self.env.ref(LLM_TOOL_RESULT_SUBTYPE_XMLID, raise_if_not_found=False),
-        ]
-        subtype_ids = [st.id for st in subtypes_to_fetch if st]
+        message = None
+        accumulated_content = ""
 
-        # Default to descending order to get the most recent messages
-        order_clause = "create_date DESC, write_date DESC, id DESC"
-        domain = [
-            ("model", "=", self._name),
-            ("res_id", "=", self.id),
-            ("message_type", "=", "comment"),
-            ("subtype_id", "in", subtype_ids),
-        ]
+        for chunk in stream:
+            # Initialize message on first content
+            if message is None and chunk.get("content"):
+                message = self.message_post(
+                    body=placeholder_text, llm_role=llm_role, author_id=False, **kwargs
+                )
+                yield {"type": "message_create", "message": message.message_format()[0]}
 
-        # Fetch messages (most recent first)
-        messages = self.env["mail.message"].search(
-            domain, order=order_clause, limit=limit
-        )
+            # Handle content streaming
+            if chunk.get("content"):
+                accumulated_content += chunk["content"]
+                message.write({"body": self._process_llm_body(accumulated_content)})
+                yield {"type": "message_chunk", "message": message.message_format()[0]}
 
-        if order == "ASC":
-            messages = messages[::-1]
+            # Handle errors
+            if chunk.get("error"):
+                yield {"type": "error", "error": chunk["error"]}
+                return message
 
-        return messages
+        # Final update for assistant message
+        if message and accumulated_content:
+            message.write({"body": self._process_llm_body(accumulated_content)})
+            yield {"type": "message_update", "message": message.message_format()[0]}
 
-    def _get_last_message_from_history(self):
-        """Get the last message from the message history."""
-        self.ensure_one()
-        last_message = None
-        result = self.get_message_history_recordset(order="DESC", limit=1)
-        if result:
-            last_message = result[0]
-        if not last_message:
-            raise UserError("No message found to process.")
-        return last_message
+        return message
 
-    def _init_message(self, user_message_body, **kwargs):
-        """Initialize first message: user input or history."""
-        if user_message_body:
-            return self._post_message(
-                subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
-                body=user_message_body,
-                author_id=self.env.user.partner_id.id,
-                **kwargs,
-            )
-        return self._get_last_message_from_history()
-
-    def _should_continue(self, last_message):
-        """Whether to keep looping on the last_message."""
-        if not last_message:
-            return False
-        if (
-                last_message.is_llm_user_message()
-                or last_message.is_llm_tool_result_message()
-        ):
-            return True
-        if last_message.is_llm_assistant_message() and last_message.tool_calls:
-            return True
-        return False
-
-    def _next_step(self, last_message):
-        """Dispatch to the next generator based on message type."""
-        if (
-                last_message.is_llm_user_message()
-                or last_message.is_llm_tool_result_message()
-        ):
-            return self._get_assistant_response()
-        if last_message.is_llm_assistant_message() and last_message.tool_calls:
-            return self._process_tool_calls(last_message)
-        return last_message
+    # ============================================================================
+    # GENERATION FLOW - Refactored to use message_post with roles
+    # ============================================================================
 
     def generate(self, user_message_body, **kwargs):
+        """Main generation method with PostgreSQL advisory locking."""
         self.ensure_one()
-        if self.is_locked:
-            raise UserError(
-                _("This thread is already generating a response. Please wait.")
-            )
-        self._lock()
+        
+        with self._generation_lock():
+            last_message = False
+            # Post user message if provided
+            if user_message_body:
+                last_message = self.message_post(
+                    body=user_message_body,
+                    llm_role="user",
+                    author_id=self.env.user.partner_id.id,
+                    **kwargs,
+                )
+                yield {
+                    "type": "message_create",
+                    "message": last_message.message_format()[0],
+                }
+
+            # Call the actual generation implementation
+            last_message = yield from self.generate_messages(last_message)
+            return last_message
+
+    def generate_messages(self, last_message=None):
+        """Generate messages - to be overridden by llm_assistant module."""
+        raise UserError(
+            _("Please install the llm_assistant module for actual AI generation.")
+        )
+
+    def get_context(self, base_context=None):
+        context = {
+            **(base_context or {}),
+            "thread_id": self.id,
+        }
 
         try:
-            # orchestrate via hooks
-            last = self._init_message(user_message_body, **kwargs)
-            if user_message_body:
-                yield {"type": "message_create", "message": last.message_format()[0]}
-            while self._should_continue(last):
-                last = yield from self._next_step(last)
-            return last
-        finally:
-            self._unlock()
-
-    def _process_tool_calls(self, assistant_msg):
-        self.ensure_one()
-        defs = json.loads(assistant_msg.tool_calls or "[]")
-        last_tool_msg = None
-        for tool_def in defs:
-            last_tool_msg = yield from self.env["mail.message"].stream_llm_tool_result(
-                thread=self,
-                tool_call_def=tool_def,
+            related_record = self.env[self.model].browse(self.res_id)
+            if related_record:
+                context["related_record"] = RelatedRecordProxy(related_record)
+                context["related_model"] = self.model
+                context["related_res_id"] = self.res_id
+            else:
+                context["related_record"] = None
+                context["related_model"] = None
+                context["related_res_id"] = None
+        except Exception as e:
+            _logger.warning(
+                "Error accessing related record %s,%s: %s", self.model, self.res_id, e
             )
-        return last_tool_msg
 
-    def get_prepend_messages(self):
-        """Hook: return a list of formatted messages to prepend to the conversation.
-        Override in other modules if needed.
+        return context
 
-        Returns:
-            list: List of message dictionaries in the format:
-                [{"role": "system", "content": "..."},
-                 {"role": "user", "content": "..."},
-                 ...]
-        """
-        return []
+    # ============================================================================
+    # POSTGRESQL ADVISORY LOCK IMPLEMENTATION
+    # ============================================================================
 
-    def _get_assistant_response(self):
+    def _acquire_thread_lock(self):
+        """Acquire PostgreSQL advisory lock for this thread."""
         self.ensure_one()
-        message_history_rs = self.get_message_history_recordset()
-        tool_rs = self.tool_ids
-        chat_kwargs = {
-            "messages": message_history_rs,
-            "tools": tool_rs,
-            "stream": True,
-            "prepend_messages": self.get_prepend_messages(),
-        }
-        stream_response = self.sudo().model_id.chat(**chat_kwargs)
-        assistant_msg = yield from self.env["mail.message"].create_message_from_stream(
-            self,
-            stream_response,
-            LLM_ASSISTANT_SUBTYPE_XMLID,
-            placeholder_text="Thinking...",
-        )
-        return assistant_msg
 
-    def _execute_tool(self, tool_name, arguments_str):
-        """Execute a tool and return the result."""
-        self.ensure_one()
-        tool = self.tool_ids.filtered(lambda t: t.name == tool_name)[:1]
-        if not tool:
-            raise UserError(f"Tool '{tool_name}' not found in this thread")
-        arguments = json.loads(arguments_str)
-        return tool.execute(arguments)
+        try:
+            query = "SELECT pg_try_advisory_lock(%s)"
+            self.env.cr.execute(query, (self.id,))
+            result = self.env.cr.fetchone()
 
-    def _lock(self):
-        """Acquires a lock on the thread, ensuring immediate commit."""
-        self.ensure_one()
-        if self._read_is_locked_decorated():
-            raise UserError(
-                _(
-                    "Lock Error: This thread is already generating a response. Please wait."
+            if not result or not result[0]:
+                raise UserError(
+                    _("Thread is currently generating a response. Please wait.")
                 )
-            )
-        self._write_vals_decorated({"is_locked": True})
 
-    def _unlock(self):
-        """Releases the lock on the thread, ensuring immediate commit."""
+            _logger.info(f"Acquired advisory lock for thread {self.id}")
+
+        except UserError:
+            raise
+        except OperationalError as e:
+            _logger.error(f"Database error acquiring lock for thread {self.id}: {e}")
+            raise UserError(_("Database error acquiring thread lock.")) from e
+        except Exception as e:
+            _logger.error(f"Unexpected error acquiring lock for thread {self.id}: {e}")
+            raise UserError(_("Failed to acquire thread lock.")) from e
+
+    def _release_thread_lock(self):
+        """Release PostgreSQL advisory lock for this thread."""
         self.ensure_one()
-        if self._read_is_locked_decorated():
-            self._write_vals_decorated({"is_locked": False})
 
-    @execute_with_new_cursor
-    def _read_is_locked_decorated(self, record_in_new_env):
-        """Reads the 'is_locked' status using a new cursor."""
-        return record_in_new_env.is_locked
+        try:
+            query = "SELECT pg_advisory_unlock(%s)"
+            self.env.cr.execute(query, (self.id,))
+            result = self.env.cr.fetchone()
 
-    @execute_with_new_cursor
-    def _write_vals_decorated(self, record_in_new_env, vals):
-        """Writes values using a new, immediately committed cursor."""
-        return record_in_new_env.write(vals)
+            success = result and result[0]
+            if success:
+                _logger.info(f"Released advisory lock for thread {self.id}")
+            else:
+                _logger.warning(f"Advisory lock for thread {self.id} was not held")
+
+            return success
+
+        except Exception as e:
+            _logger.error(f"Error releasing lock for thread {self.id}: {e}")
+            return False
+
+    @contextlib.contextmanager
+    def _generation_lock(self):
+        """Context manager for thread generation with automatic lock cleanup."""
+        self.ensure_one()
+
+        self._acquire_thread_lock()
+
+        try:
+            _logger.info(f"Starting locked generation for thread {self.id}")
+            yield self
+
+        finally:
+            released = self._release_thread_lock()
+            if released:
+                _logger.info(f"Finished locked generation for thread {self.id}")
+            else:
+                _logger.warning(f"Lock release failed for thread {self.id}")
+
+
+    # ============================================================================
+    # ODOO HOOKS AND CLEANUP
+    # ============================================================================
 
     @api.ondelete(at_uninstall=False)
     def _unlink_llm_thread(self):
@@ -352,81 +388,3 @@ class LLMThread(models.Model):
         self.env["bus.bus"]._sendone(
             self.env.user.partner_id, "llm.thread/delete", {"ids": unlink_ids}
         )
-
-    def get_context(self, base_context=None):
-        return base_context or {}
-
-    @api.model
-    def get_email_from(
-            self,
-            provider_name,
-            provider_model_name,
-            subtype_xmlid,
-            author_id,
-            tool_name=None,
-    ):
-        if not author_id:
-            if subtype_xmlid == LLM_TOOL_RESULT_SUBTYPE_XMLID:
-                name = tool_name or "Tool"
-                return f"{name} <tool@{provider_name.lower().replace(' ', '')}.ai>"
-            elif subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID:
-                model = provider_model_name or "Assistant"
-                provider = provider_name.lower().replace(" ", "")
-                return f"{model} <ai@{provider}.ai>"
-        return None
-
-    @api.model
-    def build_post_vals(self, subtype_xmlid, body, author_id, email_from):
-        return {
-            "body": markdown2.markdown(emoji.demojize(body)),
-            "message_type": "comment",
-            "subtype_xmlid": subtype_xmlid,
-            "author_id": author_id,
-            "email_from": email_from or None,
-            "partner_ids": [],
-        }
-
-    @api.model
-    def build_update_vals(
-            self,
-            subtype_xmlid,
-            tool_call_id=None,
-            tool_calls=None,
-            tool_call_definition=None,
-            tool_call_result=None,
-            **kwargs,
-    ):
-        if subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID and tool_calls:
-            return {"tool_calls": tool_calls}
-        if subtype_xmlid == LLM_TOOL_RESULT_SUBTYPE_XMLID:
-            vals = {
-                "tool_call_id": tool_call_id,
-                "tool_call_definition": tool_call_definition,
-                "tool_call_result": tool_call_result,
-            }
-            return {k: v for k, v in vals.items() if v is not None}
-
-    @api.model
-    def get_thread_from_context(self):
-        """
-        Try to get the llm.thread from the context.
-        This is useful when the template is used in a thread context.
-
-        Returns:
-            llm.thread recordset or False
-        """
-        _logger.info("Attempting to get thread from context")
-
-        # Check if we have a thread_id in the context
-        thread_id = self.env.context.get("thread_id", False)
-        if thread_id:
-            _logger.info("Found thread_id in context: %s", thread_id)
-            thread = self.env["llm.thread"].browse(thread_id).exists()
-            if thread:
-                _logger.info("Thread exists: %s", thread.name)
-                return thread
-            else:
-                _logger.warning("Thread with ID %s not found", thread_id)
-                return False
-
-        return False

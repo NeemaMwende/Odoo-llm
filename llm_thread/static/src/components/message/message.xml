@@ -36,13 +36,14 @@
     <t t-name="llm_thread.Message.ToolResultContent" owl="1">
         <div class="o_Message_prettyBody o_llm_tool_result">
             <div class="o_llm_tool_result_header small mb-1">
+                <!-- Show human-readable status from display_body -->
                 <p class="mb-2" t-ref="prettyBody" />
                 <strong class="me-2">
                     <i
             t-attf-class="fa me-1 {{ messageView.message.toolCallResultIsError ? 'fa-exclamation-circle text-danger' : 'fa-check-circle text-success' }}"
           />
                     Tool: <t
-            t-esc="messageView.message.toolCallDefinitionFormatted?.function?.name || 'Unknown Tool'"
+            t-esc="messageView.message.toolName || messageView.message.toolCallDefinitionFormatted?.function?.name || 'Unknown Tool'"
           />
                 </strong>
                 <span class="text-muted small">(ID: <t
@@ -124,8 +125,7 @@
   >
         <!--
         Replace the main content rendering area.
-        We rely on is_note=True (set by backend message_format for LLM subtypes)
-        to get the desired overall bubble style from the base mail.Message template.
+        We use the stored llm_role field for direct comparison.
         -->
         <xpath expr="//div[hasclass('o_Message_content')]" position="replace">
             <div
@@ -137,14 +137,11 @@
         t-ref="content"
       >
 
-                <t
-          t-if="messageView.message.messageSubtypeXmlid === 'llm_mail_message_subtypes.mt_llm_assistant'"
-        >
+                <!-- Use the stored llm_role field for direct comparison -->
+                <t t-if="messageView.message.llmRole === 'assistant'">
                     <t t-call="llm_thread.Message.AssistantContent" />
                 </t>
-                <t
-          t-elif="messageView.message.messageSubtypeXmlid === 'llm_mail_message_subtypes.mt_llm_tool_result'"
-        >
+                <t t-elif="messageView.message.llmRole === 'tool'">
                     <t t-call="llm_thread.Message.ToolResultContent" />
                 </t>
                 <t t-else="">

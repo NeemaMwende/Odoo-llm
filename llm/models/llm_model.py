@@ -37,6 +37,8 @@ class LLMModel(models.Model):
             ("completion", "Completion"),
             ("chat", "Chat"),
             ("multimodal", "Multimodal"),
+            ("generation", "Generic binary generation"),
+            ("image_generation", "Image Generation"),
         ]
 
     @api.model_create_multi
@@ -62,6 +64,21 @@ class LLMModel(models.Model):
     def embedding(self, texts):
         """Generate embeddings using this model"""
         return self.provider_id.embedding(texts, model=self)
+
+    def generate(self, input_data, stream=False, **kwargs):
+        """Generate content using this model
+
+        Args:
+            input_data: Input data for generation (could be text, prompt, or structured data)
+            stream: Whether to stream the response
+            **kwargs: Additional provider-specific parameters
+
+        Returns:
+            Generated content from the provider
+        """
+        return self.provider_id.generate(
+            input_data, model=self, stream=stream, **kwargs
+        )
 
     def action_open_fetch_this_model_wizard(self):
         self.ensure_one()

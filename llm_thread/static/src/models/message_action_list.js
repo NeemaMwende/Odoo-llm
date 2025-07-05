@@ -10,8 +10,8 @@ registerPatch({
   fields: {
     actionThumbUp: one("MessageAction", {
       compute() {
-        // Show thumb up only for assistant messages
-        if (this.message && !this.message.author) {
+        // Show thumb up only for assistant messages using the stored llm_role field
+        if (this.message && this.message.llmRole === "assistant") {
           return {};
         }
         return clear();
@@ -20,8 +20,8 @@ registerPatch({
     }),
     actionThumbDown: one("MessageAction", {
       compute() {
-        // Show thumb down only for assistant messages
-        if (this.message && !this.message.author) {
+        // Show thumb down only for assistant messages using the stored llm_role field
+        if (this.message && this.message.llmRole === "assistant") {
           return {};
         }
         return clear();

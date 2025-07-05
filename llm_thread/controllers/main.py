@@ -61,18 +61,13 @@ class LLMThreadController(http.Controller):
                         break
 
             except GeneratorExit:
-                # Client disconnected explicitly
                 client_connected = False
-                if llm_thread.exists() and llm_thread._read_is_locked_decorated():
-                    llm_thread._unlock()
-                return
 
             except Exception as e:
                 _logger.exception(
                     f"Error in llm_thread_generate for thread {thread_id}: {e}"
                 )
-                if llm_thread.exists() and llm_thread._read_is_locked_decorated():
-                    llm_thread._unlock()
+                # Lock will be automatically released by context manager
 
                 if client_connected:
                     success = yield from cls._safe_yield(
@@ -102,17 +97,3 @@ class LLMThreadController(http.Controller):
             direct_passthrough=True,
             headers=headers,
         )
-
-    @http.route("/llm/message/vote", type="json", auth="user", methods=["POST"])
-    def llm_message_vote(self, message_id, vote_value):
-        """Updates the user vote on a specific message by calling the model method."""
-        try:
-            msg_id = int(message_id)
-            vote_val = int(vote_value)
-            request.env["mail.message"].set_user_vote(msg_id, vote_val)
-            return {"success": True}
-
-        except (ValueError, TypeError):
-            return {"error": _("Invalid message ID or vote value format.")}
-        except Exception as e:
-            return {"error": str(e)}

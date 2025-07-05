@@ -102,14 +102,28 @@ class OpenAIMessageValidator:
                                 f"Found tool_call_id in assistant message: {tool_call_id}"
                             )
 
-            # Process tool response messages
-            if msg.get("role") == "tool" and msg.get("tool_call_id"):
+            # Process tool response messages - now parse from content/body
+            if msg.get("role") == "tool":
                 tool_call_id = msg.get("tool_call_id")
-                self.tool_response_map[tool_call_id] = {"index": i, "message": msg}
-                if self.verbose_logging:
-                    self.logger.info(
-                        f"Found tool response for tool_call_id: {tool_call_id}"
-                    )
+                if not tool_call_id:
+                    # Try to extract from content if it's JSON
+                    try:
+                        import json
+
+                        content = msg.get("content", "")
+                        if content:
+                            tool_data = json.loads(content)
+                            if tool_data.get("type") == "tool_execution":
+                                tool_call_id = tool_data.get("tool_call_id")
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                if tool_call_id:
+                    self.tool_response_map[tool_call_id] = {"index": i, "message": msg}
+                    if self.verbose_logging:
+                        self.logger.info(
+                            f"Found tool response for tool_call_id: {tool_call_id}"
+                        )
 
     def remove_orphaned_tool_messages(self):
         """
@@ -123,10 +137,28 @@ class OpenAIMessageValidator:
 
             if msg.get("role") == "tool":
                 tool_call_id = msg.get("tool_call_id")
-                if tool_call_id not in self.tool_call_map:
+                if not tool_call_id:
+                    # Try to extract from content if it's JSON
+                    try:
+                        import json
+
+                        content = msg.get("content", "")
+                        if content:
+                            tool_data = json.loads(content)
+                            if tool_data.get("type") == "tool_execution":
+                                tool_call_id = tool_data.get("tool_call_id")
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                if tool_call_id and tool_call_id not in self.tool_call_map:
                     self.logger.warning(
                         f"Removing tool message with ID {tool_call_id} because it has no "
                         f"matching assistant message with tool_calls"
+                    )
+                    self.messages[i] = None
+                elif not tool_call_id:
+                    self.logger.warning(
+                        f"Removing tool message at index {i} because it has no tool_call_id"
                     )
                     self.messages[i] = None
 
@@ -259,6 +291,11 @@ class OpenAIMessageValidator:
 
         # Special case for tool messages which might have empty content but valid tool_call_id
         if msg["role"] == "tool" and msg.get("tool_call_id"):
+            return True
+
+        # Special case for assistant messages with tool_calls but no content
+        if msg["role"] == "assistant" and msg.get("tool_calls"):
+            # Assistant messages with tool_calls are valid even without content
             return True
 
         # Check if message has content (can be string or dict)

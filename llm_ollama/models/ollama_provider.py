@@ -103,14 +103,13 @@ class LLMProvider(models.Model):
         model=None,
         stream=False,
         tools=None,
-        system_prompt=None,
         **kwargs,
     ):
         """Send chat messages using Ollama with tools support"""
         model = self.get_model(model, "chat")
 
         params = self._prepare_chat_params(
-            model, messages, stream, tools=tools, system_prompt=system_prompt
+            model, messages, stream, tools=tools, **kwargs
         )
 
         response = self.client.chat(**params)

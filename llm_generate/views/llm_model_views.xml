@@ -6,18 +6,33 @@
         <field name="model">llm.model</field>
         <field name="inherit_id" ref="llm.llm_model_view_form" />
         <field name="arch" type="xml">
-            <!-- Add Input/Output Schema notebook after the main group of fields -->
-            <xpath expr="//sheet/group[1]" position="after">
-                <notebook
-          attrs="{'invisible': [('model_use', 'not in', ['image_generation'])]}"
+            <!-- Add Generation Schema info in the details section -->
+            <xpath expr="//field[@name='details']" position="after">
+                <div
+          class="alert alert-info"
+          role="alert"
+          attrs="{'invisible': [('model_use', 'not in', ['generation', 'image_generation'])]}"
         >
-                    <page string="Input Schema" name="input_schema_page">
-                        <field name="input_schema" widget="json_editor" />
-                    </page>
-                    <page string="Output Schema" name="output_schema_page">
-                        <field name="output_schema" widget="json_editor" />
-                    </page>
-                </notebook>
+                    <h5>Generation Schema Configuration</h5>
+                    <p>For generation models, add <code
+            >input_schema</code> and <code
+            >output_schema</code> keys to the details JSON field above.</p>
+                    <p><strong>Example:</strong></p>
+                    <pre>{
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "prompt": {"type": "string", "description": "The prompt to generate from"},
+      "size": {"type": "string", "enum": ["256x256", "512x512", "1024x1024"]}
+    },
+    "required": ["prompt"]
+  },
+  "output_schema": {
+    "type": "array",
+    "items": {"type": "string", "format": "uri"}
+  }
+}</pre>
+                </div>
             </xpath>
         </field>
     </record>

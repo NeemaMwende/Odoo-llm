@@ -140,7 +140,6 @@ class LLMProvider(models.Model):
         stream=False,
         tools=None,
         tool_choice="auto",
-        system_prompt=None,
         prepend_messages=None,
     ):
         """Send chat messages using OpenAI with tools support"""
@@ -152,7 +151,6 @@ class LLMProvider(models.Model):
             messages,
             stream,
             tools=tools,
-            system_prompt=system_prompt,
             prepend_messages=prepend_messages,
             tool_choice=tool_choice,
         )
@@ -372,15 +370,15 @@ class LLMProvider(models.Model):
 
         Args:
             messages: mail.message recordset to format
-            system_prompt: Optional system prompt to include at the beginning of the messages
+            system_prompt: Optional system prompt (deprecated, use prepend_messages)
 
         Returns:
             List of formatted messages in OpenAI-compatible format
         """
-        # First use the default implementation from the llm_tool module
+        # Format the messages
         formatted_messages = []
 
-        # Add system prompt if provided
+        # Add system prompt if provided (for backward compatibility)
         if system_prompt:
             formatted_messages.append({"role": "system", "content": system_prompt})
 
@@ -391,7 +389,9 @@ class LLMProvider(models.Model):
                 formatted_messages.append(formatted_message)
 
         # Then validate and clean the messages for OpenAI
-        return self._validate_and_clean_messages(formatted_messages)
+        result_messages = self._validate_and_clean_messages(formatted_messages)
+
+        return result_messages
 
     def openai_upload_file(self, file_tuple, purpose="fine-tune"):
         """Upload a file to OpenAI"""

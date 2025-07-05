@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { one } from "@mail/model/model_field";
+import { attr, one } from "@mail/model/model_field";
 import { registerPatch } from "@mail/model/model_core";
 
 /**
@@ -15,6 +15,10 @@ registerPatch({
     llmAssistant: one("LLMAssistant", {
       inverse: "threads",
     }),
+    /**
+     * The prompt ID associated with this thread (legacy support)
+     */
+    promptId: attr(),
   },
   recordMethods: {
     /**

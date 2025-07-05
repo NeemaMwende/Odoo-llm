@@ -33,18 +33,14 @@ registerPatch({
         method: "search_read",
         kwargs: {
           domain: [["active", "=", true]],
-          fields: [
-            "name",
-            "default_values",
-            "prompt_id",
-          ],
+          fields: ["name", "default_values", "prompt_id"],
         },
       });
 
       // Extract all prompt IDs to fetch their details
       const promptIds = assistantResult
-          .map((assistant) => assistant.prompt_id && assistant.prompt_id[0])
-          .filter((id) => id); // Filter out falsy values
+        .map((assistant) => assistant.prompt_id && assistant.prompt_id[0])
+        .filter((id) => id); // Filter out falsy values
 
       // If we have prompt IDs, fetch their details
       let promptsById = {};
@@ -114,9 +110,9 @@ registerPatch({
      * @override
      */
     async initializeLLMChat(
-        action,
-        initActiveId,
-        postInitializationPromises = []
+      action,
+      initActiveId,
+      postInitializationPromises = []
     ) {
       // Pass our loadAssistants promise to the original method
       return this._super(action, initActiveId, [
@@ -182,12 +178,12 @@ registerPatch({
         return;
       }
       const [model, id] =
-          typeof this.activeId === "number"
-              ? ["llm.thread", this.activeId]
-              : this.activeId.split("_");
+        typeof this.activeId === "number"
+          ? ["llm.thread", this.activeId]
+          : this.activeId.split("_");
       // Get the active thread
       const activeThread = this.messaging.models.Thread.findFromIdentifyingData(
-          { id: Number(id), model }
+        { id: Number(id), model }
       );
       if (!activeThread || !activeThread.llmAssistant) {
         return;
@@ -195,8 +191,8 @@ registerPatch({
 
       // Fetch thread-specific evaluated default values for the active thread's assistant
       this._fetchAssistantValuesForThread(
-          activeThread.id,
-          activeThread.llmAssistant.id
+        activeThread.id,
+        activeThread.llmAssistant.id
       );
     },
 
@@ -225,7 +221,7 @@ registerPatch({
           if (thread) {
             // Find the assistant in our registry
             const assistant = this.llmAssistants.find(
-                (a) => a.id === assistantId
+              (a) => a.id === assistantId
             );
             if (assistant) {
               // Update the assistant with thread-specific evaluated values
@@ -247,9 +243,9 @@ registerPatch({
               if (result.prompt) {
                 const promptData = result.prompt;
                 const prompt =
-                    this.messaging.models.LLMPrompt.findFromIdentifyingData({
-                      id: promptData.id,
-                    });
+                  this.messaging.models.LLMPrompt.findFromIdentifyingData({
+                    id: promptData.id,
+                  });
 
                 if (prompt) {
                   // Update existing prompt
