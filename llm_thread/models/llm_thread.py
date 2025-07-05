@@ -280,7 +280,7 @@ class LLMThread(models.Model):
             last_message = yield from self.generate_messages(last_message)
             return last_message
 
-    def generate_messages(self, last_message):
+    def generate_messages(self, last_message=None):
         """Generate messages - to be overridden by llm_assistant module."""
         raise UserError(
             _("Please install the llm_assistant module for actual AI generation.")

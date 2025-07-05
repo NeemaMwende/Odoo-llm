@@ -191,6 +191,10 @@ class LLMThread(models.Model):
     def generate_messages(self, last_message):
         """Generate messages with actual AI intelligence."""
         self.ensure_one()
+        
+        # Get last message if not provided
+        if not last_message:
+            last_message = self.get_latest_llm_message()
 
         # Continue generation loop
         while self._should_continue(last_message):
@@ -226,9 +230,8 @@ class LLMThread(models.Model):
 
     def _generate_assistant_response(self):
         """Generate assistant response and handle tool calls."""
-        # FIXED: Get messages in chronological order directly
-        # Increase limit to ensure we get recent messages
-        message_history = self.get_message_history_recordset(order="ASC", limit=25)
+        # Use the new optimized method for LLM context
+        message_history = self.get_llm_messages()
 
         # Determine if we should use streaming
         use_streaming = getattr(self.model_id, "supports_streaming", True)
@@ -252,49 +255,72 @@ class LLMThread(models.Model):
 
         return assistant_message
 
-    def get_message_history_recordset(self, order="ASC", limit=25):
-        """Get LLM messages from the thread using efficient stored field filtering.
-
+    def get_llm_messages(self, limit=25):
+        """Get the most recent LLM messages in chronological order.
+        
+        This method is optimized for LLM context preparation:
+        - Always returns messages in chronological order (ASC)
+        - Limits to the most recent N messages for context window management
+        - Uses efficient database queries with proper indexing
+        
         Args:
-            order: Optional order for messages ('ASC' or 'DESC')
-            limit: Optional limit on number of messages to retrieve
-
+            limit (int): Maximum number of recent messages to retrieve (default: 25)
+        
         Returns:
-            mail.message recordset containing the LLM messages
+            mail.message recordset: Recent LLM messages in chronological order
         """
         self.ensure_one()
-
-        # Use the stored llm_role field for efficient filtering
+        
+        # Domain for filtering LLM messages only
         domain = [
             ("model", "=", self._name),
             ("res_id", "=", self.id),
-            ("llm_role", "!=", False),  # Only LLM messages
+            ("llm_role", "!=", False),  # Only messages with LLM roles
         ]
-
-        # If we want ASC order with a limit, we need to get the LAST N messages
-        # then sort them in ascending order
-        if order == "ASC" and limit:
-            # First get messages in DESC order to get the most recent ones
-            messages = self.env["mail.message"].search(
-                domain, order="create_date DESC, write_date DESC, id DESC", limit=limit
+        
+        if limit:
+            # Two-step approach for efficiency:
+            # 1. Get the N most recent messages (DESC order)
+            recent_messages = self.env["mail.message"].search(
+                domain, 
+                order="create_date DESC, write_date DESC, id DESC", 
+                limit=limit
             )
-            # Then sort them in ascending order for chronological sequence
-            return messages.sorted(lambda m: (m.create_date, m.write_date, m.id))
+            # 2. Sort them chronologically for LLM context (ASC order)
+            return recent_messages.sorted(lambda m: (m.create_date, m.write_date, m.id))
         else:
-            # For DESC or no limit, use the standard approach
-            order_clause = "create_date DESC, write_date DESC, id DESC"
-            if order == "ASC":
-                order_clause = "create_date ASC, write_date ASC, id ASC"
+            # If no limit, get all messages in chronological order
             return self.env["mail.message"].search(
-                domain, order=order_clause, limit=limit
+                domain, 
+                order="create_date ASC, write_date ASC, id ASC"
             )
 
-    def _get_last_message_from_history(self):
-        """Get the last LLM message from the message history."""
+    def get_latest_llm_message(self):
+        """Get the most recent LLM message for flow control.
+        
+        Returns:
+            mail.message: The latest LLM message
+            
+        Raises:
+            UserError: If no LLM messages exist
+        """
         self.ensure_one()
-        result = self.get_message_history_recordset(order="DESC", limit=1)
+        
+        domain = [
+            ("model", "=", self._name),
+            ("res_id", "=", self.id),
+            ("llm_role", "!=", False),
+        ]
+        
+        result = self.env["mail.message"].search(
+            domain, 
+            order="create_date DESC, write_date DESC, id DESC", 
+            limit=1
+        )
+        
         if not result:
-            raise UserError("No LLM message found to process.")
+            raise UserError("No LLM messages found in this thread.")
+        
         return result[0]
 
     def _should_continue(self, last_message):
