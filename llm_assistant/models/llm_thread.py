@@ -156,46 +156,6 @@ class LLMThread(models.Model):
 
         return thread, assistant, None
 
-    def merge_message_lists(self, source_messages, target_messages):
-        """Merge two lists of messages, handling system messages appropriately"""
-        if not source_messages:
-            return target_messages
-
-        if not target_messages:
-            return source_messages.copy()
-
-        source_messages_copy = source_messages.copy()
-
-        # Check for system messages to avoid duplicates
-        system_messages_in_source = [
-            msg for msg in source_messages_copy if msg.get("role") == "system"
-        ]
-        system_messages_in_target = [
-            msg for msg in target_messages if msg.get("role") == "system"
-        ]
-
-        if system_messages_in_source and system_messages_in_target:
-            # Both have system messages, merge them
-            for source_msg in system_messages_in_source:
-                for target_msg in system_messages_in_target:
-                    source_content = self._extract_message_content(source_msg)
-                    target_content = self._extract_message_content(target_msg)
-
-                    # Merge the content
-                    merged_content = f"{source_content}\n\n{target_content}"
-
-                    # Update target message with merged content
-                    if isinstance(target_msg.get("content"), list):
-                        target_msg["content"][0]["text"] = merged_content
-                    else:
-                        target_msg["content"] = merged_content
-
-                # Remove the source system message as we've merged it
-                source_messages_copy.remove(source_msg)
-
-        # Now add any remaining source messages at the beginning
-        return source_messages_copy + target_messages
-
     def _extract_message_content(self, message):
         """Extract text content from a message regardless of format"""
         content = message.get("content", "")
@@ -227,14 +187,6 @@ class LLMThread(models.Model):
                 )
 
         return []
-
-    # NOTE: _process_tool_calls method removed - we now use the simpler approach
-    # where tool messages are created one at a time and processed by the main loop
-    # This eliminates the complexity of searching for and batching tool messages
-
-    # ============================================================================
-    # AI GENERATION LOGIC - Refactored to use mail.message methods
-    # ============================================================================
 
     def generate(self, user_message_body, **kwargs):
         """Main generation method with actual AI intelligence."""
