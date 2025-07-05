@@ -22,16 +22,13 @@ registerPatch({
     _shouldMessageBeSquashed(prevMessage, message) {
       if (prevMessage !== undefined && message !== undefined) {
         if (
-          prevMessage.subtype_id !== undefined &&
-          message.subtype_id !== undefined
+          prevMessage.llmRole !== undefined &&
+          message.llmRole !== undefined
         ) {
           if (
-            prevMessage.subtype_id.length === 2 &&
-            message.subtype_id.length === 2
+            prevMessage.llmRole !== message.llmRole
           ) {
-            if (prevMessage.subtype_id[0] !== message.subtype_id[0]) {
-              return false;
-            }
+            return false;
           }
         }
       }

@@ -12,12 +12,12 @@
         </t>
         <!-- Display requested tool calls if any -->
         <t
-      t-if="messageView.message.formattedToolCalls and messageView.message.formattedToolCalls.length > 0"
+      t-if="messageView.message.toolCalls and messageView.message.toolCalls.length > 0"
     >
             <div class="o_llm_tool_calls mt-2 small text-muted border-top pt-1">
                 <strong class="me-1">Tools Requested:</strong>
                 <t
-          t-foreach="messageView.message.formattedToolCalls"
+          t-foreach="messageView.message.toolCalls"
           t-as="toolCall"
           t-key="toolCall.id"
         >
