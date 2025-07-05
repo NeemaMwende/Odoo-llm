@@ -150,7 +150,7 @@ class LLMThread(models.Model):
             body=markdown_content,
             llm_role="assistant",
             body_json=output_data,
-            attachment_ids=[(4, att.id) for att in attachments]
+            attachment_ids=[att.id for att in attachments]
         )
         
         # Update attachment res_id
