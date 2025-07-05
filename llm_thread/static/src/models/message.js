@@ -32,14 +32,6 @@ registerPatch({
       if ("user_vote" in data) {
         data2.user_vote = data.user_vote;
       }
-      if ("subtype_xmlid" in data) {
-        data2.messageSubtypeXmlid = data.subtype_xmlid;
-      }
-      // Still support tool_calls field for backward compatibility but it's not used anymore
-      if ("tool_calls" in data) {
-        // This field is no longer used but kept for backward compatibility
-        // Tool calls are now stored as separate tool messages
-      }
       // Add LLM role data from the stored field
       if ("llm_role" in data) {
         data2.llmRole = data.llm_role;
@@ -50,8 +42,15 @@ registerPatch({
       }
       return data2;
     },
+    
   },
   fields: {
+    // So that assisstant messages with tool_calls but no body does not missed from ui rendering
+    isEmpty: {
+      compute(){
+        return this._super() && !this.bodyJson;
+      }
+    },
     user_vote: attr({
       default: 0,
     }),
@@ -72,14 +71,11 @@ registerPatch({
     }),
 
     /**
-     * Get tool data from body_json field for tool messages
+     * Get tool data from body_json field for tool/assistant messages
      */
     toolData: attr({
       compute() {
-        if (this.llmRole === "tool" && this.bodyJson) {
-          return this.bodyJson;
-        }
-        return null;
+        return ['tool', 'assistant'].includes(this.llmRole) && this.bodyJson ? this.bodyJson : null;
       },
     }),
 
@@ -166,14 +162,9 @@ registerPatch({
     formattedToolCalls: attr({
       compute() {
         // Return empty array since tool calls are now separate messages
-        return [];
+        const toolData = this.toolData;
+        return toolData?.tool_calls || [];
       },
     }),
-
-    /**
-     * Compute the subtype XML ID (useful for templates).
-     * Requires message_format to add subtype_xmlid to the payload.
-     */
-    messageSubtypeXmlid: attr({}),
   },
 });

@@ -7,6 +7,7 @@ import { registerPatch } from "@mail/model/model_core";
 registerPatch({
   name: "MessageActionView",
   fields: {
+    // Example of how to override a field via registerPatch
     classNames: {
       compute() {
         const messageAction = this.messageAction;
