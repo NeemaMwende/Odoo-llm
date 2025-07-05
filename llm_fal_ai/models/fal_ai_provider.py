@@ -46,7 +46,13 @@ class LLMProvider(models.Model):
         raise UserError(_("FAL AI provider does not support embedding functionality"))
 
     def fal_ai_generate(self, input_data, model=None, stream=False, **kwargs):
-        """Generate content using FAL AI - unified generate endpoint"""
+        """Generate content using FAL AI
+        
+        Returns:
+            tuple: (output_dict, urls_list) where:
+                - output_dict: Dictionary containing provider-specific output data
+                - urls_list: List of dictionaries with URL metadata
+        """
         self.ensure_one()
         client = self.fal_ai_get_client()
 
@@ -67,8 +73,19 @@ class LLMProvider(models.Model):
     def _fal_ai_generate_sync(self, client, model_name, input_data):
         """Generate content synchronously"""
         result = client.run(model_name, arguments=input_data)
-        urls = self._fal_ai_extract_urls_from_result(result)
-        yield {"content": urls}
+        
+        # Extract URLs with metadata from the result
+        urls = self._fal_ai_extract_urls_with_metadata(result)
+        
+        # Create output data
+        output_data = {
+            "raw_response": result,
+            "model_name": model_name,
+            "inputs": input_data,
+            "provider": "fal_ai"
+        }
+        
+        return (output_data, urls)
 
     def _fal_ai_generate_stream(self, client, model_name, input_data):
         """Stream generation results"""
@@ -76,10 +93,22 @@ class LLMProvider(models.Model):
             stream = client.stream(model_name, arguments=input_data)
             for event in stream:
                 if hasattr(event, "data"):
-                    urls = self._fal_ai_extract_urls_from_result(event.data)
-                    yield {"content": urls}
+                    urls = self._fal_ai_extract_urls_with_metadata(event.data)
+                    output_data = {
+                        "raw_response": event.data,
+                        "model_name": model_name,
+                        "inputs": input_data,
+                        "provider": "fal_ai"
+                    }
+                    yield {"content": (output_data, urls)}
                 else:
-                    yield {"content": event}
+                    output_data = {
+                        "raw_response": event,
+                        "model_name": model_name,
+                        "inputs": input_data,
+                        "provider": "fal_ai"
+                    }
+                    yield {"content": (output_data, [])}
         except Exception as e:
             _logger.error(f"Error in FAL AI stream: {e}")
             raise UserError(_(f"FAL AI streaming failed: {str(e)}"))
@@ -232,8 +261,8 @@ class LLMProvider(models.Model):
         _logger.info(f"FAL AI: Extracted strings: {extracted_strings}")
         return extracted_strings
 
-    def _fal_ai_extract_urls_from_result(self, result):
-        """Extract URLs from fal_ai result, handling FileOutput objects and other formats"""
+    def _fal_ai_extract_urls_with_metadata(self, result):
+        """Extract URLs with metadata from fal_ai result"""
         urls = []
 
         if result is None:
@@ -244,38 +273,58 @@ class LLMProvider(models.Model):
         if isinstance(result, list):
             # If result is a list, extract URLs from each item
             for item in result:
-                url = self._fal_ai_extract_single_url(item)
-                if url:
-                    urls.append(url)
+                url_data = self._fal_ai_extract_single_url_with_metadata(item)
+                if url_data:
+                    urls.append(url_data)
 
         elif isinstance(result, dict):
             # If result is a dictionary, check for 'images' key or other URL fields
             if "images" in result:
                 for item in result["images"]:
-                    url = self._fal_ai_extract_single_url(item)
-                    if url:
-                        urls.append(url)
+                    url_data = self._fal_ai_extract_single_url_with_metadata(item)
+                    if url_data:
+                        urls.append(url_data)
             else:
                 # Check for other potential URL fields in the dictionary
-                url = self._fal_ai_extract_single_url(result)
-                if url:
-                    urls.append(url)
+                url_data = self._fal_ai_extract_single_url_with_metadata(result)
+                if url_data:
+                    urls.append(url_data)
 
         else:
             # If result is a single item (not a list or dict), extract URL directly
-            url = self._fal_ai_extract_single_url(result)
-            if url:
-                urls.append(url)
+            url_data = self._fal_ai_extract_single_url_with_metadata(result)
+            if url_data:
+                urls.append(url_data)
 
         return urls
 
-    def _fal_ai_extract_single_url(self, item):
-        """Extract URL from a single result item"""
+    def _fal_ai_extract_single_url_with_metadata(self, item):
+        """Extract URL with metadata from a single result item"""
         if isinstance(item, dict):
             if "url" in item:
-                return item["url"]
+                url_data = {
+                    'url': item["url"],
+                    'content_type': item.get('content_type', 'application/octet-stream'),
+                    'filename': item["url"].split('/')[-1] if item["url"] else 'generated_content'
+                }
+                
+                # Add dimensions if available
+                if 'width' in item:
+                    url_data['width'] = item['width']
+                if 'height' in item:
+                    url_data['height'] = item['height']
+                    
+                return url_data
             elif "content" in item and isinstance(item["content"], str):
-                return item["content"]
+                return {
+                    'url': item["content"],
+                    'content_type': 'application/octet-stream',
+                    'filename': item["content"].split('/')[-1] if item["content"] else 'generated_content'
+                }
         elif isinstance(item, str):
-            return item
+            return {
+                'url': item,
+                'content_type': 'application/octet-stream',
+                'filename': item.split('/')[-1] if item else 'generated_content'
+            }
         return None

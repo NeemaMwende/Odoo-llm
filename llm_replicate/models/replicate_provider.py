@@ -128,19 +128,25 @@ class LLMProvider(models.Model):
         else:
             _logger.warning(f"No OpenAPI schema found for model {model_name}")
 
-        model_record.write(
-            {
-                "input_schema": json.dumps(input_schema, indent=2)
-                if input_schema
-                else None,
-                "output_schema": json.dumps(output_schema, indent=2)
-                if output_schema
-                else None,
-            }
-        )
+        # Store schemas in details field
+        model_details = model_record.details or {}
+        model_details.update({
+            "input_schema": input_schema if input_schema else None,
+            "output_schema": output_schema if output_schema else None,
+        })
+        
+        model_record.write({
+            "details": model_details
+        })
 
-    def replicate_generate_media(self, inputs, model_record=None, stream=False):
-        """Generate media content using this provider"""
+    def replicate_generate(self, inputs, model_record=None, stream=False):
+        """Generate content using Replicate
+        
+        Returns:
+            tuple: (output_dict, urls_list) where:
+                - output_dict: Dictionary containing provider-specific output data
+                - urls_list: List of dictionaries with URL metadata
+        """
         # Get full model name including version if specified
         model_name = model_record._replicate_model_name_with_version()
         if not model_name:
@@ -156,20 +162,28 @@ class LLMProvider(models.Model):
                 # consume the generator/iterator so it doesn't block
                 pass
 
-        # Extract URLs from the result
-        urls = self._replicate_extract_urls_from_result(result)
+        # Extract URLs with metadata from the result
+        urls = self._replicate_extract_urls_with_metadata(result)
+        
+        # Create output data
+        output_data = {
+            "raw_response": result,
+            "model_name": model_name,
+            "inputs": inputs,
+            "provider": "replicate"
+        }
 
         if stream:
-            return self._replicate_stream_media_result(urls)
+            return self._replicate_stream_media_result(output_data, urls)
         else:
-            return urls
+            return (output_data, urls)
 
-    def _replicate_stream_media_result(self, urls):
+    def _replicate_stream_media_result(self, output_data, urls):
         """Stream media generation results
 
         This is a separate generator function to avoid making the main method a generator.
         """
-        yield {"content": urls}
+        yield {"content": (output_data, urls)}
 
     def replicate_format_generation_response(self, raw_response, output_schema):
         """Format the raw generation response according to the output processing config
@@ -216,8 +230,8 @@ class LLMProvider(models.Model):
         _logger.info(f"Replicate: Extracted strings: {extracted_strings}")
         return extracted_strings
 
-    def _replicate_extract_urls_from_result(self, result):
-        """Extract URLs from Replicate result, handling FileOutput objects and other formats"""
+    def _replicate_extract_urls_with_metadata(self, result):
+        """Extract URLs with metadata from Replicate result"""
         urls = []
 
         if result is None:
@@ -226,29 +240,70 @@ class LLMProvider(models.Model):
         # Handle list of results
         if isinstance(result, (list, tuple)):
             for item in result:
-                url = self._replicate_extract_single_url(item)
-                if url:
-                    urls.append(url)
+                url_data = self._replicate_extract_single_url_with_metadata(item)
+                if url_data:
+                    urls.append(url_data)
         else:
             # Handle single result
-            url = self._replicate_extract_single_url(result)
-            if url:
-                urls.append(url)
+            url_data = self._replicate_extract_single_url_with_metadata(result)
+            if url_data:
+                urls.append(url_data)
 
         return urls
 
-    def _replicate_extract_single_url(self, item):
-        """Extract URL from a single result item"""
+    def _replicate_extract_single_url_with_metadata(self, item):
+        """Extract URL with metadata from a single result item"""
         if item is None:
             return None
 
+        url_data = {
+            'url': None,
+            'content_type': 'application/octet-stream',
+            'filename': 'generated_content'
+        }
+
         # FileOutput object from Replicate v1.0.0+
         if hasattr(item, "url"):
-            return item.url
-
+            url_data['url'] = item.url
+            
+            # Extract filename from URL
+            if item.url:
+                filename = item.url.split('/')[-1]
+                if filename:
+                    url_data['filename'] = filename
+                    
+                # Try to determine content type from URL/filename
+                if filename.lower().endswith('.png'):
+                    url_data['content_type'] = 'image/png'
+                elif filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
+                    url_data['content_type'] = 'image/jpeg'
+                elif filename.lower().endswith('.gif'):
+                    url_data['content_type'] = 'image/gif'
+                elif filename.lower().endswith('.mp4'):
+                    url_data['content_type'] = 'video/mp4'
+                elif filename.lower().endswith('.webp'):
+                    url_data['content_type'] = 'image/webp'
+                    
         # Direct string URL (older versions or direct URLs)
-        if isinstance(item, str):
-            return item
+        elif isinstance(item, str):
+            url_data['url'] = item
+            filename = item.split('/')[-1]
+            if filename:
+                url_data['filename'] = filename
+                
+                # Try to determine content type from URL/filename
+                if filename.lower().endswith('.png'):
+                    url_data['content_type'] = 'image/png'
+                elif filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
+                    url_data['content_type'] = 'image/jpeg'
+                elif filename.lower().endswith('.gif'):
+                    url_data['content_type'] = 'image/gif'
+                elif filename.lower().endswith('.mp4'):
+                    url_data['content_type'] = 'video/mp4'
+                elif filename.lower().endswith('.webp'):
+                    url_data['content_type'] = 'image/webp'
+        else:
+            # Convert other types to string as fallback
+            url_data['url'] = str(item)
 
-        # Convert other types to string as fallback
-        return str(item)
+        return url_data if url_data['url'] else None

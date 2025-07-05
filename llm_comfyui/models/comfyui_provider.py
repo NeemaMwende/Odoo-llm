@@ -87,14 +87,18 @@ class LLMProvider(models.Model):
             "description": "List of URLs to generated media files",
         }
 
-        model_record.write(
-            {
-                "input_schema": json.dumps(input_schema, indent=2),
-                "output_schema": json.dumps(output_schema, indent=2),
-            }
-        )
+        # Store schemas in details field
+        model_details = model_record.details or {}
+        model_details.update({
+            "input_schema": input_schema,
+            "output_schema": output_schema,
+        })
+        
+        model_record.write({
+            "details": model_details
+        })
 
-    def comfyui_generate_media(self, inputs, model_record=None, stream=False):
+    def comfyui_generate(self, inputs, model_record=None, stream=False):
         """Generate media content using ComfyUI
 
         Args:
@@ -103,10 +107,9 @@ class LLMProvider(models.Model):
             stream (bool, optional): Whether to stream the response. Defaults to False.
 
         Returns:
-            list: List of URLs to generated media
-
-        Yields:
-            dict: Streaming response with content URLs
+            tuple: (output_dict, urls_list) where:
+                - output_dict: Dictionary containing provider-specific output data
+                - urls_list: List of dictionaries with URL metadata
         """
         self.ensure_one()
         client = self.client
@@ -140,14 +143,23 @@ class LLMProvider(models.Model):
             # Poll for completion
             result = client.poll_prompt_status(prompt_id)
 
-            # Extract output URLs
-            urls = self._comfyui_extract_output_urls(result)
+            # Extract output URLs with metadata
+            urls = self._comfyui_extract_output_urls_with_metadata(result)
+            
+            # Create output data
+            output_data = {
+                "raw_response": result,
+                "prompt_id": prompt_id,
+                "inputs": inputs,
+                "provider": "comfyui",
+                "workflow_json": prompt
+            }
 
             # Return results based on streaming mode
             if stream:
-                yield {"content": urls}
+                yield {"content": (output_data, urls)}
             else:
-                return urls
+                return (output_data, urls)
 
         except Exception as e:
             _logger.error(f"Error in ComfyUI workflow execution: {e}")
@@ -207,31 +219,14 @@ class LLMProvider(models.Model):
                 ) from e
         return param
 
-    def _comfyui_extract_output_urls(self, result):
-        """Extract output URLs from prompt result data
-
-        ComfyUI returns outputs in the format:
-        {
-            "prompt_id": {
-                "outputs": {
-                    "node_id": {
-                        "images": [
-                            {
-                                "filename": "filename.png",
-                                "subfolder": "subfolder",
-                                "type": "output"
-                            }
-                        ]
-                    }
-                }
-            }
-        }
+    def _comfyui_extract_output_urls_with_metadata(self, result):
+        """Extract output URLs with metadata from prompt result data
 
         Args:
             result (dict): The prompt result data
 
         Returns:
-            list: List of output URLs
+            list: List of URL dictionaries with metadata
         """
         urls = []
 
@@ -244,6 +239,7 @@ class LLMProvider(models.Model):
         if not outputs:
             raise UserError(_("No outputs found in ComfyUI response"))
         _logger.info(f"ComfyUI: outputs: {outputs}")
+        
         # Process each node's outputs
         for node_id, node_output in outputs.items():
             # Check for images in the node output
@@ -269,7 +265,29 @@ class LLMProvider(models.Model):
 
                         # Construct the final URL
                         image_url = f"{base_url}{path_parts[0]}?{'&'.join(query_parts)}"
-                        urls.append(image_url)
+                        
+                        # Create URL metadata
+                        url_data = {
+                            'url': image_url,
+                            'filename': filename,
+                            'subfolder': subfolder,
+                            'type': type_folder,
+                            'node_id': node_id
+                        }
+                        
+                        # Try to determine content type from filename
+                        if filename.lower().endswith('.png'):
+                            url_data['content_type'] = 'image/png'
+                        elif filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
+                            url_data['content_type'] = 'image/jpeg'
+                        elif filename.lower().endswith('.gif'):
+                            url_data['content_type'] = 'image/gif'
+                        elif filename.lower().endswith('.webp'):
+                            url_data['content_type'] = 'image/webp'
+                        else:
+                            url_data['content_type'] = 'image/png'  # Default for ComfyUI
+                        
+                        urls.append(url_data)
 
         _logger.info(f"ComfyUI: Extracted {len(urls)} output URLs")
         if not urls:

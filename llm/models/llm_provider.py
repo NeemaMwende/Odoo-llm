@@ -90,7 +90,9 @@ class LLMProvider(models.Model):
             **kwargs: Additional provider-specific parameters
 
         Returns:
-            Generated content from the provider
+            tuple: (output_dict, urls_list) where:
+                - output_dict: Dictionary containing provider-specific output data
+                - urls_list: List of dictionaries with URL metadata
         """
         return self._dispatch(
             "generate", input_data, model=model, stream=stream, **kwargs
