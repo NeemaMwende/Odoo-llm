@@ -82,50 +82,96 @@ class LLMThread(models.Model):
 
         if not message.body_json:
             return
-
+        message_data = None
         try:
             # Prepare final inputs
             final_inputs = self.prepare_generation_inputs(message.body_json)
 
-            # Generate using model
-            result = self.model_id.generate(final_inputs)
+            # Generate using model - now returns tuple (output_data, urls)
+            output_data, urls = self.model_id.generate(final_inputs)
 
-            # Handle streaming or direct response
-            if hasattr(result, "__iter__") and not isinstance(result, (str, dict)):
-                # Streaming response
-                for chunk in result:
-                    if chunk.get("content"):
-                        self._create_generation_result_message(chunk["content"])
-                        break
-            else:
-                # Direct response
-                self._create_generation_result_message(result)
+            # Process URLs and create attachments
+            attachments = self._process_generation_urls(urls)
+
+            # Generate markdown content
+            markdown_content = self._generate_markdown_from_urls(urls)
+
+            # Create assistant message with processed content
+            generated_message = self._create_generation_result_message(
+                markdown_content, output_data, attachments
+            )
+            
+            message_data = generated_message.message_format()[0]
 
         except Exception as e:
             _logger.error(f"Error in generation: {e}")
-            self.message_post(body=f"Generation failed: {str(e)}", llm_role="assistant")
+            # Create error message instead
+            error_message = self.message_post(
+                body=f"Generation failed: {str(e)}", 
+                llm_role="assistant"
+            )
+            message_data = error_message.message_format()[0]
+        
+        # Single yield point for both success and error cases
+        if message_data:
+            yield {
+                "type": "message_create",
+                "message": message_data,
+            }
 
-    def _create_generation_result_message(self, content):
-        """Create a message with generation result."""
-        self.ensure_one()
+    def _process_generation_urls(self, urls):
+        """Process URLs and create attachment records"""
+        attachments = []
+        for url_data in urls:
+            attachment = self._create_url_attachment(url_data)
+            if attachment:
+                attachments.append(attachment)
+        return attachments
 
-        # Format content for display
-        if isinstance(content, list):
-            # Handle multiple results (e.g., image URLs)
-            formatted_content = []
-            for i, item in enumerate(content):
-                if isinstance(item, str) and item.startswith(("http://", "https://")):
-                    formatted_content.append(f"![Generated Image {i+1}]({item})")
-                else:
-                    formatted_content.append(str(item))
-            body = "\n".join(formatted_content)
-        else:
-            body = str(content)
+    def _create_url_attachment(self, url_data):
+        """Create attachment record for URL"""
+        attachment = self.env['ir.attachment'].create({
+            'name': url_data.get('filename', 'generated_content'),
+            'type': 'url',
+            'url': url_data['url'],
+            'mimetype': url_data.get('content_type', 'application/octet-stream'),
+            'res_model': 'mail.message',
+            'res_id': 0,  # Will be updated when message is created
+        })
+        return attachment
 
-        # Create assistant message
-        return self.message_post(
-            body=body, llm_role="assistant", body_json={"generation_result": content}
+    def _generate_markdown_from_urls(self, urls):
+        """Generate markdown content from URLs"""
+        markdown_parts = []
+        for i, url_data in enumerate(urls):
+            content_type = url_data.get('content_type', '')
+            url = url_data['url']
+            
+            if content_type.startswith('image/'):
+                markdown_parts.append(f"![Generated Image {i+1}]({url})")
+            elif content_type.startswith('video/'):
+                markdown_parts.append(f"[Generated Video {i+1}]({url})")
+            elif content_type.startswith('audio/'):
+                markdown_parts.append(f"[Generated Audio {i+1}]({url})")
+            else:
+                markdown_parts.append(f"[Generated Content {i+1}]({url})")
+        
+        return "\n\n".join(markdown_parts)
+
+    def _create_generation_result_message(self, markdown_content, output_data, attachments):
+        """Create message with generation results"""
+        message = self.message_post(
+            body=markdown_content,
+            llm_role="assistant",
+            body_json=output_data,
+            attachment_ids=[att.id for att in attachments]
         )
+        
+        # Update attachment res_id
+        for attachment in attachments:
+            attachment.res_id = message.id
+        
+        return message
 
     @api.model
     def get_model_generation_io_by_id(self, model_id):

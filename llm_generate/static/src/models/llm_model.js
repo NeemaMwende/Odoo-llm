@@ -17,16 +17,6 @@ registerPatch({
     details: attr(),
 
     /**
-     * Input schema (for backwards compatibility)
-     */
-    inputSchema: attr(),
-
-    /**
-     * Output schema (for backwards compatibility)
-     */
-    outputSchema: attr(),
-
-    /**
      * Check if this model is configured for media generation
      * Based purely on model_use field containing "generation"
      */
@@ -43,28 +33,20 @@ registerPatch({
     }),
 
     /**
-     * Get the effective input schema from details or fallback
+     * Get the input schema from details field
      */
-    effectiveInputSchema: attr({
+    inputSchema: attr({
       compute() {
-        // Priority: details.input_schema, then direct inputSchema field
-        if (this.details && this.details.input_schema) {
-          return this.details.input_schema;
-        }
-        return this.inputSchema || null;
+        return this.details?.input_schema || {};
       },
     }),
 
     /**
-     * Get the effective output schema from details or fallback
+     * Get the output schema from details field
      */
-    effectiveOutputSchema: attr({
+    outputSchema: attr({
       compute() {
-        // Priority: details.output_schema, then direct outputSchema field
-        if (this.details && this.details.output_schema) {
-          return this.details.output_schema;
-        }
-        return this.outputSchema || null;
+        return this.details?.output_schema || {};
       },
     }),
   },

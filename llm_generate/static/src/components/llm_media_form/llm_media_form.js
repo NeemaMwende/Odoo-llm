@@ -97,14 +97,9 @@ export class LLMMediaForm extends Component {
     // First try to get from thread config (includes prompt and assistant processing)
     let schema = this.state.threadConfig.input_schema;
 
-    // If no thread config schema, try model's effective schema
+    // If no thread config schema, try model's schema
     if (!schema || Object.keys(schema).length === 0) {
-      schema = this.llmModel?.effectiveInputSchema;
-    }
-
-    // If still no schema, fallback to model details
-    if (!schema && this.llmModel?.details?.input_schema) {
-      schema = this.llmModel.details.input_schema;
+      schema = this.llmModel?.inputSchema;
     }
 
     if (!schema || typeof schema !== "object") {

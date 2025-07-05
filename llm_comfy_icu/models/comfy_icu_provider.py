@@ -132,14 +132,18 @@ class LLMProvider(models.Model):
             "description": "List of URLs to generated media files",
         }
 
-        model_record.write(
-            {
-                "input_schema": json.dumps(input_schema, indent=2),
-                "output_schema": json.dumps(output_schema, indent=2),
-            }
-        )
+        # Store schemas in details field
+        model_details = model_record.details or {}
+        model_details.update({
+            "input_schema": input_schema,
+            "output_schema": output_schema,
+        })
+        
+        model_record.write({
+            "details": model_details
+        })
 
-    def comfy_icu_generate_media(self, inputs, model_record=None, stream=False):
+    def comfy_icu_generate(self, inputs, model_record=None, stream=False):
         """Generate media content using ComfyICU
 
         Args:
@@ -148,10 +152,9 @@ class LLMProvider(models.Model):
             stream (bool, optional): Whether to stream the response. Defaults to False.
 
         Returns:
-            list: List of URLs to generated media
-
-        Yields:
-            dict: Streaming response with content URLs
+            tuple: (output_dict, urls_list) where:
+                - output_dict: Dictionary containing provider-specific output data
+                - urls_list: List of dictionaries with URL metadata
         """
         self.ensure_one()
         client = self.client
@@ -193,14 +196,23 @@ class LLMProvider(models.Model):
                 _logger.error(f"ComfyICU workflow failed: {error_msg}")
                 raise UserError(_("ComfyICU workflow failed: %s") % error_msg)
 
-            # Extract output URLs
-            urls = self._comfy_icu_extract_output_urls(result)
+            # Extract output URLs with metadata
+            urls = self._comfy_icu_extract_output_urls_with_metadata(result)
+            
+            # Create output data
+            output_data = {
+                "raw_response": result,
+                "run_id": run_id,
+                "workflow_id": workflow_id,
+                "inputs": inputs,
+                "provider": "comfy_icu"
+            }
 
             # Return results based on streaming mode
             if stream:
-                yield {"content": urls}
+                yield {"content": (output_data, urls)}
             else:
-                return urls
+                return (output_data, urls)
 
         except Exception as e:
             _logger.error(f"Error in ComfyICU workflow execution: {e}")
@@ -291,8 +303,8 @@ class LLMProvider(models.Model):
 
         return error_msg
 
-    def _comfy_icu_extract_output_urls(self, status_data):
-        """Extract output URLs from run status data
+    def _comfy_icu_extract_output_urls_with_metadata(self, status_data):
+        """Extract output URLs with metadata from run status data
 
         The ComfyICU API returns output URLs in different formats depending on the endpoint:
         1. In the 'outputs' field as a dict of path -> url (older format)
@@ -307,7 +319,12 @@ class LLMProvider(models.Model):
         if output_list and isinstance(output_list, list):
             for item in output_list:
                 if isinstance(item, dict) and "url" in item:
-                    urls.append(item["url"])
+                    url_data = {
+                        'url': item["url"],
+                        'content_type': 'image/png',  # Default for ComfyICU
+                        'filename': item["url"].split('/')[-1] if item["url"] else 'generated_content'
+                    }
+                    urls.append(url_data)
 
         # If no URLs found, try the older format (outputs as a dict)
         if not urls:
@@ -315,9 +332,15 @@ class LLMProvider(models.Model):
             if outputs and isinstance(outputs, dict):
                 for path, url in outputs.items():
                     if path.startswith("/output/"):
-                        urls.append(url)
+                        url_data = {
+                            'url': url,
+                            'content_type': 'image/png',  # Default for ComfyICU
+                            'filename': url.split('/')[-1] if url else 'generated_content',
+                            'path': path
+                        }
+                        urls.append(url_data)
 
-        _logger.info(f"ComfyICU: Extracted {len(urls)} output URLs: {urls}")
+        _logger.info(f"ComfyICU: Extracted {len(urls)} output URLs")
         if not urls:
             raise UserError(_("No outputs found, try with different seed"))
         return urls

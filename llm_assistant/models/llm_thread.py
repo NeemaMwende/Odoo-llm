@@ -1,6 +1,6 @@
 import logging
 
-from odoo import _, api, fields, models
+from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -200,7 +200,7 @@ class LLMThread(models.Model):
         while self._should_continue(last_message):
             if last_message.llm_role in ("user", "tool"):
                 if self.model_id.model_use in ("image_generation", "generation"):
-                    last_message = self._generate_response(last_message)
+                    last_message = yield from self._generate_response(last_message)
                 else:
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
