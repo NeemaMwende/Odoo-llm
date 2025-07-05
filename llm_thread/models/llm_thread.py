@@ -1,4 +1,4 @@
-import functools
+import contextlib
 import json
 import logging
 
@@ -7,26 +7,12 @@ import markdown2
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
+from psycopg2 import OperationalError
 
 _logger = logging.getLogger(__name__)
 
 
-def execute_with_new_cursor(func_to_decorate):
-    """Decorator to execute a method within a new, immediately committed cursor context.
 
-    It injects the browsed record from the new environment as the first argument
-    after 'self'. Assumes the decorated method is called on a singleton recordset.
-    """
-
-    @functools.wraps(func_to_decorate)
-    def wrapper(self, *args, **kwargs):
-        self.ensure_one()
-        with self.pool.cursor() as cr:
-            env = api.Environment(cr, self.env.uid, self.env.context)
-            record_in_new_env = env[self._name].browse(self.ids)
-            return func_to_decorate(self, record_in_new_env, *args, **kwargs)
-
-    return wrapper
 
 
 class RelatedRecordProxy:
@@ -150,12 +136,7 @@ class LLMThread(models.Model):
         help="ID of the related record",
     )
 
-    is_locked = fields.Boolean(
-        string="Locked, Preventing Concurrent Generation",
-        default=False,
-        copy=False,
-        help="Indicates if the thread is currently locked to prevent concurrent generation.",
-    )
+
 
     tool_ids = fields.Many2many(
         "llm.tool",
@@ -306,35 +287,73 @@ class LLMThread(models.Model):
         return context
 
     # ============================================================================
-    # LOCKING MECHANISM
+    # POSTGRESQL ADVISORY LOCK IMPLEMENTATION
     # ============================================================================
 
-    def _lock(self):
-        """Acquires a lock on the thread, ensuring immediate commit."""
+    def _acquire_thread_lock(self):
+        """Acquire PostgreSQL advisory lock for this thread."""
         self.ensure_one()
-        if self._read_is_locked_decorated():
-            raise UserError(
-                _(
-                    "Lock Error: This thread is already generating a response. Please wait."
+
+        try:
+            query = "SELECT pg_try_advisory_lock(%s)"
+            self.env.cr.execute(query, (self.id,))
+            result = self.env.cr.fetchone()
+
+            if not result or not result[0]:
+                raise UserError(
+                    _("Thread is currently generating a response. Please wait.")
                 )
-            )
-        self._write_vals_decorated({"is_locked": True})
 
-    def _unlock(self):
-        """Releases the lock on the thread, ensuring immediate commit."""
+            _logger.info(f"Acquired advisory lock for thread {self.id}")
+
+        except UserError:
+            raise
+        except OperationalError as e:
+            _logger.error(f"Database error acquiring lock for thread {self.id}: {e}")
+            raise UserError(_("Database error acquiring thread lock.")) from e
+        except Exception as e:
+            _logger.error(f"Unexpected error acquiring lock for thread {self.id}: {e}")
+            raise UserError(_("Failed to acquire thread lock.")) from e
+
+    def _release_thread_lock(self):
+        """Release PostgreSQL advisory lock for this thread."""
         self.ensure_one()
-        if self._read_is_locked_decorated():
-            self._write_vals_decorated({"is_locked": False})
 
-    @execute_with_new_cursor
-    def _read_is_locked_decorated(self, record_in_new_env):
-        """Reads the 'is_locked' status using a new cursor."""
-        return record_in_new_env.is_locked
+        try:
+            query = "SELECT pg_advisory_unlock(%s)"
+            self.env.cr.execute(query, (self.id,))
+            result = self.env.cr.fetchone()
 
-    @execute_with_new_cursor
-    def _write_vals_decorated(self, record_in_new_env, vals):
-        """Writes values using a new, immediately committed cursor."""
-        return record_in_new_env.write(vals)
+            success = result and result[0]
+            if success:
+                _logger.info(f"Released advisory lock for thread {self.id}")
+            else:
+                _logger.warning(f"Advisory lock for thread {self.id} was not held")
+
+            return success
+
+        except Exception as e:
+            _logger.error(f"Error releasing lock for thread {self.id}: {e}")
+            return False
+
+    @contextlib.contextmanager
+    def _generation_lock(self):
+        """Context manager for thread generation with automatic lock cleanup."""
+        self.ensure_one()
+
+        self._acquire_thread_lock()
+
+        try:
+            _logger.info(f"Starting locked generation for thread {self.id}")
+            yield self
+
+        finally:
+            released = self._release_thread_lock()
+            if released:
+                _logger.info(f"Finished locked generation for thread {self.id}")
+            else:
+                _logger.warning(f"Lock release failed for thread {self.id}")
+
 
     # ============================================================================
     # ODOO HOOKS AND CLEANUP
