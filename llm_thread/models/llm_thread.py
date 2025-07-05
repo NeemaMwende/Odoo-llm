@@ -258,7 +258,30 @@ class LLMThread(models.Model):
     # ============================================================================
 
     def generate(self, user_message_body, **kwargs):
-        """Main generation method - requires llm_assistant module for actual AI generation."""
+        """Main generation method with PostgreSQL advisory locking."""
+        self.ensure_one()
+        
+        with self._generation_lock():
+            # Post user message if provided
+            if user_message_body:
+                user_msg = self.message_post(
+                    body=user_message_body,
+                    llm_role="user",
+                    author_id=self.env.user.partner_id.id,
+                    **kwargs,
+                )
+                self.env.cr.commit()
+                yield {
+                    "type": "message_create",
+                    "message": user_msg.message_format()[0],
+                }
+
+            # Call the actual generation implementation
+            last_message = yield from self.generate_messages()
+            return last_message
+
+    def generate_messages(self):
+        """Generate messages - to be overridden by llm_assistant module."""
         raise UserError(
             _("Please install the llm_assistant module for actual AI generation.")
         )

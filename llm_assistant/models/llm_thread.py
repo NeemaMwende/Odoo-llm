@@ -188,62 +188,41 @@ class LLMThread(models.Model):
 
         return []
 
-    def generate(self, user_message_body, **kwargs):
-        """Main generation method with actual AI intelligence."""
+    def generate_messages(self):
+        """Generate messages with actual AI intelligence."""
         self.ensure_one()
-        if self.is_locked:
-            raise UserError(_("This thread is already generating a response."))
+        
+        # Get last message to continue from
+        last_message = self._get_last_message_from_history()
 
-        self._lock()
-        try:
-            # Post user message if provided
-            if user_message_body:
-                user_msg = self.message_post(
-                    body=user_message_body,
-                    llm_role="user",
-                    author_id=self.env.user.partner_id.id,
-                    **kwargs,
-                )
-                self.env.cr.commit()
-                yield {
-                    "type": "message_create",
-                    "message": user_msg.message_format()[0],
-                }
-
-            # Get last message to continue from
-            last_message = self._get_last_message_from_history()
-
-            # Continue generation loop
-            while self._should_continue(last_message):
-                if last_message.llm_role in ("user", "tool"):
-                    if self.model_id.model_use in ("image_generation", "generation"):
-                        last_message = self._generate_response(last_message)
-                    else:
-                        # Generate assistant response
-                        last_message = yield from self._generate_assistant_response()
-                elif (
-                    last_message.llm_role == "assistant"
-                    and last_message.has_tool_calls()
-                ):
-                    # Execute ALL tool calls from assistant message
-                    tool_calls = last_message.get_tool_calls()
-                    for tool_call in tool_calls:
-                        tool_message = yield from self._execute_tool_call(
-                            tool_call, last_message
-                        )
-                        last_message = (
-                            tool_message  # Update last_message to latest tool message
-                        )
-                        self.env.cr.commit()
+        # Continue generation loop
+        while self._should_continue(last_message):
+            if last_message.llm_role in ("user", "tool"):
+                if self.model_id.model_use in ("image_generation", "generation"):
+                    last_message = self._generate_response(last_message)
                 else:
-                    _logger.info(
-                        f"Breaking loop. Last message role: {last_message.llm_role}, has_tool_calls: {last_message.has_tool_calls()}"
+                    # Generate assistant response
+                    last_message = yield from self._generate_assistant_response()
+            elif (
+                last_message.llm_role == "assistant"
+                and last_message.has_tool_calls()
+            ):
+                # Execute ALL tool calls from assistant message
+                tool_calls = last_message.get_tool_calls()
+                for tool_call in tool_calls:
+                    tool_message = yield from self._execute_tool_call(
+                        tool_call, last_message
                     )
-                    break
+                    last_message = tool_message
+                    self.env.cr.commit()
+            else:
+                _logger.info(
+                    f"Breaking loop. Last message role: {last_message.llm_role}, "
+                    f"has_tool_calls: {last_message.has_tool_calls()}"
+                )
+                break
 
-            return last_message
-        finally:
-            self._unlock()
+        return last_message
 
     def _generate_response(self, last_message):
         raise NotImplementedError

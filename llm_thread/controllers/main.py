@@ -61,18 +61,13 @@ class LLMThreadController(http.Controller):
                         break
 
             except GeneratorExit:
-                # Client disconnected explicitly
                 client_connected = False
-                if llm_thread.exists() and llm_thread._read_is_locked_decorated():
-                    llm_thread._unlock()
-                return
 
             except Exception as e:
                 _logger.exception(
                     f"Error in llm_thread_generate for thread {thread_id}: {e}"
                 )
-                if llm_thread.exists() and llm_thread._read_is_locked_decorated():
-                    llm_thread._unlock()
+                # Lock will be automatically released by context manager
 
                 if client_connected:
                     success = yield from cls._safe_yield(
