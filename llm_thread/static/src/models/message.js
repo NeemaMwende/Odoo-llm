@@ -157,11 +157,10 @@ registerPatch({
     }),
 
     /**
-     * Legacy support for tool calls display (now handled via separate tool messages)
+     * Tool calls associated with bodyJson(normally assistant message may have it)
      */
-    formattedToolCalls: attr({
+    toolCalls: attr({
       compute() {
-        // Return empty array since tool calls are now separate messages
         const toolData = this.toolData;
         return toolData?.tool_calls || [];
       },
