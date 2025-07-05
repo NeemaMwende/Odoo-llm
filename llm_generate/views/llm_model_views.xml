@@ -6,10 +6,10 @@
         <field name="model">llm.model</field>
         <field name="inherit_id" ref="llm.llm_model_view_form" />
         <field name="arch" type="xml">
-            <!-- Add Generation Schema info in the details section -->
-            <xpath expr="//field[@name='details']" position="after">
+            <!-- Add Generation Schema info as full-width section after all form inputs -->
+            <xpath expr="//sheet/group" position="after">
                 <div
-          class="alert alert-info"
+          class="alert alert-info mt-3"
           role="alert"
           attrs="{'invisible': [('model_use', 'not in', ['generation', 'image_generation'])]}"
         >
