@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <!-- Resources Menu (points to action defined in llm_knowledge) -->
+    <!-- Resources Menu -->
     <menuitem
     id="menu_llm_resource"
     name="Resources"
