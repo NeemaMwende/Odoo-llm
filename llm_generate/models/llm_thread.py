@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 
 
 class LLMThread(models.Model):
-    _inherit = "llm.thread"
+    _inherit = ["llm.thread", "llm.generation.mixin"]
 
     def get_input_schema(self):
         """Get input schema for generation forms."""
@@ -82,23 +82,24 @@ class LLMThread(models.Model):
 
         if not message.body_json:
             return
+        
         message_data = None
         try:
             # Prepare final inputs
             final_inputs = self.prepare_generation_inputs(message.body_json)
-
+            
             # Generate using model - now returns tuple (output_data, urls)
             output_data, urls = self.model_id.generate(final_inputs)
-
-            # Process URLs and create attachments
-            attachments = self._process_generation_urls(urls)
-
-            # Generate markdown content
-            markdown_content = self._generate_markdown_from_urls(urls)
-
+            
+            # Use mixin to process URLs and create attachments
+            markdown_content, attachments = self.process_generation_urls(urls)
+            
             # Create assistant message with processed content
-            generated_message = self._create_generation_result_message(
-                markdown_content, output_data, attachments
+            generated_message = self.message_post(
+                body=markdown_content,
+                llm_role="assistant",
+                body_json=output_data,
+                attachment_ids=[att.id for att in attachments]
             )
             
             message_data = generated_message.message_format()[0]
@@ -118,60 +119,6 @@ class LLMThread(models.Model):
                 "type": "message_create",
                 "message": message_data,
             }
-
-    def _process_generation_urls(self, urls):
-        """Process URLs and create attachment records"""
-        attachments = []
-        for url_data in urls:
-            attachment = self._create_url_attachment(url_data)
-            if attachment:
-                attachments.append(attachment)
-        return attachments
-
-    def _create_url_attachment(self, url_data):
-        """Create attachment record for URL"""
-        attachment = self.env['ir.attachment'].create({
-            'name': url_data.get('filename', 'generated_content'),
-            'type': 'url',
-            'url': url_data['url'],
-            'mimetype': url_data.get('content_type', 'application/octet-stream'),
-            'res_model': 'mail.message',
-            'res_id': 0,  # Will be updated when message is created
-        })
-        return attachment
-
-    def _generate_markdown_from_urls(self, urls):
-        """Generate markdown content from URLs"""
-        markdown_parts = []
-        for i, url_data in enumerate(urls):
-            content_type = url_data.get('content_type', '')
-            url = url_data['url']
-            
-            if content_type.startswith('image/'):
-                markdown_parts.append(f"![Generated Image {i+1}]({url})")
-            elif content_type.startswith('video/'):
-                markdown_parts.append(f"[Generated Video {i+1}]({url})")
-            elif content_type.startswith('audio/'):
-                markdown_parts.append(f"[Generated Audio {i+1}]({url})")
-            else:
-                markdown_parts.append(f"[Generated Content {i+1}]({url})")
-        
-        return "\n\n".join(markdown_parts)
-
-    def _create_generation_result_message(self, markdown_content, output_data, attachments):
-        """Create message with generation results"""
-        message = self.message_post(
-            body=markdown_content,
-            llm_role="assistant",
-            body_json=output_data,
-            attachment_ids=[att.id for att in attachments]
-        )
-        
-        # Update attachment res_id
-        for attachment in attachments:
-            attachment.res_id = message.id
-        
-        return message
 
     @api.model
     def get_model_generation_io_by_id(self, model_id):

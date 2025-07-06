@@ -7,7 +7,7 @@ _logger = logging.getLogger(__name__)
 
 
 class LLMToolGenerate(models.Model):
-    _inherit = "llm.tool"
+    _inherit = ["llm.tool", "llm.generation.mixin"]
 
     @api.model
     def _get_available_implementations(self):
@@ -28,29 +28,20 @@ class LLMToolGenerate(models.Model):
             # Use model's generate method - now returns tuple (output_data, urls)
             output_data, urls = model.generate(inputs)
 
-            # Process URLs for tool response
-            processed_urls = []
-            markdown_parts = []
-
-            for i, url_data in enumerate(urls):
-                processed_urls.append(url_data)
-                content_type = url_data.get('content_type', '')
-                url = url_data['url']
-
-                if content_type.startswith('image/'):
-                    markdown_parts.append(f"![Generated Image {i+1}]({url})")
-                elif content_type.startswith('video/'):
-                    markdown_parts.append(f"[Generated Video {i+1}]({url})")
-                elif content_type.startswith('audio/'):
-                    markdown_parts.append(f"[Generated Audio {i+1}]({url})")
-                else:
-                    markdown_parts.append(f"[Generated Content {i+1}]({url})")
+            # Get the existing tool message from context
+            tool_message = self.env.context.get('message')
+            
+            # Use mixin to process URLs and create attachments
+            markdown_content, attachments = self.process_generation_urls(
+                urls, 
+                message=tool_message
+            )
 
             return {
                 "success": True,
                 "output_data": output_data,
-                "urls": processed_urls,
-                "markdown": "\n\n".join(markdown_parts),
+                "urls": [{"url": att.url, "content_type": att.mimetype} for att in attachments],
+                "markdown": markdown_content,
                 "content_count": len(urls)
             }
 
