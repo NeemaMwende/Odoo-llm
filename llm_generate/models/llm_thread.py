@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 
 
 class LLMThread(models.Model):
-    _inherit = ["llm.thread", "llm.generation.mixin"]
+    _inherit = "llm.thread"
 
     def get_input_schema(self):
         """Get input schema for generation forms."""
@@ -91,16 +91,18 @@ class LLMThread(models.Model):
             # Generate using model - now returns tuple (output_data, urls)
             output_data, urls = self.model_id.generate(final_inputs)
             
-            # Use mixin to process URLs and create attachments
-            markdown_content, attachments = self.process_generation_urls(urls)
-            
-            # Create assistant message with processed content
+            # Create assistant message first (without attachments)
             generated_message = self.message_post(
-                body=markdown_content,
+                body="",  # Will be updated with markdown content
                 llm_role="assistant",
                 body_json=output_data,
-                attachment_ids=[att.id for att in attachments]
             )
+            
+            # Use message method to process URLs and create attachments
+            markdown_content, attachments = generated_message.process_generation_urls(urls)
+            
+            # Update message with final markdown content
+            generated_message.write({'body': markdown_content})
             
             message_data = generated_message.message_format()[0]
 

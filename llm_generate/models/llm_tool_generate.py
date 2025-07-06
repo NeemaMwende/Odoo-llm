@@ -7,7 +7,7 @@ _logger = logging.getLogger(__name__)
 
 
 class LLMToolGenerate(models.Model):
-    _inherit = ["llm.tool", "llm.generation.mixin"]
+    _inherit = "llm.tool"
 
     @api.model
     def _get_available_implementations(self):
@@ -31,11 +31,8 @@ class LLMToolGenerate(models.Model):
             # Get the existing tool message from context
             tool_message = self.env.context.get('message')
             
-            # Use mixin to process URLs and create attachments
-            markdown_content, attachments = self.process_generation_urls(
-                urls, 
-                message=tool_message
-            )
+            # Use message method to process URLs and create attachments
+            markdown_content, attachments = tool_message.process_generation_urls(urls)
 
             return {
                 "success": True,
