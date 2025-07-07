@@ -9,7 +9,7 @@
                 <tree decoration-success="queue_health == 'healthy'" decoration-warning="queue_health == 'warning'" 
                       decoration-danger="queue_health == 'critical'" decoration-muted="queue_health == 'disabled'">
                     <field name="display_name"/>
-                    <field name="provider_id"/>
+                    <field name="model_id"/>
                     <field name="enabled" widget="boolean_toggle"/>
                     <field name="queue_health" widget="badge"/>
                     <field name="current_running_jobs"/>
@@ -78,7 +78,7 @@
                         
                         <group>
                             <group string="Configuration">
-                                <field name="provider_id"/>
+                                <field name="model_id"/>
                                 <field name="enabled"/>
                                 <field name="max_concurrent_jobs"/>
                                 <field name="auto_retry_failed"/>
@@ -105,14 +105,14 @@
                         
                         <notebook>
                             <page string="Jobs" name="jobs">
-                                <field name="provider_id" invisible="1"/>
+                                <field name="model_id" invisible="1"/>
                                 <!-- Jobs will be shown via a separate action -->
                                 <group>
                                     <button name="action_view_jobs" string="View All Jobs" type="object" class="btn-primary"/>
                                 </group>
                                 <!-- Recent jobs preview -->
                                 <group string="Recent Jobs">
-                                    <field name="recent_job_ids" domain="[('provider_id', '=', provider_id)]" readonly="1" nolabel="1">
+                                    <field name="recent_job_ids" domain="[('model_id', '=', model_id)]" readonly="1" nolabel="1">
                                     <tree decoration-info="state == 'queued'" decoration-warning="state == 'running'" 
                                           decoration-success="state == 'completed'" decoration-danger="state == 'failed'">
                                         <field name="display_name"/>
@@ -139,7 +139,7 @@
             <field name="arch" type="xml">
                 <search>
                     <field name="display_name"/>
-                    <field name="provider_id"/>
+                    <field name="model_id"/>
 
                     <!-- Only use stored fields in domains -->
                     <filter string="Enabled" name="enabled" domain="[('enabled', '=', True)]"/>
@@ -147,7 +147,7 @@
                     <filter string="Recently Processed" name="recent" domain="[('last_processed_at', '!=', False)]"/>
 
                     <group expand="0" string="Group By">
-                        <filter string="Provider" name="group_by_provider" domain="[]" context="{'group_by': 'provider_id'}"/>
+                        <filter string="Model" name="group_by_model" domain="[]" context="{'group_by': 'model_id'}"/>
                         <filter string="Enabled Status" name="group_by_enabled" domain="[]" context="{'group_by': 'enabled'}"/>
                     </group>
                 </search>
@@ -160,7 +160,7 @@
             <field name="model">llm.generation.queue</field>
             <field name="arch" type="xml">
                 <kanban class="o_kanban_mobile">
-                    <field name="provider_id"/>
+                    <field name="model_id"/>
                     <field name="enabled"/>
                     <field name="queue_health"/>
                     <field name="current_running_jobs"/>
@@ -183,7 +183,7 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-12">
-                                            <i class="fa fa-plug"/> <field name="provider_id"/>
+                                            <i class="fa fa-brain"/> <field name="model_id"/>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -226,7 +226,7 @@
                     No generation queues configured yet!
                 </p>
                 <p>
-                    Generation queues are automatically created for each LLM provider when needed.
+                    Generation queues are automatically created for each LLM model when needed.
                     They help manage concurrent generation jobs and provide performance monitoring.
                 </p>
             </field>

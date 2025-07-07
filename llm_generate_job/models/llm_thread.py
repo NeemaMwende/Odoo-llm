@@ -114,13 +114,12 @@ class LLMThread(models.Model):
         
         # Determine whether to use queue or direct generation
         if use_queue is None:
-            # Auto-detect based on provider capabilities
-            try:
-                provider_info = self.provider_id.get_generation_queue_info()
-                use_queue = provider_info.get('supports_queue', False)
-            except:
-                # If provider doesn't support queue info, default to direct
-                use_queue = False
+            # Auto-detect based on model having a queue
+            queue = self.env['llm.generation.queue'].search([
+                ('model_id', '=', self.model_id.id),
+                ('enabled', '=', True)
+            ], limit=1)
+            use_queue = bool(queue)
         
         if use_queue:
             # Use queue-based generation
