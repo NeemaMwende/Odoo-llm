@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -61,6 +62,8 @@ class LLMProvider(models.Model):
         if not model_name:
             raise ValueError("Model name is required")
 
+        input_data = json.loads(input_data) if isinstance(input_data,str) else input_data
+        
         try:
             if stream:
                 return self._fal_ai_generate_stream(client, model_name, input_data)
