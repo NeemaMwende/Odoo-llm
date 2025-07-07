@@ -92,16 +92,14 @@ class LLMThread(models.Model):
             else:
                 thread.generation_success_rate = 0.0
 
-    def generate_response(self, user_message_body=None, use_queue=None, **kwargs):
-        """Generate response with queue support - this is the method that should be overridden
+    def _generate_response(self, last_message):
+        """Generate response with queue support - overrides llm_generate._generate_response
         
         This method provides queue-based generation capabilities while maintaining
-        backward compatibility with the base generate() method.
+        backward compatibility with direct generation.
         
         Args:
-            user_message_body: Optional user message to post before generation
-            use_queue: True to use queue, False for direct, None for auto-detect
-            **kwargs: Additional parameters for generation
+            last_message: The last user message containing generation data in body_json
             
         Yields:
             dict: Generation progress updates
@@ -113,34 +111,26 @@ class LLMThread(models.Model):
             raise UserError(_("Thread is already generating a response."))
         
         # Determine whether to use queue or direct generation
-        if use_queue is None:
-            # Auto-detect based on model having a queue
-            queue = self.env['llm.generation.queue'].search([
-                ('model_id', '=', self.model_id.id),
-                ('enabled', '=', True)
-            ], limit=1)
-            use_queue = bool(queue)
+        # Auto-detect based on model having a queue
+        queue = self.env['llm.generation.queue'].search([
+            ('model_id', '=', self.model_id.id),
+            ('enabled', '=', True)
+        ], limit=1)
+        use_queue = bool(queue)
         
         if use_queue:
             # Use queue-based generation
-            yield from self._generate_with_queue(user_message_body, **kwargs)
+            yield from self._generate_with_queue_from_message(last_message)
         else:
             # Use direct generation (call parent method)
-            yield from super().generate(user_message_body, **kwargs)
+            yield from super()._generate_response(last_message)
 
-    def _generate_with_queue(self, user_message_body=None, **kwargs):
-        """Generate using the job queue system"""
+    def _generate_with_queue_from_message(self, last_message):
+        """Generate using the job queue system from an existing message"""
         self.ensure_one()
         
-        # Create generation job
-        job = self._create_generation_job(user_message_body, **kwargs)
-        
-        # Yield user message creation if we have an input message
-        if job.input_message_id:
-            yield {
-                "type": "message_create",
-                "message": job.input_message_id.message_format()[0],
-            }
+        # Create generation job from the message
+        job = self._create_generation_job_from_message(last_message)
         
         # Queue the job
         job.action_queue()
@@ -148,8 +138,31 @@ class LLMThread(models.Model):
         # Monitor the job and yield updates
         yield from self._monitor_generation_job(job)
 
+    def _create_generation_job_from_message(self, last_message):
+        """Create a generation job record from an existing message"""
+        self.ensure_one()
+        
+        # Prepare generation inputs from message body_json (following llm_generate pattern)
+        generation_inputs = last_message.body_json or {}
+        
+        # If the message has attachment_ids, include them
+        if hasattr(last_message, 'attachment_ids') and last_message.attachment_ids:
+            generation_inputs['attachment_ids'] = last_message.attachment_ids.ids
+
+        # Create job record
+        job = self.env["llm.generation.job"].create({
+            "thread_id": self.id,
+            "provider_id": self.provider_id.id,
+            "model_id": self.model_id.id,
+            "input_message_id": last_message.id,
+            "generation_inputs": generation_inputs,
+            "state": "draft",
+        })
+
+        return job
+        
     def _create_generation_job(self, user_message_body=None, **kwargs):
-        """Create a generation job record"""
+        """Create a generation job record (legacy method for backward compatibility)"""
         self.ensure_one()
         
         # Post user message first if provided
