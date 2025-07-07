@@ -16,10 +16,11 @@ class LLMThread(models.Model):
         self.ensure_one()
 
         # Try prompt schema first, then model schema
+        # TODO(david) this seems to fail
         if self.prompt_id and hasattr(self.prompt_id, "input_schema_json"):
             return self._ensure_dict(self.prompt_id.input_schema_json)
         elif self.model_id and self.model_id.details:
-            return self._ensure_dict(self.model_id.details.get("input_schema"))
+            return self._ensure_dict(self.model_id.details.get("input_schema", {}))
         return {}
 
     def _ensure_dict(self, value):
@@ -80,14 +81,11 @@ class LLMThread(models.Model):
         """Handle a user message with generation data in body_json."""
         self.ensure_one()
 
-        if not message.body_json:
-            return
-        
-        message_data = None
         try:
             # Prepare final inputs
-            final_inputs = self.prepare_generation_inputs(message.body_json)
-            
+            final_inputs = self.prepare_generation_inputs(message.body_json or {})
+
+            _logger.info(final_inputs)
             # Generate using model - now returns tuple (output_data, urls)
             output_data, urls = self.model_id.generate(final_inputs)
             
