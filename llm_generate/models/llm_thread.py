@@ -50,7 +50,7 @@ class LLMThread(models.Model):
             if k in schema["properties"] and v is not None
         }
 
-    def prepare_generation_inputs(self, inputs):
+    def prepare_generation_inputs(self, inputs, attachment_ids=None):
         """Prepare final inputs for generation.
 
         Args:
@@ -59,6 +59,7 @@ class LLMThread(models.Model):
         Returns:
             dict: Final inputs ready for model generation
         """
+
         self.ensure_one()
 
         # Merge context with inputs
@@ -83,7 +84,7 @@ class LLMThread(models.Model):
 
         try:
             # Prepare final inputs
-            final_inputs = self.prepare_generation_inputs(message.body_json or {})
+            final_inputs = self.prepare_generation_inputs(message.body_json or {}, attachment_ids=message.attachment_ids)
 
             _logger.info(final_inputs)
             # Generate using model - now returns tuple (output_data, urls)
