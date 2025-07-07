@@ -15,12 +15,27 @@ class LLMThread(models.Model):
         """Get input schema for generation forms."""
         self.ensure_one()
 
-        # Try prompt schema first, then model schema
-        # TODO(david) this seems to fail
+        # Priority order:
+        # 1. Assistant's prompt schema (if assistant selected)
+        # 2. Thread's direct prompt schema (if prompt directly selected)
+        # 3. Model's default schema
+        
+        # Check assistant's prompt first
+        if hasattr(self, 'assistant_id') and self.assistant_id and self.assistant_id.prompt_id:
+            prompt_schema = self._ensure_dict(self.assistant_id.prompt_id.input_schema_json)
+            if prompt_schema and prompt_schema.get('properties'):
+                return prompt_schema
+        
+        # Check thread's direct prompt
         if self.prompt_id and hasattr(self.prompt_id, "input_schema_json"):
-            return self._ensure_dict(self.prompt_id.input_schema_json)
-        elif self.model_id and self.model_id.details:
+            prompt_schema = self._ensure_dict(self.prompt_id.input_schema_json)
+            if prompt_schema and prompt_schema.get('properties'):
+                return prompt_schema
+        
+        # Fall back to model schema
+        if self.model_id and self.model_id.details:
             return self._ensure_dict(self.model_id.details.get("input_schema", {}))
+        
         return {}
 
     def _ensure_dict(self, value):
@@ -40,15 +55,23 @@ class LLMThread(models.Model):
         context = self.get_context()
         schema = self.get_input_schema()
 
-        # Filter context to only include schema properties
-        if not schema.get("properties"):
-            return context
+        # Start with context values
+        defaults = dict(context)
+        
+        # Add schema defaults for any missing properties
+        if schema.get("properties"):
+            for prop_name, prop_def in schema["properties"].items():
+                if prop_name not in defaults and "default" in prop_def:
+                    defaults[prop_name] = prop_def["default"]
+            
+            # Filter to only include schema properties
+            defaults = {
+                k: v
+                for k, v in defaults.items()
+                if k in schema["properties"] and v is not None
+            }
 
-        return {
-            k: v
-            for k, v in context.items()
-            if k in schema["properties"] and v is not None
-        }
+        return defaults
 
     def prepare_generation_inputs(self, inputs, attachment_ids=None):
         """Prepare final inputs for generation.
