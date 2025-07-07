@@ -20,8 +20,8 @@
             <field name="model_id" ref="model_llm_generation_queue"/>
             <field name="state">code</field>
             <field name="code">model._check_job_statuses()</field>
-            <field name="interval_number">30</field>
-            <field name="interval_type">seconds</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">minutes</field>
             <field name="numbercall">-1</field>
             <field name="active" eval="True"/>
             <field name="user_id" ref="base.user_root"/>

@@ -122,30 +122,31 @@
                     <field name="model_id"/>
                     <field name="user_id"/>
                     <field name="external_job_id"/>
-                    
-                    <filter string="Active" name="active" domain="[('is_active', '=', True)]"/>
+
+                    <!-- Replace is_active filter with state-based active filter -->
+                    <filter string="Active" name="active" domain="[('state', 'in', ['queued', 'running'])]"/>
                     <filter string="Queued" name="queued" domain="[('state', '=', 'queued')]"/>
                     <filter string="Running" name="running" domain="[('state', '=', 'running')]"/>
                     <filter string="Completed" name="completed" domain="[('state', '=', 'completed')]"/>
                     <filter string="Failed" name="failed" domain="[('state', '=', 'failed')]"/>
-                    <filter string="Can Retry" name="can_retry" domain="[('can_retry', '=', True)]"/>
-                    
+                    <!-- Remove can_retry filter if it's also a computed field without store=True -->
+                    <!-- <filter string="Can Retry" name="can_retry" domain="[('can_retry', '=', True)]"/> -->
+
                     <separator/>
                     <filter string="My Jobs" name="my_jobs" domain="[('user_id', '=', uid)]"/>
                     <filter string="Today" name="today" domain="[('create_date', '>=', context_today().strftime('%Y-%m-%d'))]"/>
                     <filter string="This Week" name="this_week" domain="[('create_date', '>=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
-                    
+
                     <group expand="0" string="Group By">
                         <filter string="State" name="group_by_state" domain="[]" context="{'group_by': 'state'}"/>
                         <filter string="Provider" name="group_by_provider" domain="[]" context="{'group_by': 'provider_id'}"/>
                         <filter string="Model" name="group_by_model" domain="[]" context="{'group_by': 'model_id'}"/>
                         <filter string="User" name="group_by_user" domain="[]" context="{'group_by': 'user_id'}"/>
-                        <filter string="Creation Date" name="group_by_date" domain="[]" context="{'group_by': 'create_date:day'}"/>
+                        <filter string="Creation Date" name="group_by_date" domain="[]" context="{'group_by': 'create_date'}"/>
                     </group>
                 </search>
             </field>
         </record>
-
         <!-- Generation Job Kanban View -->
         <record id="view_llm_generation_job_kanban" model="ir.ui.view">
             <field name="name">llm.generation.job.kanban</field>

@@ -140,16 +140,15 @@
                 <search>
                     <field name="display_name"/>
                     <field name="provider_id"/>
-                    
+
+                    <!-- Only use stored fields in domains -->
                     <filter string="Enabled" name="enabled" domain="[('enabled', '=', True)]"/>
                     <filter string="Disabled" name="disabled" domain="[('enabled', '=', False)]"/>
-                    <filter string="Healthy" name="healthy" domain="[('queue_health', '=', 'healthy')]"/>
-                    <filter string="Warning" name="warning" domain="[('queue_health', '=', 'warning')]"/>
-                    <filter string="Critical" name="critical" domain="[('queue_health', '=', 'critical')]"/>
-                    
+                    <filter string="Recently Processed" name="recent" domain="[('last_processed_at', '!=', False)]"/>
+
                     <group expand="0" string="Group By">
                         <filter string="Provider" name="group_by_provider" domain="[]" context="{'group_by': 'provider_id'}"/>
-                        <filter string="Health" name="group_by_health" domain="[]" context="{'group_by': 'queue_health'}"/>
+                        <filter string="Enabled Status" name="group_by_enabled" domain="[]" context="{'group_by': 'enabled'}"/>
                     </group>
                 </search>
             </field>
