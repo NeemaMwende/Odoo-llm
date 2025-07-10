@@ -1,193 +1,444 @@
-# LLM Assistant with Prompt Templates
+# LLM Assistant for Odoo
 
-This Odoo module provides comprehensive AI assistant capabilities with integrated prompt template management for LLM interactions. It combines assistant configuration with reusable prompt templates to create powerful, specialized AI assistants.
+Advanced AI assistant management with integrated prompt templates, testing capabilities, and intelligent configuration orchestration. This module serves as the intelligence layer that defines how Odoo data connects to AI models.
 
-## Features
+## Overview
 
-### Assistant Management
+The LLM Assistant module provides sophisticated AI assistant management that goes far beyond simple chatbots. It serves as the intelligent configuration layer that orchestrates how AI models interact with Odoo data, with integrated prompt template management and comprehensive testing capabilities.
 
-- **Assistant Configuration**: Create and configure AI assistants with specific roles and goals
-- **Tool Integration**: Assign preferred tools to each assistant for specialized capabilities
-- **System Prompt Generation**: Automatically generate system prompts based on assistant configuration
-- **Thread Integration**: Attach assistants to chat threads for consistent behavior
-- **UI Integration**: Seamlessly switch between assistants in the chat interface
+### Core Capabilities
 
-### Prompt Template Management
+- **AI Assistant Configuration** - Define specialized AI personas with specific roles and capabilities
+- **Integrated Prompt Management** - Consolidated prompt template system (formerly separate `llm_prompt` module)
+- **Template Testing** - Built-in testing wizard for prompt validation and optimization
+- **Context Orchestration** - Intelligent mapping between Odoo data and AI inputs
+- **Tool Management** - Configure available tools and their usage patterns
+- **Generation Configuration** - Templates for different content types (text, images, etc.)
 
-- **Reusable Templates**: Create and manage prompt templates that can be reused across LLM interactions
-- **Multiple Formats**: Support for Text, YAML, and JSON template formats
-- **Dynamic Arguments**: Define arguments within prompts using {{argument_name}} syntax
-- **Multi-step Workflows**: Create complex prompt sequences with different roles (system, user, assistant)
-- **Categorization**: Organize prompts with categories and tags for easy discovery
-- **Enhanced Testing**: Test prompts with context simulation and related record integration
-- **Auto-detection**: Automatic argument detection from template content
+## Key Features
 
-## Installation
+### Consolidated Architecture
 
-1. Clone the repository into your Odoo addons directory
-2. Install the module via the Odoo Apps menu
-3. The module will automatically include all prompt template functionality
+**Version 16.0.1.4.0** consolidates functionality from the former `llm_prompt` module:
 
-## Configuration
+- ✅ **Prompt templates integrated** into assistant management
+- ✅ **Enhanced testing wizard** with context simulation  
+- ✅ **Streamlined UI** with unified assistant and prompt selection
+- ✅ **Auto-argument detection** for template variables
+- ✅ **Schema synchronization** between templates and forms
 
-### Creating Assistants
+### Assistant Types & Use Cases
 
-1. Navigate to LLM > Configuration > Assistants
-2. Create new assistants with specific providers and models
-3. Configure tools and system prompts for each assistant
-4. Assign assistants to specific user groups if needed
-
-### Creating Prompt Templates
-
-1. Navigate to LLM > Prompts
-2. Click "Create" to create a new prompt template
-3. Configure the template with:
-   - **Name**: Unique identifier for the prompt
-   - **Description**: Human-readable description
-   - **Category**: Select or create a category for organization
-   - **Tags**: Add tags for classification
-   - **Format**: Choose between Text, YAML, or JSON
-   - **Template**: The actual prompt content with {{argument}} placeholders
-   - **Arguments Schema**: Define JSON schema for template arguments
-
-### Arguments Schema
-
-The arguments schema defines the structure of arguments used in prompt templates:
-
-```json
-{
-  "user_name": {
-    "type": "string",
-    "description": "Name of the user",
-    "required": true,
-    "default": "User"
-  },
-  "data_input": {
-    "type": "string",
-    "description": "Data to analyze",
-    "required": true
-  }
-}
+#### 1. Chat Assistants
+Configure conversational AI with specific personas:
+```python
+# Customer service assistant
+assistant = env['llm.assistant'].create({
+    'name': 'Customer Support Bot',
+    'role': 'Customer Service Representative',
+    'goal': 'Provide helpful and accurate customer support',
+    'background': 'Expert in our products with access to CRM data',
+    'instructions': '''
+        - Always be polite and professional
+        - Use customer history to provide personalized responses
+        - Escalate complex issues to human agents
+        - Provide clear, actionable solutions
+    ''',
+    'tool_ids': [(6, 0, [crm_tool.id, knowledge_tool.id])]
+})
 ```
 
-## Usage
-
-### Creating an Assistant
-
-1. Go to LLM > Configuration > Assistants
-2. Click "Create" to add a new assistant
-3. Configure the assistant with:
-   - Name, provider, and model
-   - Prompt template (optional)
-   - Preferred tools
-   - Default argument values
-4. Save the assistant configuration
-
-### Using Prompt Templates
-
-1. Create reusable prompt templates with dynamic arguments
-2. Test prompts using the built-in testing wizard
-3. Use prompts directly in threads or associate them with assistants
-4. Reference prompts in API calls or programmatic usage
-
-### Template Formats
-
-#### Text Format
-
-```
-Hello {{user_name}}, please analyze the following data: {{data_input}}
+#### 2. Content Generation Assistants
+Configure specialized content creation workflows:
+```python
+# Marketing content generator
+assistant = env['llm.assistant'].create({
+    'name': 'Marketing Content Creator',
+    'role': 'Marketing Specialist',
+    'goal': 'Create compelling marketing content from product data',
+    'prompt_id': marketing_template.id,
+    'default_values': {
+        'brand_voice': 'professional yet approachable',
+        'target_audience': 'business professionals'
+    }
+})
 ```
 
-#### YAML Format
+#### 3. Analysis Assistants
+Configure data analysis and insights:
+```python
+# Business intelligence assistant
+assistant = env['llm.assistant'].create({
+    'name': 'BI Analyst',
+    'role': 'Business Intelligence Analyst', 
+    'goal': 'Analyze business data and provide actionable insights',
+    'tool_ids': [(6, 0, [reporting_tool.id, analytics_tool.id])]
+})
+```
 
+### Integrated Prompt Template System
+
+#### Template Management
+```python
+# Create prompt template with auto-detection
+prompt = env['llm.prompt'].create({
+    'name': 'Sales Email Generator',
+    'template': '''
+Generate a personalized sales email for {{customer_name}} 
+regarding {{product_name}}. 
+
+Customer Context:
+- Company: {{customer_company}}
+- Industry: {{industry}}
+- Previous purchases: {{purchase_history}}
+
+Email should be {{tone}} and focus on {{key_benefits}}.
+    ''',
+    'format': 'text',
+    'category_id': sales_category.id
+})
+
+# Arguments automatically detected and schema generated
+prompt.auto_detect_arguments()
+```
+
+#### Advanced Template Formats
+
+**YAML Format** for structured conversations:
 ```yaml
 messages:
   - type: system
     content: |
-      You are a helpful assistant. The user's name is {{user_name}}.
-  - type: user
+      You are {{role}}. Your goal is {{goal}}.
+      Customer: {{customer_name}} ({{customer_company}})
+  - type: user  
     content: |
-      Please analyze: {{data_input}}
+      {{user_request}}
 ```
 
-#### JSON Format
-
+**JSON Format** for direct API compatibility:
 ```json
 {
   "messages": [
     {
       "type": "system",
-      "content": "You are a helpful assistant. The user's name is {{user_name}}."
+      "content": "You are {{role}} helping {{customer_name}}"
     },
     {
-      "type": "user",
-      "content": "Please analyze: {{data_input}}"
+      "type": "user", 
+      "content": "{{user_input}}"
     }
-  ]
+  ],
+  "temperature": {{temperature}},
+  "max_tokens": {{max_tokens}}
 }
 ```
 
-### Testing Prompts
+### Testing & Validation
 
-1. Open any prompt template
-2. Click "Test Prompt" to launch the testing wizard
-3. Select a related record to auto-populate context
-4. Modify test context as needed
-5. View results in JSON, YAML, or text format
+#### Enhanced Testing Wizard
 
-### Using Assistants in Chat
-
-1. Open a chat thread from LLM > Threads
-2. Select an assistant from the dropdown in the chat header
-3. The assistant's configuration (provider, model, tools, prompts) will be applied
-4. Start chatting with the configured assistant
-
-## Pre-configured Assistants
-
-The module includes pre-configured assistants:
-
-1. **Assistant Creator**: Guides users through creating and configuring specialized AI assistants in Odoo
-2. **Website Builder**: Helps update website content, structure, and functionality within the Odoo system
-
-## API Integration
-
-### Prompt API Endpoints
-
-- `POST /api/llm/prompts/list` - List available prompts
-- `POST /api/llm/prompts/get` - Get a specific prompt with arguments
-- `POST /llm/thread/set_prompt` - Set prompt for a thread
-
-### Programmatic Usage
+The integrated testing wizard provides comprehensive validation:
 
 ```python
-# Get a prompt and render it with arguments
-prompt = env['llm.prompt'].search([('name', '=', 'my_prompt')])
-arguments = {'user_name': 'John', 'data_input': 'sample data'}
-messages = prompt.get_messages(arguments)
+# Launch testing wizard
+wizard = env['llm.assistant.test.wizard'].create({
+    'assistant_id': assistant.id,
+    'test_context': {
+        'customer_name': 'John Smith',
+        'customer_company': 'Acme Corp',
+        'product_name': 'Enterprise Software'
+    }
+})
 
-# Use in a thread
-thread = env['llm.thread'].browse(thread_id)
-thread.prompt_id = prompt.id
+# Test with different scenarios
+wizard.run_test_scenarios([
+    {'tone': 'professional', 'urgency': 'high'},
+    {'tone': 'friendly', 'urgency': 'low'},
+    {'tone': 'formal', 'urgency': 'medium'}
+])
 ```
 
-## Dependencies
+#### Auto-Detection Features
 
-- Odoo 16.0 or later
-- Python 3.8 or later
-- Required Python packages: jinja2, pyyaml, jsonschema
-- Required Odoo modules:
-  - base
-  - mail
-  - web
-  - llm
-  - llm_thread
-  - llm_tool
-  - web_json_editor
+- **Template Arguments**: Automatically detect `{{variables}}` in templates
+- **Schema Generation**: Create JSON schemas for form generation
+- **Validation**: Ensure template-schema consistency
+- **Default Values**: Smart defaults based on context
 
-## Contributing
+### Context Orchestration
 
-Contributions are welcome! Please follow the contribution guidelines in the repository.
+#### Data Mapping Configuration
+
+```python
+def prepare_context(self, record=None, user_input=None):
+    """Transform Odoo data into LLM-compatible context"""
+    context = {}
+    
+    if record and record._name == 'sale.order':
+        context.update({
+            'customer_name': record.partner_id.name,
+            'order_total': record.amount_total,
+            'order_date': record.date_order,
+            'sales_person': record.user_id.name
+        })
+    
+    # Add user input and system context
+    context['user_input'] = user_input
+    context['current_date'] = fields.Date.today()
+    
+    return context
+```
+
+#### Intelligent History Management
+
+```python
+def trim_conversation_history(self, messages, max_tokens=4000):
+    """Intelligent context window management"""
+    # Keep system message and recent context
+    # Remove older messages while preserving important context
+    # Maintain conversation coherence
+```
+
+## Configuration Guide
+
+### 1. Basic Assistant Setup
+
+```python
+# Create specialized assistant
+assistant = env['llm.assistant'].create({
+    'name': 'Sales Assistant',
+    'role': 'Sales Representative',
+    'goal': 'Help close deals and provide product information',
+    'background': 'Expert in our product portfolio with CRM access',
+    'instructions': '''
+        Key behaviors:
+        - Always qualify leads before pitching
+        - Use customer data to personalize responses  
+        - Focus on value propositions
+        - Suggest appropriate products based on needs
+    ''',
+    'provider_id': openai_provider.id,
+    'model_id': gpt4_model.id,
+    'tool_ids': [(6, 0, [crm_search.id, product_catalog.id])]
+})
+```
+
+### 2. Prompt Template Integration
+
+```python
+# Create template for the assistant
+template = env['llm.prompt'].create({
+    'name': 'Sales Conversation Template',
+    'template': '''
+You are {{role}} working with {{customer_name}} from {{customer_company}}.
+
+Customer Profile:
+- Industry: {{industry}}
+- Size: {{company_size}}  
+- Budget Range: {{budget_range}}
+- Key Pain Points: {{pain_points}}
+
+Your goal: {{goal}}
+
+Guidelines: {{instructions}}
+    ''',
+    'arguments_json': {
+        'customer_name': {'type': 'string', 'required': True},
+        'customer_company': {'type': 'string', 'required': True},
+        'industry': {'type': 'string', 'required': False},
+        'budget_range': {'type': 'string', 'required': False}
+    }
+})
+
+# Link template to assistant
+assistant.prompt_id = template.id
+```
+
+### 3. Tool Configuration
+
+```python
+# Configure available tools for assistant
+assistant.tool_ids = [(6, 0, [
+    crm_search_tool.id,      # Search CRM records
+    product_catalog_tool.id,  # Access product information
+    pricing_tool.id,         # Get pricing and discounts
+    calendar_tool.id,        # Schedule meetings
+    email_tool.id           # Send follow-up emails
+])]
+```
+
+## API Reference
+
+### Assistant Methods
+
+```python
+# Get system prompt with context
+system_prompt = assistant.get_system_prompt(context={
+    'customer_name': 'John Doe',
+    'customer_company': 'ABC Corp'
+})
+
+# Prepare conversation context
+context = assistant.prepare_context(
+    record=sale_order,
+    user_input="Tell me about pricing options"
+)
+
+# Get available tools
+tools = assistant.get_available_tools()
+
+# Render prompt template
+messages = assistant.prompt_id.get_messages(arguments={
+    'customer_name': 'John Doe',
+    'role': 'Sales Assistant'
+})
+```
+
+### Template Methods
+
+```python
+# Auto-detect template arguments
+prompt.auto_detect_arguments()
+
+# Render template with arguments
+rendered = prompt.get_messages(arguments={
+    'customer_name': 'John Smith',
+    'product_name': 'Enterprise Suite'
+})
+
+# Validate template syntax
+is_valid, errors = prompt.validate_template()
+```
+
+## Integration Examples
+
+### CRM Integration
+
+```python
+class SaleOrder(models.Model):
+    _inherit = 'sale.order'
+    
+    def create_ai_assistant_thread(self):
+        """Create AI assistant thread for this sale order"""
+        thread = self.env['llm.thread'].create({
+            'name': f'Sales Discussion - {self.name}',
+            'model': self._name,
+            'res_id': self.id,
+            'assistant_id': self.env.ref('my_module.sales_assistant').id
+        })
+        
+        # Initialize with order context
+        context = {
+            'customer_name': self.partner_id.name,
+            'order_total': self.amount_total,
+            'products': [line.product_id.name for line in self.order_line]
+        }
+        
+        thread.message_post(
+            body=f"AI Assistant ready to help with {self.name}",
+            llm_role="system",
+            body_json={'context': context}
+        )
+        
+        return thread
+```
+
+### Project Management Integration
+
+```python
+class ProjectTask(models.Model):
+    _inherit = 'project.task'
+    
+    def get_ai_assistance(self, query):
+        """Get AI assistance for project tasks"""
+        assistant = self.env.ref('my_module.project_assistant')
+        
+        context = assistant.prepare_context(
+            record=self,
+            user_input=query
+        )
+        
+        # Generate AI response with project context
+        response = assistant.generate_response(
+            context=context,
+            tools=['project_search', 'time_tracking', 'resource_planning']
+        )
+        
+        return response
+```
+
+## Migration Notes
+
+### From llm_prompt Module
+
+**Automatic Migration** (Version 16.0.1.4.0):
+- All existing prompts automatically migrated to assistant module
+- Template functionality seamlessly integrated
+- Enhanced testing capabilities added
+- No data loss or configuration changes required
+
+**New Features Added**:
+- Auto-argument detection for existing templates
+- Enhanced testing wizard with context simulation
+- Improved UI with unified assistant/prompt management
+- Better error handling and validation
+
+### Breaking Changes
+
+None - this is a consolidation update with full backward compatibility.
+
+## Technical Specifications
+
+### Module Information
+
+- **Name**: LLM Assistant
+- **Version**: 16.0.1.4.0
+- **Category**: Productivity
+- **License**: LGPL-3
+- **Dependencies**: `llm`, `mail`
+- **Author**: Apexive Solutions LLC
+
+### Key Models
+
+- **`llm.assistant`**: Main assistant configuration
+- **`llm.prompt`**: Integrated prompt template management  
+- **`llm.prompt.category`**: Template categorization
+- **`llm.assistant.test.wizard`**: Testing and validation
+
+## Performance Features
+
+- **Smart Context Management**: Intelligent conversation history trimming
+- **Template Caching**: Optimized template rendering and argument detection
+- **Async Operations**: Non-blocking testing and validation
+- **Database Optimization**: Efficient storage of assistant configurations
+
+## Security Features
+
+- **Role-Based Access**: Control who can create and modify assistants
+- **Tool Permissions**: Granular control over tool access per assistant
+- **Template Validation**: Prevent execution of malicious templates
+- **Audit Trail**: Complete tracking of assistant usage and modifications
+
+## Related Modules
+
+- **`llm`**: Base infrastructure and provider management
+- **`llm_thread`**: Chat interfaces and conversation management
+- **`llm_tool`**: Function calling and Odoo integration
+- **`llm_generate`**: Content generation with assistant integration
+- **`llm_knowledge`**: RAG and knowledge base integration
+
+## Support & Resources
+
+- **Documentation**: [GitHub Repository](https://github.com/apexive/odoo-llm)
+- **Architecture Guide**: [OVERVIEW.md](../OVERVIEW.md)
+- **Examples**: [Assistant Examples](examples/)
+- **Community**: [GitHub Discussions](https://github.com/apexive/odoo-llm/discussions)
 
 ## License
 
-This module is licensed under the LGPL-3 license.
+This module is licensed under [LGPL-3](https://www.gnu.org/licenses/lgpl-3.0.html).
+
+---
+
+*© 2025 Apexive Solutions LLC. All rights reserved.*
