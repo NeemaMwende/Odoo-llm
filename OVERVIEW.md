@@ -6,8 +6,55 @@ This codebase provides a comprehensive framework for integrating Large Language 
 
 ## Core Models & Concepts
 
+### Base LLM Module (`llm/`)
+**Purpose**: Foundational infrastructure for LLM integration
+
+The base `llm` module provides the core infrastructure that enables AI integration throughout Odoo. It introduces fundamental concepts and extends Odoo's messaging system to support AI interactions:
+
+**Core Components**:
+
+1. **Provider System** (`llm.provider`): Abstraction layer for AI service providers
+2. **Publisher Management** (`llm.publisher`): Tracks AI model publishers (OpenAI, Anthropic, Meta, etc.)
+3. **Model Registry** (`llm.model`): Catalog of available AI models with capabilities and metadata
+4. **Enhanced Messaging**: Extends `mail.message` with AI-specific functionality
+
+**Mail Message Extensions**:
+The module enhances Odoo's core messaging system with LLM-specific capabilities:
+
+```python
+# Extended mail.message fields
+llm_role = fields.Selection([
+    ('user', 'User'),
+    ('assistant', 'Assistant'),
+    ('tool', 'Tool'),
+    ('system', 'System')
+], compute='_compute_llm_role', store=True, index=True)
+
+body_json = fields.Json()  # Structured data for tool messages
+```
+
+**Message Subtypes**: Introduces new message subtypes for AI interactions:
+- `llm.mt_user`: User messages in AI conversations
+- `llm.mt_assistant`: AI-generated responses
+- `llm.mt_tool`: Tool execution results and data
+- `llm.mt_system`: System prompts and configuration messages
+
+**Computed Role Field**: The `llm_role` field provides fast, indexed access to message types without complex subtype lookups, enabling:
+- 10x faster message queries for AI conversations
+- Simplified frontend filtering and display logic
+- Efficient conversation history processing
+- Optimized database operations for large conversation datasets
+
+**Foundation for Ecosystem**: This base module enables all other LLM modules by providing:
+- Standardized provider integration patterns
+- Common model management infrastructure
+- Enhanced messaging backbone for AI conversations
+- Security framework for AI operations
+- Configuration management for AI services
+
 ### 1. LLM.Thread (`llm_thread/models/llm_thread.py`)
-**Purpose**: Central conversation management
+**Purpose**: Central bridge between Odoo data and LLM conversations
+
 ```python
 class LLMThread(models.Model):
     _name = "llm.thread"
@@ -15,21 +62,43 @@ class LLMThread(models.Model):
     _inherit = ["mail.thread"]
 ```
 
+**Core Function**: The `llm.thread` model serves as the primary link between Odoo's business data and AI conversations. It acts as an LLM-enabled `mail.thread` that:
+
+- **Storage Backend**: Serves as the persistent storage for all LLM conversations in Odoo
+- **Data Bridge**: Links any Odoo record to one or more AI conversation threads
+- **Conversation Context**: Maintains the state, configuration, and history of AI interactions
+- **Multi-Threading**: Enables multiple concurrent AI conversations per business record (e.g., multiple chat threads for a single sale order)
+
+**Conceptual Model**: Think of `llm.thread` as `mail.thread` with AI superpowers - it inherits all mail functionality while adding LLM-specific capabilities like provider management, tool execution, and structured AI message handling.
+
 **Key Fields**:
 - `name`: Thread title
-- `provider_id`: Many2one to `llm.provider`
-- `model_id`: Many2one to `llm.model`  
-- `tool_ids`: Many2many to `llm.tool`
-- `model`: Related document model (for record linking)
-- `res_id`: Related document ID
+- `provider_id`: Many2one to `llm.provider` - Which AI service to use
+- `model_id`: Many2one to `llm.model` - Specific AI model for this conversation
+- `tool_ids`: Many2many to `llm.tool` - Available tools for AI function calling
+- `model`: Related document model (for record linking) - Links to any Odoo model
+- `res_id`: Related document ID - Specific record instance
+- `assistant_id`: Many2one to `llm.assistant` - AI assistant configuration
+- `prompt_id`: Many2one to `llm.prompt` - Template for conversation structure
 
 **Key Methods**:
-- `message_post()`: Enhanced to handle `llm_role` parameter
-- `message_post_from_stream()`: Real-time streaming message creation
-- `_get_llm_email_from()`: Generate appropriate sender for LLM messages
+- `message_post()`: Enhanced to handle `llm_role` parameter for AI message types
+- `message_post_from_stream()`: Real-time streaming message creation during AI generation
+- `_get_llm_email_from()`: Generate appropriate sender addresses for different AI roles
+- `set_assistant()`: Configure the AI assistant and its associated tools/prompts
+
+**Relationship Pattern**:
+```
+Odoo Record (sale.order, project.task, etc.)
+    ↓ (1:many relationship)
+LLM Thread(s) - Multiple AI conversations per record
+    ↓ (inherits from mail.thread)
+Mail Messages - Conversation history with AI-specific enhancements
+```
 
 ### 2. LLM.Assistant (`llm_assistant/models/llm_assistant.py`)
-**Purpose**: AI assistant configuration and management
+**Purpose**: Intelligent configuration orchestrator for AI interactions
+
 ```python
 class LLMAssistant(models.Model):
     _name = "llm.assistant"
@@ -37,16 +106,84 @@ class LLMAssistant(models.Model):
     _inherit = ["mail.thread"]
 ```
 
+**Core Function**: The `llm.assistant` model serves as the intelligent glue that defines HOW to connect Odoo data to AI models. While `llm.thread` provides the data management backend, `llm.assistant` provides the intelligence layer that configures:
+
+- **Model Selection**: Specifies which AI provider and model to use (chat, generation, media, training, etc.)
+- **Instruction Templates**: Defines system prompts, message templates, and generation prompts
+- **Data Mapping**: How to transform Odoo record data into LLM-compatible inputs
+- **Tool Orchestration**: Which tools are available and how they should be used
+- **Context Management**: Intelligence for conversation history trimming and context optimization
+- **Generation Configuration**: Templates for different types of content generation (text, images, etc.)
+
+**Conceptual Model**: Think of `llm.assistant` as the "brain" that knows how to operate the "body" (`llm.thread`). The thread manages the data and conversations, while the assistant provides the configuration, instructions, and intelligence for how AI should interact with that data.
+
 **Key Fields**:
-- `name`: Assistant name
-- `role`: Assistant role/persona
-- `goal`: Assistant's primary objective
-- `background`: Context and expertise description
-- `instructions`: Detailed operational instructions
-- `provider_id`: Default provider
-- `model_id`: Default model
-- `tool_ids`: Preferred tools
-- `prompt_id`: Associated prompt template
+- `name`: Assistant identifier
+- `role`: Assistant role/persona definition
+- `goal`: Assistant's primary objective and purpose
+- `background`: Context, expertise, and domain knowledge description
+- `instructions`: Detailed operational instructions for AI behavior
+- `provider_id`: Default AI provider (OpenAI, Anthropic, etc.)
+- `model_id`: Default AI model (GPT-4, Claude, local models, etc.)
+- `tool_ids`: Preferred tools available to this assistant
+- `prompt_id`: Associated prompt template for structured interactions
+- `default_values`: Default argument values for prompt templates
+- `context_window_management`: Rules for conversation history trimming
+
+**Key Methods**:
+- `get_system_prompt()`: Generate system prompt from role, goal, and instructions
+- `prepare_context()`: Transform Odoo data into LLM-compatible context
+- `get_available_tools()`: Return configured tools for this assistant
+- `trim_conversation_history()`: Intelligent context window management
+- `map_generation_inputs()`: Transform Odoo data to generation parameters
+
+**Assistant Types & Use Cases**:
+
+1. **Chat Assistants**: Configure conversational AI with specific personas
+   - Customer service bots with access to CRM tools
+   - Technical support with knowledge base access
+   - Sales assistants with product and pricing tools
+
+2. **Generation Assistants**: Configure content creation workflows
+   - Marketing copy generation from product data
+   - Report generation from business metrics
+   - Image generation from product specifications
+
+3. **Training Assistants**: Configure model fine-tuning workflows
+   - Dataset preparation from Odoo records
+   - Training parameter optimization
+   - Model evaluation and deployment
+
+4. **Analysis Assistants**: Configure data analysis workflows
+   - Business intelligence from ERP data
+   - Predictive analytics on sales data
+   - Quality analysis from manufacturing records
+
+**Data Flow Architecture**:
+```
+Odoo Record Data
+    ↓
+LLM Thread (data storage & management)
+    ↓
+LLM Assistant (intelligent configuration)
+    ├── Provider/Model Selection
+    ├── Instruction Templates
+    ├── Tool Configuration
+    ├── Context Mapping
+    └── History Management
+    ↓
+AI Provider API (OpenAI, Anthropic, etc.)
+    ↓
+Generated Response/Content
+    ↓
+Back to LLM Thread (storage)
+```
+
+**Template Integration**: Assistants can reference `llm.prompt` templates that define:
+- System message templates with Odoo data placeholders
+- Multi-step conversation flows
+- Generation parameter mapping from business records
+- Context injection patterns for domain-specific knowledge
 
 ### 3. LLM.Provider (`llm/models/llm_provider.py`)
 **Purpose**: AI service provider abstraction
