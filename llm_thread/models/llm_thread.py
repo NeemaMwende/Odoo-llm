@@ -143,6 +143,14 @@ class LLMThread(models.Model):
         string="Available Tools",
         help="Tools that can be used by the LLM in this thread",
     )
+    
+    attachment_ids = fields.Many2many(
+        'ir.attachment',
+        string='All Thread Attachments',
+        compute='_compute_attachment_ids',
+        store=True,
+        help='All attachments from all messages in this thread'
+    )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -151,6 +159,14 @@ class LLMThread(models.Model):
             if not vals.get("name"):
                 vals["name"] = f"Chat with {self.model_id.name}"
         return super().create(vals_list)
+
+    @api.depends('message_ids.attachment_ids')
+    def _compute_attachment_ids(self):
+        """Compute all attachments from all messages in this thread."""
+        for thread in self:
+            # Get all attachments from all messages in this thread
+            all_attachments = thread.message_ids.mapped('attachment_ids')
+            thread.attachment_ids = [(6, 0, all_attachments.ids)]
 
     # ============================================================================
     # MESSAGE POST OVERRIDES - Clean integration with mail.thread
