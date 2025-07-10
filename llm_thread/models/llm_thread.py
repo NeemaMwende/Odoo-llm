@@ -151,6 +151,13 @@ class LLMThread(models.Model):
         store=True,
         help='All attachments from all messages in this thread'
     )
+    
+    attachment_count = fields.Integer(
+        string='Attachment Count',
+        compute='_compute_attachment_count',
+        store=True,
+        help='Total number of attachments in this thread'
+    )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -167,6 +174,12 @@ class LLMThread(models.Model):
             # Get all attachments from all messages in this thread
             all_attachments = thread.message_ids.mapped('attachment_ids')
             thread.attachment_ids = [(6, 0, all_attachments.ids)]
+    
+    @api.depends('attachment_ids')
+    def _compute_attachment_count(self):
+        """Compute the total number of attachments in this thread."""
+        for thread in self:
+            thread.attachment_count = len(thread.attachment_ids)
 
     # ============================================================================
     # MESSAGE POST OVERRIDES - Clean integration with mail.thread
