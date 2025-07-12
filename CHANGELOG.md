@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Tool Event System**: Real-time tool execution tracking with streaming events (2025-01-12)
+  - Added `tool_called` event when tool execution begins (`llm_tool/models/mail_message.py:120-128`)
+  - Added `tool_succeeded` event when tool completes successfully (`llm_tool/models/mail_message.py:147-157`) 
+  - Added `tool_failed` event when tool execution fails (`llm_tool/models/mail_message.py:166-176`)
+  - Events include comprehensive tool data: tool_call_id, tool_name, arguments, status, result/error
+  - Events are yielded through existing generator chain for automatic propagation to Fleek platform
+
+### Changed
+- **Enhanced Tool Execution Flow**: `mail.message.execute_tool_call()` now emits real-time events (2025-01-12)
+  - Tool execution status is now broadcasted in real-time for UI updates
+  - Maintains backward compatibility with existing message-based status tracking
+  - Events automatically flow through `yield from` chain to Fleek broadcasting system
+
+### Technical Details
+- Tool events are generated at key execution points in `execute_tool_call()` method
+- Event structure follows consistent pattern with `type` and `tool_data` fields
+- Integration with Fleek platform enables WebSocket broadcasting to clients
+- Supports real-time tracking of image generation and other AI tool operations
+
 ## [16.0-pr] - 2025-01-04 - Major Architecture Consolidation
 
 ### Added

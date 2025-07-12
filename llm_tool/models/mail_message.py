@@ -116,6 +116,17 @@ class MailMessage(models.Model):
         name = fn.get("name", "unknown_tool")
         args = fn.get("arguments")
 
+        # Emit tool_called event
+        yield {
+            "type": "tool_called",
+            "tool_data": {
+                "tool_call_id": tool_data.get("tool_call_id"),
+                "tool_name": name,
+                "arguments": self._parse_tool_arguments(args) if args else {},
+                "status": "executing"
+            }
+        }
+
         # Update status to executing
         tool_data["status"] = "executing"
         self.write({"body_json": tool_data})
@@ -133,12 +144,37 @@ class MailMessage(models.Model):
                 tool_data["result"] = result
                 self.write({"body_json": tool_data})
 
+                # Emit tool_succeeded event
+                yield {
+                    "type": "tool_succeeded",
+                    "tool_data": {
+                        "tool_call_id": tool_data.get("tool_call_id"),
+                        "tool_name": name,
+                        "arguments": self._parse_tool_arguments(args) if args else {},
+                        "status": "completed",
+                        "result": result
+                    }
+                }
+
         except Exception as e:
             _logger.error(f"Error executing tool {name}: {e}")
             # Update tool data with error
             tool_data["status"] = "error"
             tool_data["error"] = str(e)
             self.write({"body_json": tool_data})
+            
+            # Emit tool_failed event
+            yield {
+                "type": "tool_failed",
+                "tool_data": {
+                    "tool_call_id": tool_data.get("tool_call_id"),
+                    "tool_name": name,
+                    "arguments": self._parse_tool_arguments(args) if args else {},
+                    "status": "error",
+                    "error": str(e)
+                }
+            }
+            
         yield {"type": "message_update", "message": self.message_format()[0]}
         return self
 
