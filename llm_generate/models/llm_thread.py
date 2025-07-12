@@ -140,7 +140,7 @@ class LLMThread(models.Model):
         
         # Return the generated message for direct access
         return generated_message
-
+        
     @api.model
     def get_model_generation_io_by_id(self, model_id):
         """Get model generation I/O schema by ID."""
