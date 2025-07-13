@@ -183,20 +183,20 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-12">
-                                            <i class="fa fa-brain"/> <field name="model_id"/>
+                                            <i class="fa fa-brain" title="AI Model"/> <field name="model_id"/>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-6">
-                                            <i class="fa fa-play"/> <field name="current_running_jobs"/>/<field name="max_concurrent_jobs"/>
+                                            <i class="fa fa-play" title="Running Jobs"/> <field name="current_running_jobs"/>/<field name="max_concurrent_jobs"/>
                                         </div>
                                         <div class="col-6">
-                                            <i class="fa fa-clock-o"/> <field name="queued_jobs_count"/>
+                                            <i class="fa fa-clock-o" title="Queued Jobs"/> <field name="queued_jobs_count"/>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-12">
-                                            <i class="fa fa-chart-line"/> <field name="success_rate" widget="percentage"/>
+                                            <i class="fa fa-chart-line" title="Success Rate"/> <field name="success_rate" widget="percentage"/>
                                         </div>
                                     </div>
                                     <div class="row">
