@@ -50,6 +50,17 @@ class LLMAssistant(models.Model):
         string="Allowed Groups",
         help="Groups that can access this assistant. If empty and not public, only internal users can access it.",
     )
+    
+    code = fields.Char(
+        string="Code",
+        help="Unique code identifier for the assistant (e.g., roleplay, avatar_generation)",
+        index=True,
+    )
+    
+    res_model = fields.Char(
+        string="Related Model",
+        help="Model that this assistant is associated with (e.g., fleek.character)",
+    )
 
     # Prompt template integration
     prompt_id = fields.Many2one(
@@ -143,6 +154,10 @@ class LLMAssistant(models.Model):
         readonly=True,
         help="Format of the template (text, yaml, json)",
     )
+
+    _sql_constraints = [
+        ('unique_code', 'UNIQUE(code)', 'Assistant code must be unique.'),
+    ]
 
     @api.depends("prompt_id", "default_values")
     def _compute_system_prompt_preview(self):
