@@ -137,6 +137,9 @@ class LLMThread(models.Model):
             "type": "message_create",
             "message": generated_message.message_format()[0],
         }
+        
+        # Return the actual message record for yield from compatibility
+        return generated_message
 
     @api.model
     def get_model_generation_io_by_id(self, model_id):
