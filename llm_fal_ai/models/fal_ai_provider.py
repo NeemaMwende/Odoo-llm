@@ -1,8 +1,9 @@
 import json
 import logging
 import os
+import time
 
-from odoo import _, api, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -18,6 +19,11 @@ except ImportError:
 
 class LLMProvider(models.Model):
     _inherit = "llm.provider"
+
+    webhook_url = fields.Char(
+        string="Webhook URL",
+        help="URL where FAL.AI will send completion notifications"
+    )
 
     @api.model
     def _get_available_services(self):
@@ -354,3 +360,226 @@ class LLMProvider(models.Model):
                 'filename': item.split('/')[-1] if item else 'generated_content'
             }
         return None
+
+    # ============================================================================
+    # GENERATION JOB METHODS
+    # ============================================================================
+
+    def fal_ai_create_generation_job(self, job_record):
+        """Submit a generation job to FAL.AI with webhook support"""
+        self.ensure_one()
+        
+        # Generate webhook URL if not already set
+        if not self.webhook_url:
+            base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+            self.webhook_url = f"{base_url}/llm/generate_job/webhook/{job_record.id}"
+
+        fal_client = self.fal_ai_get_client()
+
+        # Get the model name
+        model_name = job_record.model_id.name
+        if not model_name:
+            raise UserError(_("Model name is required"))
+
+        # Prepare inputs
+        inputs = job_record.generation_inputs
+        if not inputs:
+            raise UserError(_("Generation inputs are required"))
+
+        try:
+            # Convert inputs to dictionary if needed
+            if isinstance(inputs, str):
+                inputs = json.loads(inputs)
+            
+            # Extract prompt from inputs (following standard generation pattern)
+            arguments = {
+                "prompt": inputs.get('prompt', ''),
+            }
+            
+            # Add any additional arguments from inputs
+            for key, value in inputs.items():
+                if key != 'prompt' and key not in arguments:
+                    arguments[key] = value
+
+            # Submit to FAL.AI queue with webhook
+            result = fal_client.submit(
+                model_name,
+                arguments=arguments,
+                webhook_url=self.webhook_url
+            )
+            
+            _logger.info(f"Submitted FAL.AI job: {result.request_id}")
+
+            return json.dumps({
+                'request_id': result.request_id,
+                'status': 'queued'
+            })
+
+        except Exception as e:
+            _logger.error(f"Error submitting FAL.AI generation job: {e}")
+            raise UserError(_(f"Failed to submit job to FAL.AI: {str(e)}"))
+
+    def fal_ai_check_generation_job_status(self, job_record):
+        """Check the status of a generation job with FAL.AI"""
+        self.ensure_one()
+        
+        if not job_record.external_job_id:
+            raise UserError(_("No external job ID found"))
+        
+        try:
+            # Parse external job ID
+            external_data = job_record.external_job_id
+            if isinstance(external_data, str):
+                external_data = external_data.replace("'", '"')
+                external_data = json.loads(external_data)
+            
+            request_id = external_data.get("request_id")
+            if not request_id:
+                raise UserError(_("No request ID found in external job data"))
+
+            fal_client = self.fal_ai_get_client()
+            
+            # Check status with FAL.AI
+            status = fal_client.status(
+                job_record.model_id.name,
+                request_id=request_id,
+                with_logs=True
+            )
+            
+            class_name = status.__class__.__name__
+            _logger.info(f"FAL.AI job status for {request_id}: {class_name}")
+
+            if class_name == "Queued":
+                return {
+                    'state': 'queued',
+                    'position': getattr(status, 'position', None)
+                }
+            elif class_name == "InProgress":
+                return {
+                    'state': 'running',
+                    'logs': getattr(status, 'logs', [])
+                }
+            elif class_name == "Completed":
+                # Get the result and process it
+                result = fal_client.result(
+                    job_record.model_id.name,
+                    request_id=request_id,
+                )
+                
+                # Process as webhook data
+                webhook_data = {
+                    'request_id': request_id,
+                    'status': 'OK',
+                    'payload': result
+                }
+                self.process_webhook_result(webhook_data, job_record)
+                
+                return {'state': 'completed'}
+            else:
+                _logger.error(f"Unknown FAL.AI status type: {class_name}")
+                return {
+                    'state': 'failed',
+                    'error': f"Unknown status type: {class_name}"
+                }
+
+        except Exception as e:
+            _logger.error(f"Error checking FAL.AI job status: {e}", exc_info=True)
+            return {
+                'state': 'failed',
+                'error': str(e)
+            }
+
+    def fal_ai_cancel_generation_job(self, job_record):
+        """Cancel a generation job with FAL.AI
+        
+        Note: FAL.AI doesn't provide a direct cancel API in the current client
+        """
+        self.ensure_one()
+        _logger.warning(f"FAL.AI job cancellation not supported. Job ID: {job_record.external_job_id}")
+        return False
+
+    def process_webhook_result(self, webhook_data, job_record):
+        """Process webhook result from FAL.AI following standard generation pattern"""
+        status = webhook_data.get('status')
+        
+        if status == 'OK':
+            payload = webhook_data.get('payload', {})
+            
+            # Extract URLs from FAL.AI response
+            urls = self._fal_ai_extract_urls_from_payload(payload)
+            
+            # Create output data following standard pattern
+            output_data = {
+                "raw_response": payload,
+                "urls": urls,
+                "inputs": job_record.generation_inputs,
+                "provider": "fal_ai"
+            }
+            
+            # Create assistant message with structured data
+            message = job_record.thread_id.message_post(
+                body="",  # Will be updated with markdown content
+                llm_role="assistant",
+                body_json=output_data,
+            )
+            
+            # Process URLs and create attachments
+            markdown_content, attachments = message.process_generation_urls(urls)
+            
+            # Update message with final markdown content
+            message.write({'body': markdown_content})
+            
+            # Update job record
+            job_record.write({
+                'state': 'completed',
+                'completed_at': fields.Datetime.now(),
+                'output_message_id': message.id,
+            })
+            
+        elif status == 'ERROR':
+            error_msg = webhook_data.get('error', 'Unknown error')
+            
+            # Create error message
+            message = job_record.thread_id.message_post(
+                body=_("Generation job failed: %s") % error_msg,
+                llm_role="assistant",
+                message_type="notification",
+            )
+            
+            # Update job record
+            job_record.write({
+                'state': 'failed',
+                'completed_at': fields.Datetime.now(),
+                'error_message': error_msg,
+                'output_message_id': message.id,
+            })
+        else:
+            _logger.warning(f"Unknown webhook status '{status}' for job {job_record.id}")
+
+    def _fal_ai_extract_urls_from_payload(self, payload):
+        """Extract URLs from FAL.AI webhook payload"""
+        urls = []
+        
+        # Handle different FAL.AI response formats
+        if isinstance(payload, dict):
+            # Check for images array
+            if 'images' in payload and isinstance(payload['images'], list):
+                for img in payload['images']:
+                    if isinstance(img, dict) and 'url' in img:
+                        url_data = self._fal_ai_extract_single_url_with_metadata(img)
+                        if url_data:
+                            urls.append(url_data)
+            
+            # Check for single image
+            elif 'image' in payload:
+                url_data = self._fal_ai_extract_single_url_with_metadata(payload['image'])
+                if url_data:
+                    urls.append(url_data)
+            
+            # Check for direct URL
+            elif 'url' in payload:
+                url_data = self._fal_ai_extract_single_url_with_metadata(payload)
+                if url_data:
+                    urls.append(url_data)
+        
+        return urls

@@ -214,7 +214,7 @@ class LLMThread(models.Model):
 
             # Wait before next check
             time.sleep(1)  # Polling interval
-            job.refresh()
+            job.invalidate_cache()
 
         # Final status
         if job.state == "completed":
