@@ -252,7 +252,7 @@ class LLMGenerationJob(models.Model):
         })
         
         # Trigger queue processing
-        self.env['llm.generation.queue']._process_provider_queue(self.provider_id)
+        self.env['llm.generation.queue']._process_model_queue(self.model_id)
         
         return True
 
@@ -314,7 +314,7 @@ class LLMGenerationJob(models.Model):
         })
         
         # Trigger queue processing
-        self.env['llm.generation.queue']._process_provider_queue(self.provider_id)
+        self.env['llm.generation.queue']._process_model_queue(self.model_id)
         
         return True
 
