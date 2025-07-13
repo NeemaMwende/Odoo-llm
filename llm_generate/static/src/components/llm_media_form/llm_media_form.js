@@ -23,6 +23,8 @@ export class LLMMediaForm extends Component {
         input_schema: {},
         form_defaults: {},
       },
+      attachments: [],
+      uploadingFiles: false,
     });
 
     onWillStart(async () => {
@@ -556,9 +558,10 @@ export class LLMMediaForm extends Component {
     try {
       const composer = this.thread.composer;
       console.log("Submitting generation request:", validationResult.values);
+      console.log("Attachments:", this.state.attachments);
 
-      // Submit through composer - now uses body_json
-      composer.postUserGenerationMessageForLLM(validationResult.values);
+      // Submit through composer - now uses body_json and includes attachments
+      composer.postUserGenerationMessageForLLM(validationResult.values, this.state.attachments);
     } catch (error) {
       console.error("Error submitting generation form:", error);
       this.state.error =
@@ -573,6 +576,67 @@ export class LLMMediaForm extends Component {
    */
   isStreaming() {
     return this.thread?.composer?.isStreaming || false;
+  }
+
+  /**
+   * Handle file attachment changes
+   */
+  async onAttachmentChange(event) {
+    const files = Array.from(event.target.files);
+    if (!files.length) return;
+
+    this.state.uploadingFiles = true;
+
+    try {
+      for (const file of files) {
+        // Upload file to Odoo and get attachment record
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('model', 'mail.message');
+        formData.append('res_id', 0); // Temporary attachment
+
+        const response = await this.env.services.http.post('/web/binary/upload_attachment', formData);
+        
+        if (response.attachment) {
+          this.state.attachments.push({
+            id: response.attachment.id,
+            name: response.attachment.name,
+            size: file.size,
+            mimetype: response.attachment.mimetype,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading attachments:', error);
+      this.state.error = 'Failed to upload one or more attachments.';
+    } finally {
+      this.state.uploadingFiles = false;
+      // Clear the input to allow re-selecting the same files
+      if (this.refs.attachmentInput) {
+        this.refs.attachmentInput.el.value = '';
+      }
+    }
+  }
+
+  /**
+   * Remove an attachment from the list
+   */
+  removeAttachment(attachment) {
+    const index = this.state.attachments.findIndex(a => a.id === attachment.id || a.name === attachment.name);
+    if (index !== -1) {
+      this.state.attachments.splice(index, 1);
+    }
+  }
+
+  /**
+   * Format file size for display
+   */
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 }
 

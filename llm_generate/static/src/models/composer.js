@@ -8,8 +8,9 @@ registerPatch({
     /**
      * Post a user message for generation with body_json
      * @param {Object} inputs - Generation inputs according to model schema
+     * @param {Array} attachments - Array of attachment objects {id, name, size, mimetype}
      */
-    postUserGenerationMessageForLLM(inputs) {
+    postUserGenerationMessageForLLM(inputs, attachments = []) {
       const thread = this.thread;
 
       if (!thread?.id) {
@@ -43,6 +44,11 @@ registerPatch({
       this._reset();
 
       try {
+        // Prepare attachment_ids for Odoo Many2many field format
+        const attachment_ids = attachments.length > 0 
+          ? attachments.map(att => [4, att.id]) // [(4, id)] means "link existing record"
+          : [];
+
         // Post user message with body_json containing generation inputs
         this.messaging
           .rpc({
@@ -53,6 +59,7 @@ registerPatch({
               body: messageBody,
               body_json: inputs,
               llm_role: "user",
+              attachment_ids: attachment_ids,
             },
           })
           .then(() => {
