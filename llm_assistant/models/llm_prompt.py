@@ -140,16 +140,10 @@ class LLMPrompt(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         prompts = super().create(vals_list)
-        for prompt in prompts:
-            if prompt.template:
-                prompt.auto_detect_arguments()  # Auto-detect on creation
         return prompts
 
     def write(self, vals):
         result = super().write(vals)
-        if 'template' in vals:
-            for prompt in self:
-                prompt.auto_detect_arguments()  # Auto-detect on template changes
         return result
 
     @api.depends("arguments_json")
@@ -556,9 +550,6 @@ class LLMPrompt(models.Model):
         """
         for prompt in self:
             try:
-                # Auto-sync template arguments with schema before computing
-                if prompt.template:
-                    prompt._ensure_arguments_sync()
                 
                 # Get arguments from arguments_json
                 arguments = json.loads(prompt.arguments_json or "{}")
