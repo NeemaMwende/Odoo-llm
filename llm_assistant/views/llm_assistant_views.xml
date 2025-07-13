@@ -16,6 +16,7 @@
                 <field name="template_format" />
                 <field name="tag_ids" widget="many2many_tags" />
                 <field name="is_public" />
+                <field name="is_default" widget="boolean_toggle" />
                 <field name="thread_count" />
                 <field name="active" />
             </tree>
@@ -94,6 +95,7 @@
                         </group>
                         <group name="access_control">
                             <field name="is_public" />
+                            <field name="is_default" />
                             <field
                 name="allowed_group_ids"
                 widget="many2many_tags"
@@ -266,6 +268,11 @@
           string="Private"
           name="private"
           domain="[('is_public', '=', False)]"
+        />
+                <filter
+          string="Default"
+          name="default"
+          domain="[('is_default', '=', True)]"
         />
                 <filter
           string="Text Templates"

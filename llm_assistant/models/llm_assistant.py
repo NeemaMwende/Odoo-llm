@@ -61,6 +61,12 @@ class LLMAssistant(models.Model):
         string="Related Model",
         help="Model that this assistant is associated with (e.g., fleek.character)",
     )
+    
+    is_default = fields.Boolean(
+        string="Is Default",
+        default=False,
+        help="If enabled, this assistant will be used as the default for its model/category",
+    )
 
     # Prompt template integration
     prompt_id = fields.Many2one(
@@ -532,3 +538,8 @@ class LLMAssistant(models.Model):
             domain = [("is_public", "=", True)]
 
         return self.search(domain)
+
+    @api.model
+    def get_assistant_by_code(self, code):
+        """Get assistant by code"""
+        return self.search([('code', '=', code)], limit=1)
