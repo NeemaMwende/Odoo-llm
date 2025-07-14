@@ -369,10 +369,11 @@ class LLMProvider(models.Model):
         """Submit a generation job to FAL.AI with webhook support"""
         self.ensure_one()
         
-        # Generate webhook URL if not already set
-        if not self.webhook_url:
+        # Generate webhook URL dynamically (don't store on provider to avoid permission issues)
+        webhook_url = self.webhook_url
+        if not webhook_url:
             base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
-            self.webhook_url = f"{base_url}/llm/generate_job/webhook/{job_record.id}"
+            webhook_url = f"{base_url}/llm/generate_job/webhook/{job_record.id}"
 
         fal_client = self.fal_ai_get_client()
 
@@ -406,7 +407,7 @@ class LLMProvider(models.Model):
             result = fal_client.submit(
                 model_name,
                 arguments=arguments,
-                webhook_url=self.webhook_url
+                webhook_url=webhook_url
             )
             
             _logger.info(f"Submitted FAL.AI job: {result.request_id}")
