@@ -159,14 +159,15 @@ class LLMThread(models.Model):
         """Create a generation job record from an existing message"""
         self.ensure_one()
         
-        # Prepare generation inputs from message body_json (following llm_generate pattern)
+        # Store raw inputs from message body_json in the job
+        # The inputs will be prepared at execution time to ensure fresh context
         generation_inputs = last_message.body_json or {}
         
-        # If the message has attachment_ids, include them
+        # Include attachment_ids in the inputs if available
         if hasattr(last_message, 'attachment_ids') and last_message.attachment_ids:
             generation_inputs['attachment_ids'] = last_message.attachment_ids.ids
 
-        # Create job record
+        # Create job record with raw inputs
         job = self.env["llm.generation.job"].create({
             "thread_id": self.id,
             "provider_id": self.provider_id.id,

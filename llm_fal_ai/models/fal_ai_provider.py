@@ -381,8 +381,8 @@ class LLMProvider(models.Model):
         if not model_name:
             raise UserError(_("Model name is required"))
 
-        # Prepare inputs
-        inputs = job_record.generation_inputs
+        # Prepare inputs at execution time to get fresh context
+        inputs = job_record.get_prepared_inputs()
         if not inputs:
             raise UserError(_("Generation inputs are required"))
 
@@ -512,7 +512,7 @@ class LLMProvider(models.Model):
             output_data = {
                 "raw_response": payload,
                 "urls": urls,
-                "inputs": job_record.generation_inputs,
+                "inputs": job_record.generation_inputs,  # Use raw inputs for output data
                 "provider": "fal_ai"
             }
             

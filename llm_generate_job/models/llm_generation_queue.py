@@ -306,7 +306,7 @@ class LLMGenerationQueue(models.Model):
                 _logger.info(f"Started generation job {job.id} for model {model.name}")
             except Exception as e:
                 _logger.error(f"Failed to start generation job {job.id}: {e}")
-                job.action_fail(str(e))
+                # action_start already handles failure, no need to call action_fail
         
         if processed_count > 0:
             queue.write({'last_processed_at': fields.Datetime.now()})
