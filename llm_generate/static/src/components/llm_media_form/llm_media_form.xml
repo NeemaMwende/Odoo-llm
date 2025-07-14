@@ -138,7 +138,7 @@
                                 multiple="true"
                                 accept="image/*,application/pdf,.txt,.doc,.docx"
                                 t-on-change="onAttachmentChange"
-                                t-ref="attachmentInput"
+                                t-ref="attachmentInputRef"
                             />
                             <div t-if="state.attachments.length > 0" class="mt-2">
                                 <div class="uploaded-attachments">

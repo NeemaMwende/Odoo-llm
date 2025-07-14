@@ -44,9 +44,9 @@ registerPatch({
       this._reset();
 
       try {
-        // Prepare attachment_ids for Odoo Many2many field format
+        // Prepare attachment_ids - just use the raw IDs, not the Many2many format
         const attachment_ids = attachments.length > 0 
-          ? attachments.map(att => [4, att.id]) // [(4, id)] means "link existing record"
+          ? attachments.map(att => att.id) // Just the IDs as integers
           : [];
 
         // Post user message with body_json containing generation inputs

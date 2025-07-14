@@ -3,10 +3,12 @@
 import { registerMessagingComponent } from "@mail/utils/messaging_component";
 import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor";
 import { LLMFormFieldsView } from "./llm_form_fields_view";
-const { Component, useState, onWillStart, useEffect } = owl;
+const { Component, useState, onWillStart, useEffect, useRef } = owl;
 
 export class LLMMediaForm extends Component {
   setup() {
+    this.attachmentInputRef = useRef("attachmentInput");
+    
     this.state = useState({
       formValues: {},
       isLoading: false,
@@ -15,6 +17,7 @@ export class LLMMediaForm extends Component {
       inputMode: "form",
       isJsonValid: true,
       jsonEditorError: null,
+      hasSchemaValidationErrors: false,
       showTemplatePreview: false,
       templatePreviewContent: null,
       isLoadingPreview: false,
@@ -381,6 +384,7 @@ export class LLMMediaForm extends Component {
   toggleInputMode() {
     this.state.inputMode = this.state.inputMode === "form" ? "json" : "form";
     this.state.jsonEditorError = null;
+    this.state.hasSchemaValidationErrors = false;
   }
 
   /**
@@ -391,9 +395,15 @@ export class LLMMediaForm extends Component {
 
     if (isValid) {
       this.state.formValues = value;
-      this.state.jsonEditorError = null;
+      // Only clear errors if we don't have schema validation errors pending
+      if (!this.state.hasSchemaValidationErrors) {
+        this.state.jsonEditorError = null;
+      }
     } else {
-      this.state.jsonEditorError = error || "Invalid JSON format.";
+      // Only set syntax errors if we don't have schema validation errors
+      if (!this.state.hasSchemaValidationErrors) {
+        this.state.jsonEditorError = error || "Invalid JSON format.";
+      }
     }
   }
 
@@ -407,8 +417,14 @@ export class LLMMediaForm extends Component {
         return `${path ? path + ": " : ""}${error.message}`;
       });
       this.state.jsonEditorError = formattedErrors.join("\n");
+      this.state.hasSchemaValidationErrors = true;
+      this.state.isJsonValid = false;
     } else {
-      this.state.jsonEditorError = null;
+      this.state.hasSchemaValidationErrors = false;
+      // Only clear errors if JSON is also syntactically valid
+      if (this.state.isJsonValid) {
+        this.state.jsonEditorError = null;
+      }
     }
   }
 
@@ -589,20 +605,29 @@ export class LLMMediaForm extends Component {
 
     try {
       for (const file of files) {
-        // Upload file to Odoo and get attachment record
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('model', 'mail.message');
-        formData.append('res_id', 0); // Temporary attachment
-
-        const response = await this.env.services.http.post('/web/binary/upload_attachment', formData);
+        // Use Odoo's RPC to create attachment record directly
+        const fileDataUrl = await this._readFileAsDataURL(file);
+        const base64Data = fileDataUrl.split(',')[1]; // Remove data:mime/type;base64, prefix
         
-        if (response.attachment) {
+        const attachment = await this.env.services.rpc("/web/dataset/call_kw", {
+          model: 'ir.attachment',
+          method: 'create',
+          args: [{
+            name: file.name,
+            datas: base64Data,
+            res_model: 'mail.compose.message',
+            res_id: 0, // Temporary attachment
+            mimetype: file.type,
+          }],
+          kwargs: {}
+        });
+        
+        if (attachment) {
           this.state.attachments.push({
-            id: response.attachment.id,
-            name: response.attachment.name,
+            id: attachment,
+            name: file.name,
             size: file.size,
-            mimetype: response.attachment.mimetype,
+            mimetype: file.type,
           });
         }
       }
@@ -612,10 +637,22 @@ export class LLMMediaForm extends Component {
     } finally {
       this.state.uploadingFiles = false;
       // Clear the input to allow re-selecting the same files
-      if (this.refs.attachmentInput) {
-        this.refs.attachmentInput.el.value = '';
+      if (this.attachmentInputRef.el) {
+        this.attachmentInputRef.el.value = '';
       }
     }
+  }
+
+  /**
+   * Read file as data URL
+   */
+  _readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   /**
