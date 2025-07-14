@@ -55,6 +55,17 @@ class LLMThread(models.Model):
         compute="_compute_generation_stats",
         help="Generation success rate percentage"
     )
+    
+    last_job_state = fields.Selection([
+        ('draft', 'Draft'),
+        ('queued', 'Queued'),
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    ], string="Last Job State", 
+       compute="_compute_last_job_state",
+       help="State of the most recent generation job")
 
     @api.depends("generation_job_ids.state")
     def _compute_is_generating(self):
@@ -91,6 +102,12 @@ class LLMThread(models.Model):
                 ) * 100
             else:
                 thread.generation_success_rate = 0.0
+
+    @api.depends("generation_job_ids.state")
+    def _compute_last_job_state(self):
+        for thread in self:
+            last_job = thread.generation_job_ids.sorted('create_date', reverse=True)[:1]
+            thread.last_job_state = last_job.state if last_job else False
 
     def _generate_response(self, last_message):
         """Generate response with queue support - overrides llm_generate._generate_response
