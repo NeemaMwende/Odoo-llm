@@ -146,6 +146,60 @@ class LLMPrompt(models.Model):
         result = super().write(vals)
         return result
 
+    def copy(self, default=None):
+        """Override copy to generate unique name with auto-increment pattern"""
+        self.ensure_one()
+        
+        if default is None:
+            default = {}
+        
+        if 'name' not in default:
+            # Generate unique name with (Copy N) pattern
+            base_name = self.name
+            copy_name = self._generate_unique_copy_name(base_name)
+            default['name'] = copy_name
+            
+        return super().copy(default=default)
+    
+    def _generate_unique_copy_name(self, base_name):
+        """Generate unique name with (Copy N) pattern"""
+        # Check if base_name already has (Copy N) pattern
+        import re
+        copy_pattern = r'^(.+) \(Copy (\d+)\)$'
+        match = re.match(copy_pattern, base_name)
+        
+        if match:
+            # Extract original name without (Copy N)
+            original_name = match.group(1)
+        else:
+            # Use the full name as original
+            original_name = base_name
+        
+        # Find existing copies with this base name
+        like_pattern = f"{original_name}%"
+        existing_records = self.search([('name', '=like', like_pattern)])
+        
+        # Extract all copy numbers
+        copy_numbers = []
+        for record in existing_records:
+            if record.name == original_name:
+                # Original name exists, so we need Copy 1, 2, etc.
+                copy_numbers.append(0)
+            else:
+                match = re.match(rf'^{re.escape(original_name)} \(Copy (\d+)\)$', record.name)
+                if match:
+                    copy_numbers.append(int(match.group(1)))
+        
+        # Find next available number
+        if not copy_numbers:
+            # No existing copies, start with Copy 1
+            next_number = 1
+        else:
+            # Find the next available number
+            next_number = max(copy_numbers) + 1
+        
+        return f"{original_name} (Copy {next_number})"
+
     @api.depends("arguments_json")
     def _compute_argument_count(self):
         for prompt in self:
