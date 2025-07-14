@@ -357,30 +357,13 @@ class LLMProvider(models.Model):
         Returns:
             list: Cleaned list of messages
         """
-        # Enable verbose logging to diagnose orphaned tool messages
-        verbose_logging = True
-        
-        # Log initial message count and types
-        _logger.info(f"Starting validation with {len(messages)} messages")
-        for i, msg in enumerate(messages):
-            role = msg.get("role", "unknown")
-            if role == "tool":
-                tool_call_id = msg.get("tool_call_id", "none")
-                _logger.info(f"Message [{i}] - Role: {role}, Tool Call ID: {tool_call_id}")
-            elif role == "assistant" and msg.get("tool_calls"):
-                tool_calls = msg.get("tool_calls", [])
-                tool_call_ids = [tc.get("id") for tc in tool_calls]
-                _logger.info(f"Message [{i}] - Role: {role}, Tool Call IDs: {tool_call_ids}")
+        # Hardcoded value for verbose logging
+        verbose_logging = False
 
         validator = OpenAIMessageValidator(
             messages, logger=_logger, verbose_logging=verbose_logging
         )
-        cleaned_messages = validator.validate_and_clean()
-        
-        # Log cleaned message count
-        _logger.info(f"After validation: {len(cleaned_messages)} messages (removed {len(messages) - len(cleaned_messages)})")
-        
-        return cleaned_messages
+        return validator.validate_and_clean()
 
     def openai_format_messages(self, messages, system_prompt=None):
         """Format messages for OpenAI API

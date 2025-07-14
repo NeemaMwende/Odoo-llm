@@ -128,9 +128,12 @@ class OpenAIMessageValidator:
     def remove_orphaned_tool_messages(self):
         """
         Remove tool messages that don't have a matching assistant message with tool_calls.
+        Also removes duplicate tool messages with the same tool_call_id.
 
         This ensures that every tool message corresponds to a valid tool call from an assistant.
         """
+        seen_tool_call_ids = set()
+        
         for i, msg in enumerate(self.messages):
             if not msg:
                 continue
@@ -161,6 +164,30 @@ class OpenAIMessageValidator:
                         f"Removing tool message at index {i} because it has no tool_call_id"
                     )
                     self.messages[i] = None
+                elif tool_call_id in seen_tool_call_ids:
+                    # This is a duplicate tool message for the same tool_call_id
+                    self.logger.warning(
+                        f"Removing duplicate tool message at index {i} with ID {tool_call_id} "
+                        f"(already have a tool response for this ID)"
+                    )
+                    self.messages[i] = None
+                else:
+                    # Check if tool message comes after its assistant message
+                    assistant_index = self.tool_call_map.get(tool_call_id, {}).get('index', -1)
+                    if assistant_index >= 0 and i < assistant_index:
+                        self.logger.warning(
+                            f"Removing tool message at index {i} with ID {tool_call_id} because it appears "
+                            f"BEFORE its assistant message at index {assistant_index}"
+                        )
+                        self.messages[i] = None
+                    else:
+                        # Mark this tool_call_id as seen and keep the message
+                        seen_tool_call_ids.add(tool_call_id)
+                        if self.verbose_logging:
+                            self.logger.info(
+                                f"Keeping tool message at index {i} with ID {tool_call_id} "
+                                f"(found matching assistant message at index {assistant_index})"
+                            )
 
     def handle_missing_tool_responses(self):
         """
