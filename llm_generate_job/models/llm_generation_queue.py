@@ -355,6 +355,14 @@ class LLMGenerationQueue(models.Model):
                     elif status.get('state') == 'failed':
                         job.action_fail(status.get('error_message'))
                         updated_count += 1
+                    elif status.get('state') == 'queued':
+                        # Provider reports job is still queued, update our state
+                        job.write({
+                            'state': 'queued',
+                            'started_at': False,  # Clear started_at since it's not actually running
+                        })
+                        updated_count += 1
+                        _logger.info(f"Job {job.id} moved back to queued state (provider reports queued)")
             except Exception as e:
                 _logger.error(f"Error checking status for job {job.id}: {e}")
                 # Don't fail the job here, let it timeout naturally

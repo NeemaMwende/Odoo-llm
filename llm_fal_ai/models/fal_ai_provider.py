@@ -381,7 +381,8 @@ class LLMProvider(models.Model):
         if not model_name:
             raise UserError(_("Model name is required"))
 
-        # Prepare inputs at execution time to get fresh context
+        # Prepare inputs at execution time (not at job creation time)
+        # This ensures fresh context, proper template rendering, and matches synchronous flow
         inputs = job_record.get_prepared_inputs()
         if not inputs:
             raise UserError(_("Generation inputs are required"))
@@ -460,11 +461,21 @@ class LLMProvider(models.Model):
                     'logs': getattr(status, 'logs', [])
                 }
             elif class_name == "Completed":
+                _logger.info(f"FAL.AI job {request_id} is completed")
+                
+                # Check if job is already completed (to avoid re-processing)
+                if job_record.state == 'completed':
+                    _logger.info(f"Job {job_record.id} already marked as completed, skipping processing")
+                    return {'state': 'completed'}
+                
                 # Get the result and process it
+                _logger.info(f"Fetching result for completed job {request_id}")
                 result = fal_client.result(
                     job_record.model_id.name,
                     request_id=request_id,
                 )
+                
+                _logger.info(f"Got result for job {request_id}: {type(result)}")
                 
                 # Process as webhook data
                 webhook_data = {
@@ -501,6 +512,7 @@ class LLMProvider(models.Model):
     def process_webhook_result(self, webhook_data, job_record):
         """Process webhook result from FAL.AI following standard generation pattern"""
         status = webhook_data.get('status')
+        _logger.info(f"Processing webhook result for job {job_record.id}, status: {status}")
         
         if status == 'OK':
             payload = webhook_data.get('payload', {})
@@ -558,28 +570,5 @@ class LLMProvider(models.Model):
 
     def _fal_ai_extract_urls_from_payload(self, payload):
         """Extract URLs from FAL.AI webhook payload"""
-        urls = []
-        
-        # Handle different FAL.AI response formats
-        if isinstance(payload, dict):
-            # Check for images array
-            if 'images' in payload and isinstance(payload['images'], list):
-                for img in payload['images']:
-                    if isinstance(img, dict) and 'url' in img:
-                        url_data = self._fal_ai_extract_single_url_with_metadata(img)
-                        if url_data:
-                            urls.append(url_data)
-            
-            # Check for single image
-            elif 'image' in payload:
-                url_data = self._fal_ai_extract_single_url_with_metadata(payload['image'])
-                if url_data:
-                    urls.append(url_data)
-            
-            # Check for direct URL
-            elif 'url' in payload:
-                url_data = self._fal_ai_extract_single_url_with_metadata(payload)
-                if url_data:
-                    urls.append(url_data)
-        
-        return urls
+        # Use the main extraction method which handles all formats including training outputs
+        return self._fal_ai_extract_urls_with_metadata(payload)

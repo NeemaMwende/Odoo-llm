@@ -413,10 +413,14 @@ class LLMGenerationJob(models.Model):
     def get_prepared_inputs(self):
         """Get generation inputs prepared with context and templates
         
-        This method checks if the thread has a prepare_generation_inputs method
-        (from llm_generate module) and uses it to prepare the inputs with context
-        merging and template rendering. This ensures job-based generation uses
-        the same input preparation as synchronous generation.
+        This method is called at job execution time (not creation time) to ensure:
+        1. Fresh context is used (important for retries)
+        2. Template rendering happens with current data
+        3. No serialization issues when storing jobs in the database
+        
+        The job stores raw inputs from the user message, and this method
+        prepares them just before sending to the provider, matching the
+        synchronous generation flow.
         
         Returns:
             dict: Prepared inputs ready for generation
@@ -431,39 +435,14 @@ class LLMGenerationJob(models.Model):
                 attachment_ids = self.input_message_id.attachment_ids
             
             # Use the thread's method to prepare inputs with context and templates
-            prepared = self.thread_id.prepare_generation_inputs(
+            # This merges context, renders templates, and returns a dict
+            return self.thread_id.prepare_generation_inputs(
                 self.generation_inputs or {}, 
                 attachment_ids=attachment_ids
             )
-            
-            # Ensure the result is JSON serializable by converting any special objects
-            return self._make_json_serializable(prepared)
         else:
             # Fallback to raw inputs if llm_generate module not installed
             return self.generation_inputs or {}
-    
-    def _make_json_serializable(self, obj):
-        """Convert an object to a JSON-serializable format
-        
-        Handles special Odoo objects like RelatedRecordProxy by converting them
-        to their string representation.
-        """
-        import json
-        
-        if isinstance(obj, dict):
-            return {k: self._make_json_serializable(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple)):
-            return [self._make_json_serializable(item) for item in obj]
-        elif hasattr(obj, '__str__') and type(obj).__name__ == 'RelatedRecordProxy':
-            # Convert RelatedRecordProxy to its JSON representation
-            return json.loads(str(obj))
-        elif hasattr(obj, 'ids'):  # Handle recordsets
-            return obj.ids
-        elif hasattr(obj, 'id'):  # Handle single records
-            return obj.id
-        else:
-            # For everything else, return as is
-            return obj
 
     def action_open_thread(self):
         """Open the related thread"""

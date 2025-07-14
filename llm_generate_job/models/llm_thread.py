@@ -156,11 +156,20 @@ class LLMThread(models.Model):
         yield from self._monitor_generation_job(job)
 
     def _create_generation_job_from_message(self, last_message):
-        """Create a generation job record from an existing message"""
+        """Create a generation job record from an existing message
+        
+        Important: This method stores RAW inputs from the message, not prepared inputs.
+        The inputs are prepared at job execution time (in the provider) to ensure:
+        1. Fresh context is used for each execution (important for retries)
+        2. Template rendering uses current data, not stale data from job creation
+        3. No JSON serialization issues with non-serializable objects (like RelatedRecordProxy)
+        
+        This matches the synchronous flow where prepare_generation_inputs is called
+        just before sending to the model, not when storing the message.
+        """
         self.ensure_one()
         
         # Store raw inputs from message body_json in the job
-        # The inputs will be prepared at execution time to ensure fresh context
         generation_inputs = last_message.body_json or {}
         
         # Include attachment_ids in the inputs if available
