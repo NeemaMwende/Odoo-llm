@@ -129,7 +129,7 @@ class LLMThread(models.Model):
         
         # Determine whether to use queue or direct generation
         # Auto-detect based on model having a queue
-        queue = self.env['llm.generation.queue'].search([
+        queue = self.env['llm.generation.queue'].sudo().search([
             ('model_id', '=', self.model_id.id),
             ('enabled', '=', True)
         ], limit=1)
@@ -148,6 +148,9 @@ class LLMThread(models.Model):
         
         # Create generation job from the message
         job = self._create_generation_job_from_message(last_message)
+        
+        # Force commit the job creation before queuing
+        self.env.cr.commit()
         
         # Queue the job
         job.action_queue()
@@ -177,13 +180,14 @@ class LLMThread(models.Model):
             generation_inputs['attachment_ids'] = last_message.attachment_ids.ids
 
         # Create job record with raw inputs
-        job = self.env["llm.generation.job"].create({
+        job = self.env["llm.generation.job"].sudo().create({
             "thread_id": self.id,
             "provider_id": self.provider_id.id,
             "model_id": self.model_id.id,
             "input_message_id": last_message.id,
             "generation_inputs": generation_inputs,
             "state": "draft",
+            "user_id": self.env.user.id,  # Explicitly set user_id since we're using sudo
         })
 
         return job
