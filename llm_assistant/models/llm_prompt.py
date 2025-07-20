@@ -372,14 +372,6 @@ class LLMPrompt(models.Model):
                 _("Error parsing %s rendered content: %s") % (self.format, str(e))
             )
 
-        # Update usage statistics (only for non-test contexts)
-        if not arguments.get("is_test", False):
-            self.sudo().write(
-                {
-                    "usage_count": self.usage_count + 1,
-                    "last_used": fields.Datetime.now(),
-                }
-            )
 
         return messages
 

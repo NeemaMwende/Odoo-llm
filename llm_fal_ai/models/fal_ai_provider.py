@@ -81,10 +81,20 @@ class LLMProvider(models.Model):
 
     def _fal_ai_generate_sync(self, client, model_name, input_data):
         """Generate content synchronously"""
+        _logger.info(f"FAL.AI SYNC GENERATION - Model: {model_name}")
+        _logger.info(f"FAL.AI SYNC GENERATION - Input data: {json.dumps(input_data, indent=2)}")
+        
         result = client.run(model_name, arguments=input_data)
+        
+        _logger.info(f"FAL.AI SYNC GENERATION - Raw result type: {type(result)}")
+        _logger.info(f"FAL.AI SYNC GENERATION - Raw result: {json.dumps(result, indent=2) if isinstance(result, (dict, list)) else str(result)}")
         
         # Extract URLs with metadata from the result
         urls = self._fal_ai_extract_urls_with_metadata(result)
+        
+        _logger.info(f"FAL.AI SYNC GENERATION - Extracted URLs count: {len(urls)}")
+        for i, url_data in enumerate(urls):
+            _logger.info(f"FAL.AI SYNC GENERATION - URL {i+1}: {json.dumps(url_data, indent=2)}")
         
         # Create output data
         output_data = {
@@ -93,6 +103,8 @@ class LLMProvider(models.Model):
             "inputs": input_data,
             "provider": "fal_ai"
         }
+        
+        _logger.info(f"FAL.AI SYNC GENERATION - Final output data keys: {list(output_data.keys())}")
         
         return (output_data, urls)
 
@@ -274,13 +286,19 @@ class LLMProvider(models.Model):
         """Extract URLs with metadata from fal_ai result"""
         urls = []
 
+        _logger.info(f"FAL.AI URL EXTRACTION - Input result type: {type(result)}")
+        _logger.info(f"FAL.AI URL EXTRACTION - Input result: {json.dumps(result, indent=2) if isinstance(result, (dict, list)) else str(result)}")
+
         if result is None:
+            _logger.info("FAL.AI URL EXTRACTION - Result is None, returning empty list")
             return urls
 
         # Handle both training outputs and standard image generation
         if isinstance(result, dict):
             # First, check if this looks like a training output
             training_file_keys = [key for key in result.keys() if key.endswith('_file')]
+            
+            _logger.info(f"FAL.AI URL EXTRACTION - Training file keys found: {training_file_keys}")
             
             if training_file_keys:
                 # This is a training output, extract file URLs
@@ -299,35 +317,46 @@ class LLMProvider(models.Model):
                             url_data['file_size'] = value['file_size']
                         
                         urls.append(url_data)
+                        _logger.info(f"FAL.AI URL EXTRACTION - Training file extracted: {json.dumps(url_data, indent=2)}")
                 
+                _logger.info(f"FAL.AI URL EXTRACTION - Training output processed, total URLs: {len(urls)}")
                 return urls
             
             # If not training output, check for standard image generation patterns
             elif "images" in result:
+                _logger.info("FAL.AI URL EXTRACTION - Processing standard image generation with 'images' key")
                 # Standard image generation with 'images' key
-                for item in result["images"]:
+                for i, item in enumerate(result["images"]):
                     url_data = self._fal_ai_extract_single_url_with_metadata(item)
                     if url_data:
                         urls.append(url_data)
+                        _logger.info(f"FAL.AI URL EXTRACTION - Image {i+1} extracted: {json.dumps(url_data, indent=2)}")
             else:
+                _logger.info("FAL.AI URL EXTRACTION - No 'images' key found, checking for other URL fields")
                 # Check for other potential URL fields in the dictionary
                 url_data = self._fal_ai_extract_single_url_with_metadata(result)
                 if url_data:
                     urls.append(url_data)
+                    _logger.info(f"FAL.AI URL EXTRACTION - Direct URL extracted: {json.dumps(url_data, indent=2)}")
 
         elif isinstance(result, list):
+            _logger.info(f"FAL.AI URL EXTRACTION - Processing list with {len(result)} items")
             # If result is a list, extract URLs from each item
-            for item in result:
+            for i, item in enumerate(result):
                 url_data = self._fal_ai_extract_single_url_with_metadata(item)
                 if url_data:
                     urls.append(url_data)
+                    _logger.info(f"FAL.AI URL EXTRACTION - List item {i+1} extracted: {json.dumps(url_data, indent=2)}")
 
         else:
+            _logger.info("FAL.AI URL EXTRACTION - Processing single item (not list or dict)")
             # If result is a single item (not a list or dict), extract URL directly
             url_data = self._fal_ai_extract_single_url_with_metadata(result)
             if url_data:
                 urls.append(url_data)
+                _logger.info(f"FAL.AI URL EXTRACTION - Single item extracted: {json.dumps(url_data, indent=2)}")
 
+        _logger.info(f"FAL.AI URL EXTRACTION - Final URLs count: {len(urls)}")
         return urls
 
     def _fal_ai_extract_single_url_with_metadata(self, item):
@@ -369,11 +398,15 @@ class LLMProvider(models.Model):
         """Submit a generation job to FAL.AI with webhook support"""
         self.ensure_one()
         
+        _logger.info(f"FAL.AI JOB CREATION - Job ID: {job_record.id}")
+        
         # Generate webhook URL dynamically (don't store on provider to avoid permission issues)
         webhook_url = self.webhook_url
         if not webhook_url:
             base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
             webhook_url = f"{base_url}/llm/generate_job/webhook/{job_record.id}"
+
+        _logger.info(f"FAL.AI JOB CREATION - Webhook URL: {webhook_url}")
 
         fal_client = self.fal_ai_get_client()
 
@@ -382,11 +415,15 @@ class LLMProvider(models.Model):
         if not model_name:
             raise UserError(_("Model name is required"))
 
+        _logger.info(f"FAL.AI JOB CREATION - Model: {model_name}")
+
         # Prepare inputs at execution time (not at job creation time)
         # This ensures fresh context, proper template rendering, and matches synchronous flow
         inputs = job_record.get_prepared_inputs()
         if not inputs:
             raise UserError(_("Generation inputs are required"))
+
+        _logger.info(f"FAL.AI JOB CREATION - Raw inputs: {json.dumps(inputs, indent=2) if isinstance(inputs, dict) else str(inputs)}")
 
         try:
             # Convert inputs to dictionary if needed
@@ -403,6 +440,8 @@ class LLMProvider(models.Model):
                 if key != 'prompt' and key not in arguments:
                     arguments[key] = value
 
+            _logger.info(f"FAL.AI JOB CREATION - Final arguments sent to FAL.AI: {json.dumps(arguments, indent=2)}")
+
             # Submit to FAL.AI queue with webhook
             result = fal_client.submit(
                 model_name,
@@ -410,7 +449,7 @@ class LLMProvider(models.Model):
                 webhook_url=webhook_url
             )
             
-            _logger.info(f"Submitted FAL.AI job: {result.request_id}")
+            _logger.info(f"FAL.AI JOB CREATION - Submitted job with request_id: {result.request_id}")
 
             return json.dumps({
                 'request_id': result.request_id,
@@ -418,7 +457,7 @@ class LLMProvider(models.Model):
             })
 
         except Exception as e:
-            _logger.error(f"Error submitting FAL.AI generation job: {e}")
+            _logger.error(f"FAL.AI JOB CREATION - Error submitting job: {e}")
             raise UserError(_(f"Failed to submit job to FAL.AI: {str(e)}"))
 
     def fal_ai_check_generation_job_status(self, job_record):
@@ -513,13 +552,21 @@ class LLMProvider(models.Model):
     def process_webhook_result(self, webhook_data, job_record):
         """Process webhook result from FAL.AI following standard generation pattern"""
         status = webhook_data.get('status')
-        _logger.info(f"Processing webhook result for job {job_record.id}, status: {status}")
+        _logger.info(f"FAL.AI WEBHOOK PROCESSING - Job ID: {job_record.id}, Status: {status}")
+        _logger.info(f"FAL.AI WEBHOOK PROCESSING - Raw webhook data: {json.dumps(webhook_data, indent=2)}")
         
         if status == 'OK':
             payload = webhook_data.get('payload', {})
             
+            _logger.info(f"FAL.AI WEBHOOK PROCESSING - Payload type: {type(payload)}")
+            _logger.info(f"FAL.AI WEBHOOK PROCESSING - Payload content: {json.dumps(payload, indent=2) if isinstance(payload, (dict, list)) else str(payload)}")
+            
             # Extract URLs from FAL.AI response
             urls = self._fal_ai_extract_urls_from_payload(payload)
+            
+            _logger.info(f"FAL.AI WEBHOOK PROCESSING - Extracted URLs count: {len(urls)}")
+            for i, url_data in enumerate(urls):
+                _logger.info(f"FAL.AI WEBHOOK PROCESSING - URL {i+1}: {json.dumps(url_data, indent=2)}")
             
             # Create output data following standard pattern
             output_data = {
@@ -529,6 +576,8 @@ class LLMProvider(models.Model):
                 "provider": "fal_ai"
             }
             
+            _logger.info(f"FAL.AI WEBHOOK PROCESSING - Output data keys: {list(output_data.keys())}")
+            
             # Create assistant message with structured data
             message = job_record.thread_id.message_post(
                 body="",  # Will be updated with markdown content
@@ -536,8 +585,13 @@ class LLMProvider(models.Model):
                 body_json=output_data,
             )
             
+            _logger.info(f"FAL.AI WEBHOOK PROCESSING - Created message ID: {message.id}")
+            
             # Process URLs and create attachments
             markdown_content, attachments = message.process_generation_urls(urls)
+            
+            _logger.info(f"FAL.AI WEBHOOK PROCESSING - Generated markdown length: {len(markdown_content) if markdown_content else 0}")
+            _logger.info(f"FAL.AI WEBHOOK PROCESSING - Created attachments count: {len(attachments) if attachments else 0}")
             
             # Update message with final markdown content
             message.write({'body': markdown_content})
@@ -548,6 +602,8 @@ class LLMProvider(models.Model):
                 'completed_at': fields.Datetime.now(),
                 'output_message_id': message.id,
             })
+            
+            _logger.info(f"FAL.AI WEBHOOK PROCESSING - Job {job_record.id} completed successfully")
             
         elif status == 'ERROR':
             error_msg = webhook_data.get('error', 'Unknown error')
