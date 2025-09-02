@@ -57,14 +57,14 @@
                 readonly="1"
               >
                                 <!-- Tree displays llm.resource fields -->
-                                <tree>
+                                <list>
                                     <field name="name" />
                                     <field name="res_model" />
                                     <field name="res_id" />
                                     <field name="state" />
                                     <!-- Add chunk_count if desired, requires view inheritance or adding field to base model -->
                                     <!-- <field name="chunk_count"/> -->
-                                </tree>
+                                </list>
                             </field>
                         </group>
                     </div>

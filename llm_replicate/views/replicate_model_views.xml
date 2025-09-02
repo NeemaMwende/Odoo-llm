@@ -10,11 +10,11 @@
                 <field name="is_replicate_provider" invisible="1" />
                 <label
           for="replicate_version"
-          attrs="{'invisible': [('is_replicate_provider', '=', False)]}"
+          invisible="not is_replicate_provider"
         />
                 <div
           class="d-flex align-items-center"
-          attrs="{'invisible': [('is_replicate_provider', '=', False)]}"
+          invisible="not is_replicate_provider"
         >
                     <field
             name="replicate_version"

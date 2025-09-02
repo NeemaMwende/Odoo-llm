@@ -106,7 +106,7 @@
                 nolabel="1"
                 options="{'reload_on_button': true}"
               >
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="name" />
                                     <field name="parser" />
                                     <field name="chunker" />
@@ -140,16 +140,16 @@
                     name="action_open_resource"
                     icon="fa-external-link"
                   />
-                                </tree>
+                                </list>
                             </field>
                         </page>
                          <page string="Chunks"> <!-- Added page for chunks -->
                             <field name="chunk_ids" nolabel="1">
-                                <tree>
+                                <list>
                                     <field name="name" />
                                     <field name="resource_id" />
                                     <field name="sequence" />
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         <page string="Domain Filters">
@@ -157,7 +157,7 @@
                 name="domain_ids"
                 nolabel="1"
               > <!-- Reference llm.knowledge.domain -->
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="sequence" widget="handle" />
                                     <field
                     name="model_id"
@@ -173,7 +173,7 @@
                     name="active"
                     widget="boolean_toggle"
                   />
-                                </tree>
+                                </list>
                             </field>
                             <div class="alert alert-info mt-3" role="alert">
                                 <p><strong
@@ -201,13 +201,13 @@
         <field name="name">llm.knowledge.collection.tree</field>
         <field name="model">llm.knowledge.collection</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name" />
                 <field name="resource_count" />
                 <field name="chunk_count" />
                 <field name="embedding_model_id" />
                 <field name="active" widget="boolean_toggle" />
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -279,7 +279,7 @@
     <record id="action_llm_knowledge_collection" model="ir.actions.act_window">
         <field name="name">Collections</field>
         <field name="res_model">llm.knowledge.collection</field>
-        <field name="view_mode">kanban,tree,form</field>
+        <field name="view_mode">kanban,list,form</field>
         <field name="help" type="html">
             <p
         class="o_view_nocontent_smiling_face"

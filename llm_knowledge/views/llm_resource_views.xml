@@ -287,7 +287,7 @@
                 name="chunk_ids"
                 context="{'default_resource_id': active_id}"
               >
-                                <tree>
+                                <list>
                                     <field name="sequence" widget="handle" />
                                     <field name="name" />
                                     <field
@@ -295,7 +295,7 @@
                     widget="json_preview"
                     optional="show"
                   />
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>
@@ -317,7 +317,7 @@
         <field name="name">llm.resource.tree</field>
         <field name="model">llm.resource</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name" />
                 <field name="model_id" />
                 <field name="res_id" />
@@ -325,7 +325,7 @@
                 <field name="state" />
                 <field name="chunk_count" />
                 <field name="lock_date" />
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -420,7 +420,7 @@
         <field name="name">llm.resource.document.tree</field>
         <field name="model">llm.resource</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name" />
                 <field name="model_id" />
                 <field
@@ -430,7 +430,7 @@
         />
                 <field name="state" />
                 <field name="chunk_count" />
-            </tree>
+            </list>
         </field>
     </record>
 
