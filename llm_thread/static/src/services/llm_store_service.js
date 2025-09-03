@@ -62,23 +62,7 @@ export const llmStoreService = {
                 if (!threadId || !content?.trim()) return;
 
                 try {
-                    // Create optimistic user message in mail.store (so it appears in UI immediately)
-                    const tempMessage = {
-                        id: `temp_${Date.now()}`,
-                        body: content,
-                        author: [user.userId, user.name],
-                        res_model: 'llm.thread',
-                        res_id: threadId,
-                        message_type: 'comment',
-                        llm_role: 'user',
-                        date: luxon.DateTime.now().toISO(),
-                        isPending: true
-                    };
-
-                    // Insert into mail.store so it appears in Thread component
-                    mailStore.insert({ 'mail.message': [tempMessage] });
-
-                    // Start LLM streaming
+                    // Start LLM streaming - backend will handle message creation
                     await this.startLLMStreaming(threadId, content);
 
                 } catch (error) {

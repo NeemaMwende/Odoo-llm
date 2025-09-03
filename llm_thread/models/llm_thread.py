@@ -262,13 +262,13 @@ class LLMThread(models.Model):
                 message = self.message_post(
                     body=placeholder_text, llm_role=llm_role, author_id=False, **kwargs
                 )
-                yield {"type": "message_create", "message": message.message_format()[0]}
+                yield {"type": "message_create", "message": self._message_to_store_format(message)}
 
             # Handle content streaming
             if chunk.get("content"):
                 accumulated_content += chunk["content"]
                 message.write({"body": self._process_llm_body(accumulated_content)})
-                yield {"type": "message_chunk", "message": message.message_format()[0]}
+                yield {"type": "message_chunk", "message": self._message_to_store_format(message)}
 
             # Handle errors
             if chunk.get("error"):
@@ -278,9 +278,17 @@ class LLMThread(models.Model):
         # Final update for assistant message
         if message and accumulated_content:
             message.write({"body": self._process_llm_body(accumulated_content)})
-            yield {"type": "message_update", "message": message.message_format()[0]}
+            yield {"type": "message_update", "message": self._message_to_store_format(message)}
 
         return message
+
+    def _message_to_store_format(self, message):
+        """Convert message to store format compatible with Odoo 18.0."""
+        from odoo.addons.mail.tools.discuss import Store
+        
+        store = Store()
+        message._to_store(store)
+        return store.get_result()['Message'][0] if store.get_result().get('Message') else {}
 
     # ============================================================================
     # GENERATION FLOW - Refactored to use message_post with roles
@@ -302,7 +310,7 @@ class LLMThread(models.Model):
                 )
                 yield {
                     "type": "message_create",
-                    "message": last_message.message_format()[0],
+                    "message": self._message_to_store_format(last_message),
                 }
 
             # Call the actual generation implementation
