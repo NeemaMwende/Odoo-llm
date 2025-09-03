@@ -59,6 +59,8 @@ This is a comprehensive suite of Odoo modules for integrating Large Language Mod
 2. **attrs → direct attributes**: Convert domain syntax to Python expressions
 3. **states → invisible**: Button states attribute replaced with invisible
 4. **name_get() → _compute_display_name()**: Display name computation changed
+5. **message_format() removed**: Use Store system with `_to_store()` method instead
+6. **Registry import**: Use `from odoo.modules.registry import Registry` not `from odoo import registry`
 
 ### Module-Specific Migration Requirements
 
@@ -131,7 +133,91 @@ See TodoWrite tool for detailed task list. Main categories:
 - Vector storage modules might need special attention for data migration
 - Job queue modules need careful testing for async operations
 
+## Odoo 18.0 Mail System Architecture (IMPORTANT)
+
+### Mail Store System
+- **USE** `mail.store` service for all message/thread operations
+- **REUSE** existing mail components, don't create separate messaging models
+- **PATCH** components conditionally using `@web/core/utils/patch`
+- The new system uses Record-based reactive architecture
+
+### Thread and Message Management
+```javascript
+// Correct Thread.get() format in Odoo 18.0
+mailStore.Thread.get({ model: 'llm.thread', id: threadId })
+
+// Message insertion pattern
+mailStore.insert({ 'mail.message': [messageData] }, { html: true });
+
+// IMPORTANT: Also add to thread.messages collection for UI updates
+if (!thread.messages.some(m => m.id === message.id)) {
+    thread.messages.push(message);
+}
+```
+
+### Message Serialization
+```python
+# Use Store system for message formatting
+from odoo.addons.mail.tools.discuss import Store
+
+def _message_to_store_format(self, message):
+    store = Store()
+    message._to_store(store)
+    result = store.get_result()
+    return result['mail.message'][0]
+```
+
+### LLM-Specific Implementation
+
+#### Service Setup
+```javascript
+export const llmStoreService = {
+    dependencies: ["orm", "bus_service", "mail.store", "notification"],
+    start(env, { orm, bus_service, "mail.store": mailStore, notification }) {
+        // mailStore is the standard Odoo mail.store service
+    }
+}
+```
+
+#### Safe Component Patching
+```javascript
+patch(Composer.prototype, {
+    setup() {
+        super.setup();
+        try {
+            this.llmStore = useService("llm.store");
+        } catch (error) {
+            this.llmStore = null; // Graceful fallback
+        }
+    }
+});
+```
+
+#### Message Processing Rules
+- **User messages**: Plain text, no processing through `_process_llm_body()`
+- **Assistant messages**: Process through `_process_llm_body()` for markdown→HTML
+- **Tool messages**: Use `body_json` field, no HTML processing
+
+#### Streaming Architecture
+1. User message → `message_post()` → standard bus events
+2. AI response → EventSource streaming → custom handling in llm.store
+3. Messages inserted via `mailStore.insert()` 
+4. Manually add to `thread.messages` collection for reactivity
+
+### Message History Flow for LLM
+1. User message posted with `llm_role="user"` → saved to DB
+2. `generate_messages()` called → `get_llm_messages()` retrieves all messages
+3. Full history including new user message passed to LLM
+
+### Common Pitfalls to Avoid
+- Don't use `message_format()` - it's removed in 18.0
+- Don't use `existingMessage.update()` for streaming - use `mailStore.insert()`
+- Don't forget to add messages to `thread.messages` collection
+- Don't process user messages as markdown/HTML
+- Don't use wrong Thread.get() format (array instead of object)
+
 ## References
 - [MIGRATION_16_TO_18.md](./MIGRATION_16_TO_18.md) - Detailed migration guide
+- [LLM_THREAD_18_MIGRATION_GUIDE.md](./LLM_THREAD_18_MIGRATION_GUIDE.md) - LLM thread specific migration
 - Odoo 18.0 official documentation
 - Module interdependency graph (to be created)
