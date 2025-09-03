@@ -144,7 +144,7 @@
         <field name="name">llm.training.job.view.tree</field>
         <field name="model">llm.training.job</field>
         <field name="arch" type="xml">
-            <tree
+            <list
         decoration-info="state in ('draft', 'validating', 'preparing')"
         decoration-primary="state in ('queued', 'training')"
         decoration-success="state == 'completed'"
@@ -157,7 +157,7 @@
                 <field name="state" />
                 <field name="estimated_cost" />
                 <field name="active" invisible="1" />
-            </tree>
+            </list>
         </field>
     </record>
 
