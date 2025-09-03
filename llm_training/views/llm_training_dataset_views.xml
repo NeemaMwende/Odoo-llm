@@ -57,7 +57,7 @@
                         <page
               string="Training Jobs"
               name="jobs"
-              attrs="{'invisible': [('job_ids', '=', [])]}"
+              invisible="not job_ids"
             >
                             <field name="job_ids">
                                 <list>

@@ -11,7 +11,7 @@
             string="Sync Resources"
             type="object"
             class="btn-primary"
-            attrs="{'invisible': [('domain_ids', '=', [])]}"
+            invisible="not domain_ids"
             confirm="This will synchronize the collection with domain filters, adding new resources and removing those no longer matching. Continue?"
           />
                     <button

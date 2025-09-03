@@ -172,7 +172,7 @@
             string="Embed"
             type="object"
             class="oe_highlight"
-            attrs="{'invisible': [('state', '!=', 'chunked')]}"
+            invisible="state != 'chunked'"
           />
                     <button
             name="process_resource"
@@ -185,7 +185,7 @@
             string="Re-index"
             type="object"
             class="btn-secondary"
-            attrs="{'invisible': [('state', '!=', 'ready')]}"
+            invisible="state != 'ready'"
           />
                     <field
             name="state"
@@ -202,7 +202,7 @@
             type="object"
             class="oe_stat_button"
             icon="fa-puzzle-piece"
-            attrs="{'invisible': [('chunk_count', '=', 0)]}"
+            invisible="chunk_count == 0"
           >
                             <field
               name="chunk_count"
@@ -229,30 +229,30 @@
                             <field
                 name="external_url"
                 widget="url"
-                attrs="{'invisible': [('external_url', '=', False)]}"
+                invisible="not external_url"
               />
                         </group>
                         <group name="group_right">
                             <field name="collection_ids" widget="many2many_tags" />
                             <field
                 name="retriever"
-                attrs="{'readonly': [('state', '!=', 'draft')]}"
+                readonly="state != 'draft'"
               />
                             <field
                 name="parser"
-                attrs="{'readonly': [('state', 'not in', ['draft', 'retrieved'])]}"
+                readonly="state not in ('draft', 'retrieved')"
               />
                             <field
                 name="chunker"
-                attrs="{'readonly': [('state', 'not in', ['draft', 'retrieved', 'parsed'])]}"
+                readonly="state not in ('draft', 'retrieved', 'parsed')"
               />
                             <field
                 name="target_chunk_size"
-                attrs="{'readonly': [('state', 'not in', ['draft', 'retrieved', 'parsed'])]}"
+                readonly="state not in ('draft', 'retrieved', 'parsed')"
               />
                             <field
                 name="target_chunk_overlap"
-                attrs="{'readonly': [('state', 'not in', ['draft', 'retrieved', 'parsed'])]}"
+                readonly="state not in ('draft', 'retrieved', 'parsed')"
               />
                             <field
                 name="kanban_state"
@@ -265,7 +265,7 @@
                 type="object"
                 class="btn-primary"
                 colspan="2"
-                attrs="{'invisible': [('state', 'not in', ['draft', 'retrieved', 'parsed'])]}"
+                invisible="state not in ('draft', 'retrieved', 'parsed')"
               />
                         </group>
                     </group>
@@ -281,7 +281,7 @@
                         <page
               string="Chunks"
               name="chunks"
-              attrs="{'invisible': [('chunk_count', '=', 0)]}"
+              invisible="chunk_count == 0"
             >
                             <field
                 name="chunk_ids"

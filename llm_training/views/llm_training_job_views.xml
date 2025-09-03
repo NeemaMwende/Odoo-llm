@@ -12,19 +12,19 @@
             type="object"
             string="Submit"
             class="oe_highlight"
-            attrs="{'invisible': [('state', '!=', 'draft')]}"
+            invisible="state != 'draft'"
           />
                     <button
             name="action_check_status"
             type="object"
             string="Check Status"
-            attrs="{'invisible': [('state', 'in', ('draft', 'cancelled', 'failed', 'completed'))]}"
+            invisible="state in ['draft', 'cancelled', 'failed', 'completed']"
           />
                     <button
             name="action_cancel"
             type="object"
             string="Cancel"
-            attrs="{'invisible': [('state', 'in', ('completed', 'failed', 'cancelled', 'draft'))]}"
+            invisible="state in ['completed', 'failed', 'cancelled', 'draft']"
           />
                     <field
             name="state"
@@ -57,16 +57,16 @@
                             <field
                 name="provider_id"
                 options="{'no_create': True}"
-                attrs="{'readonly': [('state', '!=', 'draft')]}"
+                readonly="state != 'draft'"
               />
                             <field
                 name="base_model_id"
                 options="{'no_create': True}"
-                attrs="{'readonly': [('state', '!=', 'draft')]}"
+                readonly="state != 'draft'"
               />
                             <field
                 name="trained_model_name"
-                attrs="{'readonly': [('state', '!=', 'draft')]}"
+                readonly="state != 'draft'"
               />
                         </group>
                         <group>
@@ -74,11 +74,11 @@
                             <field
                 name="final_cost"
                 widget="monetary"
-                attrs="{'invisible': [('state', '!=', 'completed')]}"
+                invisible="state != 'completed'"
               />
                             <field
                 name="external_job_id"
-                attrs="{'invisible': [('external_job_id', '=', False)]}"
+                invisible="not external_job_id"
               />
                         </group>
                     </group>
@@ -86,7 +86,7 @@
                         <page string="Datasets" name="datasets">
                             <field
                 name="dataset_ids"
-                attrs="{'readonly': [('state', '!=', 'draft')]}"
+                readonly="state != 'draft'"
               >
                                 <list>
                                     <field name="name" />
@@ -106,28 +106,28 @@
                             <field
                 name="hyperparameters"
                 widget="ace"
-                attrs="{'readonly': [('state', '!=', 'draft')]}"
+                readonly="state != 'draft'"
               />
                         </page>
                         <page
               string="Results"
               name="results"
-              attrs="{'invisible': [('state', 'not in', ('completed', 'failed'))]}"
+              invisible="state not in ['completed', 'failed']"
             >
                             <group>
                                 <field
                   name="result_model_id"
-                  attrs="{'invisible': [('result_model_id', '=', False)]}"
+                  invisible="not result_model_id"
                 />
                                 <field
                   name="training_metrics"
                   widget="ace"
-                  attrs="{'invisible': [('training_metrics', '=', False)]}"
+                  invisible="not training_metrics"
                 />
                             </group>
                             <group
                 string="Training Logs"
-                attrs="{'invisible': [('training_logs', '=', False)]}"
+                invisible="not training_logs"
               >
                                 <field name="training_logs" nolabel="1" />
                             </group>
@@ -163,7 +163,7 @@
                 <field name="state" />
                 <field name="estimated_cost" />
                 <field name="active" invisible="1" />
-            </list>
+            </tree>
         </field>
     </record>
 
