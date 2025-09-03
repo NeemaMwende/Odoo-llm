@@ -61,7 +61,7 @@ export const llmStoreService = {
                 if (!threadId || !content?.trim()) return;
 
                 try {
-                    // Start LLM streaming - backend will handle message creation
+                    // Start LLM streaming - backend will handle both user message creation and AI response
                     await this.startLLMStreaming(threadId, content);
 
                 } catch (error) {
@@ -77,6 +77,7 @@ export const llmStoreService = {
                 this.streamingThreads.add(threadId);
 
                 try {
+                    // Include message parameter for user message creation
                     const eventSource = new EventSource(
                         `/llm/thread/generate?thread_id=${threadId}&message=${encodeURIComponent(message)}`
                     );
@@ -115,7 +116,7 @@ export const llmStoreService = {
                 
                 switch (data.type) {
                     case "message_create":
-                        // Insert new AI message into mail.store
+                        // Handle all messages (user and AI) via EventSource
                         console.log('Creating new message:', data.message);
                         const insertResult1 = mailStore.insert({ 'mail.message': [data.message] });
                         console.log('Insert result for create:', insertResult1);
@@ -244,30 +245,6 @@ export const llmStoreService = {
 
         // Initialize when service starts
         llmStore.initialize();
-        
-        // Subscribe to bus events for real-time updates
-        bus_service.subscribe("discuss.channel/new_message", (payload) => {
-            // Only handle LLM thread messages
-            const thread = mailStore.Thread.get({ model: "llm.thread", id: payload.id });
-            if (thread) {
-                // Insert message data into mail store
-                const { Message: messages = [] } = mailStore.insert(payload, { html: true });
-                console.log('Bus: LLM thread new message received:', messages);
-            }
-        });
-        
-        bus_service.subscribe("mail.record/insert", (payload) => {
-            // Handle general record insertions that might include LLM messages
-            if (payload.Message) {
-                const llmMessages = payload.Message.filter(msg => 
-                    msg.res_model === 'llm.thread' && msg.llm_role
-                );
-                if (llmMessages.length > 0) {
-                    console.log('Bus: LLM messages inserted via mail.record/insert:', llmMessages);
-                    mailStore.insert({ 'Message': llmMessages }, { html: true });
-                }
-            }
-        });
 
         // Subscribe to thread changes to load LLM data when needed
         const originalDiscussThreadSetter = Object.getOwnPropertyDescriptor(mailStore.discuss, 'thread')?.set;
