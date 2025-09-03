@@ -36,7 +36,7 @@
                     <div
             class="alert alert-danger"
             role="alert"
-            attrs="{'invisible': [('has_error', '=', False)]}"
+            invisible="has_error == False"
           >
                         <strong>Evaluation Error:</strong>
                         <field
@@ -58,7 +58,7 @@
                         <div
               class="oe_button_box"
               name="related_record_buttons"
-              attrs="{'invisible': [('related_record_ref', '=', False)]}"
+              invisible="related_record_ref == False"
             >
                             <button
                 name="action_clear_related_record"
@@ -137,7 +137,7 @@
 
                             <!-- JSON Format -->
                             <div
-                attrs="{'invisible': [('result_format', '!=', 'json')]}"
+                invisible="result_format != 'json'"
               >
                                 <field
                   name="messages_json"
@@ -150,7 +150,7 @@
 
                             <!-- YAML Format -->
                             <div
-                attrs="{'invisible': [('result_format', '!=', 'yaml')]}"
+                invisible="result_format != 'yaml'"
               >
                                 <field
                   name="messages_yaml"
@@ -163,7 +163,7 @@
 
                             <!-- Text Format -->
                             <div
-                attrs="{'invisible': [('result_format', '!=', 'text')]}"
+                invisible="result_format != 'text'"
               >
                                 <field
                   name="messages_text"
@@ -198,7 +198,7 @@
                                     <field
                     name="error_message"
                     readonly="1"
-                    attrs="{'invisible': [('has_error', '=', False)]}"
+                    invisible="has_error == False"
                   />
                                 </group>
                             </group>
@@ -206,7 +206,7 @@
                             <!-- Current Related Record Info -->
                             <group
                 string="Related Record Info"
-                attrs="{'invisible': [('related_record_ref', '=', False)]}"
+                invisible="related_record_ref == False"
               >
                                 <field
                   name="related_record_ref"

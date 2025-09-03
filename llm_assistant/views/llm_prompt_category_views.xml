@@ -69,7 +69,7 @@
                                     <field name="name" />
                                     <field name="code" />
                                     <field name="prompt_count" />
-                                </list>
+                                </tree>
                             </field>
                         </page>
                     </notebook>

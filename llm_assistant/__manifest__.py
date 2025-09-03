@@ -37,7 +37,7 @@ Use cases include creating specialized assistants for customer support, data ana
         "web_json_editor",
     ],
     "external_dependencies": {
-        "python": ["jinja2", "pyyaml"],
+        "python": ["jinja2", "pyyaml", "jsonschema"],
     },
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
