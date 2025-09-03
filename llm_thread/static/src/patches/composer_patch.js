@@ -1,0 +1,130 @@
+/** @odoo-module **/
+
+import { Composer } from "@mail/core/common/composer";
+import { patch } from "@web/core/utils/patch";
+import { useService } from "@web/core/utils/hooks";
+
+/**
+ * Patch Composer to handle LLM threads
+ * IMPORTANT: Only affects behavior when dealing with llm.thread model
+ * All other mail functionality remains unchanged
+ */
+patch(Composer.prototype, {
+    setup() {
+        super.setup();
+        
+        // Initialize LLM store in setup - safe to access services here
+        try {
+            this.llmStore = useService("llm.store");
+        } catch (error) {
+            // LLM service might not be available, that's ok
+            console.warn('LLM store service not available:', error.message);
+            this.llmStore = null;
+        }
+    },
+
+    /**
+     * Check if current thread is an LLM thread
+     * This is our safety check to ensure we only modify LLM-related behavior
+     */
+    get isLLMThread() {
+        return this.props.composer?.thread?.model === 'llm.thread';
+    },
+
+    /**
+     * Check if this LLM thread is currently streaming
+     */
+    get isStreaming() {
+        if (!this.isLLMThread || !this.llmStore) {
+            return false; // Normal mail threads are never "streaming"
+        }
+        return this.llmStore.getStreamingStatus() || false;
+    },
+
+    /**
+     * Override sendMessage for LLM threads only
+     */
+    async sendMessage() {
+        // For LLM threads, use our custom logic
+        if (this.isLLMThread && this.llmStore) {
+            const content = this.props.composer.text?.trim();
+            if (!content) return;
+
+            const threadId = this.props.composer.thread.id;
+            
+            // Clear composer immediately for better UX
+            this.props.composer.clear();
+            
+            // Send through LLM store
+            await this.llmStore.sendLLMMessage(threadId, content);
+            return;
+        }
+
+        // For all other threads, use original mail behavior
+        return super.sendMessage();
+    },
+
+    /**
+     * Override onKeydown to handle LLM-specific shortcuts
+     */
+    onKeydown(ev) {
+        // LLM-specific handling
+        if (this.isLLMThread) {
+            switch (ev.key) {
+                case "Enter":
+                    // For LLM threads, always send on Enter (no Shift+Enter for newline)
+                    if (!ev.shiftKey && !this.isStreaming) {
+                        ev.preventDefault();
+                        this.sendMessage();
+                        return;
+                    }
+                    break;
+                case "Escape":
+                    // Stop streaming if ESC is pressed
+                    if (this.isStreaming) {
+                        ev.preventDefault();
+                        this.stopStreaming();
+                        return;
+                    }
+                    break;
+            }
+        }
+
+        // For all other cases (including non-LLM threads), use original behavior
+        super.onKeydown(ev);
+    },
+
+    /**
+     * Stop LLM streaming (only relevant for LLM threads)
+     */
+    stopStreaming() {
+        if (this.isLLMThread && this.llmStore) {
+            const threadId = this.props.composer.thread.id;
+            this.llmStore.stopStreaming(threadId);
+        }
+    },
+
+    /**
+     * Override placeholder for LLM threads
+     */
+    get placeholder() {
+        if (this.isLLMThread) {
+            return this.isStreaming ? "AI is responding..." : "Ask anything...";
+        }
+        
+        // Use original placeholder for regular mail
+        return super.placeholder || "Write a message...";
+    },
+
+    /**
+     * Disable composer while streaming (LLM only)
+     */
+    get isDisabled() {
+        if (this.isLLMThread) {
+            return this.isStreaming || !this.props.composer.text?.trim();
+        }
+        
+        // Use original disabled logic for regular mail
+        return super.isDisabled;
+    }
+});

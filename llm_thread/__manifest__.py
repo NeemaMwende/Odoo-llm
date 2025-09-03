@@ -45,75 +45,25 @@ Contact: support@apexive.com
     ],
     "assets": {
         "web.assets_backend": [
-            # Models
-            "llm_thread/static/src/models/main.js",
-            "llm_thread/static/src/models/messaging.js",
-            "llm_thread/static/src/models/llm_chat.js",
-            "llm_thread/static/src/models/llm_chat_view.js",
-            "llm_thread/static/src/models/thread.js",
-            "llm_thread/static/src/models/composer.js",
-            "llm_thread/static/src/models/composer_view.js",
-            "llm_thread/static/src/models/llm_model.js",
-            "llm_thread/static/src/models/llm_provider.js",
-            "llm_thread/static/src/models/thread_view.js",
-            "llm_thread/static/src/models/llm_chat_thread_header_view.js",
-            "llm_thread/static/src/models/chatter.js",
-            "llm_thread/static/src/models/llm_tool.js",
-            "llm_thread/static/src/models/message.js",
-            "llm_thread/static/src/models/message_action.js",
-            "llm_thread/static/src/models/message_action_list.js",
-            "llm_thread/static/src/models/message_action_view.js",
-            "llm_thread/static/src/models/messaging_notification_handler.js",
-            # Components
-            "llm_thread/static/src/components/llm_chat/llm_chat.js",
-            "llm_thread/static/src/components/llm_chat/llm_chat.xml",
-            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.js",
-            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.xml",
-            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.js",
-            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.scss",
-            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.xml",
+            # Services - LLM store service for integration with mail.store
+            "llm_thread/static/src/services/llm_store_service.js",
+            
+            # Components - LLM Chat Container using existing mail components
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.js",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.xml",
-            "llm_thread/static/src/components/llm_chat_container/llm_chat_container.scss",
-            "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.js",
-            "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.xml",
-            "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.scss",
-            "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.js",
-            "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.xml",
-            "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.scss",
-            "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.js",
-            "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.xml",
-            "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.scss",
-            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.js",
-            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.xml",
-            "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
-            "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
-            "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss",
-            "llm_thread/static/src/components/llm_chatter_topbar/llm_chatter_topbar.xml",
-            "llm_thread/static/src/components/llm_chatter_topbar/llm_chat_topbar.scss",
-            "llm_thread/static/src/components/llm_chatter/llm_chatter.xml",
-            "llm_thread/static/src/components/message/message.xml",
-            "llm_thread/static/src/components/message/message.scss",
-            # Streaming indicator component
-            "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.js",
-            "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.xml",
-            # LLMChatThreadRelatedRecord Component
-            "llm_thread/static/src/components/llm_chat_thread_related_record/llm_chat_thread_related_record.js",
-            "llm_thread/static/src/components/llm_chat_thread_related_record/llm_chat_thread_related_record.xml",
-            "llm_thread/static/src/components/llm_chat_thread_related_record/llm_chat_thread_related_record.scss",
-            # Client Actions
-            "llm_thread/static/src/llm_chat_client_action.js",
-            # Styles
-            (
-                "after",
-                "web/static/src/scss/pre_variables.scss",
-                "llm_thread/static/src/components/llm_chat/llm_chat.scss",
-            ),
-            (
-                "after",
-                "web/static/src/scss/pre_variables.scss",
-                "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.scss",
-            ),
+            
+            # Patches - Safe extensions of mail components with conditional LLM logic
+            "llm_thread/static/src/patches/composer_patch.js",
+            "llm_thread/static/src/patches/thread_patch.js",
+            "llm_thread/static/src/patches/chatter_patch.js",
+            "llm_thread/static/src/patches/message_patch.js",
+            
+            # Templates - Extensions of existing mail templates
+            "llm_thread/static/src/templates/chatter_ai_button.xml",
+            "llm_thread/static/src/templates/llm_chat_client_action.xml",
+            
+            # Client Actions - Following Odoo 18.0 patterns
+            "llm_thread/static/src/client_actions/llm_chat_client_action.js",
         ],
     },
     "images": [
