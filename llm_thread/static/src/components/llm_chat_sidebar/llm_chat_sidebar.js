@@ -2,7 +2,7 @@
 
 import { registerMessagingComponent } from "@mail/utils/messaging_component";
 import { useModels } from "@mail/component_hooks/use_models";
-const { Component } = owl;
+import { Component } from "@odoo/owl";
 
 export class LLMChatSidebar extends Component {
   setup() {

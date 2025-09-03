@@ -2,8 +2,7 @@
 
 import { registerMessagingComponent } from "@mail/utils/messaging_component";
 import { useModels } from "@mail/component_hooks/use_models";
-
-const { Component, useState } = owl;
+import { Component, useState } from "@odoo/owl";
 
 export class LLMChatThreadList extends Component {
   setup() {
