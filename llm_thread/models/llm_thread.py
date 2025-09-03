@@ -208,8 +208,9 @@ class LLMThread(models.Model):
                 kwargs.get("subtype_xmlid"), kwargs.get("author_id"), llm_role
             )
 
-        # Convert markdown to HTML if needed (except for tool messages which use body_json)
-        if kwargs.get("body") and llm_role != "tool":
+        # Convert markdown to HTML if needed (only for assistant messages)
+        # User messages should be plain text, tool messages use body_json
+        if kwargs.get("body") and llm_role == "assistant":
             kwargs["body"] = self._process_llm_body(kwargs["body"])
 
         # Create the message using standard mail.thread flow
