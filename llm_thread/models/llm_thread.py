@@ -297,8 +297,13 @@ class LLMThread(models.Model):
     # GENERATION FLOW - Refactored to use message_post with roles
     # ============================================================================
 
-    def generate(self, user_message_body, **kwargs):
-        """Main generation method with PostgreSQL advisory locking."""
+    def generate(self, user_message_body=None, **kwargs):
+        """Main generation method with PostgreSQL advisory locking.
+        
+        Args:
+            user_message_body: Optional message body. If not provided, will use
+                              the latest message in the thread to start generation.
+        """
         self.ensure_one()
         
         with self._generation_lock():
