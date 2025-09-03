@@ -351,13 +351,13 @@ class LLMThread(models.Model):
                 message = self.message_post(
                     body="Thinking...", llm_role="assistant", author_id=False
                 )
-                yield {"type": "message_create", "message": message.message_format()[0]}
+                yield {"type": "message_create", "message": self._message_to_store_format(message)}
 
             # Handle content streaming
             if chunk.get("content"):
                 accumulated_content += chunk["content"]
                 message.write({"body": self._process_llm_body(accumulated_content)})
-                yield {"type": "message_chunk", "message": message.message_format()[0]}
+                yield {"type": "message_chunk", "message": self._message_to_store_format(message)}
 
             # Collect tool calls for processing
             if chunk.get("tool_calls"):
@@ -385,17 +385,17 @@ class LLMThread(models.Model):
                 )
                 # Commit to ensure message is saved before tool execution
                 self.env.cr.commit()
-                yield {"type": "message_create", "message": message.message_format()[0]}
+                yield {"type": "message_create", "message": self._message_to_store_format(message)}
             else:
                 # Update existing message with tool calls
                 message.write({"body_json": body_json})
                 # Commit to ensure update is saved
                 self.env.cr.commit()
-                yield {"type": "message_update", "message": message.message_format()[0]}
+                yield {"type": "message_update", "message": self._message_to_store_format(message)}
         elif message and accumulated_content:
             # Final update for assistant message without tool calls
             message.write({"body": self._process_llm_body(accumulated_content)})
-            yield {"type": "message_update", "message": message.message_format()[0]}
+            yield {"type": "message_update", "message": self._message_to_store_format(message)}
 
         return message
 
@@ -421,7 +421,7 @@ class LLMThread(models.Model):
 
         yield {
             "type": "message_create",
-            "message": assistant_message.message_format()[0],
+            "message": self._message_to_store_format(assistant_message),
         }
         return assistant_message
 
@@ -443,7 +443,7 @@ class LLMThread(models.Model):
             tool_msg = self.env["mail.message"].post_tool_call(
                 tool_call, thread_model=self
             )
-            yield {"type": "message_create", "message": tool_msg.message_format()[0]}
+            yield {"type": "message_create", "message": self._message_to_store_format(tool_msg)}
 
             # Execute the tool call
             result_msg = yield from tool_msg.execute_tool_call(thread_model=self)
@@ -459,7 +459,7 @@ class LLMThread(models.Model):
                 )
                 yield {
                     "type": "message_create",
-                    "message": error_msg.message_format()[0],
+                    "message": self._message_to_store_format(error_msg),
                 }
                 return error_msg
             except Exception as e2:
