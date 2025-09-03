@@ -2,7 +2,6 @@
 
 import { reactive } from "@odoo/owl";
 import { registry } from "@web/core/registry";
-import { user } from "@web/core/user";
 
 /**
  * LLM Store Service - Integrates with existing mail.store
@@ -112,34 +111,67 @@ export const llmStoreService = {
             },
 
             handleStreamMessage(threadId, data) {
+                console.log('Handling stream message:', data.type, data);
+                
                 switch (data.type) {
                     case "message_create":
-                        // Insert AI response into mail.store
-                        data.message.llm_role = 'assistant';
-                        mailStore.insert({ 'mail.message': [data.message] });
+                        // Insert new AI message into mail.store
+                        console.log('Creating new message:', data.message);
+                        const insertResult1 = mailStore.insert({ 'mail.message': [data.message] });
+                        console.log('Insert result for create:', insertResult1);
+                        
+                        // Get the created message and add it to the thread's messages collection
+                        const createdMessage = mailStore.Message.get(data.message.id);
+                        console.log('Created message retrieved:', createdMessage);
+                        
+                        // Add message to the thread's messages collection if not already there
+                        const createThread = mailStore.discuss?.thread;
+                        if (createThread && createdMessage && !createThread.messages.some(m => m.id === createdMessage.id)) {
+                            createThread.messages.push(createdMessage);
+                            console.log('Added message to thread messages. New count:', createThread.messages.length);
+                        }
                         break;
                         
                     case "message_chunk":
                     case "message_update":
-                        // Update existing message in mail.store
-                        const existingMessage = Object.values(mailStore.Message.records)
-                            .find(msg => msg.id === data.message.id);
+                        // Update existing message using standard mail.store.insert() like Odoo does
+                        console.log('Updating message:', data.message.id, data.message);
                         
-                        if (existingMessage) {
-                            Object.assign(existingMessage, data.message);
-                        } else {
-                            data.message.llm_role = 'assistant';
-                            mailStore.insert({ 'mail.message': [data.message] });
+                        // Check current thread's messages before update
+                        const currentThread = mailStore.discuss?.thread;
+                        console.log('Current active thread:', currentThread);
+                        if (currentThread) {
+                            console.log('Thread messages before update:', currentThread.messages.length, currentThread.messages.map(m => m.id));
+                        }
+                        
+                        // Use the same pattern as Odoo's standard bus handlers - always use insert
+                        // which will update existing messages or create new ones as needed
+                        const insertResult2 = mailStore.insert({ 'mail.message': [data.message] }, { html: true });
+                        console.log('Insert result for update:', insertResult2);
+                        
+                        // Check if message was actually updated
+                        const updatedMessage = mailStore.Message.get(data.message.id);
+                        console.log('Updated message retrieved:', updatedMessage);
+                        
+                        // Check thread messages after update
+                        if (currentThread) {
+                            console.log('Thread messages after update:', currentThread.messages.length, currentThread.messages.map(m => m.id));
                         }
                         break;
                         
                     case "error":
+                        console.error('Stream error:', data.error);
                         this.stopStreaming(threadId);
                         notification.add(data.error || "AI response error", { type: "danger" });
                         break;
                         
                     case "done":
+                        console.log('Stream completed');
                         this.stopStreaming(threadId);
+                        break;
+                        
+                    default:
+                        console.warn('Unknown stream message type:', data.type);
                         break;
                 }
             },
@@ -212,6 +244,30 @@ export const llmStoreService = {
 
         // Initialize when service starts
         llmStore.initialize();
+        
+        // Subscribe to bus events for real-time updates
+        bus_service.subscribe("discuss.channel/new_message", (payload) => {
+            // Only handle LLM thread messages
+            const thread = mailStore.Thread.get({ model: "llm.thread", id: payload.id });
+            if (thread) {
+                // Insert message data into mail store
+                const { Message: messages = [] } = mailStore.insert(payload, { html: true });
+                console.log('Bus: LLM thread new message received:', messages);
+            }
+        });
+        
+        bus_service.subscribe("mail.record/insert", (payload) => {
+            // Handle general record insertions that might include LLM messages
+            if (payload.Message) {
+                const llmMessages = payload.Message.filter(msg => 
+                    msg.res_model === 'llm.thread' && msg.llm_role
+                );
+                if (llmMessages.length > 0) {
+                    console.log('Bus: LLM messages inserted via mail.record/insert:', llmMessages);
+                    mailStore.insert({ 'Message': llmMessages }, { html: true });
+                }
+            }
+        });
 
         // Subscribe to thread changes to load LLM data when needed
         const originalDiscussThreadSetter = Object.getOwnPropertyDescriptor(mailStore.discuss, 'thread')?.set;
