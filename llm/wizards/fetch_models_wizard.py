@@ -128,12 +128,21 @@ class FetchModelsWizard(models.TransientModel):
         else:
             models_data = provider.list_models()
 
+        # Track models in this wizard to prevent duplicates
+        wizard_models = set()
+
         for model_data in models_data:
             details = model_data.get("details", {})
             name = model_data.get("name") or details.get("id")
 
             if not name:
                 continue
+            
+            # Skip duplicates within this wizard (prevent constraint violation)
+            if name in wizard_models:
+                _logger.warning(f"Duplicate model '{name}' found in provider response, skipping duplicate")
+                continue
+            wizard_models.add(name)
 
             # Determine model use and capabilities
             capabilities = details.get("capabilities", ["chat"])
