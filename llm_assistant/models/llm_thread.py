@@ -230,6 +230,9 @@ class LLMThread(models.Model):
 
     def _generate_assistant_response(self):
         """Generate assistant response and handle tool calls."""
+        # Flush any pending writes to ensure latest messages are visible
+        self.env.flush_all()
+        
         # Use the new optimized method for LLM context
         message_history = self.get_llm_messages()
 
