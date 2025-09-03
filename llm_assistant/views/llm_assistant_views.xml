@@ -5,7 +5,7 @@
         <field name="name">llm.assistant.tree</field>
         <field name="model">llm.assistant</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name" />
                 <field name="code" />
                 <field name="res_model" />
@@ -19,7 +19,7 @@
                 <field name="is_default" widget="boolean_toggle" />
                 <field name="thread_count" />
                 <field name="active" />
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -48,7 +48,7 @@
               type="object"
               class="oe_stat_button"
               icon="fa-file-text-o"
-              attrs="{'invisible': [('prompt_id', '=', False)]}"
+              invisible="not prompt_id"
             >
                             <div class="o_field_widget o_stat_info">
                                 <span class="o_stat_value">
@@ -99,7 +99,7 @@
                             <field
                 name="allowed_group_ids"
                 widget="many2many_tags"
-                attrs="{'invisible': [('is_public', '=', True)]}"
+                invisible="is_public"
                 options="{'no_create': True}"
               />
                         </group>
@@ -124,7 +124,7 @@
                   string="Reset Defaults"
                   type="object"
                   class="btn-secondary"
-                  attrs="{'invisible': [('prompt_id', '=', False)]}"
+                  invisible="not prompt_id"
                   help="Reset default values from the prompt template's argument schema defaults"
                 />
                             </div>
@@ -193,7 +193,6 @@
                   widget="ace"
                   readonly="1"
                   options="{'mode': 'text'}"
-                  attrs="{'options': [('template_format', '=', 'text'), {'mode': 'text'}], 'options': [('template_format', '=', 'yaml'), {'mode': 'yaml'}], 'options': [('template_format', '=', 'json'), {'mode': 'json'}]}"
                 />
                             </group>
                             <div class="mt-3">
@@ -202,7 +201,7 @@
                   type="object"
                   string="Edit Template in Prompt"
                   class="btn-primary"
-                  attrs="{'invisible': [('prompt_id', '=', False)]}"
+                  invisible="not prompt_id"
                 />
                                 <p class="text-muted mt-2">
                                     <i class="fa fa-info-circle" />
@@ -220,7 +219,7 @@
                         </page>
                         <page string="Related Threads" name="related_threads">
                             <field name="thread_ids" readonly="1">
-                                <tree>
+                                <list>
                                     <field name="name" />
                                     <field name="user_id" />
                                     <field name="write_date" />
@@ -230,7 +229,7 @@
                     type="object"
                     class="btn btn-primary btn-sm"
                   />
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>

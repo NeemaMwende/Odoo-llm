@@ -75,7 +75,7 @@
                             <div
                 class="alert alert-warning"
                 role="alert"
-                attrs="{'invisible': [('undefined_arguments', '=', False)]}"
+                invisible="not undefined_arguments"
               >
                                 <strong>Warning:
                                 </strong>
@@ -90,13 +90,12 @@
                 name="template"
                 widget="ace"
                 options="{'mode': 'text'}"
-                attrs="{'options': [('format', '=', 'text'), {'mode': 'text'}], 'options': [('format', '=', 'yaml'), {'mode': 'yaml'}], 'options': [('format', '=', 'json'), {'mode': 'json'}]}"
                 placeholder="Enter your prompt template here..."
               />
                             <div class="alert alert-info" role="alert">
                                 <h5>Template Format Guide:</h5>
                                 <div
-                  attrs="{'invisible': [('format', '!=', 'text')]}"
+                  invisible="format != 'text'"
                 >
                                     <p>
                                         <strong>Text Format:
@@ -108,7 +107,7 @@
                                     </pre>
                                 </div>
                                 <div
-                  attrs="{'invisible': [('format', '!=', 'yaml')]}"
+                  invisible="format != 'yaml'"
                 >
                                     <p>
                                         <strong>YAML Format:
@@ -125,7 +124,7 @@
                                     </pre>
                                 </div>
                                 <div
-                  attrs="{'invisible': [('format', '!=', 'json')]}"
+                  invisible="format != 'json'"
                 >
                                     <p>
                                         <strong>JSON Format:
@@ -230,7 +229,7 @@
         <field name="name">llm.prompt.tree</field>
         <field name="model">llm.prompt</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name" />
                 <field name="category_id" />
                 <field name="format" />
@@ -239,7 +238,7 @@
                 <field name="usage_count" />
                 <field name="last_used" />
                 <field name="active" invisible="1" />
-            </tree>
+            </list>
         </field>
     </record>
 
