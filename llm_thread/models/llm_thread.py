@@ -288,7 +288,9 @@ class LLMThread(models.Model):
         
         store = Store()
         message._to_store(store)
-        return store.get_result()['Message'][0] if store.get_result().get('Message') else {}
+        result = store.get_result()
+        
+        return result['mail.message'][0]
 
     # ============================================================================
     # GENERATION FLOW - Refactored to use message_post with roles
