@@ -2,20 +2,40 @@
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMChatContainer">
         <div class="o_LLMChatContainer h-100 d-flex flex-row overflow-hidden">
-            <!-- Debug: Thread List Sidebar -->
-            <div class="o-llm-sidebar" style="width: 250px; border-right: 1px solid #ddd; padding: 10px;">
-                <h6>Debug: Threads</h6>
-                <div class="mb-2">
-                    <small>Active Thread: <span t-esc="activeThread?.displayName or 'None'"/> (#<span t-esc="activeThread?.id or 'None'"/>)</small>
+            <!-- Thread List Sidebar -->
+            <div class="o-llm-sidebar d-flex flex-column" style="width: 280px; border-right: 1px solid #dee2e6;">
+                <!-- Sidebar Header -->
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                    <h6 class="mb-0 text-muted">Conversations</h6>
+                    <button class="btn btn-sm btn-primary" t-on-click="openCreateChatForm" title="New Chat">
+                        <i class="fa fa-plus"/>
+                    </button>
                 </div>
-                <div class="mb-2">
-                    <small>LLM Threads Count: <span t-esc="llmStore.llmThreads.size"/></small>
-                </div>
-                <div class="list-group">
-                    <t t-foreach="Array.from(llmStore.llmThreads.values())" t-as="thread" t-key="thread.id">
-                        <div class="list-group-item list-group-item-action" 
-                             t-att-class="{ active: thread.id === activeThread?.id }">
-                            <small t-esc="thread.name"/> (#<span t-esc="thread.id"/>)
+                
+                <!-- Thread List -->
+                <div class="flex-grow-1 overflow-auto">
+                    <div t-if="llmStore.llmThreadList.length === 0" class="p-3 text-center text-muted">
+                        <i class="fa fa-comments-o fa-2x mb-2"/>
+                        <div>No conversations yet</div>
+                        <small>Start your first AI chat</small>
+                    </div>
+                    
+                    <t t-foreach="llmStore.llmThreadList" t-as="thread" t-key="thread.id">
+                        <div class="o-llm-thread-item p-3 border-bottom cursor-pointer" 
+                             t-att-class="{ 'o-llm-thread-active': thread.id === activeThread?.id }"
+                             t-on-click="() => this.selectThread(thread.id)"
+                             t-att-title="thread.name">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1 min-width-0">
+                                    <div class="text-truncate fw-medium" t-esc="thread.name"/>
+                                    <div class="text-muted small mt-1">
+                                        <span t-if="thread.write_date" t-esc="formatDate(thread.write_date)"/>
+                                    </div>
+                                </div>
+                                <div class="ms-2 flex-shrink-0">
+                                    <i t-if="isStreamingThread(thread.id)" class="fa fa-circle-o-notch fa-spin text-primary"/>
+                                </div>
+                            </div>
                         </div>
                     </t>
                 </div>

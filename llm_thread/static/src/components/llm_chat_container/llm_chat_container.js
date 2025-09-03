@@ -51,6 +51,42 @@ export class LLMChatContainer extends Component {
   }
 
   /**
+   * Select thread - delegates to LLM store service
+   */
+  async selectThread(threadId) {
+    await this.llmStore.selectThread(threadId);
+  }
+
+  /**
+   * Check if a thread is currently streaming
+   */
+  isStreamingThread(threadId) {
+    return this.llmStore.isStreamingThread(threadId);
+  }
+
+  /**
+   * Format date for display
+   */
+  formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffHours < 1) {
+      return 'Just now';
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays}d ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  }
+
+  /**
    * Open llm.thread form to create new chat
    */
   async openCreateChatForm() {

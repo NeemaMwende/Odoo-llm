@@ -2,6 +2,7 @@
 
 import { reactive } from "@odoo/owl";
 import { registry } from "@web/core/registry";
+import { user } from "@web/core/user";
 
 /**
  * LLM Store Service - Integrates with existing mail.store
@@ -213,6 +214,57 @@ export const llmStoreService = {
                 }
             },
 
+            async loadLLMThreads() {
+                try {
+                    // Load user's LLM threads
+                    const threads = await orm.searchRead(
+                        'llm.thread',
+                        [['user_id', '=', user.userId]],
+                        ['id', 'name', 'write_date', 'model_id', 'provider_id'],
+                        { order: 'write_date DESC' }
+                    );
+                    
+                    threads.forEach(thread => {
+                        this.llmThreads.set(thread.id, thread);
+                    });
+                } catch (error) {
+                    console.warn('LLM threads not available:', error.message);
+                    // Don't throw error, just log warning
+                }
+            },
+
+            // Thread selection using Odoo's standard pattern
+            async selectThread(threadId) {
+                try {
+                    // Get thread record from mail store
+                    let thread = mailStore.Thread.get({model: 'llm.thread', id: threadId});
+                    
+                    if (!thread) {
+                        // Ensure we have thread data in our store
+                        const threadData = this.llmThreads.get(threadId);
+                        if (threadData) {
+                            // Insert thread into mail store using proper format
+                            const storeData = {
+                                'Thread': [{
+                                    id: threadData.id,
+                                    model: 'llm.thread',
+                                    name: threadData.name,
+                                }]
+                            };
+                            mailStore.insert(storeData);
+                            thread = mailStore.Thread.get({model: 'llm.thread', id: threadId});
+                        }
+                    }
+                    
+                    if (thread) {
+                        // Use Odoo's standard method - handles everything automatically
+                        thread.setAsDiscussThread();
+                    }
+                } catch (error) {
+                    console.error('Error selecting thread:', error);
+                }
+            },
+
             // Helper methods for components
             isStreamingThread(threadId) {
                 return this.streamingThreads.has(threadId);
@@ -230,7 +282,8 @@ export const llmStoreService = {
             async initialize() {
                 await Promise.all([
                     this.loadLLMProviders(),
-                    this.loadLLMModels()
+                    this.loadLLMModels(),
+                    this.loadLLMThreads()
                 ]);
             },
 

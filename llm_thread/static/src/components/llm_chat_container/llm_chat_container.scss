@@ -1,0 +1,29 @@
+.o_LLMChatContainer {
+    .o-llm-sidebar {
+        flex-shrink: 0; // Prevent shrinking
+        min-width: 280px; // Ensure minimum width
+        width: 280px !important; // Force width to stay consistent
+        
+        .o-llm-thread-item {
+            transition: background-color 0.2s ease;
+            
+            &.o-llm-thread-active {
+                background-color: var(--primary);
+                color: white;
+                
+                .text-muted {
+                    color: rgba(255, 255, 255, 0.7) !important;
+                }
+            }
+        }
+    }
+}
+
+// Utility classes
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.min-width-0 {
+    min-width: 0;
+}
