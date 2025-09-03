@@ -101,35 +101,15 @@ export class LLMChatClientAction extends Component {
                     isLoaded: true,
                 };
                 
-                console.log('Inserting thread record:', threadToInsert);
                 
-                // Try both possible key formats
-                try {
-                    this.mailStore.insert({
-                        'mail.thread': [threadToInsert]
-                    });
-                    console.log('✓ Inserted with mail.thread key');
-                } catch (error) {
-                    console.log('✗ Failed with mail.thread key:', error);
-                    
-                    // Try with llm.thread key
-                    try {
-                        this.mailStore.insert({
-                            'llm.thread': [threadToInsert]
-                        });
-                        console.log('✓ Inserted with llm.thread key');
-                    } catch (error2) {
-                        console.log('✗ Failed with llm.thread key:', error2);
-                    }
-                }
+                this.mailStore.insert({
+                    'mail.thread': [threadToInsert]
+                });
+                
                 
                 // Immediately check if it was inserted
                 const immediateCheck = this.mailStore.Thread.get(['llm.thread', threadId]);
-                console.log('Immediate check after insertion:', immediateCheck);
                 
-                // Debug: Show all threads in store
-                console.log('All threads in mail.store:', this.mailStore.Thread.records);
-
                 // Load messages for this thread
                 await this.loadThreadMessages(threadId);
                 
@@ -146,11 +126,9 @@ export class LLMChatClientAction extends Component {
                     model: 'llm.thread', 
                     id: threadId 
                 });
-                console.log('Thread retrieved with correct format:', threadRecord);
                 
                 if (this.mailStore.discuss && threadRecord) {
                     this.mailStore.discuss.thread = threadRecord;
-                    console.log('Active thread set to:', this.mailStore.discuss.thread);
                 } else {
                     console.error('Failed to set active thread - discuss:', this.mailStore.discuss, 'thread:', threadRecord);
                 }

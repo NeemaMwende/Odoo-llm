@@ -26,7 +26,6 @@ export class LLMChatContainer extends Component {
    */
   get activeThread() {
     const thread = this.mailStore.discuss?.thread;
-    console.log('LLMChatContainer activeThread:', thread, 'discuss:', this.mailStore.discuss);
     return thread;
   }
 
