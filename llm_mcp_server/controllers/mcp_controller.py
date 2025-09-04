@@ -43,6 +43,36 @@ class MCPServerController(http.Controller):
             return request_id
         return int(time.time() * 1000)  # Milliseconds since epoch
     
+    def _patch_schema_for_openai_compatibility(self, schema_node):
+        """
+        Recursively patch JSON schema to ensure OpenAI compatibility.
+        
+        Specifically ensures 'items' dictionaries have a 'type' defined,
+        which OpenAI requires for array types.
+        
+        This uses the same logic as the OpenAI provider in llm_openai.
+        """
+        if not isinstance(schema_node, dict):
+            return
+
+        # Fix array items that don't have a type
+        if "items" in schema_node and isinstance(schema_node["items"], dict):
+            items_dict = schema_node["items"]
+            if "type" not in items_dict:
+                items_dict["type"] = "string"  # Default to string type
+            self._patch_schema_for_openai_compatibility(items_dict)
+
+        # Recursively patch properties
+        if "properties" in schema_node and isinstance(schema_node["properties"], dict):
+            for prop_schema in schema_node["properties"].values():
+                self._patch_schema_for_openai_compatibility(prop_schema)
+
+        # Handle schema combiners (anyOf, allOf, oneOf)
+        for combiner in ["anyOf", "allOf", "oneOf"]:
+            if combiner in schema_node and isinstance(schema_node[combiner], list):
+                for sub_schema in schema_node[combiner]:
+                    self._patch_schema_for_openai_compatibility(sub_schema)
+    
     @http.route('/mcp', type='http', auth='none', methods=['POST'], csrf=False)
     def mcp_server(self):
         """
@@ -167,6 +197,11 @@ class MCPServerController(http.Controller):
             mcp_tools = []
             for tool in tools:
                 tool_def = tool.get_tool_definition()
+                
+                # Patch the schema to fix array items (same logic as OpenAI provider)
+                if 'inputSchema' in tool_def:
+                    self._patch_schema_for_openai_compatibility(tool_def['inputSchema'])
+                
                 mcp_tools.append(tool_def)
             
             _logger.info(f"Returning {len(mcp_tools)} tools")
