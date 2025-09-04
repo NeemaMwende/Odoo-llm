@@ -156,6 +156,23 @@ class LLMThread(models.Model):
 
         return thread, assistant, None
 
+    def _thread_to_store(self, store, **kwargs):
+        """Extend base _thread_to_store to include assistant_id."""
+        super()._thread_to_store(store, **kwargs)
+        
+        # Always add assistant_id to thread data (either value or False)
+        for thread in self:
+            thread_data = {
+                'id': thread.id,
+                'model': 'llm.thread',
+                'assistant_id': {
+                    'id': thread.assistant_id.id,
+                    'name': thread.assistant_id.name,
+                    'model': 'llm.assistant'
+                } if thread.assistant_id else False
+            }
+            store.add('mail.thread', thread_data)
+
     def _extract_message_content(self, message):
         """Extract text content from a message regardless of format"""
         content = message.get("content", "")
@@ -230,6 +247,9 @@ class LLMThread(models.Model):
 
     def _generate_assistant_response(self):
         """Generate assistant response and handle tool calls."""
+        # Flush any pending writes to ensure latest messages are visible
+        self.env.flush_all()
+        
         # Use the new optimized method for LLM context
         message_history = self.get_llm_messages()
 
@@ -351,13 +371,13 @@ class LLMThread(models.Model):
                 message = self.message_post(
                     body="Thinking...", llm_role="assistant", author_id=False
                 )
-                yield {"type": "message_create", "message": message.message_format()[0]}
+                yield {"type": "message_create", "message": message.to_store_format()}
 
             # Handle content streaming
             if chunk.get("content"):
                 accumulated_content += chunk["content"]
                 message.write({"body": self._process_llm_body(accumulated_content)})
-                yield {"type": "message_chunk", "message": message.message_format()[0]}
+                yield {"type": "message_chunk", "message": message.to_store_format()}
 
             # Collect tool calls for processing
             if chunk.get("tool_calls"):
@@ -376,7 +396,7 @@ class LLMThread(models.Model):
             body_json = {"tool_calls": collected_tool_calls}
 
             if not message:
-                # Create assistant message NOW, before returning to generate loop
+                # Create assistant message with body_json (handled by message_post override)
                 message = self.message_post(
                     body="",  # Empty body for tool-only responses
                     body_json=body_json,
@@ -385,17 +405,17 @@ class LLMThread(models.Model):
                 )
                 # Commit to ensure message is saved before tool execution
                 self.env.cr.commit()
-                yield {"type": "message_create", "message": message.message_format()[0]}
+                yield {"type": "message_create", "message": message.to_store_format()}
             else:
                 # Update existing message with tool calls
                 message.write({"body_json": body_json})
                 # Commit to ensure update is saved
                 self.env.cr.commit()
-                yield {"type": "message_update", "message": message.message_format()[0]}
+                yield {"type": "message_update", "message": message.to_store_format()}
         elif message and accumulated_content:
             # Final update for assistant message without tool calls
             message.write({"body": self._process_llm_body(accumulated_content)})
-            yield {"type": "message_update", "message": message.message_format()[0]}
+            yield {"type": "message_update", "message": message.to_store_format()}
 
         return message
 
@@ -411,7 +431,7 @@ class LLMThread(models.Model):
         # Prepare body_json with tool calls if present
         body_json = {"tool_calls": tool_calls} if tool_calls else None
 
-        # Create assistant message with both content and tool calls
+        # Create assistant message with body_json (handled by message_post override)
         assistant_message = self.message_post(
             body=self._process_llm_body(content) if content else "",
             body_json=body_json,
@@ -421,7 +441,7 @@ class LLMThread(models.Model):
 
         yield {
             "type": "message_create",
-            "message": assistant_message.message_format()[0],
+            "message": assistant_message.to_store_format(),
         }
         return assistant_message
 
@@ -443,7 +463,7 @@ class LLMThread(models.Model):
             tool_msg = self.env["mail.message"].post_tool_call(
                 tool_call, thread_model=self
             )
-            yield {"type": "message_create", "message": tool_msg.message_format()[0]}
+            yield {"type": "message_create", "message": tool_msg.to_store_format()}
 
             # Execute the tool call
             result_msg = yield from tool_msg.execute_tool_call(thread_model=self)
@@ -459,7 +479,7 @@ class LLMThread(models.Model):
                 )
                 yield {
                     "type": "message_create",
-                    "message": error_msg.message_format()[0],
+                    "message": error_msg.to_store_format(),
                 }
                 return error_msg
             except Exception as e2:

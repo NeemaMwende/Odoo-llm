@@ -1,18 +1,80 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <t t-name="llm_thread.LLMChatContainer" owl="1">
-        <div class="o_LLMChatContainer h-100 d-flex flex-column">
-            <LLMChat
-        t-if="messaging and messaging.llmChat and messaging.llmChat.llmChatView and messaging.isInitialized"
-        record="messaging.llmChat.llmChatView"
-      />
-            <div
-        t-else=""
-        class="o_LLMChatContainer_spinner d-flex flex-grow-1 align-items-center justify-content-center"
-      >
-                <i
-          class="o_LLMChatContainer_spinnerIcon fa fa-circle-o-notch fa-spin me-2"
-        />Please wait...
+    <t t-name="llm_thread.LLMChatContainer">
+        <div class="o_LLMChatContainer h-100 d-flex flex-row overflow-hidden">
+            <!-- Thread List Sidebar -->
+            <div class="o-llm-sidebar d-flex flex-column" style="width: 280px; border-right: 1px solid #dee2e6;">
+                <!-- Sidebar Header -->
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                    <h6 class="mb-0 text-muted">Conversations</h6>
+                    <button class="btn btn-sm btn-primary" t-on-click="openCreateChatForm" title="New Chat">
+                        <i class="fa fa-plus"/>
+                    </button>
+                </div>
+                
+                <!-- Thread List -->
+                <div class="flex-grow-1 overflow-auto">
+                    <div t-if="llmStore.llmThreadList.length === 0" class="p-3 text-center text-muted">
+                        <i class="fa fa-comments-o fa-2x mb-2"/>
+                        <div>No conversations yet</div>
+                        <small>Start your first AI chat</small>
+                    </div>
+                    
+                    <t t-foreach="llmStore.llmThreadList" t-as="thread" t-key="thread.id">
+                        <div class="o-llm-thread-item p-3 border-bottom cursor-pointer" 
+                             t-att-class="{ 'o-llm-thread-active': thread.id === activeThread?.id }"
+                             t-on-click="() => this.selectThread(thread.id)"
+                             t-att-title="thread.name">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1 min-width-0">
+                                    <div class="text-truncate fw-medium" t-esc="thread.name"/>
+                                    <div class="text-muted small mt-1">
+                                        <span t-if="thread.write_date" t-esc="formatDate(thread.write_date)"/>
+                                    </div>
+                                </div>
+                                <div class="ms-2 flex-shrink-0">
+                                    <i t-if="isStreamingThread(thread.id)" class="fa fa-circle-o-notch fa-spin text-primary"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+            </div>
+            
+            <!-- Main Chat Area -->
+            <div class="flex-grow-1 d-flex flex-column h-100">
+                <!-- Show thread and composer only if we have an active LLM thread -->
+                <div t-if="hasActiveThread" class="d-flex flex-column h-100">
+                    <!-- Thread Header with dropdowns -->
+                    <LLMThreadHeader thread="activeThread"/>
+                    
+                    <!-- Thread area - reuse mail's Thread component -->
+                    <div class="o-llm-thread-area flex-grow-1 overflow-auto p-3">
+                        <Thread thread="activeThread" order="'asc'"/>
+                    </div>
+                    
+                    <!-- Streaming indicator -->
+                    <div t-if="isStreaming" class="o-llm-streaming-indicator p-2 text-center text-muted">
+                        <i class="fa fa-circle-o-notch fa-spin"/> AI is thinking...
+                    </div>
+                    
+                    <!-- Composer area - reuse mail's Composer component -->
+                    <div class="o-llm-composer-area border-top p-3">
+                        <Composer t-if="threadComposer" composer="threadComposer" mode="'compact'"/>
+                    </div>
+                </div>
+                
+                <!-- Empty state with create button -->
+                <div t-else="" class="d-flex justify-content-center align-items-center h-100 text-muted">
+                    <div class="text-center">
+                        <i class="fa fa-robot fa-3x mb-3"/>
+                        <h5>AI Chat</h5>
+                        <p class="mb-3">No active conversation</p>
+                        <button class="btn btn-primary" t-on-click="openCreateChatForm">
+                            <i class="fa fa-plus"/> Create New Chat
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </t>

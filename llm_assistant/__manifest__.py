@@ -37,7 +37,7 @@ Use cases include creating specialized assistants for customer support, data ana
         "web_json_editor",
     ],
     "external_dependencies": {
-        "python": ["jinja2", "pyyaml"],
+        "python": ["jinja2", "pyyaml", "jsonschema"],
     },
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
@@ -61,16 +61,11 @@ Use cases include creating specialized assistants for customer support, data ana
     ],
     "assets": {
         "web.assets_backend": [
-            "llm_assistant/static/src/models/main.js",
-            # Models
-            "llm_assistant/static/src/models/llm_assistant.js",
-            "llm_assistant/static/src/models/llm_prompt.js",
-            "llm_assistant/static/src/models/llm_chat.js",
-            "llm_assistant/static/src/models/thread.js",
-            "llm_assistant/static/src/models/llm_chat_thread_header_view.js",
-            # Components
-            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
-            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
+            # Service patches
+            "llm_assistant/static/src/services/llm_store_service_patch.js",
+            # Component patches  
+            "llm_assistant/static/src/patches/llm_thread_header_patch.js",
+            "llm_assistant/static/src/patches/llm_thread_header_patch.xml",
         ],
     },
     "license": "LGPL-3",

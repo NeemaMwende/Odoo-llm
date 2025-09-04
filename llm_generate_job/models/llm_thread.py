@@ -240,7 +240,7 @@ class LLMThread(models.Model):
             if job.output_message_id:
                 yield {
                     "type": "message_update",
-                    "message": job.output_message_id.message_format()[0],
+                    "message": job.output_message_id.to_store_format(),
                 }
 
             # Wait before next check
@@ -251,7 +251,7 @@ class LLMThread(models.Model):
         if job.state == "completed":
             message_data = None
             if job.output_message_id:
-                message_data = job.output_message_id.message_format()[0]
+                message_data = job.output_message_id.to_store_format()
             
             yield {
                 "type": "done",

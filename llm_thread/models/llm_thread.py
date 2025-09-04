@@ -186,12 +186,13 @@ class LLMThread(models.Model):
     # ============================================================================
 
     @api.returns("mail.message", lambda value: value.id)
-    def message_post(self, *, llm_role=None, message_type="comment", **kwargs):
+    def message_post(self, *, llm_role=None, message_type="comment", body_json=None, **kwargs):
         """Override to handle LLM-specific message types and metadata.
 
         Args:
             llm_role (str): The LLM role ('user', 'assistant', 'tool', 'system')
                            If provided, will automatically set the appropriate subtype
+            body_json (dict): JSON body for tool calls - will be set after message creation
         """
 
         # Convert LLM role to subtype_xmlid if provided
@@ -208,12 +209,19 @@ class LLMThread(models.Model):
                 kwargs.get("subtype_xmlid"), kwargs.get("author_id"), llm_role
             )
 
-        # Convert markdown to HTML if needed (except for tool messages which use body_json)
-        if kwargs.get("body") and llm_role != "tool":
+        # Convert markdown to HTML if needed (only for assistant messages)
+        # User messages should be plain text, tool messages use body_json
+        if kwargs.get("body") and llm_role == "assistant":
             kwargs["body"] = self._process_llm_body(kwargs["body"])
 
-        # Create the message using standard mail.thread flow
-        return super().message_post(message_type=message_type, **kwargs)
+        # Create the message using standard mail.thread flow (without body_json)
+        message = super().message_post(message_type=message_type, **kwargs)
+        
+        # Set body_json after message creation if provided
+        if body_json:
+            message.write({"body_json": body_json})
+            
+        return message
 
     def _get_llm_email_from(self, subtype_xmlid, author_id, llm_role=None):
         """Generate appropriate email_from for LLM messages."""
@@ -262,13 +270,13 @@ class LLMThread(models.Model):
                 message = self.message_post(
                     body=placeholder_text, llm_role=llm_role, author_id=False, **kwargs
                 )
-                yield {"type": "message_create", "message": message.message_format()[0]}
+                yield {"type": "message_create", "message": message.to_store_format()}
 
             # Handle content streaming
             if chunk.get("content"):
                 accumulated_content += chunk["content"]
                 message.write({"body": self._process_llm_body(accumulated_content)})
-                yield {"type": "message_chunk", "message": message.message_format()[0]}
+                yield {"type": "message_chunk", "message": message.to_store_format()}
 
             # Handle errors
             if chunk.get("error"):
@@ -278,16 +286,22 @@ class LLMThread(models.Model):
         # Final update for assistant message
         if message and accumulated_content:
             message.write({"body": self._process_llm_body(accumulated_content)})
-            yield {"type": "message_update", "message": message.message_format()[0]}
+            yield {"type": "message_update", "message": message.to_store_format()}
 
         return message
+
 
     # ============================================================================
     # GENERATION FLOW - Refactored to use message_post with roles
     # ============================================================================
 
-    def generate(self, user_message_body, **kwargs):
-        """Main generation method with PostgreSQL advisory locking."""
+    def generate(self, user_message_body=None, **kwargs):
+        """Main generation method with PostgreSQL advisory locking.
+        
+        Args:
+            user_message_body: Optional message body. If not provided, will use
+                              the latest message in the thread to start generation.
+        """
         self.ensure_one()
         
         with self._generation_lock():
@@ -302,7 +316,7 @@ class LLMThread(models.Model):
                 )
                 yield {
                     "type": "message_create",
-                    "message": last_message.message_format()[0],
+                    "message": last_message.to_store_format(),
                 }
 
             # Call the actual generation implementation
@@ -410,6 +424,48 @@ class LLMThread(models.Model):
     # ============================================================================
     # ODOO HOOKS AND CLEANUP
     # ============================================================================
+
+    # ============================================================================
+    # STORE INTEGRATION - For mail.store compatibility
+    # ============================================================================
+
+    def _thread_to_store(self, store, **kwargs):
+        """Extend base _thread_to_store to include LLM-specific fields."""
+        super()._thread_to_store(store, **kwargs)
+        
+        # Add LLM-specific thread data
+        for thread in self:
+            # Build the data dict with only the fields we need
+            thread_data = {
+                'id': thread.id,
+                'model': 'llm.thread',
+                'name': thread.name,  # Essential for UI display
+                'write_date': thread.write_date,  # For sorting in thread list
+                'channel_type': 'llm_chat',  # Custom type for LLM threads
+            }
+            
+            # Add LLM-specific fields using proper Store.one/Store.many format
+            if thread.provider_id:
+                thread_data['provider_id'] = {
+                    'id': thread.provider_id.id,
+                    'name': thread.provider_id.name,
+                    'model': 'llm.provider'
+                }
+                
+            if thread.model_id:
+                thread_data['model_id'] = {
+                    'id': thread.model_id.id, 
+                    'name': thread.model_id.name,
+                    'model': 'llm.model'
+                }
+                
+            if thread.tool_ids:
+                thread_data['tool_ids'] = [
+                    {'id': tool.id, 'name': tool.name, 'model': 'llm.tool'} 
+                    for tool in thread.tool_ids
+                ]
+            
+            store.add('mail.thread', thread_data)
 
     @api.ondelete(at_uninstall=False)
     def _unlink_llm_thread(self):

@@ -15,28 +15,27 @@ class MailMessage(models.Model):
         help="Vote status given by the user. 0: No vote, 1: Upvoted, -1: Downvoted.",
     )
 
-    def _get_message_format_fields(self):
-        """Extend the list of fields fetched by the base message_format."""
-
-        fields_list = super()._get_message_format_fields()
-        fields_list.extend(["user_vote", "llm_role", "body_json"])
-        return fields_list
-
-    def message_format(self):
-        """Override to include custom fields and set proper styling."""
-        result = super().message_format()
-        llm_fields_to_add = self._get_message_format_fields()
-
-        for message_data, message in zip(result, self):
-            # Manually add the fields as requested to ensure they are in the payload
-            for field in llm_fields_to_add:
-                if hasattr(message, field):
-                    message_data[field] = getattr(message, field)
-            # Set is_note=True for LLM messages to get the right bubble style
-            if message.llm_role:
-                message_data["is_note"] = True
-
-        return result
+    def _extras_to_store(self, store, format_reply):
+        """Add LLM-specific fields to the message store."""
+        super()._extras_to_store(store, format_reply)
+        
+        for message in self:
+            data = {}
+            
+            # Add LLM-specific fields
+            if hasattr(message, 'llm_role') and message.llm_role:
+                data['llm_role'] = message.llm_role
+                # Set is_note=True for LLM messages to get the right bubble style
+                data['is_note'] = True
+                
+            if hasattr(message, 'user_vote'):
+                data['user_vote'] = message.user_vote
+                
+            if hasattr(message, 'body_json') and message.body_json:
+                data['body_json'] = message.body_json
+                
+            if data:  # Only add to store if we have data
+                store.add(message, data)
 
     def set_user_vote(self, vote_value):
         """Sets the user vote on this message, performing validation checks."""

@@ -130,7 +130,7 @@ class MailMessage(models.Model):
         # Update status to executing
         tool_data["status"] = "executing"
         self.write({"body_json": tool_data})
-        yield {"type": "message_update", "message": self.message_format()[0]}
+        yield {"type": "message_update", "message": self.to_store_format()}
 
         # Execute tool and update message
         try:
@@ -175,7 +175,7 @@ class MailMessage(models.Model):
                 }
             }
             
-        yield {"type": "message_update", "message": self.message_format()[0]}
+        yield {"type": "message_update", "message": self.to_store_format()}
         return self
 
     def _validate_tool_call(self, tool_call):
@@ -319,3 +319,5 @@ class MailMessage(models.Model):
         if not tool_data:
             return False
         return tool_data.get("status") == status
+
+
