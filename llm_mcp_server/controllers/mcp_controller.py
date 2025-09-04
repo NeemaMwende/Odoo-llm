@@ -143,10 +143,35 @@ class MCPServerController(http.Controller):
                 f"Internal error: {str(e)}"
             )
     
+    def _build_json_rpc_response(self, request_id: Optional[Any], result: dict = None, error: dict = None):
+        """
+        Build a JSON-RPC 2.0 response (success or error)
+        """
+        response = {
+            "jsonrpc": "2.0",
+            "id": self._ensure_valid_id(request_id),
+        }
+        
+        if error:
+            response["error"] = error
+        else:
+            response["result"] = result or {}
+            
+        return response
+    
+    def _json_rpc_http_response(self, request_id: Optional[Any], result: dict = None, error: dict = None):
+        """
+        Build and return a JSON-RPC HTTP response
+        """
+        response = self._build_json_rpc_response(request_id, result, error)
+        return http.Response(
+            json.dumps(response),
+            headers={'Content-Type': 'application/json'},
+            status=200
+        )
+
     def _http_handle_initialize(self, request_id: Optional[Any], params: dict[str, Any]):
-        """
-        Handle MCP initialize request with HTTP response
-        """
+        """Handle MCP initialize request"""
         try:
             _logger.info(f"MCP Initialize request: {params}")
             
@@ -157,35 +182,24 @@ class MCPServerController(http.Controller):
             
             _logger.info(f"MCP client {client_name} v{client_version}")
             
-            # Build JSON-RPC response
-            response = {
-                "jsonrpc": "2.0",
-                "id": self._ensure_valid_id(request_id),
-                "result": {
-                    "protocolVersion": self.PROTOCOL_VERSION,
-                    "capabilities": self.CAPABILITIES,
-                    "serverInfo": {
-                        "name": "Odoo LLM MCP Server",
-                        "version": "1.0.0"
-                    }
+            result = {
+                "protocolVersion": self.PROTOCOL_VERSION,
+                "capabilities": self.CAPABILITIES,
+                "serverInfo": {
+                    "name": "Odoo LLM MCP Server",
+                    "version": "1.0.0"
                 }
             }
             
             _logger.info("MCP initialization successful")
-            return http.Response(
-                json.dumps(response),
-                headers={'Content-Type': 'application/json'},
-                status=200
-            )
+            return self._json_rpc_http_response(request_id, result=result)
             
         except Exception as e:
             _logger.exception(f"Error in initialize: {e}")
             return self._http_error_response(request_id, -32603, str(e))
     
     def _http_handle_tools_list(self, request_id: Optional[Any], params: dict[str, Any]):
-        """
-        Handle tools/list request with HTTP response
-        """
+        """Handle tools/list request"""
         try:
             _logger.info("MCP tools/list request")
             
@@ -206,29 +220,15 @@ class MCPServerController(http.Controller):
             
             _logger.info(f"Returning {len(mcp_tools)} tools")
             
-            # Build JSON-RPC response
-            response = {
-                "jsonrpc": "2.0",
-                "id": self._ensure_valid_id(request_id),
-                "result": {
-                    "tools": mcp_tools
-                }
-            }
-            
-            return http.Response(
-                json.dumps(response),
-                headers={'Content-Type': 'application/json'},
-                status=200
-            )
+            result = {"tools": mcp_tools}
+            return self._json_rpc_http_response(request_id, result=result)
             
         except Exception as e:
             _logger.exception(f"Error listing tools: {e}")
             return self._http_error_response(request_id, -32603, str(e))
     
     def _http_handle_tools_call(self, request_id: Optional[Any], params: dict[str, Any]):
-        """
-        Handle tools/call request with HTTP response
-        """
+        """Handle tools/call request"""
         try:
             tool_name = params.get('name')
             arguments = params.get('arguments', {})
@@ -246,89 +246,41 @@ class MCPServerController(http.Controller):
             ], limit=1)
             
             if not tool:
-                return self._http_error_response(
-                    request_id,
-                    -32602,
-                    f"Tool not found: {tool_name}"
-                )
+                return self._http_error_response(request_id, -32602, f"Tool not found: {tool_name}")
             
             # Execute the tool
             try:
                 result = tool.execute(arguments)
                 
                 # Format result for MCP
-                if isinstance(result, dict):
-                    content_text = json.dumps(result, indent=2)
-                else:
-                    content_text = str(result)
+                content_text = json.dumps(result, indent=2) if isinstance(result, dict) else str(result)
                 
-                # Build JSON-RPC response
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": self._ensure_valid_id(request_id),
-                    "result": {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": content_text
-                            }
-                        ],
-                        "isError": False
-                    }
+                mcp_result = {
+                    "content": [{"type": "text", "text": content_text}],
+                    "isError": False
                 }
                 
                 _logger.info(f"Tool {tool_name} executed successfully")
-                return http.Response(
-                    json.dumps(response),
-                    headers={'Content-Type': 'application/json'},
-                    status=200
-                )
+                return self._json_rpc_http_response(request_id, result=mcp_result)
                 
             except Exception as e:
                 _logger.exception(f"Error executing tool {tool_name}: {e}")
                 
                 # Return tool error in result (not as JSON-RPC error)
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": self._ensure_valid_id(request_id),
-                    "result": {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Tool execution failed: {str(e)}"
-                            }
-                        ],
-                        "isError": True
-                    }
+                mcp_result = {
+                    "content": [{"type": "text", "text": f"Tool execution failed: {str(e)}"}],
+                    "isError": True
                 }
-                return http.Response(
-                    json.dumps(response),
-                    headers={'Content-Type': 'application/json'},
-                    status=200
-                )
+                return self._json_rpc_http_response(request_id, result=mcp_result)
                 
         except Exception as e:
             _logger.exception(f"Error in tools/call: {e}")
             return self._http_error_response(request_id, -32603, str(e))
     
     def _http_error_response(self, request_id: Optional[Any], code: int, message: str):
-        """
-        Build a JSON-RPC 2.0 error response as HTTP response
-        """
-        response = {
-            "jsonrpc": "2.0",
-            "id": self._ensure_valid_id(request_id),
-            "error": {
-                "code": code,
-                "message": message
-            }
-        }
-        
-        return http.Response(
-            json.dumps(response),
-            headers={'Content-Type': 'application/json'},
-            status=200  # JSON-RPC errors are still HTTP 200
-        )
+        """Build a JSON-RPC 2.0 error response"""
+        error = {"code": code, "message": message}
+        return self._json_rpc_http_response(request_id, error=error)
     
     @http.route('/mcp/health', type='json', auth='none', methods=['GET', 'POST'], csrf=False)
     def health_check(self, **params):
