@@ -262,14 +262,20 @@ export const llmStoreService = {
                 return false;
             },
 
+            // Get list of data loaders - can be extended by patches
+            getDataLoaders() {
+                return [
+                    this.loadLLMProviders,
+                    this.loadLLMModels,
+                    this.loadLLMTools
+                ];
+            },
+
             // Initialize LLM store - threads now loaded via standard init_messaging
             async initialize() {
                 try {
-                    await Promise.all([
-                        this.loadLLMProviders(),
-                        this.loadLLMModels(),
-                        this.loadLLMTools()
-                    ]);
+                    const loaders = this.getDataLoaders();
+                    await Promise.all(loaders.map(loader => loader.call(this)));
                     // NOTE: LLM threads are now loaded automatically via res.users._init_messaging()
                     this.isReady.resolve();
                 } catch (error) {
