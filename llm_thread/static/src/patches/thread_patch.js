@@ -101,5 +101,23 @@ patch(Thread.prototype, {
         }
         
         return className;
-    }
+    },
+
+    /**
+     * Override isSquashed to prevent squashing messages with different LLM roles
+     * This ensures user, assistant, and tool messages appear in separate bubbles
+     */
+    isSquashed(msg, prevMsg) {
+        // For LLM threads, don't squash messages with different roles
+        if (this.isLLMThread && prevMsg && msg.llm_role && prevMsg.llm_role) {
+            if (msg.llm_role === prevMsg.llm_role) {
+                return true; // Different LLM roles should not be squashed
+            }else {
+                return false;
+            }
+        }
+        
+        // Use original squashing logic for everything else
+        return super.isSquashed(msg, prevMsg);
+    },
 });
