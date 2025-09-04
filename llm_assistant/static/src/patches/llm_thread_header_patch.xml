@@ -5,7 +5,7 @@
         <!-- Add assistant dropdown after tools dropdown -->
         <xpath expr="//Dropdown[contains(@t-if, 'availableTools')]" position="after">
             <!-- Assistant Dropdown -->
-            <Dropdown t-if="assistantStore">
+            <Dropdown t-if="availableAssistants.length > 0 or currentAssistant">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle">
                     <i class="fa fa-user me-1"/>
                     <span t-if="currentAssistant" t-esc="currentAssistant.name"/>

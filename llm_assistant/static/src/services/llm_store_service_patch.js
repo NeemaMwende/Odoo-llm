@@ -15,12 +15,15 @@ patch(llmStoreService, {
         // Store the original getDataLoaders method
         const originalGetDataLoaders = llmStore.getDataLoaders.bind(llmStore);
         
-        // Add assistant-specific properties to the reactive store
-        Object.assign(llmStore, {
-            llmAssistants: new Map(),
-            _assistantsLoaded: false,
-
-            get currentAssistant() {
+        // Add assistant-specific properties directly
+        llmStore.llmAssistants = new Map();
+        llmStore._assistantsLoaded = false;
+        
+        // Define currentAssistant getter with proper context binding
+        Object.defineProperty(llmStore, 'currentAssistant', {
+            get: function() {
+                console.log('Service currentAssistant - this.activeLLMThread exists:', !!this.activeLLMThread);
+                
                 const activeThread = this.activeLLMThread;
                 console.log('Getting currentAssistant - activeThread:', activeThread);
                 console.log('activeThread.assistant_id:', activeThread?.assistant_id);
@@ -35,6 +38,12 @@ patch(llmStoreService, {
                 
                 return assistant || activeThread.assistant_id;
             },
+            enumerable: true,
+            configurable: true
+        });
+        
+        // Add other methods using Object.assign
+        Object.assign(llmStore, {
 
             async loadLLMAssistants() {
                 try {
