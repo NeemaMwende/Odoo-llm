@@ -2,11 +2,16 @@
 
 import { Message } from "@mail/core/common/message";
 import { patch } from "@web/core/utils/patch";
+import { LLMToolMessage } from "../components/llm_tool_message/llm_tool_message";
 
 /**
  * Patch Message component to handle LLM-specific message rendering
  * Only affects messages in llm.thread threads
  */
+patch(Message, {
+    components: { ...Message.components, LLMToolMessage },
+});
+
 patch(Message.prototype, {
     /**
      * Check if this message is in an LLM thread
@@ -23,17 +28,17 @@ patch(Message.prototype, {
     },
 
     /**
-     * Check if message is from AI assistant
+     * Check if message is a tool message
      */
-    get isAssistantMessage() {
-        return this.isLLMMessage && this.llmRole === 'assistant';
+    get isToolMessage() {
+        return this.isLLMMessage && this.llmRole === 'tool';
     },
 
     /**
-     * Check if message is from user
+     * Check if assistant message has tool calls
      */
-    get isUserMessage() {
-        return this.isLLMMessage && this.llmRole === 'user';
+    get hasToolCalls() {
+        return this.isLLMMessage && this.llmRole === 'assistant' && this.props.message?.body_json?.tool_calls?.length > 0;
     },
 
     /**
@@ -50,7 +55,7 @@ patch(Message.prototype, {
             }
             
             // Add streaming class for assistant messages that are still being generated
-            if (this.isAssistantMessage && this.props.message?.isPending) {
+            if (this.llmRole === 'assistant' && this.props.message?.isPending) {
                 className += " o-llm-message-streaming";
             }
         }
@@ -58,29 +63,4 @@ patch(Message.prototype, {
         return className;
     },
 
-    /**
-     * Override author display for LLM messages
-     */
-    get authorName() {
-        if (this.isLLMMessage) {
-            if (this.isAssistantMessage) {
-                return "AI Assistant";
-            }
-            // For user messages, use the actual user name
-        }
-        
-        return super.authorName;
-    },
-
-    /**
-     * Override avatar for LLM messages
-     */
-    get authorAvatar() {
-        if (this.isAssistantMessage) {
-            // Return a robot icon or AI avatar
-            return "/llm_thread/static/src/img/ai-avatar.png";
-        }
-        
-        return super.authorAvatar;
-    }
 });

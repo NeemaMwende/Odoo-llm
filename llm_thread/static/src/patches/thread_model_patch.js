@@ -14,16 +14,31 @@ patch(Thread.prototype, {
     setActiveURL() {
         // Handle llm.thread model specifically
         if (this.model === "llm.thread") {
-            const activeId = `llm.thread_${this.id}`;
-            router.pushState({ active_id: activeId });
-            
-            if (
-                this.store.action_discuss_id &&
-                this.store.env.services.action?.currentController?.action.id ===
-                    this.store.action_discuss_id
-            ) {
-                // Keep the action stack up to date (used by breadcrumbs).
-                this.store.env.services.action.currentController.action.context.active_id = activeId;
+            try {
+                const activeId = `llm.thread_${this.id}`;
+                
+                // Safely update router state
+                if (router && router.pushState) {
+                    router.pushState({ active_id: activeId });
+                }
+                
+                // Update action context if available
+                if (
+                    this.store?.action_discuss_id &&
+                    this.store.env?.services?.action?.currentController?.action
+                ) {
+                    const currentAction = this.store.env.services.action.currentController.action;
+                    if (currentAction.id === this.store.action_discuss_id) {
+                        // Keep the action stack up to date (used by breadcrumbs).
+                        if (!currentAction.context) {
+                            currentAction.context = {};
+                        }
+                        currentAction.context.active_id = activeId;
+                    }
+                }
+            } catch (error) {
+                console.warn('Error updating URL for LLM thread:', error);
+                // Continue without failing
             }
         } else {
             // For all other models, use the original implementation

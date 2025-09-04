@@ -50,13 +50,13 @@ export class LLMThreadHeader extends Component {
      */
     get currentProvider() {
         if (!this.hasActiveThread) return null;
-        const threadData = this.llmStore.llmThreads.get(this.activeThread.id);
-        if (!threadData?.provider_id) return null;
         
-        // Handle both [id, name] format and just id format
-        const providerId = Array.isArray(threadData.provider_id) ? 
-            threadData.provider_id[0] : threadData.provider_id;
-        return this.llmStore.llmProviders.get(providerId);
+        // Get provider_id from the thread data (now stored in mailStore)
+        const providerId = this.activeThread.provider_id?.id || this.activeThread.provider_id;
+        if (!providerId) return null;
+        
+        // Return provider from our Map or directly from thread if available
+        return this.llmStore.llmProviders?.get(providerId) || this.activeThread.provider_id;
     }
     
     /**
@@ -64,13 +64,13 @@ export class LLMThreadHeader extends Component {
      */
     get currentModel() {
         if (!this.hasActiveThread) return null;
-        const threadData = this.llmStore.llmThreads.get(this.activeThread.id);
-        if (!threadData?.model_id) return null;
         
-        // Handle both [id, name] format and just id format  
-        const modelId = Array.isArray(threadData.model_id) ? 
-            threadData.model_id[0] : threadData.model_id;
-        return this.llmStore.llmModels.get(modelId);
+        // Get model_id from the thread data (now stored in mailStore)
+        const modelId = this.activeThread.model_id?.id || this.activeThread.model_id;
+        if (!modelId) return null;
+        
+        // Return model from our Map or directly from thread if available
+        return this.llmStore.llmModels?.get(modelId) || this.activeThread.model_id;
     }
     
     /**
@@ -110,19 +110,25 @@ export class LLMThreadHeader extends Component {
      */
     get currentTools() {
         if (!this.hasActiveThread) return [];
-        const threadData = this.llmStore.llmThreads.get(this.activeThread.id);
-        if (!threadData?.tool_ids) return [];
         
-        return threadData.tool_ids.map(toolId => 
-            this.llmStore.llmTools.get(toolId)
-        ).filter(Boolean);
+        // Get tool_ids from the thread data (now stored in mailStore)
+        const toolIds = this.activeThread.tool_ids || [];
+        if (!toolIds.length) return [];
+        
+        // Handle different formats: array of objects or array of IDs
+        return toolIds.map(tool => {
+            if (typeof tool === 'object' && tool.id) {
+                return this.llmStore.llmTools?.get(tool.id) || tool;
+            }
+            return this.llmStore.llmTools?.get(tool);
+        }).filter(Boolean);
     }
     
     /**
      * Get available tools
      */
     get availableTools() {
-        return Array.from(this.llmStore.llmTools.values());
+        return this.llmStore.llmTools ? Array.from(this.llmStore.llmTools.values()) : [];
     }
     
     // Thread Name Management
@@ -232,8 +238,8 @@ export class LLMThreadHeader extends Component {
             // Update via ORM
             await this.orm.write("llm.thread", [this.activeThread.id], updateData);
             
-            // Reload thread data
-            await this.llmStore.loadLLMThread(this.activeThread.id);
+            // Reload thread data using proper fetchData pattern
+            await this.activeThread.fetchData(['provider_id', 'model_id']);
             
         } catch (error) {
             this.notification.add("Failed to update provider", {
@@ -261,8 +267,8 @@ export class LLMThreadHeader extends Component {
                 model_id: model.id
             });
             
-            // Reload thread data
-            await this.llmStore.loadLLMThread(this.activeThread.id);
+            // Reload thread data using proper fetchData pattern
+            await this.activeThread.fetchData(['model_id']);
             
             // Clear search
             this.state.modelSearchQuery = "";
@@ -300,8 +306,10 @@ export class LLMThreadHeader extends Component {
         try {
             this.state.isLoadingUpdate = true;
             
-            const threadData = this.llmStore.llmThreads.get(this.activeThread.id);
-            const currentToolIds = threadData?.tool_ids || [];
+            // Get current tool IDs from the active thread
+            const currentToolIds = (this.activeThread.tool_ids || []).map(tool => 
+                typeof tool === 'object' ? tool.id : tool
+            );
             
             const newToolIds = currentToolIds.includes(tool.id)
                 ? currentToolIds.filter(id => id !== tool.id)
@@ -312,8 +320,8 @@ export class LLMThreadHeader extends Component {
                 tool_ids: [[6, 0, newToolIds]]
             });
             
-            // Reload thread data
-            await this.llmStore.loadLLMThread(this.activeThread.id);
+            // Reload thread data using proper fetchData pattern
+            await this.activeThread.fetchData(['tool_ids']);
             
         } catch (error) {
             this.notification.add("Failed to update tools", {
@@ -329,8 +337,13 @@ export class LLMThreadHeader extends Component {
      * Check if a tool is selected
      */
     isToolSelected(tool) {
-        const threadData = this.llmStore.llmThreads.get(this.activeThread.id);
-        return threadData?.tool_ids?.includes(tool.id) || false;
+        if (!this.hasActiveThread) return false;
+        
+        // Check if tool is in the current thread's tool_ids
+        const toolIds = (this.activeThread.tool_ids || []).map(t => 
+            typeof t === 'object' ? t.id : t
+        );
+        return toolIds.includes(tool.id);
     }
 }
 

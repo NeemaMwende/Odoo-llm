@@ -3,7 +3,6 @@
 import { Component, useState, onWillStart, onWillDestroy } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
-import { user } from "@web/core/user";
 import { LLMChatContainer } from "@llm_thread/components/llm_chat_container/llm_chat_container";
 
 /**
@@ -36,16 +35,41 @@ export class LLMChatClientAction extends Component {
      */
     async initializeLLMChat(props) {
         try {
-            // Ensure LLM store is initialized
-            await this.llmStore.initialize();
-
+            // Wait for both mailStore and llmStore to be ready
+            // mailStore.isReady ensures threads are loaded via init_messaging
+            // llmStore.isReady ensures providers, models, tools are loaded
+            await Promise.all([
+                this.mailStore.isReady,
+                this.llmStore.isReady
+            ]);
+            
             const activeId = this.getActiveId(props);
             
             if (activeId) {
                 if (activeId.startsWith('llm.thread_')) {
                     // Direct LLM thread reference
                     const threadId = parseInt(activeId.split('_')[1]);
-                    await this.selectLLMThread(threadId);
+                    
+                    // Check if thread exists in loaded threads, if not load user threads first
+                    const existingThread = this.mailStore.Thread.get({ model: 'llm.thread', id: threadId });
+                    if (!existingThread) {
+                        // Thread not loaded in init_messaging, might be from another user or not accessible
+                        // Load user threads first, then try to select the specific one
+                        await this.loadUserThreads();
+                        
+                        // Try again after loading
+                        const threadAfterLoad = this.mailStore.Thread.get({ model: 'llm.thread', id: threadId });
+                        if (threadAfterLoad) {
+                            await this.selectLLMThread(threadId);
+                        } else {
+                            // Thread not found, fall back to first available thread
+                            this.notification.add('Requested thread not found, showing recent threads', { type: 'warning' });
+                            await this.loadUserThreads();
+                        }
+                    } else {
+                        // Thread exists, select it
+                        await this.selectLLMThread(threadId);
+                    }
                 } else {
                     // Open form to create new LLM thread for the referenced record
                     await this.openCreateThreadForm(props);
@@ -73,73 +97,11 @@ export class LLMChatClientAction extends Component {
     }
 
     /**
-     * Select an existing LLM thread
+     * Select an existing LLM thread - delegates to service
      */
     async selectLLMThread(threadId) {
-        try {
-            // Load LLM thread data into our store
-            await this.llmStore.loadLLMThread(threadId);
-            
-            // Create/update thread in mail.store for display
-            const threadData = await this.orm.read('llm.thread', [threadId], [
-                'id', 'name'
-            ]);
-            
-            if (threadData.length > 0) {
-                const thread = threadData[0];
-                
-                // Insert as a thread in mail.store with all required fields
-                const threadToInsert = {
-                    id: threadId,
-                    model: 'llm.thread',
-                    name: thread.name,
-                    displayName: thread.name,
-                    // Add more fields that might be required
-                    channel_type: 'llm_chat',  // Use custom channel type for LLM
-                    message_needaction_counter: 0,
-                    message_unread_counter: 0,
-                    isLoaded: true,
-                };
-                
-                
-                this.mailStore.insert({
-                    'mail.thread': [threadToInsert]
-                });
-                
-                
-                // Immediately check if it was inserted
-                const immediateCheck = this.mailStore.Thread.get(['llm.thread', threadId]);
-                
-                // Load messages for this thread
-                await this.loadThreadMessages(threadId);
-                
-                // Set as active thread in discuss - ensure discuss exists first
-                if (!this.mailStore.discuss) {
-                    // Create discuss object if it doesn't exist
-                    this.mailStore.insert({
-                        'mail.thread': [],  // Empty to trigger discuss creation
-                    });
-                }
-                
-                // Use correct Thread.get() format: { model, id }
-                const threadRecord = this.mailStore.Thread.get({ 
-                    model: 'llm.thread', 
-                    id: threadId 
-                });
-                
-                if (this.mailStore.discuss && threadRecord) {
-                    this.mailStore.discuss.thread = threadRecord;
-                } else {
-                    console.error('Failed to set active thread - discuss:', this.mailStore.discuss, 'thread:', threadRecord);
-                }
-                
-                // Thread is now set in mail.store.discuss.thread - no additional tracking needed
-            }
-            
-        } catch (error) {
-            console.error('Error selecting LLM thread:', error);
-            this.notification.add('Failed to load chat thread', { type: 'danger' });
-        }
+        // Use the consolidated service method
+        await this.llmStore.selectThread(threadId);
     }
 
     /**
@@ -177,13 +139,10 @@ export class LLMChatClientAction extends Component {
      */
     async loadUserThreads() {
         try {
-            const threads = await this.orm.searchRead(
-                'llm.thread',
-                [['user_id', '=', user.userId]],
-                ['id', 'name', 'write_date'],
-                { order: 'write_date DESC', limit: 1 }
-            );
-
+            // Threads are automatically loaded via init_messaging
+            // Just get the most recent one from mailStore
+            const threads = this.llmStore.llmThreadList;
+            
             if (threads.length > 0) {
                 await this.selectLLMThread(threads[0].id);
             }
@@ -192,35 +151,6 @@ export class LLMChatClientAction extends Component {
         } catch (error) {
             console.error('Error loading user threads:', error);
             this.notification.add('Failed to load chat threads', { type: 'danger' });
-        }
-    }
-
-    /**
-     * Load messages for a thread via the thread's message_ids field
-     * This avoids domain filtering issues on mail.message
-     */
-    async loadThreadMessages(threadId) {
-        try {
-            // Get the thread with its messages
-            const threadData = await this.orm.read('llm.thread', [threadId], ['message_ids']);
-            
-            if (threadData.length > 0 && threadData[0].message_ids.length > 0) {
-                // Load the actual message records
-                const messages = await this.orm.read(
-                    'mail.message', 
-                    threadData[0].message_ids,
-                    ['id', 'body', 'author_id', 'date', 'llm_role', 'message_type']
-                );
-                
-                // Sort by date
-                messages.sort((a, b) => new Date(a.date) - new Date(b.date));
-                
-                // Insert messages into mail.store
-                this.mailStore.insert({ 'mail.message': messages });
-            }
-            
-        } catch (error) {
-            console.error('Error loading thread messages:', error);
         }
     }
 

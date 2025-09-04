@@ -2,34 +2,31 @@
 
 import { reactive } from "@odoo/owl";
 import { registry } from "@web/core/registry";
-import { user } from "@web/core/user";
+import { Deferred } from "@web/core/utils/concurrency";
 
 /**
  * LLM Store Service - Integrates with existing mail.store
  * Provides LLM-specific functionality without breaking mail components
  */
 export const llmStoreService = {
-    dependencies: ["orm", "bus_service", "mail.store", "notification"],
+    dependencies: ["orm", "mail.store", "notification"],
 
-    start(env, { orm, bus_service, "mail.store": mailStore, notification }) {
+    start(env, { orm, "mail.store": mailStore, notification }) {
         
         const llmStore = reactive({
-            // LLM-specific data
-            llmThreads: new Map(),         // Map<id, LLMThread>
+            // NOTE: Threads are now loaded via standard mail.store, no need for separate Map
             llmModels: new Map(),          // Map<id, LLMModel> 
             llmProviders: new Map(),       // Map<id, LLMProvider>
             llmTools: new Map(),           // Map<id, LLMTool>
             streamingThreads: new Set(),   // Set<threadId> currently streaming
             eventSources: new Map(),       // Map<threadId, EventSource>
+            isReady: new Deferred(),       // Resolves when LLM data is loaded
 
-            // Computed properties
+            // Computed properties - using mailStore as source of truth
             get activeLLMThread() {
                 // Check if current active thread in mail.store is an LLM thread
                 const activeThread = mailStore.discuss?.thread;
-                if (activeThread?.model === 'llm.thread') {
-                    return this.llmThreads.get(activeThread.id);
-                }
-                return null;
+                return (activeThread?.model === 'llm.thread') ? activeThread : null;
             },
 
             get isLLMThread() {
@@ -37,31 +34,25 @@ export const llmStoreService = {
             },
 
             get llmThreadList() {
-                return Array.from(this.llmThreads.values())
-                    .sort((a, b) => new Date(b.write_date) - new Date(a.write_date));
+                // Get all LLM threads from mailStore
+                const allThreads = Object.values(mailStore.Thread.records || {});
+                return allThreads
+                    .filter(thread => thread.model === 'llm.thread')
+                    .sort((a, b) => new Date(b.write_date || 0) - new Date(a.write_date || 0));
             },
 
-            // LLM-specific methods
-            async loadLLMThread(threadId) {
-                try {
-                    // Get base fields - can be extended by other modules
-                    const fields = this.getThreadFields();
-                    const threadData = await orm.read('llm.thread', [threadId], fields);
-                    
-                    if (threadData.length > 0) {
-                        this.llmThreads.set(threadId, threadData[0]);
-                        return threadData[0];
-                    }
-                } catch (error) {
-                    console.error('Error loading LLM thread:', error);
-                    notification.add('Failed to load LLM thread', { type: 'danger' });
+            // LLM-specific methods using standard fetchData approach
+            async ensureThreadLoaded(threadId) {
+                // Check if thread already exists in mailStore
+                let thread = mailStore.Thread.get({ model: 'llm.thread', id: threadId });
+                if (thread) {
+                    return thread;
                 }
+                
+                // If thread not found, it might not be accessible to current user
+                // or wasn't loaded in init_messaging (e.g., old thread, different user)
+                console.warn(`Thread ${threadId} not found in mailStore`);
                 return null;
-            },
-
-            // Hook method - can be overridden/extended by other modules
-            getThreadFields() {
-                return ['id', 'name', 'model_id', 'provider_id', 'user_id', 'write_date', 'tool_ids'];
             },
 
             async sendLLMMessage(threadId, content) {
@@ -220,25 +211,6 @@ export const llmStoreService = {
                 }
             },
 
-            async loadLLMThreads() {
-                try {
-                    // Use the same extensible fields method
-                    const fields = this.getThreadFields();
-                    const threads = await orm.searchRead(
-                        'llm.thread',
-                        [['user_id', '=', user.userId]],
-                        fields,
-                        { order: 'write_date DESC' }
-                    );
-                    
-                    threads.forEach(thread => {
-                        this.llmThreads.set(thread.id, thread);
-                    });
-                } catch (error) {
-                    console.warn('LLM threads not available:', error.message);
-                    // Don't throw error, just log warning
-                }
-            },
 
             async loadLLMTools() {
                 try {
@@ -258,39 +230,24 @@ export const llmStoreService = {
                 }
             },
 
-            // Thread selection using Odoo's standard pattern
+            // Thread selection using standard Odoo patterns
             async selectThread(threadId) {
                 try {
-                    // Ensure we have full thread data loaded (with provider_id, model_id, tool_ids, etc.)
-                    await this.loadLLMThread(threadId);
-                    
-                    // Get thread record from mail store
-                    let thread = mailStore.Thread.get({model: 'llm.thread', id: threadId});
-                    
+                    // Ensure thread is loaded using standard fetchData
+                    const thread = await this.ensureThreadLoaded(threadId);
                     if (!thread) {
-                        // Insert thread into mail store using proper format
-                        const threadData = this.llmThreads.get(threadId);
-                        if (threadData) {
-                            const storeData = {
-                                'Thread': [{
-                                    id: threadData.id,
-                                    model: 'llm.thread',
-                                    name: threadData.name,
-                                }]
-                            };
-                            mailStore.insert(storeData);
-                            thread = mailStore.Thread.get({model: 'llm.thread', id: threadId});
-                        }
+                        throw new Error('Thread not found or failed to load');
                     }
                     
-                    if (thread) {
-                        // Use Odoo's standard method - handles everything automatically
-                        thread.setAsDiscussThread();
-                    }
+                    // Set as active thread in discuss - this is all we need!
+                    thread.setAsDiscussThread();
+                    
                 } catch (error) {
                     console.error('Error selecting thread:', error);
+                    notification.add('Failed to load chat thread', { type: 'danger' });
                 }
             },
+            
 
             // Helper methods for components
             isStreamingThread(threadId) {
@@ -305,14 +262,20 @@ export const llmStoreService = {
                 return false;
             },
 
-            // Initialize LLM store
+            // Initialize LLM store - threads now loaded via standard init_messaging
             async initialize() {
-                await Promise.all([
-                    this.loadLLMProviders(),
-                    this.loadLLMModels(),
-                    this.loadLLMThreads(),
-                    this.loadLLMTools()
-                ]);
+                try {
+                    await Promise.all([
+                        this.loadLLMProviders(),
+                        this.loadLLMModels(),
+                        this.loadLLMTools()
+                    ]);
+                    // NOTE: LLM threads are now loaded automatically via res.users._init_messaging()
+                    this.isReady.resolve();
+                } catch (error) {
+                    console.error('Error initializing LLM store:', error);
+                    this.isReady.reject(error);
+                }
             },
 
             // Cleanup
@@ -324,24 +287,12 @@ export const llmStoreService = {
             }
         });
 
-        // Initialize when service starts
-        llmStore.initialize();
+        // Initialize LLM data after mailStore is ready (which calls init_messaging)
+        mailStore.isReady.then(() => {
+            llmStore.initialize();
+        });
 
-        // Subscribe to thread changes to load LLM data when needed
-        const originalDiscussThreadSetter = Object.getOwnPropertyDescriptor(mailStore.discuss, 'thread')?.set;
-        if (originalDiscussThreadSetter) {
-            Object.defineProperty(mailStore.discuss, 'thread', {
-                ...Object.getOwnPropertyDescriptor(mailStore.discuss, 'thread'),
-                set(thread) {
-                    originalDiscussThreadSetter.call(this, thread);
-                    
-                    // Load LLM data if switching to LLM thread
-                    if (thread?.model === 'llm.thread' && !llmStore.llmThreads.has(thread.id)) {
-                        llmStore.loadLLMThread(thread.id);
-                    }
-                }
-            });
-        }
+        // NOTE: No longer need thread subscription since threads load automatically via fetchData
 
         return llmStore;
     }

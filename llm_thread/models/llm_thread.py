@@ -425,6 +425,48 @@ class LLMThread(models.Model):
     # ODOO HOOKS AND CLEANUP
     # ============================================================================
 
+    # ============================================================================
+    # STORE INTEGRATION - For mail.store compatibility
+    # ============================================================================
+
+    def _thread_to_store(self, store, **kwargs):
+        """Extend base _thread_to_store to include LLM-specific fields."""
+        super()._thread_to_store(store, **kwargs)
+        
+        # Add LLM-specific thread data
+        for thread in self:
+            # Build the data dict with only the fields we need
+            thread_data = {
+                'id': thread.id,
+                'model': 'llm.thread',
+                'name': thread.name,  # Essential for UI display
+                'write_date': thread.write_date,  # For sorting in thread list
+                'channel_type': 'llm_chat',  # Custom type for LLM threads
+            }
+            
+            # Add LLM-specific fields using proper Store.one/Store.many format
+            if thread.provider_id:
+                thread_data['provider_id'] = {
+                    'id': thread.provider_id.id,
+                    'name': thread.provider_id.name,
+                    'model': 'llm.provider'
+                }
+                
+            if thread.model_id:
+                thread_data['model_id'] = {
+                    'id': thread.model_id.id, 
+                    'name': thread.model_id.name,
+                    'model': 'llm.model'
+                }
+                
+            if thread.tool_ids:
+                thread_data['tool_ids'] = [
+                    {'id': tool.id, 'name': tool.name, 'model': 'llm.tool'} 
+                    for tool in thread.tool_ids
+                ]
+            
+            store.add('mail.thread', thread_data)
+
     @api.ondelete(at_uninstall=False)
     def _unlink_llm_thread(self):
         unlink_ids = [record.id for record in self]

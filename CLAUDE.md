@@ -160,7 +160,7 @@ if (!thread.messages.some(m => m.id === message.id)) {
 # Use Store system for message formatting
 from odoo.addons.mail.tools.discuss import Store
 
-def _message_to_store_format(self, message):
+def to_store_format(self, message):
     store = Store()
     message._to_store(store)
     result = store.get_result()

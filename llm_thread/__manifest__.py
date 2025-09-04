@@ -57,12 +57,18 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_thread_header/llm_thread_header.js",
             "llm_thread/static/src/components/llm_thread_header/llm_thread_header.xml",
             
+            # Tool Message component for displaying tool results
+            "llm_thread/static/src/components/llm_tool_message/llm_tool_message.js",
+            "llm_thread/static/src/components/llm_tool_message/llm_tool_message.xml",
+            "llm_thread/static/src/components/llm_tool_message/llm_tool_message.scss",
+            
             # Patches - Safe extensions of mail components with conditional LLM logic
             "llm_thread/static/src/patches/composer_patch.js",
             "llm_thread/static/src/patches/thread_patch.js",
             "llm_thread/static/src/patches/thread_model_patch.js",
             "llm_thread/static/src/patches/chatter_patch.js",
             "llm_thread/static/src/patches/message_patch.js",
+            "llm_thread/static/src/patches/message_patch.xml",
             
             # Templates - Extensions of existing mail templates
             "llm_thread/static/src/templates/chatter_ai_button.xml",

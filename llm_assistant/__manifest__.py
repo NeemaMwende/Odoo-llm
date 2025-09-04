@@ -59,20 +59,21 @@ Use cases include creating specialized assistants for customer support, data ana
     "images": [
         "static/description/banner.jpeg",
     ],
-    "assets": {
-        "web.assets_backend": [
-            "llm_assistant/static/src/models/main.js",
-            # Models
-            "llm_assistant/static/src/models/llm_assistant.js",
-            "llm_assistant/static/src/models/llm_prompt.js",
-            "llm_assistant/static/src/models/llm_chat.js",
-            "llm_assistant/static/src/models/thread.js",
-            "llm_assistant/static/src/models/llm_chat_thread_header_view.js",
-            # Components
-            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
-            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
-        ],
-    },
+    # TODO: Migrate JavaScript assets from Odoo 16.0 to 18.0 patterns
+    # "assets": {
+    #     "web.assets_backend": [
+    #         "llm_assistant/static/src/models/main.js",
+    #         # Models
+    #         "llm_assistant/static/src/models/llm_assistant.js",
+    #         "llm_assistant/static/src/models/llm_prompt.js",
+    #         "llm_assistant/static/src/models/llm_chat.js",
+    #         "llm_assistant/static/src/models/thread.js",
+    #         "llm_assistant/static/src/models/llm_chat_thread_header_view.js",
+    #         # Components
+    #         "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
+    #         "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
+    #     ],
+    # },
     "license": "LGPL-3",
     "installable": True,
     "application": False,
