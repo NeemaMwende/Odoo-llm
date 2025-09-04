@@ -168,14 +168,8 @@ export class LLMThreadHeader extends Component {
                 name: this.state.pendingName.trim()
             });
             
-            // Update in our store
-            const threadData = this.llmStore.llmThreads.get(this.activeThread.id);
-            if (threadData) {
-                threadData.name = this.state.pendingName.trim();
-            }
-            
-            // Update in mail store
-            this.activeThread.name = this.state.pendingName.trim();
+            // Reload thread data using proper fetchData pattern
+            await this.activeThread.fetchData(['name']);
             
             this.state.isEditingName = false;
             this.state.pendingName = "";
