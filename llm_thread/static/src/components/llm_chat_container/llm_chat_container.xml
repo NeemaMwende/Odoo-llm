@@ -45,6 +45,9 @@
             <div class="flex-grow-1 d-flex flex-column h-100">
                 <!-- Show thread and composer only if we have an active LLM thread -->
                 <div t-if="hasActiveThread" class="d-flex flex-column h-100">
+                    <!-- Thread Header with dropdowns -->
+                    <LLMThreadHeader thread="activeThread"/>
+                    
                     <!-- Thread area - reuse mail's Thread component -->
                     <div class="o-llm-thread-area flex-grow-1 overflow-auto p-3">
                         <Thread thread="activeThread" order="'asc'"/>

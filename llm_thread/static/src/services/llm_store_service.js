@@ -18,6 +18,7 @@ export const llmStoreService = {
             llmThreads: new Map(),         // Map<id, LLMThread>
             llmModels: new Map(),          // Map<id, LLMModel> 
             llmProviders: new Map(),       // Map<id, LLMProvider>
+            llmTools: new Map(),           // Map<id, LLMTool>
             streamingThreads: new Set(),   // Set<threadId> currently streaming
             eventSources: new Map(),       // Map<threadId, EventSource>
 
@@ -43,9 +44,9 @@ export const llmStoreService = {
             // LLM-specific methods
             async loadLLMThread(threadId) {
                 try {
-                    const threadData = await orm.read('llm.thread', [threadId], [
-                        'id', 'name', 'model_id', 'provider_id', 'user_id', 'write_date'
-                    ]);
+                    // Get base fields - can be extended by other modules
+                    const fields = this.getThreadFields();
+                    const threadData = await orm.read('llm.thread', [threadId], fields);
                     
                     if (threadData.length > 0) {
                         this.llmThreads.set(threadId, threadData[0]);
@@ -56,6 +57,11 @@ export const llmStoreService = {
                     notification.add('Failed to load LLM thread', { type: 'danger' });
                 }
                 return null;
+            },
+
+            // Hook method - can be overridden/extended by other modules
+            getThreadFields() {
+                return ['id', 'name', 'model_id', 'provider_id', 'user_id', 'write_date', 'tool_ids'];
             },
 
             async sendLLMMessage(threadId, content) {
@@ -216,11 +222,12 @@ export const llmStoreService = {
 
             async loadLLMThreads() {
                 try {
-                    // Load user's LLM threads
+                    // Use the same extensible fields method
+                    const fields = this.getThreadFields();
                     const threads = await orm.searchRead(
                         'llm.thread',
                         [['user_id', '=', user.userId]],
-                        ['id', 'name', 'write_date', 'model_id', 'provider_id'],
+                        fields,
                         { order: 'write_date DESC' }
                     );
                     
@@ -233,17 +240,37 @@ export const llmStoreService = {
                 }
             },
 
+            async loadLLMTools() {
+                try {
+                    // Load available tools with minimal fields
+                    const tools = await orm.searchRead(
+                        'llm.tool',
+                        [['active', '=', true]],
+                        ['id', 'name']
+                    );
+                    
+                    tools.forEach(tool => {
+                        this.llmTools.set(tool.id, tool);
+                    });
+                } catch (error) {
+                    console.warn('LLM tools not available:', error.message);
+                    // Don't throw error, just log warning
+                }
+            },
+
             // Thread selection using Odoo's standard pattern
             async selectThread(threadId) {
                 try {
+                    // Ensure we have full thread data loaded (with provider_id, model_id, tool_ids, etc.)
+                    await this.loadLLMThread(threadId);
+                    
                     // Get thread record from mail store
                     let thread = mailStore.Thread.get({model: 'llm.thread', id: threadId});
                     
                     if (!thread) {
-                        // Ensure we have thread data in our store
+                        // Insert thread into mail store using proper format
                         const threadData = this.llmThreads.get(threadId);
                         if (threadData) {
-                            // Insert thread into mail store using proper format
                             const storeData = {
                                 'Thread': [{
                                     id: threadData.id,
@@ -283,7 +310,8 @@ export const llmStoreService = {
                 await Promise.all([
                     this.loadLLMProviders(),
                     this.loadLLMModels(),
-                    this.loadLLMThreads()
+                    this.loadLLMThreads(),
+                    this.loadLLMTools()
                 ]);
             },
 

@@ -53,6 +53,10 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.xml",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.scss",
             
+            # Thread Header component with provider/model/tool selections
+            "llm_thread/static/src/components/llm_thread_header/llm_thread_header.js",
+            "llm_thread/static/src/components/llm_thread_header/llm_thread_header.xml",
+            
             # Patches - Safe extensions of mail components with conditional LLM logic
             "llm_thread/static/src/patches/composer_patch.js",
             "llm_thread/static/src/patches/thread_patch.js",

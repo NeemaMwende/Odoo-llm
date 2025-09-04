@@ -4,13 +4,14 @@ import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { Thread } from "@mail/core/common/thread";
 import { Composer } from "@mail/core/common/composer";
+import { LLMThreadHeader } from "../llm_thread_header/llm_thread_header";
 
 /**
  * LLM Chat Container - Main container for LLM chat UI
  * Uses existing mail Thread and Composer components with LLM patches
  */
 export class LLMChatContainer extends Component {
-  static components = { Thread, Composer };
+  static components = { Thread, Composer, LLMThreadHeader };
   static template = "llm_thread.LLMChatContainer";
   
   setup() {
