@@ -354,13 +354,13 @@ class LLMThread(models.Model):
                 message = self.message_post(
                     body="Thinking...", llm_role="assistant", author_id=False
                 )
-                yield {"type": "message_create", "message": self._message_to_store_format(message)}
+                yield {"type": "message_create", "message": message.to_store_format()}
 
             # Handle content streaming
             if chunk.get("content"):
                 accumulated_content += chunk["content"]
                 message.write({"body": self._process_llm_body(accumulated_content)})
-                yield {"type": "message_chunk", "message": self._message_to_store_format(message)}
+                yield {"type": "message_chunk", "message": message.to_store_format()}
 
             # Collect tool calls for processing
             if chunk.get("tool_calls"):
@@ -379,7 +379,7 @@ class LLMThread(models.Model):
             body_json = {"tool_calls": collected_tool_calls}
 
             if not message:
-                # Create assistant message NOW, before returning to generate loop
+                # Create assistant message with body_json (handled by message_post override)
                 message = self.message_post(
                     body="",  # Empty body for tool-only responses
                     body_json=body_json,
@@ -388,17 +388,17 @@ class LLMThread(models.Model):
                 )
                 # Commit to ensure message is saved before tool execution
                 self.env.cr.commit()
-                yield {"type": "message_create", "message": self._message_to_store_format(message)}
+                yield {"type": "message_create", "message": message.to_store_format()}
             else:
                 # Update existing message with tool calls
                 message.write({"body_json": body_json})
                 # Commit to ensure update is saved
                 self.env.cr.commit()
-                yield {"type": "message_update", "message": self._message_to_store_format(message)}
+                yield {"type": "message_update", "message": message.to_store_format()}
         elif message and accumulated_content:
             # Final update for assistant message without tool calls
             message.write({"body": self._process_llm_body(accumulated_content)})
-            yield {"type": "message_update", "message": self._message_to_store_format(message)}
+            yield {"type": "message_update", "message": message.to_store_format()}
 
         return message
 
@@ -414,7 +414,7 @@ class LLMThread(models.Model):
         # Prepare body_json with tool calls if present
         body_json = {"tool_calls": tool_calls} if tool_calls else None
 
-        # Create assistant message with both content and tool calls
+        # Create assistant message with body_json (handled by message_post override)
         assistant_message = self.message_post(
             body=self._process_llm_body(content) if content else "",
             body_json=body_json,
@@ -424,7 +424,7 @@ class LLMThread(models.Model):
 
         yield {
             "type": "message_create",
-            "message": self._message_to_store_format(assistant_message),
+            "message": assistant_message.to_store_format(),
         }
         return assistant_message
 
@@ -446,7 +446,7 @@ class LLMThread(models.Model):
             tool_msg = self.env["mail.message"].post_tool_call(
                 tool_call, thread_model=self
             )
-            yield {"type": "message_create", "message": self._message_to_store_format(tool_msg)}
+            yield {"type": "message_create", "message": tool_msg.to_store_format()}
 
             # Execute the tool call
             result_msg = yield from tool_msg.execute_tool_call(thread_model=self)
@@ -462,7 +462,7 @@ class LLMThread(models.Model):
                 )
                 yield {
                     "type": "message_create",
-                    "message": self._message_to_store_format(error_msg),
+                    "message": error_msg.to_store_format(),
                 }
                 return error_msg
             except Exception as e2:

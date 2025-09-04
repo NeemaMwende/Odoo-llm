@@ -135,7 +135,7 @@ class LLMThread(models.Model):
         # Yield the successful result
         yield {
             "type": "message_create",
-            "message": generated_message.message_format()[0],
+            "message": generated_message.to_store_format(),
         }
         
         # Return the actual message record for yield from compatibility

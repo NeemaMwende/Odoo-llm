@@ -186,12 +186,13 @@ class LLMThread(models.Model):
     # ============================================================================
 
     @api.returns("mail.message", lambda value: value.id)
-    def message_post(self, *, llm_role=None, message_type="comment", **kwargs):
+    def message_post(self, *, llm_role=None, message_type="comment", body_json=None, **kwargs):
         """Override to handle LLM-specific message types and metadata.
 
         Args:
             llm_role (str): The LLM role ('user', 'assistant', 'tool', 'system')
                            If provided, will automatically set the appropriate subtype
+            body_json (dict): JSON body for tool calls - will be set after message creation
         """
 
         # Convert LLM role to subtype_xmlid if provided
@@ -213,8 +214,14 @@ class LLMThread(models.Model):
         if kwargs.get("body") and llm_role == "assistant":
             kwargs["body"] = self._process_llm_body(kwargs["body"])
 
-        # Create the message using standard mail.thread flow
-        return super().message_post(message_type=message_type, **kwargs)
+        # Create the message using standard mail.thread flow (without body_json)
+        message = super().message_post(message_type=message_type, **kwargs)
+        
+        # Set body_json after message creation if provided
+        if body_json:
+            message.write({"body_json": body_json})
+            
+        return message
 
     def _get_llm_email_from(self, subtype_xmlid, author_id, llm_role=None):
         """Generate appropriate email_from for LLM messages."""
@@ -263,13 +270,13 @@ class LLMThread(models.Model):
                 message = self.message_post(
                     body=placeholder_text, llm_role=llm_role, author_id=False, **kwargs
                 )
-                yield {"type": "message_create", "message": self._message_to_store_format(message)}
+                yield {"type": "message_create", "message": message.to_store_format()}
 
             # Handle content streaming
             if chunk.get("content"):
                 accumulated_content += chunk["content"]
                 message.write({"body": self._process_llm_body(accumulated_content)})
-                yield {"type": "message_chunk", "message": self._message_to_store_format(message)}
+                yield {"type": "message_chunk", "message": message.to_store_format()}
 
             # Handle errors
             if chunk.get("error"):
@@ -279,19 +286,10 @@ class LLMThread(models.Model):
         # Final update for assistant message
         if message and accumulated_content:
             message.write({"body": self._process_llm_body(accumulated_content)})
-            yield {"type": "message_update", "message": self._message_to_store_format(message)}
+            yield {"type": "message_update", "message": message.to_store_format()}
 
         return message
 
-    def _message_to_store_format(self, message):
-        """Convert message to store format compatible with Odoo 18.0."""
-        from odoo.addons.mail.tools.discuss import Store
-        
-        store = Store()
-        message._to_store(store)
-        result = store.get_result()
-        
-        return result['mail.message'][0]
 
     # ============================================================================
     # GENERATION FLOW - Refactored to use message_post with roles
@@ -318,7 +316,7 @@ class LLMThread(models.Model):
                 )
                 yield {
                     "type": "message_create",
-                    "message": self._message_to_store_format(last_message),
+                    "message": last_message.to_store_format(),
                 }
 
             # Call the actual generation implementation
