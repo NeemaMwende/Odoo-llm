@@ -55,7 +55,6 @@ patch(llmStoreService, {
             },
 
             async selectAssistant(assistantId) {
-                console.log('selectAssistant called with:', assistantId);
                 const activeThread = this.activeLLMThread;
                 if (!activeThread) {
                     notification.add('No active thread to update', { type: 'warning' });
@@ -63,13 +62,10 @@ patch(llmStoreService, {
                 }
 
                 try {
-                    console.log('Calling set_assistant with assistantId:', assistantId);
                     await orm.call('llm.thread', 'set_assistant', [activeThread.id, assistantId]);
-
-                    console.log('Fetching updated thread data');
+                    
                     // Reuse existing fetchData pattern
                     await activeThread.fetchData(['assistant_id', 'provider_id', 'model_id', 'tool_ids']);
-                    console.log('Assistant update completed');
                     
                 } catch (error) {
                     console.error('Error selecting assistant:', error);

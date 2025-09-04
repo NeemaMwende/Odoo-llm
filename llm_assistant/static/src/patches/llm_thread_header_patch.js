@@ -56,8 +56,6 @@ patch(LLMThreadHeader.prototype, {
      * Clear assistant selection
      */
     async clearAssistant() {
-        console.log('clearAssistant called');
         await this.selectAssistant(null);
-        console.log('clearAssistant completed');
     }
 });

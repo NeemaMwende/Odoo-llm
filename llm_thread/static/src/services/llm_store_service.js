@@ -110,52 +110,27 @@ export const llmStoreService = {
             },
 
             handleStreamMessage(threadId, data) {
-                console.log('Handling stream message:', data.type, data);
-                
                 switch (data.type) {
                     case "message_create":
                         // Handle all messages (user and AI) via EventSource
-                        console.log('Creating new message:', data.message);
-                        const insertResult1 = mailStore.insert({ 'mail.message': [data.message] });
-                        console.log('Insert result for create:', insertResult1);
+                        mailStore.insert({ 'mail.message': [data.message] }, { html: true });
                         
                         // Get the created message and add it to the thread's messages collection
                         const createdMessage = mailStore.Message.get(data.message.id);
-                        console.log('Created message retrieved:', createdMessage);
                         
                         // Add message to the thread's messages collection if not already there
                         const createThread = mailStore.discuss?.thread;
                         if (createThread && createdMessage && !createThread.messages.some(m => m.id === createdMessage.id)) {
                             createThread.messages.push(createdMessage);
-                            console.log('Added message to thread messages. New count:', createThread.messages.length);
                         }
                         break;
                         
                     case "message_chunk":
                     case "message_update":
                         // Update existing message using standard mail.store.insert() like Odoo does
-                        console.log('Updating message:', data.message.id, data.message);
-                        
-                        // Check current thread's messages before update
-                        const currentThread = mailStore.discuss?.thread;
-                        console.log('Current active thread:', currentThread);
-                        if (currentThread) {
-                            console.log('Thread messages before update:', currentThread.messages.length, currentThread.messages.map(m => m.id));
-                        }
-                        
                         // Use the same pattern as Odoo's standard bus handlers - always use insert
                         // which will update existing messages or create new ones as needed
-                        const insertResult2 = mailStore.insert({ 'mail.message': [data.message] }, { html: true });
-                        console.log('Insert result for update:', insertResult2);
-                        
-                        // Check if message was actually updated
-                        const updatedMessage = mailStore.Message.get(data.message.id);
-                        console.log('Updated message retrieved:', updatedMessage);
-                        
-                        // Check thread messages after update
-                        if (currentThread) {
-                            console.log('Thread messages after update:', currentThread.messages.length, currentThread.messages.map(m => m.id));
-                        }
+                        mailStore.insert({ 'mail.message': [data.message] }, { html: true });
                         break;
                         
                     case "error":
@@ -165,7 +140,6 @@ export const llmStoreService = {
                         break;
                         
                     case "done":
-                        console.log('Stream completed');
                         this.stopStreaming(threadId);
                         break;
                         
