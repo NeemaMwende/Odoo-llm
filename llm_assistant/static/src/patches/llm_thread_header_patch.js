@@ -10,30 +10,16 @@ import { patch } from "@web/core/utils/patch";
 patch(LLMThreadHeader.prototype, {
     setup() {
         super.setup();
-        console.log('Assistant patch setup() called', this);
         // Reuse existing store - it's already the patched version via useService
         this.assistantStore = this.llmStore;
-        console.log('assistantStore set to:', this.assistantStore);
     },
 
     /**
      * Get current assistant following existing pattern
      */
     get currentAssistant() {
-        console.log('Component currentAssistant getter called');
-        console.log('assistantStore exists:', !!this.assistantStore);
-        console.log('assistantStore keys:', Object.keys(this.assistantStore || {}));
-        console.log('assistantStore has currentAssistant:', 'currentAssistant' in (this.assistantStore || {}));
-        console.log('assistantStore.llmAssistants:', this.assistantStore?.llmAssistants);
-        console.log('assistantStore.activeLLMThread:', this.assistantStore?.activeLLMThread);
-        
-        if (!this.assistantStore) return null;
-        
-        // Call the getter directly to trigger logs
-        const result = this.assistantStore.currentAssistant;
-        console.log('Service currentAssistant result:', result);
-        
-        return result;
+        if (!this.assistantStore?.currentAssistant) return null;
+        return this.assistantStore.currentAssistant;
     },
 
     /**
@@ -70,6 +56,8 @@ patch(LLMThreadHeader.prototype, {
      * Clear assistant selection
      */
     async clearAssistant() {
+        console.log('clearAssistant called');
         await this.selectAssistant(null);
+        console.log('clearAssistant completed');
     }
 });

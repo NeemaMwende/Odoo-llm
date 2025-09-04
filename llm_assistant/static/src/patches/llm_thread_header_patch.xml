@@ -26,8 +26,7 @@
                     <!-- Available Assistants -->
                     <t t-foreach="availableAssistants" t-as="assistant" t-key="assistant.id">
                         <DropdownItem 
-                            onSelected="() => this.selectAssistant(assistant)"
-                            class="{'active': currentAssistant?.id === assistant.id}">
+                            onSelected="() => this.selectAssistant(assistant)">
                             <div class="d-flex align-items-center">
                                 <i t-if="currentAssistant?.id === assistant.id" class="fa fa-check me-2 text-success"/>
                                 <span t-esc="assistant.name"/>

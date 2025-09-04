@@ -22,19 +22,11 @@ patch(llmStoreService, {
         // Define currentAssistant getter with proper context binding
         Object.defineProperty(llmStore, 'currentAssistant', {
             get: function() {
-                console.log('Service currentAssistant - this.activeLLMThread exists:', !!this.activeLLMThread);
-                
                 const activeThread = this.activeLLMThread;
-                console.log('Getting currentAssistant - activeThread:', activeThread);
-                console.log('activeThread.assistant_id:', activeThread?.assistant_id);
-                
                 if (!activeThread?.assistant_id) return null;
                 
                 const assistantId = activeThread.assistant_id?.id || activeThread.assistant_id;
-                console.log('assistantId to lookup:', assistantId);
-                
                 const assistant = this.llmAssistants.get(assistantId);
-                console.log('Found assistant in Map:', assistant);
                 
                 return assistant || activeThread.assistant_id;
             },
@@ -47,25 +39,23 @@ patch(llmStoreService, {
 
             async loadLLMAssistants() {
                 try {
-                    console.log('Loading LLM assistants...');
                     const assistants = await orm.searchRead(
                         'llm.assistant',
                         [['active', '=', true]],
                         ['id', 'name', 'is_public', 'provider_id', 'model_id', 'tool_ids']
                     );
-                    console.log('Loaded assistants:', assistants);
                     
                     assistants.forEach(assistant => {
                         this.llmAssistants.set(assistant.id, assistant);
                     });
                     this._assistantsLoaded = true;
-                    console.log('Assistants Map after loading:', this.llmAssistants);
                 } catch (error) {
                     console.warn('LLM assistants not available - llm_assistant module may not be installed:', error.message);
                 }
             },
 
             async selectAssistant(assistantId) {
+                console.log('selectAssistant called with:', assistantId);
                 const activeThread = this.activeLLMThread;
                 if (!activeThread) {
                     notification.add('No active thread to update', { type: 'warning' });
@@ -73,14 +63,13 @@ patch(llmStoreService, {
                 }
 
                 try {
-                    if (assistantId) {
-                        await orm.call('llm.thread', 'set_assistant', [activeThread.id, assistantId]);
-                    } else {
-                        await orm.write('llm.thread', [activeThread.id], { assistant_id: false });
-                    }
+                    console.log('Calling set_assistant with assistantId:', assistantId);
+                    await orm.call('llm.thread', 'set_assistant', [activeThread.id, assistantId]);
 
+                    console.log('Fetching updated thread data');
                     // Reuse existing fetchData pattern
                     await activeThread.fetchData(['assistant_id', 'provider_id', 'model_id', 'tool_ids']);
+                    console.log('Assistant update completed');
                     
                 } catch (error) {
                     console.error('Error selecting assistant:', error);
@@ -91,7 +80,6 @@ patch(llmStoreService, {
             // Extend existing getDataLoaders method instead of overriding initialize
             getDataLoaders() {
                 const baseLoaders = originalGetDataLoaders();
-                console.log('Getting data loaders, base:', baseLoaders.length, 'adding loadLLMAssistants');
                 return [...baseLoaders, this.loadLLMAssistants];
             }
         });
