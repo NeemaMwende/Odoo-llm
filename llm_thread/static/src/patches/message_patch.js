@@ -8,23 +8,24 @@ import { LLMToolMessage } from "../components/llm_tool_message/llm_tool_message"
 import { Message as MessageModel } from "@mail/core/common/message_model";
 
 /**
- * Patch Message component to handle LLM-specific message rendering
- * Only affects messages in llm.thread threads
+ * PATCH 1: Message Component Static Properties
+ * Adds LLMToolMessage to the available components registry
  */
 patch(Message, {
     components: { ...Message.components, LLMToolMessage },
 });
 
+/**
+ * PATCH 2: Message Component Prototype Methods
+ * Adds UI rendering logic and getters for LLM message detection and styling
+ * These methods are used by the component template and rendering logic
+ */
 patch(Message.prototype, {
     /**
      * Check if this message is in an LLM thread
      */
     get isLLMMessage() {
-        const result = this.props.message?.model === 'llm.thread';
-        if (result) {
-            console.log('LLM Message detected:', this.props.message?.id, 'role:', this.llmRole);
-        }
-        return result;
+        return this.props.message?.model === 'llm.thread';
     },
 
     /**
@@ -74,35 +75,30 @@ patch(Message.prototype, {
 });
 
 /**
- * Patch Message model to handle LLM-specific isEmpty computation
+ * PATCH 3: Message Model (Data Layer) 
+ * Patches the Message data model to handle LLM-specific isEmpty computation
+ * This ensures LLM messages with tool calls or body_json are never filtered out
+ * NOTE: This is NOT the component - this is the data model that holds message data
  */
 patch(MessageModel.prototype, {
     /**
      * Override computeIsEmpty for LLM messages with tool calls or body_json
      */
     computeIsEmpty() {
-        console.log('MessageModel.computeIsEmpty called for message:', this.id, 'model:', this.model);
-        
         // For LLM messages, apply custom logic
         if (this.model === 'llm.thread') {
-            console.log('computeIsEmpty called for LLM message:', this.id, 'llm_role:', this.llm_role);
-            
             // Assistant messages with tool calls are never empty
             if (this.llm_role === 'assistant' && this.body_json?.tool_calls?.length > 0) {
-                console.log('Assistant message has tool calls, not empty');
                 return false;
             }
             
             // Tool messages with body_json are never empty
             if (this.llm_role === 'tool' && this.body_json) {
-                console.log('Tool message with body_json, not empty');
                 return false;
             }
         }
         
         // Use original computation for other messages
-        const result = super.computeIsEmpty();
-        console.log('Original computeIsEmpty result:', result, 'for message:', this.id);
-        return result;
+        return super.computeIsEmpty();
     },
 });
