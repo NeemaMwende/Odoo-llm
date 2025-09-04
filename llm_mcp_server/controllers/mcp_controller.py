@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Any, Optional
 
 from odoo import http
@@ -30,6 +31,17 @@ class MCPServerController(http.Controller):
         # "resources": {},
         # "logging": {},
     }
+    
+    def _ensure_valid_id(self, request_id: Optional[Any]) -> int:
+        """
+        Ensure we have a valid JSON-RPC ID
+        
+        Uses the original request ID if present, otherwise generates
+        a timestamp-based ID for better uniqueness.
+        """
+        if request_id is not None:
+            return request_id
+        return int(time.time() * 1000)  # Milliseconds since epoch
     
     @http.route('/mcp', type='http', auth='none', methods=['POST'], csrf=False)
     def mcp_server(self):
@@ -118,7 +130,7 @@ class MCPServerController(http.Controller):
             # Build JSON-RPC response
             response = {
                 "jsonrpc": "2.0",
-                "id": request_id if request_id is not None else 1,  # Ensure ID is not None
+                "id": self._ensure_valid_id(request_id),
                 "result": {
                     "protocolVersion": self.PROTOCOL_VERSION,
                     "capabilities": self.CAPABILITIES,
@@ -162,7 +174,7 @@ class MCPServerController(http.Controller):
             # Build JSON-RPC response
             response = {
                 "jsonrpc": "2.0",
-                "id": request_id,
+                "id": self._ensure_valid_id(request_id),
                 "result": {
                     "tools": mcp_tools
                 }
@@ -218,7 +230,7 @@ class MCPServerController(http.Controller):
                 # Build JSON-RPC response
                 response = {
                     "jsonrpc": "2.0",
-                    "id": request_id,
+                    "id": self._ensure_valid_id(request_id),
                     "result": {
                         "content": [
                             {
@@ -243,7 +255,7 @@ class MCPServerController(http.Controller):
                 # Return tool error in result (not as JSON-RPC error)
                 response = {
                     "jsonrpc": "2.0",
-                    "id": request_id,
+                    "id": self._ensure_valid_id(request_id),
                     "result": {
                         "content": [
                             {
@@ -270,7 +282,7 @@ class MCPServerController(http.Controller):
         """
         response = {
             "jsonrpc": "2.0",
-            "id": request_id,
+            "id": self._ensure_valid_id(request_id),
             "error": {
                 "code": code,
                 "message": message
