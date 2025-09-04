@@ -17,7 +17,7 @@ patch(Message.prototype, {
      * Check if this message is in an LLM thread
      */
     get isLLMMessage() {
-        return this.props.message?.res_model === 'llm.thread';
+        return this.props.message?.model === 'llm.thread';
     },
 
     /**
@@ -31,7 +31,19 @@ patch(Message.prototype, {
      * Check if message is a tool message
      */
     get isToolMessage() {
-        return this.isLLMMessage && this.llmRole === 'tool';
+        const result = this.isLLMMessage && this.llmRole === 'tool';
+        // Debug logging
+        if (this.props.message?.model === 'llm.thread') {
+            console.log('LLM Message Debug:', {
+                messageId: this.props.message?.id,
+                model: this.props.message?.model,
+                isLLMMessage: this.isLLMMessage,
+                llmRole: this.llmRole,
+                isToolMessage: result,
+                hasBodyJson: !!this.props.message?.body_json
+            });
+        }
+        return result;
     },
 
     /**
