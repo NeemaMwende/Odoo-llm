@@ -20,6 +20,9 @@
                             <field name="version"/>
                             <field name="protocol_version"/>
                         </group>
+                        <group>
+                            <field name="external_url" placeholder="e.g., http://host.docker.internal:8069"/>
+                        </group>
                     </group>
                     <notebook>
                         <page string="Information" name="info">
