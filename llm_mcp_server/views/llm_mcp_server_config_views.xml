@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <!-- MCP Server Config Form View -->
     <record id="llm_mcp_server_config_view_form" model="ir.ui.view">
@@ -7,33 +7,36 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <field name="active" widget="boolean_toggle"/>
+                    <field name="active" widget="boolean_toggle" />
                 </header>
                 <sheet>
                     <div class="oe_title">
                         <h1>
-                            <field name="name" placeholder="Server Name"/>
+                            <field name="name" placeholder="Server Name" />
                         </h1>
                     </div>
                     <group>
                         <group>
-                            <field name="version"/>
-                            <field name="protocol_version"/>
+                            <field name="version" />
+                            <field name="protocol_version" />
                         </group>
                         <group>
-                            <field name="external_url" placeholder="e.g., http://host.docker.internal:8069"/>
+                            <field
+                name="external_url"
+                placeholder="e.g., http://host.docker.internal:8069"
+              />
                         </group>
                     </group>
                     <notebook>
                         <page string="Information" name="info">
                             <group>
-                                <field name="create_date" readonly="1"/>
-                                <field name="write_date" readonly="1"/>
+                                <field name="create_date" readonly="1" />
+                                <field name="write_date" readonly="1" />
                             </group>
                         </page>
                     </notebook>
                 </sheet>
-                <chatter/>
+                <chatter />
             </form>
         </field>
     </record>
@@ -44,11 +47,11 @@
         <field name="model">llm.mcp.server.config</field>
         <field name="arch" type="xml">
             <list>
-                <field name="name"/>
-                <field name="version"/>
-                <field name="protocol_version"/>
-                <field name="active"/>
-                <field name="write_date"/>
+                <field name="name" />
+                <field name="version" />
+                <field name="protocol_version" />
+                <field name="active" />
+                <field name="write_date" />
             </list>
         </field>
     </record>
@@ -59,11 +62,19 @@
         <field name="model">llm.mcp.server.config</field>
         <field name="arch" type="xml">
             <search>
-                <field name="name"/>
-                <field name="version"/>
-                <field name="protocol_version"/>
-                <filter string="Active" name="active" domain="[('active', '=', True)]"/>
-                <filter string="Inactive" name="inactive" domain="[('active', '=', False)]"/>
+                <field name="name" />
+                <field name="version" />
+                <field name="protocol_version" />
+                <filter
+          string="Active"
+          name="active"
+          domain="[('active', '=', True)]"
+        />
+                <filter
+          string="Inactive"
+          name="inactive"
+          domain="[('active', '=', False)]"
+        />
             </search>
         </field>
     </record>
@@ -87,10 +98,11 @@
 
     <!-- Menu Item under LLM Configuration -->
     <menuitem
-        id="menu_llm_mcp_server_config"
-        name="MCP Server"
-        action="llm_mcp_server_config_action"
-        parent="llm.menu_llm_config"
-        sequence="50"/>
+    id="menu_llm_mcp_server_config"
+    name="MCP Server"
+    action="llm_mcp_server_config_action"
+    parent="llm.menu_llm_config"
+    sequence="50"
+  />
 
 </odoo>

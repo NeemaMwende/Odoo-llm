@@ -27,7 +27,7 @@ class MailMessage(models.Model):
 
             # Note: Letta handles tool calls differently than OpenAI
             # For now, we'll keep it simple and not include tool calls
-            
+
             return formatted_message
 
         elif self.is_llm_tool_message()[self]:
@@ -35,6 +35,6 @@ class MailMessage(models.Model):
             # This is a placeholder for future tool integration
             _logger.debug(f"Letta: Skipping tool message {self.id} for now")
             return None
-            
+
         else:
             return None

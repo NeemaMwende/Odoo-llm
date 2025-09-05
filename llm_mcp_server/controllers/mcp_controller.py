@@ -184,7 +184,7 @@ class MCPServerController(http.Controller):
 
             # Get configuration from database
             config = self._get_server_config()
-            
+
             result = {
                 "protocolVersion": config.protocol_version,
                 "capabilities": self.CAPABILITIES,

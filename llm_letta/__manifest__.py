@@ -4,7 +4,7 @@
     "description": """
         Implements Letta provider service for the LLM integration module.
         Supports model fetching from Letta platform for stateful AI agents.
-        
+
         Note: This initial implementation only supports model fetching.
         Chat, embedding, and generation features are not yet implemented.
     """,
@@ -17,7 +17,7 @@
         "python": ["letta-client"],
     },
     "data": [
-        "data/llm_publisher.xml", 
+        "data/llm_publisher.xml",
         "data/llm_provider.xml",
         "views/llm_thread_views.xml",
     ],

@@ -4,21 +4,32 @@ This module provides integration with Letta platform for Odoo's LLM framework.
 
 ## Features
 
-- **Model Fetching**: List available models from Letta (local or cloud)
-- **Agent-Based Chat**: Stateful conversations using Letta agents
+- **Agent-Based Chat**: Stateful conversations using Letta agents with persistent memory
+- **MCP Integration**: Full Model Context Protocol support for tool access
+- **Tool Synchronization**: Automatic sync of Odoo tools to Letta agents
 - **Thread Integration**: Agents created automatically with threads
+- **Streaming Support**: Real-time message streaming with tool call logging
 - **Memory Management**: Uses assistant prompts for agent personas
 - **Local/Cloud Support**: Supports both local Letta servers and Letta Cloud
-- **Extensible Architecture**: Follows Odoo LLM framework patterns
+- **Docker Support**: Configurable URLs for containerized environments
 
 ## Installation
 
-1. Install the required Python package:
+**⚠️ Important: Requires Letta server version 0.11.7. Earlier versions have MCP integration bugs.**
+
+1. Install the required Python client:
+
    ```bash
    pip install letta-client
    ```
 
-2. Install this module in Odoo
+2. Install this module in Odoo along with `llm_mcp_server` dependency
+
+3. Ensure Letta server 0.11.7 is running and accessible
+
+## Dependencies
+
+This module requires `llm_mcp_server` module for tool integration. The MCP server exposes Odoo tools that Letta agents can access.
 
 ## Configuration
 
@@ -34,13 +45,23 @@ No API key is required for local connections.
 2. Set your Letta API token in the "API Key" field
 3. Set your project name in the "API Base" field (defaults to "default-project")
 
+## MCP Tool Integration
+
+This module provides full integration with Odoo's MCP server, giving Letta agents access to:
+
+- **Record Operations**: Create, read, update, delete Odoo records  
+- **Model Methods**: Execute any Odoo model method
+- **Model Inspection**: Explore Odoo model structure
+- **Automatic Sync**: Tools automatically sync when thread tools change
+
+See `TECHNICAL_GUIDE.md` for detailed integration information.
+
 ## Current Limitations
 
-This implementation supports **model fetching and chat functionality**. The following features are not yet implemented:
+The following features are not yet implemented:
 
-- Text embeddings (`letta_embedding`) 
+- Text embeddings (`letta_embedding`)
 - Content generation (`letta_generate`)
-- Custom tool integration (basic Letta tools only)
 
 All unimplemented methods will raise `NotImplementedError` with descriptive messages.
 

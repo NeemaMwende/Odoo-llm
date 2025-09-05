@@ -11,11 +11,13 @@ The `llm_letta` module integrates Letta AI agents with Odoo's LLM framework. Let
 ### Core Components
 
 1. **Letta Provider** (`letta_provider.py`)
+
    - Implements LLM provider interface for Letta agents
    - Handles agent creation, management, and message generation
    - Manages MCP server registration and tool synchronization
 
 2. **Thread Integration** (`llm_thread.py`)
+
    - Extends `llm.thread` with Letta-specific functionality
    - Handles tool synchronization when thread tools change
    - Provides UI elements for Letta tool management
@@ -34,12 +36,12 @@ graph TB
         D --> E[MCP Controller<br>/mcp endpoint]
         F[llm.mcp.server.config] --> B
     end
-    
+
     subgraph "Letta Server"
         G[Letta Agent] --> H[MCP Client]
         H --> I[Tool Registry]
     end
-    
+
     subgraph "Communication"
         B -->|1. Register MCP Server| G
         B -->|2. Sync Tools| I
@@ -47,7 +49,7 @@ graph TB
         E -->|4. Tool Response| G
         G -->|5. Streaming Response| A
     end
-    
+
     B -.->|Uses Config| F
     E -.->|Exposes Tools| C
 ```
@@ -60,7 +62,7 @@ graph TB
 def letta_ensure_mcp_server(self):
     # Get server URL from configuration
     server_url = mcp_config.get_mcp_server_url()
-    
+
     # Register with Letta using StreamableHttpServerConfig
     mcp_config = StreamableHttpServerConfig(
         server_name=server_name,
@@ -73,6 +75,7 @@ def letta_ensure_mcp_server(self):
 ### 2. Tool Synchronization
 
 When `llm.thread.tool_ids` changes:
+
 1. **Hook triggered** in `llm_thread.py`
 2. **Provider method called** via `letta_sync_agent_tools()`
 3. **Current tools fetched** from Letta agent
@@ -88,7 +91,7 @@ def _letta_get_agent_stream(self, client, agent_id, user_content):
         messages=[MessageCreate(role="user", content=user_content)],
         stream_tokens=True
     )
-    
+
     for chunk in stream:
         if chunk.message_type == "assistant_message":
             yield {"content": chunk.content}
@@ -101,7 +104,9 @@ def _letta_get_agent_stream(self, client, agent_id, user_content):
 ## MCP Server Integration
 
 ### Available Tools
+
 The Odoo MCP server exposes these tools to Letta agents:
+
 - `odoo_record_retriever` - Search and retrieve Odoo records
 - `odoo_record_creator` - Create new Odoo records
 - `odoo_record_updater` - Update existing Odoo records
@@ -110,6 +115,7 @@ The Odoo MCP server exposes these tools to Letta agents:
 - `odoo_model_inspector` - Inspect Odoo model structure
 
 ### Tool Execution Flow
+
 1. **Letta agent** decides to call a tool
 2. **MCP Client** in Letta sends request to `/mcp` endpoint
 3. **MCP Controller** processes the request
@@ -120,11 +126,13 @@ The Odoo MCP server exposes these tools to Letta agents:
 ## Prerequisites
 
 ### Letta Server Requirements
+
 - **Letta server version 0.11.7** (required)
 - Server running on accessible URL (e.g., `http://localhost:8283`)
 - API key (not required for local development)
 
 ### Installation
+
 ```bash
 # Install specific Letta version
 pip install letta==0.11.7
@@ -136,11 +144,12 @@ letta server
 ## Configuration
 
 ### Basic Setup
+
 ```python
 # Create Letta provider (local development)
 provider = env['llm.provider'].create({
     'name': 'Letta Local',
-    'service': 'letta', 
+    'service': 'letta',
     'base_url': 'http://localhost:8283',
     # api_key not required for local development
 })
@@ -148,13 +157,14 @@ provider = env['llm.provider'].create({
 # For production/remote Letta server
 provider = env['llm.provider'].create({
     'name': 'Letta Remote',
-    'service': 'letta', 
+    'service': 'letta',
     'base_url': 'https://your-letta-server.com',
     'api_key': 'your-api-key'
 })
 ```
 
 ### MCP Server Configuration
+
 ```python
 # Configure external URL for Docker environments
 mcp_config = env['llm.mcp.server.config'].get_active_config()
@@ -162,6 +172,7 @@ mcp_config.external_url = 'http://host.docker.internal:8069'
 ```
 
 ### Thread with Tools
+
 ```python
 # Create thread with Letta agent
 thread = env['llm.thread'].create({
@@ -174,6 +185,7 @@ thread = env['llm.thread'].create({
 ## Message Types
 
 ### Letta Streaming Messages
+
 - `assistant_message` - AI response content (streamed to user)
 - `reasoning_message` - Internal agent reasoning (logged)
 - `tool_call_message` - Tool execution requests (logged)
@@ -181,6 +193,7 @@ thread = env['llm.thread'].create({
 - `usage_statistics` - Token usage information (logged)
 
 ### Error Handling
+
 - **Connection errors**: MCP server not reachable
 - **Tool errors**: Tool execution failures
 - **Agent errors**: Letta agent issues
@@ -189,19 +202,25 @@ thread = env['llm.thread'].create({
 ## Development Notes
 
 ### Docker Environment
+
 When Letta runs in Docker:
+
 - Set `external_url` in MCP config to `http://host.docker.internal:8069`
 - Ensure Odoo is accessible from Docker container
 - Use proper networking configuration
 
 ### Tool Development
+
 New tools automatically available to Letta agents when:
+
 1. Added to `llm.tool` in Odoo
 2. MCP server restart (automatic)
 3. Tool sync triggered on thread
 
 ### Debugging
+
 Enable INFO logging to see:
+
 - Tool call details
 - Agent reasoning
 - Tool execution results
