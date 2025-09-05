@@ -109,9 +109,9 @@ class LLMProvider(models.Model):
             
         try:
             if stream:
-                return self._stream_agent_response(client, agent_id, user_content)
+                return self._letta_stream_agent_response(client, agent_id, user_content)
             else:
-                return self._get_agent_response(client, agent_id, user_content)
+                return self._letta_get_agent_response(client, agent_id, user_content)
                 
         except Exception as e:
             _logger.error(f"Letta chat failed for agent {agent_id}: {str(e)}")
@@ -154,67 +154,57 @@ class LLMProvider(models.Model):
         formatted_message = self._dispatch("format_message", record=latest_message)
         return [formatted_message] if formatted_message else []
             
-    def _stream_agent_response(self, client, agent_id, user_content):
+    def _letta_stream_agent_response(self, client, agent_id, user_content):
         """Stream response from Letta agent."""
             
         stream = client.agents.messages.create_stream(
             agent_id=agent_id,
             messages=[MessageCreate(role="user", content=user_content)],
-            stream_tokens=False,
-            use_assistant_message=True,
+            stream_tokens=True
         )
         
         response_content = ""
         
         for chunk in stream:
-            _logger.info(f"Processing chunk: {chunk}")
-            
             # Check if chunk has message_type attribute (Letta's streaming format)
             if hasattr(chunk, "message_type"):
                 message_type = getattr(chunk, "message_type", None)
-                _logger.info(f"Chunk message_type: {message_type}")
 
                 # Handle assistant message chunks
                 if message_type == "assistant_message" and hasattr(chunk, "content"):
                     if chunk.content:
-                        _logger.info(f"Got assistant content: '{chunk.content}'")
                         response_content += chunk.content
                         yield {"content": chunk.content}
 
-                # Handle reasoning messages
+                # Handle reasoning messages (debug level)
                 elif message_type == "reasoning_message" and hasattr(chunk, "reasoning"):
-                    _logger.debug("Agent reasoning: %s", chunk.reasoning)
+                    _logger.info("Agent reasoning: %s", chunk.reasoning)
 
-                # Handle tool call messages
+                # Handle tool call messages (debug level)
                 elif message_type == "tool_call_message" and hasattr(chunk, "tool_call"):
                     if chunk.tool_call and hasattr(chunk.tool_call, "name") and chunk.tool_call.name:
                         _logger.info("Agent calling tool: %s", chunk.tool_call.name)
 
-                # Handle tool return messages
+                # Handle tool return messages (debug level)
                 elif (
                     message_type == "tool_return_message"
                     and hasattr(chunk, "tool_return")
                     and hasattr(chunk, "tool_call_id")
                 ) and chunk.tool_return:
-                    _logger.debug("Tool returned: %s", chunk.tool_return)
+                    _logger.info("Tool returned: %s", chunk.tool_return)
 
-            # Handle usage statistics
+            # Handle usage statistics (debug level)
             elif hasattr(chunk, "completion_tokens") or getattr(chunk, "message_type", None) == "usage_statistics":
                 _logger.info("Letta usage: %s", chunk)
         
-        # Log if no content was streamed - this shouldn't happen
+        # Return empty content if nothing was streamed (shouldn't happen normally)
         if not response_content:
-            _logger.error("No response content received from Letta stream - this indicates a streaming configuration issue")
-            _logger.error("Expected assistant_message chunks with content, but only got metadata chunks")
-            # Don't make extra API calls - fix the streaming issue instead
-        
-        if not response_content:
-            response_content = "I couldn't generate a response."
+            _logger.warning("No response content received from Letta stream")
             
         # Yield final response
         yield {"content": "", "finish_reason": "stop"}
         
-    def _get_agent_response(self, client, agent_id, user_content):
+    def _letta_get_agent_response(self, client, agent_id, user_content):
         """Get non-streaming response from Letta agent."""
             
         # For non-streaming, we'll collect the full response
