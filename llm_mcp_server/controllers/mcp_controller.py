@@ -20,9 +20,6 @@ class MCPServerController(http.Controller):
     Transport: streamable_http
     """
 
-    # MCP Protocol version we support
-    PROTOCOL_VERSION = "2024-11-05"
-
     # Server capabilities
     CAPABILITIES = {
         "tools": {},  # We support tools
@@ -31,6 +28,11 @@ class MCPServerController(http.Controller):
         # "resources": {},
         # "logging": {},
     }
+
+    def _get_server_config(self):
+        """Get the active MCP server configuration"""
+        config_model = request.env["llm.mcp.server.config"].sudo()
+        return config_model.get_active_config()
 
     def _ensure_valid_id(self, request_id: Optional[Any]) -> int:
         """
@@ -180,10 +182,13 @@ class MCPServerController(http.Controller):
 
             _logger.info(f"MCP client {client_name} v{client_version}")
 
+            # Get configuration from database
+            config = self._get_server_config()
+            
             result = {
-                "protocolVersion": self.PROTOCOL_VERSION,
+                "protocolVersion": config.protocol_version,
                 "capabilities": self.CAPABILITIES,
-                "serverInfo": {"name": "Odoo LLM MCP Server", "version": "1.0.0"},
+                "serverInfo": {"name": config.name, "version": config.version},
             }
 
             _logger.info("MCP initialization successful")
@@ -303,11 +308,14 @@ class MCPServerController(http.Controller):
                 request.env["llm.tool"].sudo().search_count([("active", "=", True)])
             )
 
+            # Get configuration from database
+            config = self._get_server_config()
+
             return {
                 "status": "healthy",
-                "server": "Odoo LLM MCP Server",
-                "version": "1.0.0",
-                "protocol_version": self.PROTOCOL_VERSION,
+                "server": config.name,
+                "version": config.version,
+                "protocol_version": config.protocol_version,
                 "tools_count": tools_count,
             }
         except Exception as e:
