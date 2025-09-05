@@ -5,6 +5,9 @@ This module provides integration with Letta platform for Odoo's LLM framework.
 ## Features
 
 - **Model Fetching**: List available models from Letta (local or cloud)
+- **Agent-Based Chat**: Stateful conversations using Letta agents
+- **Thread Integration**: Agents created automatically with threads
+- **Memory Management**: Uses assistant prompts for agent personas
 - **Local/Cloud Support**: Supports both local Letta servers and Letta Cloud
 - **Extensible Architecture**: Follows Odoo LLM framework patterns
 
@@ -33,13 +36,11 @@ No API key is required for local connections.
 
 ## Current Limitations
 
-This is an initial implementation that **only supports model fetching**. The following features are not yet implemented:
+This implementation supports **model fetching and chat functionality**. The following features are not yet implemented:
 
-- Chat completions (`letta_chat`)
 - Text embeddings (`letta_embedding`) 
 - Content generation (`letta_generate`)
-- Tool formatting (`letta_format_tools`)
-- Message formatting (`letta_format_messages`)
+- Custom tool integration (basic Letta tools only)
 
 All unimplemented methods will raise `NotImplementedError` with descriptive messages.
 
@@ -49,6 +50,9 @@ All unimplemented methods will raise `NotImplementedError` with descriptive mess
 2. Find or create a Letta provider
 3. Configure API settings
 4. Use the "Fetch Models" wizard to retrieve available models
+5. Create a thread with Letta provider and model
+6. Agent will be created automatically and stored in `thread.external_id`
+7. Start chatting - agent maintains conversation history
 
 ## Architecture
 

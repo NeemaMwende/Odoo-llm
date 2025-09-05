@@ -256,12 +256,7 @@ class LLMThread(models.Model):
         # Determine if we should use streaming
         use_streaming = getattr(self.model_id, "supports_streaming", True)
 
-        chat_kwargs = {
-            "messages": message_history,
-            "tools": self.tool_ids,
-            "stream": use_streaming,
-            "prepend_messages": self.get_prepend_messages(),
-        }
+        chat_kwargs = self._prepare_chat_kwargs(message_history, use_streaming)
         if use_streaming:
             # Handle streaming response - process tool calls directly from stream
             stream_response = self.sudo().model_id.chat(**chat_kwargs)
@@ -274,6 +269,15 @@ class LLMThread(models.Model):
             assistant_message = yield from self._handle_non_streaming_response(response)
 
         return assistant_message
+
+    def _prepare_chat_kwargs(self, message_history, use_streaming):
+        """Prepare chat kwargs for provider. Can be overridden by extensions."""
+        return {
+            "messages": message_history,
+            "tools": self.tool_ids,
+            "stream": use_streaming,
+            "prepend_messages": self.get_prepend_messages(),
+        }
 
     def get_llm_messages(self, limit=25):
         """Get the most recent LLM messages in chronological order.
