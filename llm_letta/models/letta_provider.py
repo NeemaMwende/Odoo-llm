@@ -19,21 +19,25 @@ class LLMProvider(models.Model):
 
     def letta_get_client(self):
         """Get Letta client instance"""
-
+        _logger.info(f"Creating Letta client for provider {self.name}")
+        
         # Determine if using local or cloud
         if self.api_base and "localhost" in self.api_base:
             # Local server - no auth required
+            _logger.info(f"Using local Letta server at {self.api_base}")
             return Letta(base_url=self.api_base)
         else:
             # Cloud server - requires token and project
             if not self.api_key:
+                _logger.error("API key is required for Letta Cloud connection")
                 raise UserError("API key is required for Letta Cloud connection")
             
             # Use api_base as project if provided, otherwise default
             project = "default-project"
             if self.api_base and self.api_base != "https://api.letta.com/v1":
                 project = self.api_base
-                
+            
+            _logger.info(f"Using Letta Cloud with project: {project}")
             return Letta(token=self.api_key, project=project)
 
     def letta_models(self, model_id=None):
@@ -132,13 +136,225 @@ class LLMProvider(models.Model):
         )
 
     def letta_format_tools(self, tools):  # pylint: disable=unused-argument
-        """Format tools for Letta (basic implementation).
-        
-        For now, just return basic Letta tools. Custom tool integration
-        will be implemented later via MCP server.
-        """
-        # Return basic Letta built-in tools
+        """Format tools for Letta (not used - tools are managed via MCP/API)."""
         return []
+    
+    def letta_ensure_mcp_server(self):
+        """Ensure Odoo MCP server is registered with Letta."""
+        _logger.info("Ensuring Odoo MCP server is registered with Letta")
+        client = self.letta_get_client()
+        
+        # Get MCP server config
+        mcp_config_model = self.env['llm.mcp.server.config']
+        mcp_config = mcp_config_model.get_active_config()
+        server_name = mcp_config.name
+        
+        try:
+            # Check if server already exists
+            _logger.debug("Checking existing MCP servers")
+            servers = client.tools.list_mcp_servers()
+            _logger.debug(f"Found {len(servers)} existing MCP servers")
+            
+            # Check if our server is already registered
+            server_exists = False
+            for server in servers:
+                if isinstance(server, str):
+                    if server == server_name:
+                        server_exists = True
+                        break
+                else:
+                    # Server object has server_name attribute
+                    if hasattr(server, 'server_name') and server.server_name == server_name:
+                        server_exists = True
+                        break
+            
+            if server_exists:
+                _logger.info(f"MCP server '{server_name}' already registered")
+                return True
+                
+            # Get MCP server URL from configuration
+            server_url = mcp_config.get_mcp_server_url()
+            _logger.info(f"Registering MCP server at {server_url}")
+            
+            # Create the proper MCP server config using Letta client types
+            from letta_client.types import StreamableHttpServerConfig
+            
+            mcp_config = StreamableHttpServerConfig(
+                server_name=server_name,
+                server_url=server_url,
+                type="streamable_http"
+            )
+            
+            # Register the MCP server using the correct API
+            response = client.tools.add_mcp_server(request=mcp_config)
+            _logger.info(f"Successfully registered Odoo MCP server: {response}")
+            return True
+            
+        except Exception as e:
+            _logger.error(f"Failed to register MCP server: {e}")
+            raise UserError(f"Failed to register MCP server: {str(e)}") from e
+    
+    def letta_attach_tool(self, agent_id, tool_name):
+        """Attach a specific tool to a Letta agent."""
+        _logger.info(f"Attaching tool '{tool_name}' to Letta agent {agent_id}")
+        client = self.letta_get_client()
+        
+        try:
+            # First ensure MCP server is registered
+            _logger.debug("Ensuring MCP server is registered before tool attachment")
+            self.letta_ensure_mcp_server()
+            
+            # Get MCP server config for server name
+            mcp_config_model = self.env['llm.mcp.server.config']
+            mcp_config = mcp_config_model.get_active_config()
+            server_name = mcp_config.name
+            
+            # Get available MCP tools to verify tool exists
+            _logger.debug(f"Fetching available MCP tools from {server_name} server")
+            mcp_tools = client.tools.list_mcp_tools_by_server(mcp_server_name=server_name)
+            _logger.debug(f"Found {len(mcp_tools)} tools in MCP server")
+            
+            # Check if tool exists in MCP server
+            tool_exists = False
+            for tool in mcp_tools:
+                if tool.name == tool_name:
+                    tool_exists = True
+                    break
+            
+            if not tool_exists:
+                _logger.error(f"Tool '{tool_name}' not found in Odoo MCP server")
+                raise UserError(f"Tool '{tool_name}' not found in Odoo MCP server")
+            
+            # Register the tool with Letta from the MCP server using correct API
+            _logger.debug(f"Registering tool '{tool_name}' with Letta from MCP server")
+            tool_response = client.tools.add_mcp_tool(
+                mcp_server_name=server_name, 
+                mcp_tool_name=tool_name
+            )
+            _logger.info(f"Successfully registered tool '{tool_name}' with Letta: {tool_response}")
+            
+            # Get the registered tool ID
+            registered_tools = client.tools.list()
+            tool_id = None
+            for tool in registered_tools:
+                if tool.name == tool_name:
+                    tool_id = tool.id
+                    break
+            
+            if not tool_id:
+                _logger.error(f"Could not find registered tool '{tool_name}' ID")
+                raise UserError(f"Could not find registered tool '{tool_name}' ID")
+            
+            # Attach tool to agent
+            _logger.debug(f"Attaching tool {tool_id} to agent {agent_id}")
+            attach_response = client.agents.tools.attach(agent_id, tool_id)
+            _logger.info(f"Successfully attached tool '{tool_name}' (ID: {tool_id}) to agent {agent_id}")
+            return attach_response
+            
+        except Exception as e:
+            _logger.error(f"Failed to attach tool '{tool_name}' to agent {agent_id}: {e}")
+            raise UserError(f"Failed to attach tool '{tool_name}': {str(e)}") from e
+    
+    def letta_detach_tool(self, agent_id, tool_name):
+        """Detach a tool from a Letta agent."""
+        client = self.letta_get_client()
+        
+        try:
+            # Get agent's current tools
+            agent_tools = client.agents.tools.list(agent_id)
+            
+            # Find the tool to detach - agent_tools is List[Tool]
+            tool_to_detach = None
+            for tool in agent_tools:
+                if tool.name == tool_name:
+                    tool_to_detach = tool
+                    break
+            
+            if not tool_to_detach:
+                _logger.warning(f"Tool '{tool_name}' not found on agent {agent_id}")
+                return False
+                
+            # Get tool ID from the Tool object
+            if not tool_to_detach.id:
+                raise UserError(f"Could not get tool ID for '{tool_name}'")
+            
+            # Detach tool from agent
+            detach_response = client.agents.tools.detach(agent_id, tool_to_detach.id)
+            _logger.info(f"Detached tool '{tool_name}' from agent {agent_id}")
+            return detach_response
+            
+        except Exception as e:
+            _logger.error(f"Failed to detach tool '{tool_name}' from agent {agent_id}: {e}")
+            raise UserError(f"Failed to detach tool '{tool_name}': {str(e)}") from e
+    
+    def letta_sync_agent_tools(self, agent_id, tool_records):
+        """Synchronize agent tools with thread tool_ids."""
+        _logger.info(f"Synchronizing tools for Letta agent {agent_id} with {len(tool_records) if tool_records else 0} tool records")
+        
+        if not tool_records:
+            # Remove all tools from agent if no tools specified
+            _logger.info(f"No tools specified, removing all Odoo tools from agent {agent_id}")
+            client = self.letta_get_client()
+            try:
+                agent_tools = client.agents.tools.list(agent_id)
+                mcp_tools = []
+                for tool in agent_tools:
+                    if tool.tool_type == "external_mcp":
+                        mcp_tools.append(tool)
+                        
+                _logger.debug(f"Found {len(mcp_tools)} MCP tools to remove from agent {agent_id}")
+                
+                for tool in mcp_tools:
+                    self.letta_detach_tool(agent_id, tool.name)
+                return True
+            except Exception as e:
+                _logger.error(f"Failed to remove tools from agent {agent_id}: {e}")
+                return False
+        
+        # Get all tools from the thread (regardless of implementation type)
+        thread_tools = tool_records.filtered(lambda t: t.active)
+        _logger.debug(f"Found {len(thread_tools)} active tools to sync for thread")
+        
+        if not thread_tools:
+            _logger.info(f"No active tools found, agent {agent_id} sync complete")
+            return True
+        
+        try:
+            # Get current agent tools
+            client = self.letta_get_client()
+            _logger.debug(f"Fetching current tools for agent {agent_id}")
+            agent_tools = client.agents.tools.list(agent_id)
+            
+            # Extract current MCP tool names from Tool objects
+            current_tool_names = set()
+            for tool in agent_tools:
+                if tool.tool_type == "external_mcp":
+                    current_tool_names.add(tool.name)
+                    
+            _logger.debug(f"Agent {agent_id} currently has tools: {current_tool_names}")
+            
+            # Get desired tool names from the thread's tool_ids
+            desired_tool_names = set(thread_tools.mapped('name'))
+            _logger.debug(f"Desired tools for agent {agent_id}: {desired_tool_names}")
+            
+            # Attach new tools
+            tools_to_attach = desired_tool_names - current_tool_names
+            _logger.info(f"Tools to attach to agent {agent_id}: {tools_to_attach}")
+            for tool_name in tools_to_attach:
+                self.letta_attach_tool(agent_id, tool_name)
+            
+            # Detach removed tools
+            tools_to_detach = current_tool_names - desired_tool_names
+            _logger.info(f"Tools to detach from agent {agent_id}: {tools_to_detach}")
+            for tool_name in tools_to_detach:
+                self.letta_detach_tool(agent_id, tool_name)
+            
+            _logger.info(f"Successfully synced tools for agent {agent_id}: +{len(tools_to_attach)}, -{len(tools_to_detach)}")
+            return True
+            
+        except Exception as e:
+            _logger.error(f"Failed to sync tools for agent {agent_id}: {e}")
+            raise UserError(f"Failed to sync agent tools: {str(e)}") from e
 
     def letta_format_messages(self, messages, system_prompt=None):  # pylint: disable=unused-argument
         """Format messages for Letta (simplified - agent maintains history).

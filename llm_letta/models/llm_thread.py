@@ -14,6 +14,17 @@ class LLMThread(models.Model):
         help="External system identifier (e.g., Letta agent ID)",
         index=True,
     )
+    is_letta_provider = fields.Boolean(
+        string="Is Letta Provider",
+        compute="_compute_is_letta_provider",
+        store=False,
+    )
+
+    @api.depends('provider_id.service')
+    def _compute_is_letta_provider(self):
+        """Compute if thread uses Letta provider"""
+        for thread in self:
+            thread.is_letta_provider = thread.provider_id and thread.provider_id.service == 'letta'
 
     def _prepare_chat_kwargs(self, message_history, use_streaming):
         """Override to add thread context for Letta provider."""
@@ -65,6 +76,17 @@ class LLMThread(models.Model):
                             
                     except Exception as e:
                         _logger.error(f"Failed to recreate Letta agent for thread {thread.id}: {e}")
+        
+        # Check if tool_ids changed for Letta threads
+        if 'tool_ids' in vals:
+            for thread in self:
+                if thread.provider_id.service == 'letta' and thread.external_id:
+                    try:
+                        # Sync agent tools with updated tool_ids
+                        thread.provider_id.letta_sync_agent_tools(thread.external_id, thread.tool_ids)
+                        _logger.info(f"Synced tools for Letta agent {thread.external_id}")
+                    except Exception as e:
+                        _logger.error(f"Failed to sync tools for Letta agent {thread.external_id}: {e}")
                         
         return result
     
@@ -190,3 +212,33 @@ class LLMThread(models.Model):
                 raise UserError("Failed to create Letta agent for this thread")
                 
         return agent_id
+    
+    def sync_letta_tools(self):
+        """Manual tool synchronization for Letta agent"""
+        self.ensure_one()
+        
+        if self.provider_id.service != 'letta':
+            raise UserError("This action is only available for Letta threads")
+            
+        if not self.external_id:
+            raise UserError("No Letta agent found for this thread")
+        
+        try:
+            self.provider_id.letta_sync_agent_tools(self.external_id, self.tool_ids)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'message': f"Tools synchronized successfully for agent {self.external_id}",
+                    'type': 'success',
+                }
+            }
+        except Exception as e:
+            return {
+                'type': 'ir.actions.client', 
+                'tag': 'display_notification',
+                'params': {
+                    'message': f"Failed to sync tools: {str(e)}",
+                    'type': 'danger',
+                }
+            }

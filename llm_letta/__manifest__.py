@@ -12,13 +12,14 @@
     "website": "https://github.com/apexive/odoo-llm",
     "category": "Technical",
     "version": "18.0.1.0.0",
-    "depends": ["llm", "llm_thread", "llm_assistant"],
+    "depends": ["llm", "llm_thread", "llm_assistant", "llm_mcp_server"],
     "external_dependencies": {
         "python": ["letta-client"],
     },
     "data": [
-        "data/llm_publisher.xml",
+        "data/llm_publisher.xml", 
         "data/llm_provider.xml",
+        "views/llm_thread_views.xml",
     ],
     "images": [
         "static/description/banner.jpeg",
