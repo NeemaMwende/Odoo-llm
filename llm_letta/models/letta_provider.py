@@ -3,6 +3,9 @@ import logging
 from odoo import api, models
 from odoo.exceptions import UserError
 
+from letta_client import Letta
+from letta_client.types import MessageCreate
+
 _logger = logging.getLogger(__name__)
 
 
@@ -16,12 +19,6 @@ class LLMProvider(models.Model):
 
     def letta_get_client(self):
         """Get Letta client instance"""
-        try:
-            from letta_client import Letta
-        except ImportError as err:
-            raise UserError(
-                "Letta client not installed. Please install with: pip install letta-client"
-            ) from err
 
         # Determine if using local or cloud
         if self.api_base and "localhost" in self.api_base:
@@ -159,58 +156,95 @@ class LLMProvider(models.Model):
             
     def _stream_agent_response(self, client, agent_id, user_content):
         """Stream response from Letta agent."""
-        try:
-            from letta_client.types import MessageCreate
-        except ImportError as err:
-            raise UserError("letta-client not properly installed") from err
             
         stream = client.agents.messages.create_stream(
             agent_id=agent_id,
             messages=[MessageCreate(role="user", content=user_content)],
-            stream_tokens=True
+            stream_tokens=False,
+            use_assistant_message=True,
         )
         
+        response_content = ""
+        
         for chunk in stream:
-            # Handle different Letta message types
-            message_type = getattr(chunk, 'message_type', None)
+            _logger.info(f"Processing chunk: {chunk}")
             
-            if message_type == 'assistant_message' and hasattr(chunk, 'content'):
-                if chunk.content:
-                    yield {"content": chunk.content}
-            elif message_type == 'reasoning_message':
-                # Skip reasoning messages in basic implementation  
-                continue
-            elif message_type == 'tool_call_message':
-                # Skip tool calls for now
-                continue
-            elif message_type == 'tool_return_message':
-                # Skip tool returns for now
-                continue
-                
-        # Yield final response if no content streamed
+            # Check if chunk has message_type attribute (Letta's streaming format)
+            if hasattr(chunk, "message_type"):
+                message_type = getattr(chunk, "message_type", None)
+                _logger.info(f"Chunk message_type: {message_type}")
+
+                # Handle assistant message chunks
+                if message_type == "assistant_message" and hasattr(chunk, "content"):
+                    if chunk.content:
+                        _logger.info(f"Got assistant content: '{chunk.content}'")
+                        response_content += chunk.content
+                        yield {"content": chunk.content}
+
+                # Handle reasoning messages
+                elif message_type == "reasoning_message" and hasattr(chunk, "reasoning"):
+                    _logger.debug("Agent reasoning: %s", chunk.reasoning)
+
+                # Handle tool call messages
+                elif message_type == "tool_call_message" and hasattr(chunk, "tool_call"):
+                    if chunk.tool_call and hasattr(chunk.tool_call, "name") and chunk.tool_call.name:
+                        _logger.info("Agent calling tool: %s", chunk.tool_call.name)
+
+                # Handle tool return messages
+                elif (
+                    message_type == "tool_return_message"
+                    and hasattr(chunk, "tool_return")
+                    and hasattr(chunk, "tool_call_id")
+                ) and chunk.tool_return:
+                    _logger.debug("Tool returned: %s", chunk.tool_return)
+
+            # Handle usage statistics
+            elif hasattr(chunk, "completion_tokens") or getattr(chunk, "message_type", None) == "usage_statistics":
+                _logger.info("Letta usage: %s", chunk)
+        
+        # Log if no content was streamed - this shouldn't happen
+        if not response_content:
+            _logger.error("No response content received from Letta stream - this indicates a streaming configuration issue")
+            _logger.error("Expected assistant_message chunks with content, but only got metadata chunks")
+            # Don't make extra API calls - fix the streaming issue instead
+        
+        if not response_content:
+            response_content = "I couldn't generate a response."
+            
+        # Yield final response
         yield {"content": "", "finish_reason": "stop"}
         
     def _get_agent_response(self, client, agent_id, user_content):
         """Get non-streaming response from Letta agent."""
-        try:
-            from letta_client.types import MessageCreate
-        except ImportError as err:
-            raise UserError("letta-client not properly installed") from err
             
         # For non-streaming, we'll collect the full response
         response_content = ""
+        completion_tokens = 0
         
         stream = client.agents.messages.create_stream(
             agent_id=agent_id,
             messages=[MessageCreate(role="user", content=user_content)],
-            stream_tokens=False  # Even non-streaming uses the stream API
+            stream_tokens=False,  # Even non-streaming uses the stream API
+            use_assistant_message=True,
+            assistant_message_tool_name="send_message",
+            assistant_message_tool_kwarg="message"
         )
         
         for chunk in stream:
-            message_type = getattr(chunk, 'message_type', None)
-            if message_type == 'assistant_message' and hasattr(chunk, 'content'):
-                if chunk.content:
-                    response_content += chunk.content
+            # Check if chunk has message_type attribute (Letta's streaming format)
+            if hasattr(chunk, "message_type"):
+                message_type = getattr(chunk, "message_type", None)
+                
+                # Handle assistant message chunks
+                if message_type == "assistant_message" and hasattr(chunk, "content"):
+                    if chunk.content:
+                        response_content += chunk.content
+            elif hasattr(chunk, "completion_tokens"):
+                completion_tokens = getattr(chunk, "completion_tokens", 0)
+        
+        # Log if no content was received (shouldn't happen with use_assistant_message=True)
+        if not response_content and completion_tokens > 0:
+            _logger.error("No assistant content received despite tokens being used - check agent configuration")
                     
         return {
             "content": response_content or "I couldn't generate a response.",
