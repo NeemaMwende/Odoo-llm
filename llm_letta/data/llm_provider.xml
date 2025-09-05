@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo noupdate="1">
-    <record id="llm_provider_letta_local" model="llm.provider">
+    <record id="llm_provider_letta" model="llm.provider">
         <field name="name">Letta</field>
         <field name="service">letta</field>
         <field name="active" eval="True" />

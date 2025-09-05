@@ -17,6 +17,7 @@
         "python": ["letta-client"],
     },
     "data": [
+        "data/llm_publisher.xml",
         "data/llm_provider.xml",
     ],
     "images": [
