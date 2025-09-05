@@ -1,0 +1,27 @@
+{
+    "name": "Letta LLM Integration",
+    "summary": "Letta provider integration for LLM module",
+    "description": """
+        Implements Letta provider service for the LLM integration module.
+        Supports model fetching from Letta platform for stateful AI agents.
+        
+        Note: This initial implementation only supports model fetching.
+        Chat, embedding, and generation features are not yet implemented.
+    """,
+    "author": "Apexive Solutions LLC",
+    "website": "https://github.com/apexive/odoo-llm",
+    "category": "Technical",
+    "version": "18.0.1.0.0",
+    "depends": ["llm"],
+    "external_dependencies": {
+        "python": ["letta-client"],
+    },
+    "data": [
+        "data/llm_provider.xml",
+    ],
+    "images": [
+        "static/description/banner.jpeg",
+    ],
+    "license": "LGPL-3",
+    "installable": True,
+}

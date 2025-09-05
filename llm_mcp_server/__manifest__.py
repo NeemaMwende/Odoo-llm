@@ -5,10 +5,10 @@
     "summary": "Model Context Protocol (MCP) server for exposing LLM tools",
     "description": """
         Model Context Protocol (MCP) Server for Odoo LLM
-        
-        This module exposes Odoo LLM tools as an MCP server, allowing external systems 
+
+        This module exposes Odoo LLM tools as an MCP server, allowing external systems
         like Claude Desktop, Letta, or other MCP clients to access and execute Odoo tools.
-        
+
         Key features:
         - HTTP-based MCP server implementation
         - JSON-RPC 2.0 protocol support

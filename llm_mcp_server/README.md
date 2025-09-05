@@ -13,11 +13,13 @@ This module implements a Model Context Protocol (MCP) server that exposes Odoo's
 ## Endpoints
 
 ### Main MCP Endpoint
+
 - **URL**: `/mcp`
 - **Method**: POST
 - **Content-Type**: application/json
 
 ### Health Check
+
 - **URL**: `/mcp/health`
 - **Method**: GET or POST
 - **Returns**: Server status and tools count
@@ -25,6 +27,7 @@ This module implements a Model Context Protocol (MCP) server that exposes Odoo's
 ## MCP Protocol Methods
 
 ### 1. Initialize
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -42,6 +45,7 @@ This module implements a Model Context Protocol (MCP) server that exposes Odoo's
 ```
 
 ### 2. List Tools
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -52,6 +56,7 @@ This module implements a Model Context Protocol (MCP) server that exposes Odoo's
 ```
 
 ### 3. Call Tool
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -69,6 +74,7 @@ This module implements a Model Context Protocol (MCP) server that exposes Odoo's
 ## Testing with cURL
 
 ### Initialize
+
 ```bash
 curl -X POST http://localhost:8069/mcp \
   -H "Content-Type: application/json" \
@@ -84,6 +90,7 @@ curl -X POST http://localhost:8069/mcp \
 ```
 
 ### List Tools
+
 ```bash
 curl -X POST http://localhost:8069/mcp \
   -H "Content-Type: application/json" \
@@ -96,6 +103,7 @@ curl -X POST http://localhost:8069/mcp \
 ```
 
 ### Call a Tool
+
 ```bash
 curl -X POST http://localhost:8069/mcp \
   -H "Content-Type: application/json" \
@@ -118,15 +126,19 @@ curl -X POST http://localhost:8069/mcp \
 ## Integration with External MCP Clients
 
 ### Claude Desktop Configuration
+
 Add to Claude Desktop's configuration:
+
 ```json
 {
   "mcpServers": {
     "odoo": {
       "command": "curl",
       "args": [
-        "-X", "POST",
-        "-H", "Content-Type: application/json",
+        "-X",
+        "POST",
+        "-H",
+        "Content-Type: application/json",
         "http://your-odoo-server:8069/mcp"
       ]
     }
@@ -135,7 +147,9 @@ Add to Claude Desktop's configuration:
 ```
 
 ### With MCP Client Libraries
+
 Most MCP client libraries support HTTP transport. Configure them to point to:
+
 - **URL**: `http://your-odoo-server:8069/mcp`
 - **Transport**: `streamable_http`
 - **Protocol**: JSON-RPC 2.0

@@ -18,7 +18,7 @@ The `llm_mcp_server` module implements a Model Context Protocol (MCP) server tha
 The server implements MCP protocol over HTTP transport using pure JSON-RPC 2.0:
 
 - **Endpoint**: `/mcp`
-- **Transport**: `streamable_http` 
+- **Transport**: `streamable_http`
 - **Protocol**: JSON-RPC 2.0
 - **Authentication**: None (currently uses `sudo()` for simplicity)
 
@@ -39,13 +39,13 @@ Check that the MCP server is accessible:
 # Health check
 curl http://localhost:8069/mcp/health
 
-# MCP initialize test  
+# MCP initialize test
 curl -X POST http://localhost:8069/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
     "id": 1,
-    "method": "initialize", 
+    "method": "initialize",
     "params": {
       "protocolVersion": "2024-11-05",
       "clientInfo": {"name": "test", "version": "1.0"}
@@ -61,7 +61,7 @@ For **Letta** (or similar systems):
 # Register MCP server with Letta
 letta_client.tools.add_mcp_server(
     server_name="odoo_mcp",
-    server_url="http://your-odoo-server:8069/mcp", 
+    server_url="http://your-odoo-server:8069/mcp",
     type="streamable_http"
 )
 ```
@@ -88,7 +88,7 @@ For **Claude Desktop**:
 **Root Cause**: Using Odoo's `type='json'` endpoint caused double-wrapping of responses and incorrect ID handling:
 
 ```json
-// Broken response from type='json' 
+// Broken response from type='json'
 {
   "jsonrpc": "2.0",
   "id": null,  // ← Invalid ID broke client validation
@@ -103,9 +103,9 @@ For **Claude Desktop**:
 def mcp_server(self):
     raw_body = request.httprequest.get_data(as_text=True)
     params = json.loads(raw_body)
-    
+
     response = {
-        "jsonrpc": "2.0", 
+        "jsonrpc": "2.0",
         "id": self._ensure_valid_id(params.get('id')),  # ← Proper ID handling
         "result": {...}
     }
@@ -113,7 +113,7 @@ def mcp_server(self):
 
 **Key Insight**: Odoo's JSON-RPC format is incompatible with standard JSON-RPC 2.0 that MCP requires.
 
-### Issue 2: OpenAI Tool Schema Validation Failures  
+### Issue 2: OpenAI Tool Schema Validation Failures
 
 **Problem**: Letta forwarded tools to OpenAI, which rejected them with:
 
@@ -139,7 +139,7 @@ method_type_filter: Optional[list[str]] = None
 def _patch_schema_for_openai_compatibility(self, schema_node):
     """Fix array schemas that don't specify items type"""
     if "items" in schema_node and isinstance(schema_node["items"], dict):
-        items_dict = schema_node["items"] 
+        items_dict = schema_node["items"]
         if "type" not in items_dict:
             items_dict["type"] = "string"  # Default for OpenAI compatibility
 ```
@@ -154,7 +154,7 @@ def _patch_schema_for_openai_compatibility(self, schema_node):
 
 **Solution**: Added timestamp-based ID generation for missing request IDs:
 
-```python  
+```python
 def _ensure_valid_id(self, request_id):
     if request_id is not None:
         return request_id
@@ -181,7 +181,7 @@ def _json_rpc_http_response(self, request_id, result=None, error=None):
 These tools have been tested and work correctly with external MCP clients:
 
 1. **`odoo_record_retriever`**: Searches and retrieves Odoo records
-2. **`odoo_record_updater`**: Updates existing Odoo records  
+2. **`odoo_record_updater`**: Updates existing Odoo records
 3. **`odoo_record_unlinker`**: Deletes Odoo records
 
 ### ⚠️ Untested Tools
@@ -197,21 +197,25 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
 ## Current Limitations
 
 ### 1. **No Authentication**
-- Uses `sudo()` for all operations 
+
+- Uses `sudo()` for all operations
 - No user context tracking
 - No permission enforcement
 
 ### 2. **No Session Management**
+
 - Stateless tool execution
 - No audit trail of external usage
 - Can't track which external user performed actions
 
 ### 3. **Limited Error Handling**
+
 - Basic error responses
 - No detailed error codes
 - Tool execution failures return generic messages
 
 ### 4. **Performance Concerns**
+
 - No rate limiting
 - No caching of tool definitions
 - Each request searches database for tools
@@ -221,6 +225,7 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
 ### High Priority
 
 1. **Authentication & Authorization**
+
    ```python
    # Add session-based auth
    def _authenticate_mcp_request(self, headers):
@@ -228,7 +233,8 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
        return self._validate_session(session_token)
    ```
 
-2. **User Context Tracking**  
+2. **User Context Tracking**
+
    ```python
    # Log tool usage with user context
    env['mcp.tool.usage'].create({
@@ -244,7 +250,7 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
    # Structured error responses
    TOOL_ERROR_CODES = {
        'TOOL_NOT_FOUND': -32001,
-       'INVALID_ARGUMENTS': -32002, 
+       'INVALID_ARGUMENTS': -32002,
        'PERMISSION_DENIED': -32003,
        'EXECUTION_FAILED': -32004
    }
@@ -253,11 +259,13 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
 ### Medium Priority
 
 4. **Performance Optimization**
+
    - Cache tool definitions
    - Add rate limiting per client
    - Implement connection pooling
 
-5. **Enhanced Tool Support**  
+5. **Enhanced Tool Support**
+
    - Test and fix remaining tools
    - Add streaming support for long-running operations
    - Better parameter validation
@@ -267,7 +275,7 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
    - Performance metrics
    - Health monitoring dashboard
 
-### Low Priority  
+### Low Priority
 
 7. **Protocol Enhancements**
    - Support additional MCP transports (WebSocket, stdio)
@@ -279,7 +287,7 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
 ⚠️ **WARNING**: Current implementation has significant security risks:
 
 - **No authentication**: Any client can execute any tool
-- **Full system access**: Uses `sudo()` with no restrictions  
+- **Full system access**: Uses `sudo()` with no restrictions
 - **No audit trail**: External usage is not tracked
 - **No rate limiting**: Vulnerable to abuse
 
@@ -296,7 +304,7 @@ To add support for additional MCP protocol methods:
 elif method == 'your_new_method':
     return self._http_handle_your_method(request_id, request_params)
 
-# Add handler method  
+# Add handler method
 def _http_handle_your_method(self, request_id, params):
     try:
         # Your logic here
@@ -314,7 +322,7 @@ If you encounter schema validation issues with new tools:
 # Extend _patch_schema_for_openai_compatibility()
 def _patch_schema_for_openai_compatibility(self, schema_node):
     # Existing array patching...
-    
+
     # Add new schema fixes as needed
     if "your_problematic_type" in schema_node:
         # Fix the schema issue
@@ -328,7 +336,7 @@ def _patch_schema_for_openai_compatibility(self, schema_node):
 ```python
 # Letta agent can now call Odoo tools
 result = await agent.call_tool("odoo_record_retriever", {
-    "model": "res.partner", 
+    "model": "res.partner",
     "domain": [["is_company", "=", True]],
     "fields": ["name", "email"],
     "limit": 10
@@ -340,7 +348,7 @@ result = await agent.call_tool("odoo_record_retriever", {
 After MCP server configuration, Claude Desktop users can:
 
 - "Show me the top 10 customers in Odoo"
-- "Update the contact information for customer X" 
+- "Update the contact information for customer X"
 - "Delete the obsolete product records"
 
 ## Conclusion
@@ -352,6 +360,6 @@ The troubleshooting journey revealed important insights about JSON-RPC protocol 
 ## References
 
 - [Model Context Protocol Specification](https://github.com/anthropics/mcp)
-- [JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)  
+- [JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)
 - [Odoo LLM Tools Documentation](../llm_tool/README.md)
 - [OpenAI Tools API Documentation](https://platform.openai.com/docs/guides/function-calling)

@@ -5,6 +5,8 @@ chromadb-client
 emoji
 fal_client
 jinja2
+jsonschema
+letta-client
 llama_index
 markdown2
 markdownify
