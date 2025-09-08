@@ -50,14 +50,18 @@ class MCPServerController(http.Controller):
         Recursively patch JSON schema to ensure OpenAI compatibility.
 
         Specifically ensures 'items' dictionaries have a 'type' defined,
-        which OpenAI requires for array types.
+        which OpenAI requires for array types, and 'object' types have
+        'additionalProperties' set to false.
 
         This uses the same logic as the OpenAI provider in llm_openai.
         """
         if not isinstance(schema_node, dict):
             return
 
-        # Fix array items that don't have a type
+        # Ensure object types have additionalProperties: false
+        if schema_node.get("type") == "object":
+            schema_node["additionalProperties"] = False
+        # Fix array items that don't have a type (for existing 'items')
         if "items" in schema_node and isinstance(schema_node["items"], dict):
             items_dict = schema_node["items"]
             if "type" not in items_dict:
@@ -217,10 +221,13 @@ class MCPServerController(http.Controller):
                 # Patch the schema to fix array items (same logic as OpenAI provider)
                 if "inputSchema" in tool_def:
                     self._patch_schema_for_openai_compatibility(tool_def["inputSchema"])
+                if tool.name == "odoo_submit_answer_and_get_next_question":
+                    _logger.info(tool_def)
 
                 mcp_tools.append(tool_def)
 
             _logger.info(f"Returning {len(mcp_tools)} tools")
+            
 
             result = {"tools": mcp_tools}
             return self._json_rpc_http_response(request_id, result=result)
