@@ -79,7 +79,7 @@ class MCPServerController(http.Controller):
                 for sub_schema in schema_node[combiner]:
                     self._patch_schema_for_openai_compatibility(sub_schema)
 
-    @http.route("/mcp", type="http", auth="user", methods=["POST"], csrf=False)
+    @http.route("/mcp", type="http", auth="public", methods=["POST"], csrf=False)
     def mcp_server(self):
         """
         Main MCP server endpoint handling JSON-RPC 2.0 requests
@@ -87,13 +87,9 @@ class MCPServerController(http.Controller):
         This endpoint routes MCP protocol messages to appropriate handlers.
         """
         try:
-            # Log authenticated user making the request
-            user = request.env.user
-            _logger.info(f"MCP request from user: {user.login} ({user.name})")
-            
             # Read the raw request body
             raw_body = request.httprequest.get_data(as_text=True)
-            _logger.info(f"Raw MCP Request received: {raw_body}")
+            _logger.info(f"MCP Request received: {len(raw_body)} bytes")
 
             # Parse JSON from raw body
             if not raw_body.strip():
@@ -129,8 +125,10 @@ class MCPServerController(http.Controller):
             if method == "initialize":
                 return self._http_handle_initialize(request_id, request_params)
             elif method == "tools/list":
+                # Public method - no authentication required
                 return self._http_handle_tools_list(request_id, request_params)
             elif method == "tools/call":
+                # Private method - authentication required
                 return self._http_handle_tools_call(request_id, request_params)
             elif method == "notifications/initialized":
                 # Client notification that initialization is complete
@@ -144,7 +142,21 @@ class MCPServerController(http.Controller):
         except Exception as e:
             _logger.exception(f"Error in MCP server: {e}")
             return self._http_error_response(None, -32603, f"Internal error: {str(e)}")
-
+            
+    def _authenticate_request(self):
+        """Authenticate MCP request - check if user is logged in"""
+        try:
+            # Try to get current user from session
+            if hasattr(request, 'env') and request.env.user and not request.env.user._is_public():
+                user = request.env.user
+                _logger.info(f"Authenticated user: {user.login} ({user.name}) - ID: {user.id}")
+                return user, None
+            else:
+                return None, "Authentication required - please provide valid session cookie"
+        except Exception as e:
+            _logger.warning(f"Authentication error: {e}")
+            return None, f"Authentication failed: {str(e)}"
+    
     def _build_json_rpc_response(
         self, request_id: Optional[Any], result: dict = None, error: dict = None
     ):
@@ -243,21 +255,25 @@ class MCPServerController(http.Controller):
     def _http_handle_tools_call(
         self, request_id: Optional[Any], params: dict[str, Any]
     ):
-        """Handle tools/call request"""
+        """Handle tools/call request with authentication"""
+        # Check authentication first
+        user, auth_error = self._authenticate_request()
+        if not user:
+            return self._http_error_response(request_id, -32001, auth_error)
+
         try:
             tool_name = params.get("name")
             arguments = params.get("arguments", {})
 
-            _logger.info(f"MCP tools/call request for tool: {tool_name}")
+            _logger.info(f"Authenticated tools/call request for tool: {tool_name} by user: {user.login}")
 
             if not tool_name:
                 return self._http_error_response(
                     request_id, -32602, "Missing tool name"
                 )
 
-            # Find the tool
-            tools_model = request.env["llm.tool"].sudo()
-            tool = tools_model.search(
+            # Find the tool with user context (not sudo!)
+            tool = request.env["llm.tool"].search(
                 [("name", "=", tool_name), ("active", "=", True)], limit=1
             )
 
@@ -266,7 +282,16 @@ class MCPServerController(http.Controller):
                     request_id, -32602, f"Tool not found: {tool_name}"
                 )
 
-            # Execute the tool
+            # Check if user has access to this tool
+            try:
+                tool.check_access('read')
+            except Exception as e:
+                _logger.warning(f"User {user.login} denied access to tool {tool_name}: {e}")
+                return self._http_error_response(
+                    request_id, -32003, f"Access denied to tool: {tool_name}"
+                )
+
+            # Execute the tool with user context (no sudo!)
             try:
                 result = tool.execute(arguments)
 
@@ -282,11 +307,11 @@ class MCPServerController(http.Controller):
                     "isError": False,
                 }
 
-                _logger.info(f"Tool {tool_name} executed successfully")
+                _logger.info(f"Tool {tool_name} executed successfully by user {user.login}")
                 return self._json_rpc_http_response(request_id, result=mcp_result)
 
             except Exception as e:
-                _logger.exception(f"Error executing tool {tool_name}: {e}")
+                _logger.exception(f"Error executing tool {tool_name} for user {user.login}: {e}")
 
                 # Return tool error in result (not as JSON-RPC error)
                 mcp_result = {
@@ -300,6 +325,7 @@ class MCPServerController(http.Controller):
         except Exception as e:
             _logger.exception(f"Error in tools/call: {e}")
             return self._http_error_response(request_id, -32603, str(e))
+
 
     def _http_error_response(self, request_id: Optional[Any], code: int, message: str):
         """Build a JSON-RPC 2.0 error response"""
