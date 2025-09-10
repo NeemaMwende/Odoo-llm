@@ -194,7 +194,7 @@ class MCPServerController(http.Controller):
                 _logger.info(f"Authenticated user: {user.login} ({user.name}) - ID: {user.id}")
                 return user, None
             else:
-                return None, "Authentication required - please provide valid session cookie"
+                raise Exception("User not authenticated")
         except Exception as e:
             _logger.warning(f"Authentication error: {e}")
             return None, f"Authentication failed: {str(e)}"
