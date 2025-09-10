@@ -4,10 +4,10 @@ import logging
 
 import emoji
 import markdown2
+from psycopg2 import OperationalError
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-from psycopg2 import OperationalError
 
 _logger = logging.getLogger(__name__)
 
@@ -158,6 +158,7 @@ class LLMThread(models.Model):
         store=True,
         help='Total number of attachments in this thread'
     )
+    
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -328,6 +329,7 @@ class LLMThread(models.Model):
         raise UserError(
             _("Please install the llm_assistant module for actual AI generation.")
         )
+
 
     def get_context(self, base_context=None):
         context = {

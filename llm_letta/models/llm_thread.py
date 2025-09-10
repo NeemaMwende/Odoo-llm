@@ -171,6 +171,14 @@ class LLMThread(models.Model):
             # Default to openai prefix if no provider specified
             model_name = f"openai/{model_name}"
 
+        # Get MCP session for authentication
+        try:
+            mcp_session_id = thread.ensure_mcp_session()
+            _logger.info(f"Created MCP session {mcp_session_id} for Letta agent")
+        except Exception as e:
+            _logger.error(f"Failed to create MCP session: {e}")
+            mcp_session_id = None
+
         # Build full configuration
         agent_config = {
             "name": f"thread_{thread.id}",
@@ -179,6 +187,12 @@ class LLMThread(models.Model):
             "memory_blocks": memory_blocks,
             "tools": thread.provider_id.letta_format_tools([]),  # Basic tools for now
         }
+
+        # Add environment variables for MCP authentication
+        if mcp_session_id:
+            agent_config["tool_exec_environment_variables"] = {
+                "ODOO_SESSION_ID": mcp_session_id,
+            }
 
         return agent_config
 

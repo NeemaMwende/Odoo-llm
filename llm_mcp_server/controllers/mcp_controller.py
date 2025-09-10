@@ -79,7 +79,7 @@ class MCPServerController(http.Controller):
                 for sub_schema in schema_node[combiner]:
                     self._patch_schema_for_openai_compatibility(sub_schema)
 
-    @http.route("/mcp", type="http", auth="none", methods=["POST"], csrf=False)
+    @http.route("/mcp", type="http", auth="user", methods=["POST"], csrf=False)
     def mcp_server(self):
         """
         Main MCP server endpoint handling JSON-RPC 2.0 requests
@@ -87,6 +87,10 @@ class MCPServerController(http.Controller):
         This endpoint routes MCP protocol messages to appropriate handlers.
         """
         try:
+            # Log authenticated user making the request
+            user = request.env.user
+            _logger.info(f"MCP request from user: {user.login} ({user.name})")
+            
             # Read the raw request body
             raw_body = request.httprequest.get_data(as_text=True)
             _logger.info(f"Raw MCP Request received: {raw_body}")

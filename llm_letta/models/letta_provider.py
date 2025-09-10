@@ -185,7 +185,13 @@ class LLMProvider(models.Model):
             from letta_client.types import StreamableHttpServerConfig
 
             mcp_config = StreamableHttpServerConfig(
-                server_name=server_name, server_url=server_url, type="streamable_http"
+                server_name=server_name, 
+                server_url=server_url, 
+                type="streamable_http",
+                custom_headers={
+                    # Letta will replace this template with session_id from environment variables
+                    "Cookie": "session_id={{ ODOO_SESSION_ID | NO_SESSION }}",
+                },
             )
 
             # Register the MCP server using the correct API
