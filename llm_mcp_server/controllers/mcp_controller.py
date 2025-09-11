@@ -191,28 +191,16 @@ class MCPServerController(http.Controller):
     def _handle_notification(self, notification: JSONRPCNotification):
         """Handle JSON-RPC notifications
         
-        According to JSON-RPC spec, notifications should not return responses.
-        Return 204 NO CONTENT with no body to comply with the spec.
+        According to MCP specification, notifications should return 202 Accepted with no body.
+        https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http
         """
         if notification.method == "notifications/initialized":
             _logger.info("MCP client initialization complete")
         else:
             _logger.warning(f"Unknown notification method: {notification.method}")
         
-        # MCP client always expects valid JSONRPCMessage for application/json responses
-        # Even though JSON-RPC spec says notifications have no response,
-        # we must return valid JSON-RPC structure using MCP SDK types
-        response = JSONRPCResponse(
-            jsonrpc="2.0",
-            id=1,  # Use a dummy ID since None is not allowed
-            result={}  # Empty result for notification acknowledgment
-        )
-        
-        return http.Response(
-            response.model_dump_json(),
-            status=HTTP_OK,
-            headers={"Content-Type": CONTENT_TYPE_JSON}
-        )
+        # MCP specification: notifications return 202 Accepted with no body
+        return http.Response("", status=202, headers={})
 
             
     def _extract_api_key(self):
