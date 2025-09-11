@@ -240,6 +240,47 @@ class MCPServerController(http.Controller):
         )
 
             
+    def _extract_api_key(self):
+        """Extract API key from Authorization Bearer or X-API-KEY header"""
+        import re
+        # Check Authorization: Bearer <key>
+        header = request.httprequest.headers.get('Authorization')
+        if header:
+            m = re.match(r"^Bearer\s+(.+)$", header, re.IGNORECASE)
+            if m:
+                return m.group(1)
+        
+        # Fallback to X-API-KEY header
+        return request.httprequest.headers.get('X-API-KEY')
+
+    def _authenticate_api_key_or_error(self):
+        """Validate API key and bind request to corresponding user"""
+        token = self._extract_api_key()
+        if not token:
+            return self._http_error_response(
+                None, AUTHENTICATION_REQUIRED,
+                "Missing API key in Authorization or X-API-KEY header"
+            )
+        
+        # Validate API key using Odoo's built-in system
+        uid = request.env['res.users.apikeys']._check_credentials(scope='rpc', key=token)
+        if not uid:
+            return self._http_error_response(
+                None, AUTHENTICATION_REQUIRED,
+                "Invalid API key"
+            )
+        
+        # Check for session conflict
+        if request.env.uid and request.env.uid != uid:
+            return self._http_error_response(
+                None, ACCESS_DENIED,
+                "Session user does not match API key user"
+            )
+        
+        # Bind request environment to API key owner
+        request.update_env(user=uid)
+        return None  # Success
+
     def _authenticate_request(self):
         """Authenticate MCP request - check if user is logged in"""
         try:
