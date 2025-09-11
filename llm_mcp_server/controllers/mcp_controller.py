@@ -6,7 +6,7 @@ from typing import Any, Optional
 # MCP SDK imports - required for MCP compliance
 from mcp.types import (
     JSONRPCMessage, JSONRPCRequest, JSONRPCNotification, JSONRPCResponse,
-    InitializeRequest, CallToolRequest, ListToolsRequest,
+    InitializeRequest, CallToolRequest, ListToolsRequest, ListToolsResult,
     Tool, CallToolResult, TextContent,
     PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, 
     INVALID_PARAMS, INTERNAL_ERROR
@@ -68,39 +68,6 @@ class MCPServerController(http.Controller):
             return request_id
         return int(time.time() * 1000)  # Milliseconds since epoch
 
-    def _patch_schema_for_openai_compatibility(self, schema_node):
-        """
-        Recursively patch JSON schema to ensure OpenAI compatibility.
-
-        Specifically ensures 'items' dictionaries have a 'type' defined,
-        which OpenAI requires for array types, and 'object' types have
-        'additionalProperties' set to false.
-
-        This uses the same logic as the OpenAI provider in llm_openai.
-        """
-        if not isinstance(schema_node, dict):
-            return
-
-        # Ensure object types have additionalProperties: false
-        if schema_node.get("type") == "object":
-            schema_node["additionalProperties"] = False
-        # Fix array items that don't have a type (for existing 'items')
-        if "items" in schema_node and isinstance(schema_node["items"], dict):
-            items_dict = schema_node["items"]
-            if "type" not in items_dict:
-                items_dict["type"] = "string"  # Default to string type
-            self._patch_schema_for_openai_compatibility(items_dict)
-
-        # Recursively patch properties
-        if "properties" in schema_node and isinstance(schema_node["properties"], dict):
-            for prop_schema in schema_node["properties"].values():
-                self._patch_schema_for_openai_compatibility(prop_schema)
-
-        # Handle schema combiners (anyOf, allOf, oneOf)
-        for combiner in ["anyOf", "allOf", "oneOf"]:
-            if combiner in schema_node and isinstance(schema_node[combiner], list):
-                for sub_schema in schema_node[combiner]:
-                    self._patch_schema_for_openai_compatibility(sub_schema)
 
     @http.route("/mcp", type="http", auth="public", methods=["POST"], csrf=False)
     def mcp_server(self):
@@ -354,27 +321,25 @@ class MCPServerController(http.Controller):
     def _http_handle_tools_list(
         self, request_id: Optional[Any], params: dict[str, Any]
     ):
-        """Handle tools/list request"""
+        """Handle tools/list request using proper MCP types"""
         _logger.info("MCP tools/list request")
 
         # Get all active tools from llm.tool model
         tools_model = request.env["llm.tool"].sudo()
         tools = tools_model.search([("active", "=", True)])
 
-        # Convert to MCP tool format
+        # Get MCP Tool objects directly
         mcp_tools = []
         for tool in tools:
-            tool_def = tool.get_tool_definition()
+            mcp_tool = tool.get_tool_definition()  # This now returns a Tool object
+            mcp_tools.append(mcp_tool)
 
-            # Patch the schema to fix array items (same logic as OpenAI provider)
-            if "inputSchema" in tool_def:
-                self._patch_schema_for_openai_compatibility(tool_def["inputSchema"])
-
-            mcp_tools.append(tool_def)
-
+        # Create proper MCP response using ListToolsResult
+        result = ListToolsResult(tools=mcp_tools)
+        
         _logger.info(f"Returning {len(mcp_tools)} tools")
-        result = {"tools": mcp_tools}
-        return self._json_rpc_http_response(request_id, result=result)
+        # Use exclude_none=True to omit null fields that Letta doesn't expect
+        return self._json_rpc_http_response(request_id, result=result.model_dump(exclude_none=True))
 
     def _http_handle_tools_call(
         self, request_id: Optional[Any], params: dict[str, Any]

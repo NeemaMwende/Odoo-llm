@@ -112,33 +112,22 @@ class LLMTool(models.Model):
         return create_model("DynamicModel", **fields)
 
     def get_input_schema(self, method="execute"):
-        """Generate input schema from the method signature of the implementation"""
+        """Generate MCP-compatible input schema using MCP SDK"""
         if not self.implementation:
-            return {}
+            raise ValueError(f"Tool {self.name} has no implementation configured")
 
         impl_method_name = f"{self.implementation}_{method}"
         if not hasattr(self, impl_method_name):
-            _logger.warning(f"Method {impl_method_name} not found for tool {self.name}")
-            return {}
+            raise AttributeError(f"Method {impl_method_name} not found for tool {self.name}")
 
-        method = getattr(self, impl_method_name)
-        model = self.get_pydantic_model_from_signature(method)
-        schema = model.model_json_schema()
-
-        if method.__doc__:
-            doc_lines = method.__doc__.split("\n")
-            param_desc = {}
-
-            for line in doc_lines:
-                line = line.strip()
-                for prop_name in schema.get("properties", {}):
-                    if line.startswith(f"{prop_name}:"):
-                        param_desc[prop_name] = line[len(prop_name) + 1 :].strip()
-
-            for prop_name, desc in param_desc.items():
-                if prop_name in schema.get("properties", {}):
-                    schema["properties"][prop_name]["description"] = desc
-
+        method_func = getattr(self, impl_method_name)
+        
+        # Use MCP SDK's func_metadata to generate proper schema
+        from mcp.server.fastmcp.utilities.func_metadata import func_metadata
+        func_meta = func_metadata(method_func)
+        
+        # Get MCP-compatible schema
+        schema = func_meta.arg_model.model_json_schema(by_alias=True)
         return schema
 
     def execute(self, parameters):
@@ -162,43 +151,47 @@ class LLMTool(models.Model):
 
     # API methods for the Tool schema
     def get_tool_definition(self):
-        """Returns a Tool object as per the schema specification"""
+        """Returns MCP-compatible tool definition using MCP SDK"""
         self.ensure_one()
 
         # Get the input schema - either from input_schema field or compute it
-        input_schema_data = {}
         if self.input_schema:
             try:
                 input_schema_data = json.loads(self.input_schema)
             except (json.JSONDecodeError, TypeError):
-                # If we can't parse the input_schema, generate it from the method signature
+                # If we can't parse the stored schema, generate it from method signature
                 input_schema_data = self.get_input_schema()
         else:
-            # Generate schema from method signature
+            # Generate schema from method signature using MCP SDK
             input_schema_data = self.get_input_schema()
 
-        # If we still don't have a schema, use a default
-        if not input_schema_data:
-            input_schema_data = {"type": "object", "properties": {}, "required": []}
+        # Create MCP ToolAnnotations (only with non-None values)
+        from mcp.types import Tool, ToolAnnotations
+        
+        # Build annotations dict with only non-None values
+        annotations_data = {}
+        if self.read_only_hint is not None:
+            annotations_data["readOnlyHint"] = self.read_only_hint
+        if self.idempotent_hint is not None:
+            annotations_data["idempotentHint"] = self.idempotent_hint
+        if self.destructive_hint is not None:
+            annotations_data["destructiveHint"] = self.destructive_hint
+        if self.open_world_hint is not None:
+            annotations_data["openWorldHint"] = self.open_world_hint
+            
+        tool_annotations = ToolAnnotations(**annotations_data) if annotations_data else None
 
-        # Build annotations object
-        annotations = {
-            "title": self.title if self.title else self.name,
-            "readOnlyHint": self.read_only_hint,
-            "idempotentHint": self.idempotent_hint,
-            "destructiveHint": self.destructive_hint,
-            "openWorldHint": self.open_world_hint,
-        }
+        # Create and validate MCP Tool instance
+        mcp_tool = Tool(
+            name=self.name,
+            title=self.title if self.title else self.name,  # title goes to BaseMetadata, not ToolAnnotations
+            description=self.description or "",
+            inputSchema=input_schema_data,
+            annotations=tool_annotations,
+        )
 
-        # Build tool definition matching the schema
-        tool_def = {
-            "name": self.name,
-            "description": self.description,
-            "inputSchema": input_schema_data,
-            "annotations": annotations,
-        }
-
-        return tool_def
+        # Return the actual MCP Tool object
+        return mcp_tool
 
     @api.onchange("implementation")
     def _onchange_implementation(self):
