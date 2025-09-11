@@ -3,32 +3,33 @@ import logging
 import time
 from typing import Any, Optional
 
+# MCP SDK imports - required for MCP compliance
+from mcp.types import (
+    JSONRPCMessage, JSONRPCRequest, JSONRPCNotification,
+    InitializeRequest, CallToolRequest, ListToolsRequest,
+    Tool, CallToolResult, TextContent,
+    PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, 
+    INVALID_PARAMS, INTERNAL_ERROR
+)
+from mcp.server.streamable_http import (
+    MCP_SESSION_ID_HEADER, MCP_PROTOCOL_VERSION_HEADER,
+    CONTENT_TYPE_JSON, CONTENT_TYPE_SSE
+)
+from pydantic import ValidationError
+
 from odoo import http
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
 
-class JSONRPCErrorCodes:
-    """JSON-RPC 2.0 error codes"""
-    PARSE_ERROR = -32700
-    INVALID_REQUEST = -32600
-    METHOD_NOT_FOUND = -32601
-    INVALID_PARAMS = -32602
-    INTERNAL_ERROR = -32603
-    
-    # Custom error codes for MCP
-    AUTHENTICATION_REQUIRED = -32001
-    ACCESS_DENIED = -32003
+# Custom error codes for MCP authentication (not in standard JSON-RPC spec)
+AUTHENTICATION_REQUIRED = -32001
+ACCESS_DENIED = -32003
 
-
-class MCPConstants:
-    """MCP protocol constants"""
-    JSON_RPC_VERSION = "2.0"
-    CONTENT_TYPE_JSON = "application/json"
-    DEFAULT_ARRAY_TYPE = "string"
-    HTTP_NO_CONTENT = 204
-    HTTP_OK = 200
+# HTTP status codes
+HTTP_NO_CONTENT = 204
+HTTP_OK = 200
 
 
 class MCPServerController(http.Controller):
@@ -87,7 +88,7 @@ class MCPServerController(http.Controller):
         if "items" in schema_node and isinstance(schema_node["items"], dict):
             items_dict = schema_node["items"]
             if "type" not in items_dict:
-                items_dict["type"] = MCPConstants.DEFAULT_ARRAY_TYPE  # Default to string type
+                items_dict["type"] = "string"  # Default to string type
             self._patch_schema_for_openai_compatibility(items_dict)
 
         # Recursively patch properties
@@ -108,50 +109,88 @@ class MCPServerController(http.Controller):
 
         This endpoint routes MCP protocol messages to appropriate handlers.
         """
+        # Ensure we always return JSON, even for unhandled exceptions
         try:
             request_data = self._parse_request()
             return self._route_request(request_data)
         except ValueError as e:
             # Handle parsing and validation errors
+            _logger.error(f"MCP parsing error: {e}")
             if "Parse error" in str(e):
-                return self._http_error_response(None, JSONRPCErrorCodes.PARSE_ERROR, str(e))
+                return self._http_error_response(None, PARSE_ERROR, str(e))
             elif "Invalid JSON-RPC version" in str(e):
-                return self._http_error_response(None, JSONRPCErrorCodes.INVALID_REQUEST, str(e))
+                return self._http_error_response(None, INVALID_REQUEST, str(e))
             else:
-                return self._http_error_response(None, JSONRPCErrorCodes.INVALID_PARAMS, str(e))
+                return self._http_error_response(None, INVALID_PARAMS, str(e))
         except Exception as e:
-            _logger.exception(f"Error in MCP server: {e}")
-            return self._http_error_response(None, JSONRPCErrorCodes.INTERNAL_ERROR, f"Internal error: {str(e)}")
+            _logger.exception(f"Unhandled error in MCP server: {e}")
+            # Ensure we return JSON even for unexpected errors
+            try:
+                return self._http_error_response(None, INTERNAL_ERROR, f"Internal error: {str(e)}")
+            except Exception as inner_e:
+                _logger.error(f"Failed to create error response: {inner_e}")
+                # Last resort: manual JSON response
+                error_response = {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": INTERNAL_ERROR, "message": "Critical server error"}
+                }
+                return http.Response(
+                    json.dumps(error_response),
+                    headers={"Content-Type": CONTENT_TYPE_JSON},
+                    status=HTTP_OK
+                )
 
-    def _parse_request(self) -> dict:
-        """Parse and validate the incoming request"""
+    def _parse_request(self) -> JSONRPCMessage:
+        """Parse and validate the incoming request using MCP SDK types"""
         raw_body = request.httprequest.get_data(as_text=True)
         _logger.info(f"MCP Request received: {len(raw_body)} bytes")
         
         if not raw_body.strip():
-            return {}
+            # Empty request - create a default message
+            return JSONRPCMessage(root=JSONRPCRequest(
+                jsonrpc="2.0",
+                method="initialize", 
+                id=1,
+                params={}
+            ))
         
         try:
-            params = json.loads(raw_body)
-            _logger.info(f"Parsed MCP Request: {json.dumps(params)}")
-            return params
+            # Use MCP SDK to parse and validate JSON-RPC message
+            message = JSONRPCMessage.model_validate_json(raw_body)
+            _logger.info(f"Parsed MCP Message: {message.model_dump_json()}")
+            return message
         except json.JSONDecodeError as e:
             _logger.error(f"Invalid JSON in request: {e}")
             raise ValueError("Parse error") from e
+        except ValidationError as e:
+            _logger.error(f"Invalid JSON-RPC message structure: {e}")
+            raise ValueError(f"Invalid JSON-RPC format: {e}") from e
 
-    def _route_request(self, params: dict):
+    def _route_request(self, message: JSONRPCMessage):
         """Route request to appropriate handler"""
-        jsonrpc = params.get("jsonrpc", MCPConstants.JSON_RPC_VERSION)
-        method = params.get("method")
-        request_id = params.get("id")
-        request_params = params.get("params", {})
+        request_obj = message.root
         
-        self._validate_jsonrpc_version(jsonrpc, request_id)
+        # Handle notifications vs requests
+        if isinstance(request_obj, JSONRPCNotification):
+            return self._handle_notification(request_obj)
+        elif isinstance(request_obj, JSONRPCRequest):
+            return self._handle_request(request_obj)
+        else:
+            raise ValueError("Unknown JSON-RPC message type")
+            
+    def _handle_request(self, request_obj: JSONRPCRequest):
+        """Handle JSON-RPC requests"""
+        method = request_obj.method
+        request_id = request_obj.id
+        request_params = request_obj.params or {}
         
-        # Handle missing method - Invalid Request per JSON-RPC 2.0 spec
-        if not method or method == "None":
+        # JSON-RPC version is already validated by MCP SDK
+        
+        # Method is guaranteed to exist by MCP SDK validation
+        if not method:
             return self._http_error_response(
-                request_id, JSONRPCErrorCodes.INVALID_REQUEST, "Missing required 'method' field"
+                request_id, INVALID_REQUEST, "Missing required 'method' field"
             )
         
         # Route to handlers
@@ -159,13 +198,12 @@ class MCPServerController(http.Controller):
             "initialize": self._http_handle_initialize,
             "tools/list": self._http_handle_tools_list,
             "tools/call": self._http_handle_tools_call,
-            "notifications/initialized": self._handle_initialized_notification,
         }
         
         handler = handlers.get(method)
         if not handler:
             return self._http_error_response(
-                request_id, JSONRPCErrorCodes.METHOD_NOT_FOUND, f"Method not found: {method}"
+                request_id, METHOD_NOT_FOUND, f"Method not found: {method}"
             )
         
         # Execute handler with centralized error handling
@@ -173,17 +211,26 @@ class MCPServerController(http.Controller):
             return handler(request_id, request_params)
         except Exception as e:
             _logger.exception(f"Error in {method}: {e}")
-            return self._http_error_response(request_id, JSONRPCErrorCodes.INTERNAL_ERROR, str(e))
+            return self._http_error_response(request_id, INTERNAL_ERROR, str(e))
+            
+    def _handle_notification(self, notification: JSONRPCNotification):
+        """Handle JSON-RPC notifications
+        
+        According to JSON-RPC spec, notifications should not return responses.
+        Return 204 NO CONTENT with no body to comply with the spec.
+        """
+        if notification.method == "notifications/initialized":
+            _logger.info("MCP client initialization complete")
+        else:
+            _logger.warning(f"Unknown notification method: {notification.method}")
+        
+        # JSON-RPC notifications should not return any response body
+        # Do not set Content-Type for 204 responses per HTTP spec
+        return http.Response(
+            "",  # Empty body as per JSON-RPC spec
+            status=HTTP_NO_CONTENT
+        )
 
-    def _validate_jsonrpc_version(self, jsonrpc: str, request_id: Optional[Any]):
-        """Validate JSON-RPC version"""
-        if jsonrpc != MCPConstants.JSON_RPC_VERSION:
-            raise ValueError(f"Invalid JSON-RPC version: {jsonrpc}")
-
-    def _handle_initialized_notification(self, request_id: Optional[Any], params: dict):
-        """Handle client initialization complete notification"""
-        _logger.info("MCP client initialization complete")
-        return http.Response("", status=MCPConstants.HTTP_NO_CONTENT)
             
     def _authenticate_request(self):
         """Authenticate MCP request - check if user is logged in"""
@@ -206,7 +253,7 @@ class MCPServerController(http.Controller):
         Build a JSON-RPC 2.0 response (success or error)
         """
         response = {
-            "jsonrpc": MCPConstants.JSON_RPC_VERSION,
+            "jsonrpc": "2.0",
             "id": self._ensure_valid_id(request_id),
         }
 
@@ -226,8 +273,8 @@ class MCPServerController(http.Controller):
         response = self._build_json_rpc_response(request_id, result, error)
         return http.Response(
             json.dumps(response),
-            headers={"Content-Type": MCPConstants.CONTENT_TYPE_JSON},
-            status=MCPConstants.HTTP_OK,
+            headers={"Content-Type": CONTENT_TYPE_JSON},
+            status=HTTP_OK,  # JSON-RPC always returns 200 OK, errors are in the response body
         )
 
     def _http_handle_initialize(
@@ -287,7 +334,7 @@ class MCPServerController(http.Controller):
         # Check authentication first
         user, auth_error = self._authenticate_request()
         if not user:
-            return self._http_error_response(request_id, JSONRPCErrorCodes.AUTHENTICATION_REQUIRED, auth_error)
+            return self._http_error_response(request_id, AUTHENTICATION_REQUIRED, auth_error)
 
         try:
             tool_name, arguments = self._extract_tool_params(params, request_id)
@@ -300,10 +347,10 @@ class MCPServerController(http.Controller):
             return self._json_rpc_http_response(request_id, result=result)
             
         except ValueError as e:
-            return self._http_error_response(request_id, JSONRPCErrorCodes.INVALID_PARAMS, str(e))
+            return self._http_error_response(request_id, INVALID_PARAMS, str(e))
         except Exception as e:
             _logger.exception(f"Error in tools/call: {e}")
-            return self._http_error_response(request_id, JSONRPCErrorCodes.INTERNAL_ERROR, str(e))
+            return self._http_error_response(request_id, INTERNAL_ERROR, str(e))
 
     def _extract_tool_params(self, params: dict, request_id: Optional[Any]):
         """Extract and validate tool parameters"""
@@ -324,7 +371,7 @@ class MCPServerController(http.Controller):
         
         if not tool:
             return self._http_error_response(
-                request_id, JSONRPCErrorCodes.INVALID_PARAMS, f"Tool not found: {tool_name}"
+                request_id, INVALID_PARAMS, f"Tool not found: {tool_name}"
             )
         
         # Check if user has access to this tool
@@ -335,7 +382,7 @@ class MCPServerController(http.Controller):
         except Exception as e:
             _logger.warning(f"User {user.login} denied access to tool {tool_name}: {e}")
             return self._http_error_response(
-                request_id, JSONRPCErrorCodes.ACCESS_DENIED, f"Access denied to tool: {tool_name}"
+                request_id, ACCESS_DENIED, f"Access denied to tool: {tool_name}"
             )
 
     def _execute_tool_safely(self, tool, arguments: dict, user) -> dict:
