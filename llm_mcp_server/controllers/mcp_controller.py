@@ -5,9 +5,9 @@ from typing import Any, Optional
 
 # MCP SDK imports - required for MCP compliance
 from mcp.types import (
-    JSONRPCMessage, JSONRPCRequest, JSONRPCNotification, JSONRPCResponse,
+    JSONRPCMessage, JSONRPCRequest, JSONRPCNotification, JSONRPCResponse, JSONRPCError,
     InitializeRequest, CallToolRequest, ListToolsRequest, ListToolsResult,
-    Tool, CallToolResult, TextContent,
+    Tool, CallToolResult, TextContent, ErrorData,
     PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, 
     INVALID_PARAMS, INTERNAL_ERROR
 )
@@ -266,29 +266,39 @@ class MCPServerController(http.Controller):
         self, request_id: Optional[Any], result: dict = None, error: dict = None
     ):
         """
-        Build a JSON-RPC 2.0 response (success or error)
+        Build a JSON-RPC 2.0 response using proper MCP SDK Pydantic models
         """
-        response = {
-            "jsonrpc": "2.0",
-            "id": self._ensure_valid_id(request_id),
-        }
-
         if error:
-            response["error"] = error
+            # For error responses, use JSONRPCError with ErrorData
+            error_data = ErrorData(
+                code=error.get("code", INTERNAL_ERROR),
+                message=error.get("message", "Internal error"),
+                data=error.get("data")
+            )
+            response = JSONRPCError(
+                jsonrpc="2.0",
+                id=self._ensure_valid_id(request_id),
+                error=error_data,
+            )
         else:
-            response["result"] = result or {}
-
+            # For success responses, use JSONRPCResponse
+            response = JSONRPCResponse(
+                jsonrpc="2.0", 
+                id=self._ensure_valid_id(request_id),
+                result=result or {},
+            )
+        
         return response
 
     def _json_rpc_http_response(
         self, request_id: Optional[Any], result: dict = None, error: dict = None
     ):
         """
-        Build and return a JSON-RPC HTTP response
+        Build and return a JSON-RPC HTTP response using MCP SDK Pydantic model
         """
-        response = self._build_json_rpc_response(request_id, result, error)
+        response_model = self._build_json_rpc_response(request_id, result, error)
         return http.Response(
-            json.dumps(response),
+            response_model.model_dump_json(),
             headers={"Content-Type": CONTENT_TYPE_JSON},
             status=HTTP_OK,  # JSON-RPC always returns 200 OK, errors are in the response body
         )
