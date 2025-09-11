@@ -4,7 +4,7 @@
     <record id="default_mcp_server_config" model="llm.mcp.server.config">
         <field name="name">odoo_llm_mcp_server</field>
         <field name="version">1.0.0</field>
-        <field name="protocol_version">2024-11-05</field>
+        <field name="protocol_version">2025-06-18</field>
         <field name="active" eval="True" />
     </record>
 </odoo>
