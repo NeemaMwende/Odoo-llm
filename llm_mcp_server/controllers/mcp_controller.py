@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 # MCP SDK imports - required for MCP compliance
 from mcp.types import (
-    JSONRPCMessage, JSONRPCRequest, JSONRPCNotification,
+    JSONRPCMessage, JSONRPCRequest, JSONRPCNotification, JSONRPCResponse,
     InitializeRequest, CallToolRequest, ListToolsRequest,
     Tool, CallToolResult, TextContent,
     PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, 
@@ -224,11 +224,19 @@ class MCPServerController(http.Controller):
         else:
             _logger.warning(f"Unknown notification method: {notification.method}")
         
-        # JSON-RPC notifications should not return any response body
-        # Do not set Content-Type for 204 responses per HTTP spec
+        # MCP client always expects valid JSONRPCMessage for application/json responses
+        # Even though JSON-RPC spec says notifications have no response,
+        # we must return valid JSON-RPC structure using MCP SDK types
+        response = JSONRPCResponse(
+            jsonrpc="2.0",
+            id=1,  # Use a dummy ID since None is not allowed
+            result={}  # Empty result for notification acknowledgment
+        )
+        
         return http.Response(
-            "",  # Empty body as per JSON-RPC spec
-            status=HTTP_NO_CONTENT
+            response.model_dump_json(),
+            status=HTTP_OK,
+            headers={"Content-Type": CONTENT_TYPE_JSON}
         )
 
             
