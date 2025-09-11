@@ -27,7 +27,7 @@
     "license": "LGPL-3",
     "depends": ["base", "mail", "llm"],
     "external_dependencies": {
-        "python": ["pydantic>=2.0.0"],
+        "python": ["pydantic>=2.0.0", "mcp"],
     },
     "data": [
         "security/ir.model.access.csv",

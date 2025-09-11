@@ -43,14 +43,14 @@ class MCPServerController(http.Controller):
     Transport: streamable_http
     """
 
-    # Server capabilities
-    CAPABILITIES = {
-        "tools": {},  # We support tools
-        # Could add more capabilities in the future:
-        # "prompts": {},
-        # "resources": {},
-        # "logging": {},
-    }
+    @property 
+    def CAPABILITIES(self):
+        """Generate proper MCP ServerCapabilities"""
+        from mcp.types import ServerCapabilities, ToolsCapability
+        
+        return ServerCapabilities(
+            tools=ToolsCapability(listChanged=False)
+        ).model_dump(exclude_none=True)
 
     def _get_server_config(self):
         """Get the active MCP server configuration"""
@@ -79,6 +79,8 @@ class MCPServerController(http.Controller):
         # Ensure we always return JSON, even for unhandled exceptions
         try:
             request_data = self._parse_request()
+            _logger.info(f"MCP Request received: {len(request.httprequest.get_data())} bytes")
+            _logger.info(f"Raw request data: {request.httprequest.get_data()}")
             return self._route_request(request_data)
         except ValueError as e:
             # Handle parsing and validation errors
@@ -167,6 +169,9 @@ class MCPServerController(http.Controller):
             "tools/call": self._http_handle_tools_call,
         }
         
+        _logger.info(f"Looking for handler for method: {method}")
+        _logger.info(f"Available handlers: {list(handlers.keys())}")
+        
         handler = handlers.get(method)
         if not handler:
             return self._http_error_response(
@@ -175,7 +180,10 @@ class MCPServerController(http.Controller):
         
         # Execute handler with centralized error handling
         try:
-            return handler(request_id, request_params)
+            _logger.info(f"Calling handler for method: {method}")
+            result = handler(request_id, request_params)
+            _logger.info(f"Handler returned: {type(result)} - {result}")
+            return result
         except Exception as e:
             _logger.exception(f"Error in {method}: {e}")
             return self._http_error_response(request_id, INTERNAL_ERROR, str(e))
@@ -319,13 +327,15 @@ class MCPServerController(http.Controller):
         # Get configuration from database
         config = self._get_server_config()
 
+        capabilities = self.CAPABILITIES
         result = {
             "protocolVersion": config.protocol_version,
-            "capabilities": self.CAPABILITIES,
+            "capabilities": capabilities,
             "serverInfo": {"name": config.name, "version": config.version},
         }
 
-        _logger.info("MCP initialization successful")
+        _logger.info(f"MCP initialization successful with capabilities: {capabilities}")
+        _logger.info(f"Full initialize result: {result}")
         return self._json_rpc_http_response(request_id, result=result)
 
     def _http_handle_tools_list(
@@ -341,15 +351,29 @@ class MCPServerController(http.Controller):
         # Get MCP Tool objects directly
         mcp_tools = []
         for tool in tools:
-            mcp_tool = tool.get_tool_definition()  # This now returns a Tool object
-            mcp_tools.append(mcp_tool)
+            try:
+                mcp_tool = tool.get_tool_definition()  # This returns a Tool object
+                if mcp_tool is not None:
+                    mcp_tools.append(mcp_tool)
+                    _logger.info(f"Added tool: {mcp_tool.name}")
+                else:
+                    _logger.warning(f"Tool {tool.name} returned None from get_tool_definition()")
+            except Exception as e:
+                _logger.error(f"Error getting tool definition for {tool.name}: {e}")
+                continue
 
+        _logger.info(f"Total tools collected: {len(mcp_tools)}")
+        
         # Create proper MCP response using ListToolsResult
         result = ListToolsResult(tools=mcp_tools)
         
-        _logger.info(f"Returning {len(mcp_tools)} tools")
+        _logger.info(f"Created ListToolsResult with {len(result.tools)} tools")
+        
         # Use exclude_none=True to omit null fields that Letta doesn't expect
-        return self._json_rpc_http_response(request_id, result=result.model_dump(exclude_none=True))
+        result_data = result.model_dump(exclude_none=True)
+        _logger.info(f"Result data: {result_data}")
+        
+        return self._json_rpc_http_response(request_id, result=result_data)
 
     def _http_handle_tools_call(
         self, request_id: Optional[Any], params: dict[str, Any]
