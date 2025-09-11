@@ -711,9 +711,9 @@ def _handle_tools_call(self, request_id, params):
 ## Implementation Roadmap
 
 ### Week 1: SDK Integration & Core Setup
-- [ ] Add MCP dependency to `__manifest__.py`
-- [ ] Replace manual JSON parsing with `JSONRPCMessage`
-- [ ] Use MCP constants and error codes
+- [x] Add MCP dependency to `__manifest__.py`
+- [x] Replace manual JSON parsing with `JSONRPCMessage`
+- [x] Use MCP constants and error codes
 - [ ] Create API key generation utilities
 
 ### Week 2: Authentication & Session Management  
