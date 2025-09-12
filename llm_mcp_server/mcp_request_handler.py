@@ -9,9 +9,6 @@ import logging
 from typing import Any, Optional
 
 from mcp.types import (
-    ACCESS_DENIED,
-    INTERNAL_ERROR,
-    INVALID_PARAMS,
     JSONRPCMessage,
     JSONRPCNotification,
     JSONRPCRequest,

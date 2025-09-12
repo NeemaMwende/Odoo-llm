@@ -5,7 +5,6 @@ Custom exception hierarchy for consistent error handling across MCP components.
 """
 
 from mcp.types import (
-    ACCESS_DENIED,
     INTERNAL_ERROR,
     INVALID_PARAMS,
     INVALID_REQUEST,
@@ -53,17 +52,17 @@ class MCPInvalidParamsError(MCPError):
 
 
 class MCPAccessDeniedError(MCPError):
-    """Access denied to resource"""
+    """Access denied to resource - maps to INVALID_PARAMS per MCP spec"""
     
     def __init__(self, message: str = "Access denied"):
-        super().__init__(message, ACCESS_DENIED)
+        super().__init__(message, INVALID_PARAMS)
 
 
 class MCPAuthenticationError(MCPError):
-    """Authentication failure"""
+    """Authentication failure - maps to INVALID_PARAMS per MCP spec"""
     
     def __init__(self, message: str = "Authentication failed"):
-        super().__init__(message, ACCESS_DENIED)
+        super().__init__(message, INVALID_PARAMS)
 
 
 class MCPToolNotFoundError(MCPError):
@@ -75,8 +74,8 @@ class MCPToolNotFoundError(MCPError):
 
 
 class MCPToolAccessDeniedError(MCPError):
-    """Tool access denied"""
+    """Tool access denied - maps to INVALID_PARAMS per MCP spec"""
     
     def __init__(self, tool_name: str):
         message = f"Access denied to tool: {tool_name}"
-        super().__init__(message, ACCESS_DENIED)
+        super().__init__(message, INVALID_PARAMS)
