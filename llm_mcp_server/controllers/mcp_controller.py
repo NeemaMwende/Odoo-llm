@@ -17,19 +17,13 @@ from mcp.types import (
     INVALID_REQUEST,
     METHOD_NOT_FOUND,
     PARSE_ERROR,
-    CallToolRequest,
-    CallToolResult,
     ErrorData,
-    InitializeRequest,
     JSONRPCError,
     JSONRPCMessage,
     JSONRPCNotification,
     JSONRPCRequest,
     JSONRPCResponse,
-    ListToolsRequest,
     ListToolsResult,
-    TextContent,
-    Tool,
 )
 from pydantic import ValidationError
 
@@ -299,10 +293,10 @@ class MCPServerController(http.Controller):
             # Get configuration to check mode
             config = self._get_server_config()
             
-            if config.stateless_mode:
-                return self._handle_stateless_post()
-            else:
-                return self._handle_stateful_post()
+            # Both stateless and stateful POST requests return JSON responses
+            # The difference is only in session tracking (which we handle via _get_session_id)
+            request_data = self._parse_request()
+            return self._route_request(request_data)
                 
         except ValueError as e:
             # Handle parsing and validation errors
@@ -341,17 +335,6 @@ class MCPServerController(http.Controller):
         
         return self._handle_session_delete()
     
-    def _handle_stateless_post(self):
-        """Handle POST in stateless mode - direct JSON responses"""
-        request_data = self._parse_request()
-        return self._route_request(request_data)
-    
-    def _handle_stateful_post(self):
-        """Handle POST in stateful mode - always return JSON responses"""
-        # POST requests always return direct JSON responses per MCP spec
-        # SSE streaming is handled by GET requests in _handle_sse_stream()
-        request_data = self._parse_request()
-        return self._route_request(request_data)
     
     def _handle_sse_stream(self):
         """Handle SSE streaming with resumability support"""
@@ -366,9 +349,6 @@ class MCPServerController(http.Controller):
         if last_event_id:
             return self._replay_events(session_id, last_event_id)
         
-        # Get event store
-        event_store = self.get_event_store()
-        
         def generate():
             try:
                 # Send connection established event
@@ -378,20 +358,7 @@ class MCPServerController(http.Controller):
                     result={"type": "connected", "timestamp": time.time()}
                 )
                 
-                # Store event if resumability enabled
-                config = self._get_server_config()
-                if config.enable_resumability:
-                    # Use asyncio to call async method
-                    import asyncio
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    event_id = loop.run_until_complete(
-                        event_store.store_event(session_id, connection_msg)
-                    )
-                    loop.close()
-                    yield f"event: connected\ndata: {connection_msg.model_dump_json()}\nid: {event_id}\n\n"
-                else:
-                    yield f"event: connected\ndata: {connection_msg.model_dump_json()}\n\n"
+                yield self._yield_sse_event("connected", connection_msg, session_id)
                 
                 # Keep connection alive with periodic pings
                 ping_count = 0
@@ -409,17 +376,7 @@ class MCPServerController(http.Controller):
                             }
                         )
                         
-                        if config.enable_resumability:
-                            import asyncio
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            event_id = loop.run_until_complete(
-                                event_store.store_event(session_id, ping_msg)
-                            )
-                            loop.close()
-                            yield f"event: ping\ndata: {ping_msg.model_dump_json()}\nid: {event_id}\n\n"
-                        else:
-                            yield f"event: ping\ndata: {ping_msg.model_dump_json()}\n\n"
+                        yield self._yield_sse_event("ping", ping_msg, session_id)
                         
                         # Wait before next ping (30 seconds)
                         time.sleep(30)
@@ -525,16 +482,28 @@ class MCPServerController(http.Controller):
             return False
         return True
     
-    def _extract_session_id(self):
-        """Extract session ID from MCP-Session-Id header or use Odoo session"""
-        # Check for explicit MCP session ID header
-        mcp_session_id = request.httprequest.headers.get(MCP_SESSION_ID_HEADER)
+    def _run_async_in_sync(self, coro):
+        """Helper to run async coroutines in sync context"""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+    
+    def _yield_sse_event(self, event_type: str, message: JSONRPCResponse, session_id: str):
+        """Helper to yield SSE events with optional resumability"""
+        config = self._get_server_config()
         
-        if mcp_session_id:
-            return mcp_session_id
-        
-        # Fallback to Odoo session ID
-        return request.session.sid
+        if config.enable_resumability:
+            event_store = self.get_event_store()
+            event_id = self._run_async_in_sync(
+                event_store.store_event(session_id, message)
+            )
+            return f"event: {event_type}\ndata: {message.model_dump_json()}\nid: {event_id}\n\n"
+        else:
+            return f"event: {event_type}\ndata: {message.model_dump_json()}\n\n"
     
     def _replay_events(self, session_id: str, last_event_id: str):
         """Replay events after specified event ID for resumability"""
@@ -557,19 +526,14 @@ class MCPServerController(http.Controller):
                         yield f"event: message\ndata: {event_data}\nid: {event_message.event_id}\n\n"
                     
                     # Replay missed events using the event store
-                    import asyncio
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    resumed_stream_id = loop.run_until_complete(
+                    resumed_stream_id = self._run_async_in_sync(
                         event_store.replay_events_after(last_event_id, replay_callback)
                     )
-                    loop.close()
                     
                     if resumed_stream_id:
                         _logger.info(f"Resumed stream {resumed_stream_id} from event {last_event_id}")
                     
                     # Continue with live streaming (simplified)
-                    config = self._get_server_config()
                     ping_count = 0
                     while True:
                         try:
@@ -584,17 +548,7 @@ class MCPServerController(http.Controller):
                                 }
                             )
                             
-                            if config.enable_resumability:
-                                import asyncio
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                                event_id = loop.run_until_complete(
-                                    event_store.store_event(session_id, ping_msg)
-                                )
-                                loop.close()
-                                yield f"event: ping\ndata: {ping_msg.model_dump_json()}\nid: {event_id}\n\n"
-                            else:
-                                yield f"event: ping\ndata: {ping_msg.model_dump_json()}\n\n"
+                            yield self._yield_sse_event("ping", ping_msg, session_id)
                             
                             time.sleep(30)
                             
@@ -690,7 +644,7 @@ class MCPServerController(http.Controller):
         return self._json_rpc_http_response(request_id, result=result)
 
     def _http_handle_tools_list(
-        self, request_id: Optional[Any], params: dict[str, Any]
+        self, request_id: Optional[Any], _params: dict[str, Any]
     ):
         """Handle tools/list request using proper MCP types"""
         # Get all active tools from llm.tool model
@@ -736,7 +690,7 @@ class MCPServerController(http.Controller):
             _logger.exception(f"Error in tools/call: {e}")
             return self._http_error_response(request_id, INTERNAL_ERROR, str(e))
 
-    def _extract_tool_params(self, params: dict, request_id: Optional[Any]):
+    def _extract_tool_params(self, params: dict, _request_id: Optional[Any]):
         """Extract and validate tool parameters"""
         tool_name = params.get("name")
         arguments = params.get("arguments", {})
@@ -803,7 +757,7 @@ class MCPServerController(http.Controller):
     @http.route(
         "/mcp/health", type="json", auth="none", methods=["GET", "POST"], csrf=False
     )
-    def health_check(self, **params):
+    def health_check(self, **_params):
         """
         Health check endpoint for MCP server
         """
