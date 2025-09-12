@@ -6,12 +6,12 @@ This module implements a Model Context Protocol (MCP) server that exposes Odoo's
 
 - **MCP Protocol Compliance**: Full Model Context Protocol implementation with streamable_http transport
 - **JSON-RPC 2.0**: Complete JSON-RPC 2.0 specification compliance  
-- **Multiple Response Modes**: Support for both JSON and Server-Sent Events (SSE) responses
-- **Session Management**: Stateful and stateless operation modes
-- **Resumability**: Stream resumption with event replay for connection recovery
 - **Authentication**: API key-based authentication with Bearer tokens
 - **Automatic Tool Discovery**: All active `llm.tool` records are automatically exposed as MCP tools
-- **Tool Execution**: Execute any configured LLM tool via MCP protocol
+- **Tool Execution**: Execute any configured LLM tool via MCP protocol (synchronous)
+- **Session Management**: Stateful and stateless operation modes
+- **SSE Infrastructure**: Server-Sent Events support ready for future streaming needs
+- **Resumability**: Event replay infrastructure for connection recovery (future use)
 - **Comprehensive Testing**: Full test suite with curl-based integration tests
 
 ## Endpoints
@@ -173,9 +173,11 @@ Add this configuration to your Claude Desktop config file:
 
 The MCP server supports different operational modes via configuration:
 
-- **Stateless Mode**: True/False (session management)
-- **JSON Response Mode**: True/False (JSON vs SSE responses)  
-- **Enable Resumability**: True/False (stream resumption support)
+- **Stateless Mode**: True/False (enables session management and GET streams)
+- **JSON Response Mode**: True/False (JSON responses vs SSE infrastructure)  
+- **Enable Resumability**: True/False (event replay support for future streaming)
+
+**Current Usage**: Most users should use **Mode 4** (Stateful + SSE) as it provides the most complete MCP compliance, even though current tools execute synchronously.
 
 Configure these in: **LLM → Configuration → MCP Server**
 

@@ -23,11 +23,12 @@ The server follows a clean component-based architecture:
 The server implements MCP protocol with multiple operational modes:
 
 - **Endpoint**: `/mcp`
-- **Transport**: `streamable_http` with SSE support
+- **Transport**: `streamable_http` with SSE infrastructure 
 - **Protocol**: JSON-RPC 2.0 with MCP SDK compliance
 - **Authentication**: API key-based with Bearer token support
+- **Tool Execution**: Synchronous execution with immediate responses
 - **Session Management**: Stateful and stateless modes
-- **Streaming**: Server-Sent Events (SSE) with resumability and event replay
+- **SSE Support**: Infrastructure ready for future streaming use cases
 - **Configuration**: 4 operational modes via database configuration
 
 ## Setup and Installation
@@ -103,6 +104,44 @@ For **Claude Desktop**, add to config file:
 ```
 
 **Note**: Replace `YOUR_API_KEY_HERE` with your actual API key from Odoo.
+
+## Current Tool Execution Model
+
+### Synchronous Tool Execution
+
+The current implementation uses **synchronous tool execution** for optimal performance with typical Odoo operations:
+
+```python
+# Current execution flow
+POST /mcp → tools/call → tool.execute(arguments) → immediate result → JSON response
+```
+
+**Typical execution times:**
+- `odoo_record_retriever`: < 1 second (database queries)
+- `odoo_record_updater`: < 1 second (record updates)  
+- `odoo_record_unlinker`: < 1 second (record deletion)
+
+### SSE Infrastructure Status
+
+While the server includes complete SSE (Server-Sent Events) infrastructure with resumability, it's currently used for:
+
+✅ **Active Use Cases:**
+- **Protocol compliance** - Full MCP streamable_http transport support
+- **Session management** - Stateful connection handling
+- **Testing infrastructure** - Comprehensive test coverage
+
+🔄 **Future Use Cases (Infrastructure Ready):**
+- **Long-running operations** - Bulk record processing with progress updates
+- **Background job integration** - Async operations with status streaming  
+- **Real-time notifications** - Server-initiated events for config changes
+
+### When SSE Streaming Will Be Valuable
+
+SSE streaming will become important for:
+- **Bulk operations**: Processing 1000+ records with progress reporting
+- **Complex reports**: Multi-step report generation with status updates
+- **External integrations**: API calls with real-time progress
+- **Multi-step workflows**: Operations requiring user confirmations
 
 ## Troubleshooting Journey
 
@@ -244,27 +283,29 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
 
 ### High Priority
 
-1. **Rate Limiting & Performance**
+1. **Streaming Tool Execution (When Needed)**
 
    ```python
-   # Add per-user rate limiting
-   def _check_rate_limit(self, user_id):
-       recent_requests = self._get_recent_requests(user_id, minutes=1)
-       if len(recent_requests) > MAX_REQUESTS_PER_MINUTE:
-           raise MCPRateLimitError("Rate limit exceeded")
+   # For future long-running tools
+   @server.call_tool()
+   async def bulk_operation_tool(name: str, arguments: dict, ctx: Context):
+       await ctx.info("Starting bulk operation...")
+       total = arguments.get('count', 100)
+       
+       for i in range(total):
+           await ctx.report_progress(i, total)
+           # Process record
+           
+       return f"Processed {total} records"
    ```
 
-2. **Tool Discovery Enhancement**
+2. **Background Job Integration**
 
    ```python
-   # Cache tool definitions for performance
-   @cached_property
-   def available_tools(self):
-       return self._build_tool_definitions()
-   
-   # Filter tools by category/capability
-   def _filter_tools_by_category(self, category, tools):
-       return [t for t in tools if t.category == category]
+   # Integrate with Odoo's job queue
+   def execute_async_tool(self, tool, arguments):
+       job = self.env['queue.job'].with_delay().execute_tool(tool.id, arguments)
+       return {"job_id": job.uuid, "status": "queued"}
    ```
 
 3. **Enhanced Monitoring**
