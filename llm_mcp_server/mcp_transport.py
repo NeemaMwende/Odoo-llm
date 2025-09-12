@@ -98,31 +98,49 @@ class MCPTransport:
 
     def handle_post_request(self):
         """Handle POST requests - JSON-RPC 2.0 messages"""
+        _logger.info("POST request handler started")
         try:
             # Validate protocol headers
+            _logger.info("Validating accept headers...")
             accept_error = self.validator.validate_accept_headers('POST')
             if accept_error:
+                _logger.info(f"Accept header validation failed: {accept_error}")
                 return self.http_error_response(None, 406, accept_error)
             
+            _logger.info("Validating content type...")
             content_type_error = self.validator.validate_content_type('POST')
             if content_type_error:
+                _logger.info(f"Content type validation failed: {content_type_error}")
                 return self.http_error_response(None, 415, content_type_error)
             
+            _logger.info("Getting server config...")
             server_config = self.session_manager.get_server_config()
+            _logger.info("Validating protocol version...")
             self.validator.validate_protocol_version(server_config)
             # Protocol version validation is informational only
             
             # Both stateless and stateful POST requests return JSON responses
             # The difference is only in session tracking (which we handle via session_manager)
+            _logger.info("Parsing request...")
             request_data = self.request_handler.parse_request()
+            _logger.info(f"Parsed request method: {getattr(request_data.root, 'method', 'unknown')}")
+            
+            _logger.info("Routing request...")
             result = self.request_handler.route_request(request_data)
+            _logger.info(f"Request handler returned: {type(result)}")
             
             # If result is already an HTTP response (like notifications), return it
             if isinstance(result, http.Response):
+                _logger.info("Result is already HTTP response, returning directly")
                 return result
             
-            # Otherwise, wrap in JSON-RPC response
-            return self.json_rpc_http_response(None, result=result)
+            # Otherwise, wrap in JSON-RPC response with the original request ID
+            request_id = getattr(request_data.root, 'id', None)
+            _logger.info(f"Using request ID: {request_id}")
+            _logger.info("Wrapping result in JSON-RPC response...")
+            json_response = self.json_rpc_http_response(request_id, result=result)
+            _logger.info("POST request completed successfully")
+            return json_response
                 
         except MCPError as e:
             # Handle MCP-specific errors with proper error codes
@@ -135,18 +153,26 @@ class MCPTransport:
 
     def handle_get_request(self):
         """Handle GET requests - SSE streaming for stateful mode"""
+        _logger.info("GET request handler started")
+        
         # Validate protocol headers
+        _logger.info("Validating accept headers for GET...")
         accept_error = self.validator.validate_accept_headers('GET')
         if accept_error:
+            _logger.info(f"GET accept header validation failed: {accept_error}")
             return self.http_error_response(None, 406, accept_error)
         
+        _logger.info("Getting server config for GET...")
         server_config = self.session_manager.get_server_config()
+        _logger.info(f"Server config stateless mode: {server_config.stateless_mode}")
         self.validator.validate_protocol_version(server_config)
         # Protocol version validation is informational only
         
         if self.session_manager.is_stateless_mode():
+            _logger.info("GET request rejected - server in stateless mode")
             return self.http_error_response(None, METHOD_NOT_FOUND, "GET not supported in stateless mode")
         
+        _logger.info("Starting SSE stream...")
         return self.handle_sse_stream()
 
     def handle_delete_request(self):
@@ -158,55 +184,58 @@ class MCPTransport:
 
     def handle_sse_stream(self):
         """Handle SSE streaming with resumability support"""
+        _logger.info("SSE stream handler started")
         session_id = self.session_manager.get_session_id()
+        _logger.info(f"Session ID: {session_id}")
         
         # Validate session ID format
         if not self.session_manager.validate_session_id_format(session_id):
+            _logger.info(f"Invalid session ID format: {session_id}")
             return self.http_error_response(None, 400, "Invalid session ID format")
         
         # Handle resumability - check for Last-Event-ID header
         last_event_id = request.httprequest.headers.get('last-event-id')
         if last_event_id:
+            _logger.info(f"Replaying events from: {last_event_id}")
             return self.replay_events(session_id, last_event_id)
+        
+        _logger.info("Creating new SSE stream...")
         
         def generate():
             try:
                 # Send connection established event
                 connection_msg = JSONRPCResponse(
                     jsonrpc="2.0",
-                    id=None,
+                    id=0,  # Use 0 for SSE notifications instead of None
                     result={"type": "connected", "timestamp": time.time()}
                 )
                 
                 yield self.yield_sse_event("connected", connection_msg, session_id)
                 
-                # Keep connection alive with periodic pings
-                ping_count = 0
-                while True:
-                    try:
-                        # Send periodic ping to keep connection alive
-                        ping_count += 1
-                        ping_msg = JSONRPCResponse(
-                            jsonrpc="2.0",
-                            id=None,
-                            result={
-                                "type": "ping", 
-                                "count": ping_count,
-                                "timestamp": time.time()
-                            }
-                        )
-                        
-                        yield self.yield_sse_event("ping", ping_msg, session_id)
-                        
-                        # Wait before next ping (30 seconds)
-                        time.sleep(30)
-                        
-                    except GeneratorExit:
-                        _logger.info(f"SSE stream closed by client for session {session_id}")
-                        break
-                    except Exception as e:
-                        _logger.error(f"Error in SSE stream for session {session_id}: {e}")
-                        break
+                # Send a few initial pings then close
+                # In real implementation, this would be event-driven
+                for ping_count in range(1, 4):  # Send 3 pings then close
+                    ping_msg = JSONRPCResponse(
+                        jsonrpc="2.0",
+                        id=ping_count,  # Use ping count as ID
+                        result={
+                            "type": "ping", 
+                            "count": ping_count,
+                            "timestamp": time.time()
+                        }
+                    )
+                    
+                    yield self.yield_sse_event("ping", ping_msg, session_id)
+                
+                # Send close event
+                close_msg = JSONRPCResponse(
+                    jsonrpc="2.0",
+                    id=99,  # Use 99 for close event
+                    result={"type": "stream_closed", "timestamp": time.time()}
+                )
+                yield self.yield_sse_event("close", close_msg, session_id)
+                
+                _logger.info(f"SSE stream completed for session {session_id}")
                 
             except Exception as e:
                 _logger.error(f"Error in SSE generator: {e}")
@@ -265,7 +294,7 @@ class MCPTransport:
                     # Send reconnection event
                     reconnect_msg = JSONRPCResponse(
                         jsonrpc="2.0",
-                        id=None,
+                        id=0,  # Use 0 for reconnect notification
                         result={"type": "reconnected", "resumed_from": last_event_id}
                     )
                     yield f"event: reconnected\ndata: {reconnect_msg.model_dump_json()}\n\n"
@@ -289,31 +318,29 @@ class MCPTransport:
                     if resumed_stream_id:
                         _logger.info(f"Resumed stream {resumed_stream_id} from event {last_event_id}")
                     
-                    # Continue with live streaming (simplified)
-                    ping_count = 0
-                    while True:
-                        try:
-                            ping_count += 1
-                            ping_msg = JSONRPCResponse(
-                                jsonrpc="2.0",
-                                id=None,
-                                result={
-                                    "type": "ping", 
-                                    "count": ping_count,
-                                    "timestamp": time.time()
-                                }
-                            )
-                            
-                            yield self.yield_sse_event("ping", ping_msg, session_id)
-                            
-                            time.sleep(30)
-                            
-                        except GeneratorExit:
-                            _logger.info(f"Resumed SSE stream closed by client for session {session_id}")
-                            break
-                        except Exception as e:
-                            _logger.error(f"Error in resumed SSE stream for session {session_id}: {e}")
-                            break
+                    # Continue with a few more pings then close
+                    for ping_count in range(1, 4):  # Send 3 pings then close
+                        ping_msg = JSONRPCResponse(
+                            jsonrpc="2.0",
+                            id=ping_count,  # Use ping count as ID
+                            result={
+                                "type": "ping", 
+                                "count": ping_count,
+                                "timestamp": time.time()
+                            }
+                        )
+                        
+                        yield self.yield_sse_event("ping", ping_msg, session_id)
+                    
+                    # Send close event
+                    close_msg = JSONRPCResponse(
+                        jsonrpc="2.0",
+                        id=99,  # Use 99 for close event
+                        result={"type": "stream_closed", "timestamp": time.time()}
+                    )
+                    yield self.yield_sse_event("close", close_msg, session_id)
+                    
+                    _logger.info(f"Resumed SSE stream completed for session {session_id}")
                     
                 except Exception as e:
                     _logger.error(f"Error in replay generator: {e}")

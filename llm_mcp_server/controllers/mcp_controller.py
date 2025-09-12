@@ -50,21 +50,43 @@ class MCPServerController(http.Controller):
         to the transport layer following proper separation of concerns.
         """
         method = request.httprequest.method
+        headers = dict(request.httprequest.headers)
+        body = request.httprequest.get_data(as_text=True) if method == "POST" else ""
+        
+        _logger.info(f"=== MCP REQUEST START ===")
+        _logger.info(f"Method: {method}")
+        _logger.info(f"Headers: {headers}")
+        _logger.info(f"Body: {body[:500]}...")  # First 500 chars to avoid huge logs
+        
         transport = self._get_components()
         
         try:
             if method == "POST":
-                return transport.handle_post_request()
+                result = transport.handle_post_request()
             elif method == "GET":
-                return transport.handle_get_request()
+                result = transport.handle_get_request()
             elif method == "DELETE":
-                return transport.handle_delete_request()
+                result = transport.handle_delete_request()
             else:
-                return transport.http_error_response(None, METHOD_NOT_FOUND, f"Method {method} not supported")
+                result = transport.http_error_response(None, METHOD_NOT_FOUND, f"Method {method} not supported")
+            
+            _logger.info(f"=== MCP RESPONSE ===")
+            if hasattr(result, 'data'):
+                response_data = result.data[:500] if isinstance(result.data, str) else str(result.data)[:500]
+                _logger.info(f"Response data: {response_data}...")
+            if hasattr(result, 'status_code'):
+                _logger.info(f"Status code: {result.status_code}")
+            _logger.info(f"=== MCP REQUEST END ===")
+            
+            return result
                 
         except Exception as e:
             _logger.exception(f"Unhandled error in MCP server: {e}")
-            return transport.http_error_response(None, INTERNAL_ERROR, f"Internal error: {str(e)}")
+            error_response = transport.http_error_response(None, INTERNAL_ERROR, f"Internal error: {str(e)}")
+            _logger.info(f"=== MCP ERROR RESPONSE ===")
+            _logger.info(f"Error response: {error_response}")
+            _logger.info(f"=== MCP REQUEST END ===")
+            return error_response
 
     @http.route("/mcp/health", type="json", auth="public", methods=["GET", "POST"], csrf=False)
     def health_check(self, **_params):
