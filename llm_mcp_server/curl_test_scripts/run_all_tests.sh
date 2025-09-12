@@ -37,16 +37,16 @@ run_test_script() {
     local script_name="$1"
     local description="$2"
     local script_path="$SCRIPT_DIR/$script_name"
-    
+
     if [[ ! -f "$script_path" ]]; then
         echo -e "${RED}❌ Script not found: $script_name${NC}"
         return 1
     fi
-    
+
     echo -e "\n${CYAN}Running: $script_name${NC}"
     echo -e "${BLUE}Description: $description${NC}"
     echo -e "${YELLOW}$(printf '─%.0s' {1..60})${NC}"
-    
+
     if "$script_path"; then
         echo -e "${GREEN}✅ $script_name completed successfully${NC}"
         return 0
@@ -64,7 +64,7 @@ show_help() {
     echo "  ./run_all_tests.sh current        - Test current server configuration"
     echo "  ./run_all_tests.sh current-full   - Full test suite for current configuration"
     echo "  ./run_all_tests.sh mode1          - Test Mode 1: Stateless + JSON"
-    echo "  ./run_all_tests.sh mode3          - Test Mode 3: Stateful + JSON" 
+    echo "  ./run_all_tests.sh mode3          - Test Mode 3: Stateful + JSON"
     echo "  ./run_all_tests.sh mode4          - Test Mode 4: Stateful + SSE"
     echo "  ./run_all_tests.sh resumability   - Test resumability features"
     echo "  ./run_all_tests.sh comprehensive  - Run comprehensive test suite (requires config changes)"
@@ -86,12 +86,12 @@ case "${1:-help}" in
         print_test_section "QUICK SMOKE TEST"
         run_test_script "test_mcp_current_mode.sh" "Quick smoke test for current configuration"
         ;;
-        
+
     "current")
         print_test_section "CURRENT CONFIGURATION TEST"
         run_test_script "test_mcp_current_mode.sh" "Test current server configuration"
         ;;
-        
+
     "mode1")
         print_test_section "MODE 1: STATELESS + JSON"
         echo -e "${BLUE}ℹ️  Ensure server is configured with:${NC}"
@@ -100,7 +100,7 @@ case "${1:-help}" in
         read -p "Press Enter when ready..."
         run_test_script "test_mode1_stateless_json.sh" "Test Stateless + JSON mode"
         ;;
-        
+
     "mode3")
         print_test_section "MODE 3: STATEFUL + JSON"
         echo -e "${BLUE}ℹ️  Ensure server is configured with:${NC}"
@@ -109,7 +109,7 @@ case "${1:-help}" in
         read -p "Press Enter when ready..."
         run_test_script "test_mode3_stateful_json.sh" "Test Stateful + JSON mode"
         ;;
-        
+
     "mode4")
         print_test_section "MODE 4: STATEFUL + SSE"
         echo -e "${BLUE}ℹ️  Ensure server is configured with:${NC}"
@@ -119,21 +119,21 @@ case "${1:-help}" in
         read -p "Press Enter when ready..."
         run_test_script "test_mode4_stateful_sse.sh" "Test Stateful + SSE mode"
         ;;
-        
+
     "resumability")
         print_test_section "RESUMABILITY FEATURES"
         run_test_script "test_resumability.sh" "Test resumability and event replay features"
         ;;
-        
+
     "comprehensive")
         print_test_section "COMPREHENSIVE TEST SUITE"
         echo -e "${BLUE}ℹ️  This will run all mode-specific tests sequentially${NC}"
         echo -e "${BLUE}ℹ️  You'll need to change server configuration between modes${NC}"
         read -p "Press Enter to continue..."
-        
+
         failed_tests=0
         total_tests=0
-        
+
         # Run each mode test
         for mode in mode1 mode3 mode4; do
             echo -e "${BLUE}ℹ️  Please configure server for $mode before continuing${NC}"
@@ -145,13 +145,13 @@ case "${1:-help}" in
                 "mode4") run_test_script "test_mode4_stateful_sse.sh" "Mode 4 test" || failed_tests=$((failed_tests + 1)) ;;
             esac
         done
-        
+
         # Summary
         echo -e "${BLUE}ℹ️  Comprehensive Test Results:${NC}"
         echo -e "Total Mode Tests: $total_tests"
         echo -e "${GREEN}Successful: $((total_tests - failed_tests))${NC}"
         echo -e "${RED}Failed: $failed_tests${NC}"
-        
+
         if [[ $failed_tests -eq 0 ]]; then
             echo -e "${GREEN}🎉 All comprehensive tests passed!${NC}"
         else
@@ -159,27 +159,27 @@ case "${1:-help}" in
             exit 1
         fi
         ;;
-        
+
     "current-full")
         print_header "FULL TEST FOR CURRENT CONFIGURATION"
-        
+
         failed_tests=0
         total_tests=0
-        
+
         # Quick test
         print_test_section "1. QUICK SMOKE TEST"
         total_tests=$((total_tests + 1))
         run_test_script "test_mcp_current_mode.sh" "Quick smoke test" || failed_tests=$((failed_tests + 1))
-        
+
         # Resumability test
         print_test_section "2. RESUMABILITY TEST"
         total_tests=$((total_tests + 1))
         run_test_script "test_resumability.sh" "Resumability features" || failed_tests=$((failed_tests + 1))
-        
+
         # Mode-specific test
         print_test_section "3. MODE-SPECIFIC TEST"
         total_tests=$((total_tests + 1))
-        
+
         # Detect current mode and run appropriate test
         echo -e "${BLUE}ℹ️  Detecting current server mode...${NC}"
         mode_test=""
@@ -195,19 +195,19 @@ case "${1:-help}" in
                 mode_test="test_mode3_stateful_json.sh"
                 echo -e "${BLUE}ℹ️  Detected: Mode 3 (Stateful + JSON)${NC}"
             fi
-            
+
             run_test_script "$mode_test" "Mode-specific test" || failed_tests=$((failed_tests + 1))
         else
             echo -e "${YELLOW}⚠️  Could not detect mode, running current config test${NC}"
             run_test_script "test_mcp_current_mode.sh" "Current configuration fallback" || failed_tests=$((failed_tests + 1))
         fi
-        
+
         # Summary
         print_header "CURRENT CONFIGURATION TEST SUMMARY"
         echo -e "Total Test Suites: $total_tests"
         echo -e "${GREEN}Successful: $((total_tests - failed_tests))${NC}"
         echo -e "${RED}Failed: $failed_tests${NC}"
-        
+
         if [[ $failed_tests -eq 0 ]]; then
             echo -e "\n${GREEN}🎉 All tests for current configuration passed!${NC}"
             exit 0
@@ -216,7 +216,7 @@ case "${1:-help}" in
             exit 1
         fi
         ;;
-        
+
     "help"|"--help"|"-h"|*)
         show_help
         ;;

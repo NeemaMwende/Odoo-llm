@@ -6,13 +6,13 @@
         <field name="version">1.0.0</field>
         <field name="protocol_version">2025-06-18</field>
         <field name="active" eval="True" />
-        
+
         <!-- Mode Configuration: Mode 1 (Stateless + JSON) - Simplest Setup -->
         <field name="stateless_mode" eval="True" />
         <field name="json_response_mode" eval="True" />
         <field name="enable_resumability" eval="False" />
-        
+
         <!-- External URL left empty for auto-detection from web.base.url -->
-        <field name="external_url"></field>
+        <field name="external_url" />
     </record>
 </odoo>

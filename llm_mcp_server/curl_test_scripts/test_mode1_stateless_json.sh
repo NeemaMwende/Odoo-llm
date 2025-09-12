@@ -51,18 +51,18 @@ run_test() {
     local expected_content="$3"
     shift 3
     local curl_command=("$@")
-    
+
     print_test "$test_name"
-    
+
     local response
     local http_status
     local temp_file=$(mktemp)
-    
+
     if response=$(curl -s -w "%{http_code}" -o "$temp_file" --max-time 10 "${curl_command[@]}" 2>/dev/null); then
         http_status="${response}"
         response=$(cat "$temp_file")
         rm -f "$temp_file"
-        
+
         if [[ "$http_status" == "$expected_status" ]] && [[ -z "$expected_content" || "$response" == *"$expected_content"* ]]; then
             print_success
             return 0
@@ -81,7 +81,7 @@ run_test() {
 print_header "MODE 1: STATELESS + JSON RESPONSE MODE TESTS"
 print_info "Expected Configuration:"
 print_info "  - stateless_mode = True"
-print_info "  - json_response_mode = True" 
+print_info "  - json_response_mode = True"
 print_info "  - enable_resumability = False (irrelevant)"
 print_info ""
 print_info "Expected Behavior:"
@@ -143,7 +143,7 @@ run_test "GET Request (should fail)" "200" "not supported in stateless mode" \
     -X GET "$BASE_URL" \
     -H "Accept: text/event-stream"
 
-# DELETE requests should fail in stateless mode  
+# DELETE requests should fail in stateless mode
 run_test "DELETE Request (should fail)" "200" "not supported in stateless mode" \
     -X DELETE "$BASE_URL"
 

@@ -17,10 +17,10 @@ _logger = logging.getLogger(__name__)
 class MCPSessionManager:
     """
     Manages MCP sessions with optional event storage for resumability.
-    
+
     This follows the MCP SDK pattern but integrates with Odoo's session system.
     """
-    
+
     # Class-level event store (shared across all sessions)
     _event_store = None
 
@@ -34,16 +34,16 @@ class MCPSessionManager:
     def get_session_id(self) -> str:
         """
         Get session ID from MCP header or Odoo session.
-        
+
         This integrates MCP session management with Odoo's built-in sessions.
         """
         from mcp.server.streamable_http import MCP_SESSION_ID_HEADER
-        
+
         # Check for explicit MCP session ID header first
         mcp_session_id = request.httprequest.headers.get(MCP_SESSION_ID_HEADER)
         if mcp_session_id:
             return mcp_session_id
-        
+
         # Fallback to Odoo session ID (most common case)
         return request.session.sid
 

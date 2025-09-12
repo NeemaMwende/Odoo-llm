@@ -49,14 +49,14 @@ extract_all_event_ids() {
 
 test_basic_sse_with_event_ids() {
     print_test "Basic SSE stream generates event IDs"
-    
+
     local output
     if output=$(curl -s --max-time 10 -X GET "$BASE_URL" -H "Accept: text/event-stream" 2>/dev/null); then
         local event_ids
         event_ids=$(extract_all_event_ids "$output")
         local id_count
         id_count=$(echo "$event_ids" | wc -l | tr -d ' ')
-        
+
         if [[ $id_count -gt 0 ]]; then
             print_success "Generated $id_count event IDs"
             echo "First Event ID: $(echo "$event_ids" | head -1)"
@@ -76,24 +76,24 @@ test_basic_sse_with_event_ids() {
 
 test_resumption_with_last_event_id() {
     print_test "Stream resumption with Last-Event-ID"
-    
+
     # First, get a complete stream and extract an event ID
     print_info "Getting initial stream to extract event ID..."
     local initial_stream
     if initial_stream=$(curl -s --max-time 10 -X GET "$BASE_URL" -H "Accept: text/event-stream" 2>/dev/null); then
         local first_event_id
         first_event_id=$(extract_event_id "$initial_stream")
-        
+
         if [[ -n "$first_event_id" ]]; then
             print_info "Extracted event ID: $first_event_id"
-            
+
             # Now try to resume from that event ID
             print_info "Attempting to resume from event ID: $first_event_id"
             local resumed_stream
             if resumed_stream=$(curl -s --max-time 10 -X GET "$BASE_URL" \
                 -H "Accept: text/event-stream" \
                 -H "Last-Event-ID: $first_event_id" 2>/dev/null); then
-                
+
                 if [[ "$resumed_stream" == *"reconnected"* ]]; then
                     print_success "Stream resumed with reconnection event"
                     echo "Resumed stream preview:"
@@ -121,12 +121,12 @@ test_resumption_with_last_event_id() {
 
 test_invalid_last_event_id() {
     print_test "Invalid Last-Event-ID handling"
-    
+
     local output
     if output=$(curl -s --max-time 10 -X GET "$BASE_URL" \
         -H "Accept: text/event-stream" \
         -H "Last-Event-ID: invalid-event-id-123" 2>/dev/null); then
-        
+
         if [[ "$output" == *"reconnected"* ]] || [[ "$output" == *"connected"* ]]; then
             print_success "Server handles invalid event ID gracefully"
             echo "Response type: $(echo "$output" | grep "event:" | head -1)"
@@ -141,15 +141,15 @@ test_invalid_last_event_id() {
 
 test_event_id_format() {
     print_test "Event ID format validation"
-    
+
     local output
     if output=$(curl -s --max-time 10 -X GET "$BASE_URL" -H "Accept: text/event-stream" 2>/dev/null); then
         local event_ids
         event_ids=$(extract_all_event_ids "$output")
-        
+
         local valid_format=true
         local sample_ids=""
-        
+
         while IFS= read -r event_id; do
             if [[ -n "$event_id" ]]; then
                 sample_ids="$sample_ids$event_id "
@@ -159,7 +159,7 @@ test_event_id_format() {
                 fi
             fi
         done <<< "$event_ids"
-        
+
         if [[ "$valid_format" == true ]]; then
             print_success "Event IDs have valid format"
             echo "Sample IDs: $sample_ids"
@@ -174,17 +174,17 @@ test_event_id_format() {
 
 test_event_uniqueness() {
     print_test "Event ID uniqueness"
-    
+
     local output
     if output=$(curl -s --max-time 10 -X GET "$BASE_URL" -H "Accept: text/event-stream" 2>/dev/null); then
         local event_ids
         event_ids=$(extract_all_event_ids "$output")
-        
+
         local unique_count
         local total_count
         unique_count=$(echo "$event_ids" | sort | uniq | wc -l | tr -d ' ')
         total_count=$(echo "$event_ids" | wc -l | tr -d ' ')
-        
+
         if [[ "$unique_count" -eq "$total_count" ]]; then
             print_success "All $total_count event IDs are unique"
         else
@@ -197,26 +197,26 @@ test_event_uniqueness() {
 
 test_session_persistence() {
     print_test "Session persistence across requests"
-    
+
     # Make first request and get session ID from response
     local first_response
     if first_response=$(curl -s -X POST "$BASE_URL" \
         -H "Content-Type: application/json" \
         -H "Accept: application/json, text/event-stream" \
         -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"test","version":"1.0"}}}' 2>/dev/null); then
-        
+
         local session_id
         session_id=$(echo "$first_response" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
-        
+
         if [[ -n "$session_id" ]]; then
             print_info "Got session ID: ${session_id:0:20}..."
-            
+
             # Now test if SSE stream uses the same session concept
             local sse_output
             if sse_output=$(curl -s --max-time 5 -X GET "$BASE_URL" \
                 -H "Accept: text/event-stream" \
                 -H "X-MCP-Session-ID: $session_id" 2>/dev/null); then
-                
+
                 if [[ "$sse_output" == *"connected"* ]] || [[ "$sse_output" == *"ping"* ]]; then
                     print_success "SSE stream works with session context"
                 else
@@ -236,7 +236,7 @@ test_session_persistence() {
 
 detect_resumability_mode() {
     print_header "DETECTING RESUMABILITY MODE"
-    
+
     # Quick check if resumability is enabled by looking for event IDs
     local output
     if output=$(curl -s --max-time 5 -X GET "$BASE_URL" -H "Accept: text/event-stream" 2>/dev/null); then
@@ -256,16 +256,16 @@ detect_resumability_mode() {
 main() {
     print_header "MCP SERVER RESUMABILITY TEST SUITE"
     print_info "Testing against: $BASE_URL"
-    
+
     # Detect current mode
     local resumability_enabled=false
     if detect_resumability_mode; then
         resumability_enabled=true
     fi
-    
+
     if [[ "$resumability_enabled" == true ]]; then
         print_header "RESUMABILITY TESTS (ENABLED MODE)"
-        
+
         test_basic_sse_with_event_ids
         echo
         test_event_id_format
@@ -277,11 +277,11 @@ main() {
         test_invalid_last_event_id
         echo
         test_session_persistence
-        
+
     else
         print_header "RESUMABILITY TESTS (DISABLED MODE)"
         print_info "Resumability is disabled - testing basic SSE without event IDs"
-        
+
         print_test "SSE stream without resumability"
         local output
         if output=$(curl -s --max-time 5 -X GET "$BASE_URL" -H "Accept: text/event-stream" 2>/dev/null); then
@@ -294,12 +294,12 @@ main() {
         else
             print_failure "SSE stream failed"
         fi
-        
+
         print_info "To test full resumability, enable it in server config:"
         print_info "Go to: LLM → Configuration → MCP Server"
         print_info "Set: Enable Resumability = True"
     fi
-    
+
     print_header "RESUMABILITY TEST COMPLETED"
 }
 

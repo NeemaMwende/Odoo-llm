@@ -51,18 +51,18 @@ run_test() {
     local expected_content="$3"
     shift 3
     local curl_command=("$@")
-    
+
     print_test "$test_name"
-    
+
     local response
     local http_status
     local temp_file=$(mktemp)
-    
+
     if response=$(curl -s -w "%{http_code}" -o "$temp_file" --max-time 10 "${curl_command[@]}" 2>/dev/null); then
         http_status="${response}"
         response=$(cat "$temp_file")
         rm -f "$temp_file"
-        
+
         if [[ "$http_status" == "$expected_status" ]] && [[ -z "$expected_content" || "$response" == *"$expected_content"* ]]; then
             print_success
             return 0
@@ -152,7 +152,7 @@ if get_response=$(curl -s -w "%{http_code}" -o "$get_temp" --max-time 8 -X GET "
     get_status="${get_response}"
     get_response=$(cat "$get_temp")
     rm -f "$get_temp"
-    
+
     if [[ "$get_status" == "200" ]]; then
         if [[ "$get_response" == *"event:"* ]]; then
             print_success

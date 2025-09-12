@@ -5,7 +5,7 @@ This module implements a Model Context Protocol (MCP) server that exposes Odoo's
 ## Features
 
 - **MCP Protocol Compliance**: Full Model Context Protocol implementation with streamable_http transport
-- **JSON-RPC 2.0**: Complete JSON-RPC 2.0 specification compliance  
+- **JSON-RPC 2.0**: Complete JSON-RPC 2.0 specification compliance
 - **Authentication**: API key-based authentication with Bearer tokens
 - **Automatic Tool Discovery**: All active `llm.tool` records are automatically exposed as MCP tools
 - **Tool Execution**: Execute any configured LLM tool via MCP protocol (synchronous)
@@ -132,6 +132,7 @@ curl -X POST http://localhost:8069/mcp \
 ### Prerequisites
 
 1. **Install mcp-remote globally**:
+
    ```bash
    npm install -g mcp-remote
    ```
@@ -174,7 +175,7 @@ Add this configuration to your Claude Desktop config file:
 The MCP server supports different operational modes via configuration:
 
 - **Stateless Mode**: True/False (enables session management and GET streams)
-- **JSON Response Mode**: True/False (JSON responses vs SSE infrastructure)  
+- **JSON Response Mode**: True/False (JSON responses vs SSE infrastructure)
 - **Enable Resumability**: True/False (event replay support for future streaming)
 
 **Current Usage**: Most users should use **Mode 4** (Stateful + SSE) as it provides the most complete MCP compliance, even though current tools execute synchronously.
@@ -195,7 +196,7 @@ After adding the configuration to Claude Desktop:
 For other MCP clients, configure them to connect to:
 
 - **URL**: `http://your-odoo-server:8069/mcp`
-- **Transport**: `streamable_http` 
+- **Transport**: `streamable_http`
 - **Protocol**: JSON-RPC 2.0
 - **Authentication**: Bearer token with API key
 
@@ -209,12 +210,12 @@ cd curl_test_scripts/
 # Quick smoke test
 ./run_all_tests.sh quick
 
-# Test current server configuration  
+# Test current server configuration
 ./run_all_tests.sh current
 
 # Mode-specific tests
 ./run_all_tests.sh mode1  # Stateless + JSON
-./run_all_tests.sh mode3  # Stateful + JSON  
+./run_all_tests.sh mode3  # Stateful + JSON
 ./run_all_tests.sh mode4  # Stateful + SSE
 
 # Test resumability features
@@ -226,13 +227,15 @@ See `curl_test_scripts/README.md` for detailed testing documentation.
 ## Security & Access Control
 
 ### ✅ **Current Implementation**
+
 - **User Context Tracking**: All tool calls track the authenticated user
-- **API Key Authentication**: Integrated with Odoo's `res.users.apikeys` system  
+- **API Key Authentication**: Integrated with Odoo's `res.users.apikeys` system
 - **Permission Enforcement**: Respects Odoo's built-in access control (ACL) rules
 - **Tool-Level Security**: Each tool execution checks user read permissions
 - **Audit Logging**: User access attempts and tool executions are logged
 
 ### **Access Control Flow**
+
 1. **API Key Validation**: Uses `res.users.apikeys._check_credentials()`
 2. **User Binding**: Request environment bound to API key owner via `request.update_env(user=uid)`
 3. **Permission Check**: `tool.check_access('read')` validates user access to specific tools
@@ -243,7 +246,7 @@ See `curl_test_scripts/README.md` for detailed testing documentation.
 1. **Tool Filtering**: Allow filtering tools by category or capability in tools/list
 2. **Rate Limiting**: Per-user request throttling
 3. **Enhanced Logging**: Structured audit logs with detailed tool execution metrics
-4. **Permission Caching**: Cache permission checks for improved performance  
+4. **Permission Caching**: Cache permission checks for improved performance
 5. **WebSocket Support**: Direct WebSocket transport (alternative to mcp-remote)
 
 ## Development

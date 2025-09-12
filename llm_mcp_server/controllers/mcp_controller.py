@@ -28,7 +28,7 @@ class MCPServerController(http.Controller):
 
     Components:
     - MCPSessionManager: Session lifecycle and configuration
-    - MCPValidator: Protocol validation and authentication  
+    - MCPValidator: Protocol validation and authentication
     - MCPRequestHandler: JSON-RPC request processing
     - MCPTransport: HTTP/SSE transport handling
     """
@@ -39,10 +39,16 @@ class MCPServerController(http.Controller):
         validator = MCPValidator()
         request_handler = MCPRequestHandler(session_manager, validator)
         transport = MCPTransport(session_manager, validator, request_handler)
-        
+
         return transport
 
-    @http.route("/mcp", type="http", auth="public", methods=["GET", "POST", "DELETE"], csrf=False)
+    @http.route(
+        "/mcp",
+        type="http",
+        auth="public",
+        methods=["GET", "POST", "DELETE"],
+        csrf=False,
+    )
     def mcp_server(self):
         """
         Main MCP server endpoint - routes to transport layer.
@@ -53,14 +59,14 @@ class MCPServerController(http.Controller):
         method = request.httprequest.method
         headers = dict(request.httprequest.headers)
         body = request.httprequest.get_data(as_text=True) if method == "POST" else ""
-        
+
         _logger.info("=== MCP REQUEST START ===")
         _logger.info(f"Method: {method}")
         _logger.info(f"Headers: {headers}")
         _logger.info(f"Body: {body[:500]}...")  # First 500 chars to avoid huge logs
-        
+
         transport = self._get_components()
-        
+
         try:
             if method == "POST":
                 result = transport.handle_post_request()
@@ -69,36 +75,45 @@ class MCPServerController(http.Controller):
             elif method == "DELETE":
                 result = transport.handle_delete_request()
             else:
-                result = transport.http_error_response(None, METHOD_NOT_FOUND, f"Method {method} not supported")
-            
+                result = transport.http_error_response(
+                    None, METHOD_NOT_FOUND, f"Method {method} not supported"
+                )
+
             _logger.info("=== MCP RESPONSE ===")
-            if hasattr(result, 'data'):
-                response_data = result.data[:500] if isinstance(result.data, str) else str(result.data)[:500]
+            if hasattr(result, "data"):
+                response_data = (
+                    result.data[:500]
+                    if isinstance(result.data, str)
+                    else str(result.data)[:500]
+                )
                 _logger.info(f"Response data: {response_data}...")
-            if hasattr(result, 'status_code'):
+            if hasattr(result, "status_code"):
                 _logger.info(f"Status code: {result.status_code}")
             _logger.info("=== MCP REQUEST END ===")
-            
+
             return result
-                
+
         except Exception as e:
             _logger.exception(f"Unhandled error in MCP server: {e}")
-            error_response = transport.http_error_response(None, INTERNAL_ERROR, f"Internal error: {str(e)}")
+            error_response = transport.http_error_response(
+                None, INTERNAL_ERROR, f"Internal error: {str(e)}"
+            )
             _logger.info("=== MCP ERROR RESPONSE ===")
             _logger.info(f"Error response: {error_response}")
             _logger.info("=== MCP REQUEST END ===")
             return error_response
 
-    @http.route("/mcp/health", type="json", auth="public", methods=["GET", "POST"], csrf=False)
+    @http.route(
+        "/mcp/health", type="json", auth="public", methods=["GET", "POST"], csrf=False
+    )
     def health_check(self, **_params):
         """
         Health check endpoint for MCP server.
-        
+
         Uses public authentication to respect Odoo's access control system
         while still allowing basic health checks.
         """
         try:
-
             # Get configuration from database (respects current user's access rights)
             config_model = request.env["llm.mcp.server.config"]
             config = config_model.get_active_config()

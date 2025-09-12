@@ -45,9 +45,9 @@ print_failure() {
 quick_test() {
     local test_name="$1"
     local curl_command=("${@:2}")
-    
+
     print_test "$test_name"
-    
+
     if output=$(curl -s --max-time 10 "${curl_command[@]}" 2>/dev/null); then
         echo "Response: ${output:0:100}..."
         print_success

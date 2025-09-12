@@ -12,7 +12,7 @@ graph TB
         C[MCP Client]
         HC[HTTP Client]
     end
-    
+
     subgraph "Server Side"
         HS[HTTP Server/ASGI]
         ST[StreamableHTTP Transport]
@@ -20,20 +20,21 @@ graph TB
         ES[Event Store<br/>Optional]
         MS[MCP Server]
     end
-    
+
     C --> HC
     HC -->|HTTP/SSE| HS
     HS --> ST
     ST --> SM
     SM --> MS
     ST -.->|Resumability| ES
-    
+
     style ES stroke-dasharray: 5 5
 ```
 
 ## Core Components
 
 ### 1. Transport Layer
+
 - **StreamableHTTPServerTransport**: Main transport implementation
 - **StreamableHTTPSessionManager**: Session lifecycle management
 - **EventStore**: Optional interface for resumability
@@ -46,15 +47,15 @@ graph LR
         SSE[SSE Stream<br/>Default]
         JSON[JSON Response<br/>Optional]
     end
-    
+
     subgraph "Session Modes"
         SF[Stateful<br/>Session Tracking]
         SL[Stateless<br/>No Sessions]
     end
-    
+
     POST[POST Request] --> SSE
     POST --> JSON
-    
+
     SF --> Sessions[Persistent Sessions]
     SL --> Fresh[Fresh Transport<br/>per Request]
 ```
@@ -70,11 +71,11 @@ sequenceDiagram
     participant Client
     participant Server
     participant MCP App
-    
+
     Client->>Server: POST / (JSON-RPC Request)
     Note over Server: Validate Headers
     Server->>MCP App: Process Message
-    
+
     alt SSE Mode (Default)
         Server-->>Client: SSE Stream
         Server-->>Client: event: message
@@ -86,6 +87,7 @@ sequenceDiagram
 ```
 
 **Request Requirements:**
+
 - Headers:
   - `Content-Type: application/json`
   - `Accept: application/json, text/event-stream`
@@ -106,11 +108,11 @@ Establishes a standalone SSE stream for server-initiated messages.
 sequenceDiagram
     participant Client
     participant Server
-    
+
     Client->>Server: GET /
     Note over Server: Validate Session
     Server-->>Client: SSE Stream Established
-    
+
     loop Server Events
         Server-->>Client: event: message
         Server-->>Client: data: {notification/request}
@@ -118,6 +120,7 @@ sequenceDiagram
 ```
 
 **Features:**
+
 - One GET stream per session maximum
 - Supports resumability via `Last-Event-ID` header
 - Server can send notifications and requests
@@ -130,7 +133,7 @@ Explicitly terminates a session and closes all associated streams.
 sequenceDiagram
     participant Client
     participant Server
-    
+
     Client->>Server: DELETE /
     Note over Server: Validate Session
     Server->>Server: Close all streams
@@ -143,25 +146,25 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> New: Initial Request
-    
+
     New --> Initializing: POST /initialize
     Initializing --> Active: Session Created
-    
+
     Active --> Active: POST Requests
     Active --> Streaming: GET / (Optional)
     Streaming --> Active: Continue Operations
-    
+
     Active --> Terminated: DELETE /
     Active --> Terminated: Server Shutdown
     Streaming --> Terminated: Connection Lost
-    
+
     Terminated --> [*]
-    
+
     note right of Active
         Session ID required
         for all requests
     end note
-    
+
     note right of Streaming
         Server can push
         notifications
@@ -172,24 +175,24 @@ stateDiagram-v2
 
 ### Request Headers
 
-| Header | Required | Description |
-|--------|----------|-------------|
-| `mcp-session-id` | Yes* | Session identifier (ASCII 0x21-0x7E) |
-| `mcp-protocol-version` | No | Protocol version (default: 2025-03-26) |
-| `Accept` | Yes (POST) | Must include `application/json` and `text/event-stream` |
-| `Content-Type` | Yes (POST) | Must be `application/json` |
-| `Last-Event-ID` | No | Resume SSE stream from specific event |
+| Header                 | Required   | Description                                             |
+| ---------------------- | ---------- | ------------------------------------------------------- |
+| `mcp-session-id`       | Yes\*      | Session identifier (ASCII 0x21-0x7E)                    |
+| `mcp-protocol-version` | No         | Protocol version (default: 2025-03-26)                  |
+| `Accept`               | Yes (POST) | Must include `application/json` and `text/event-stream` |
+| `Content-Type`         | Yes (POST) | Must be `application/json`                              |
+| `Last-Event-ID`        | No         | Resume SSE stream from specific event                   |
 
-*Not required for initialize requests
+\*Not required for initialize requests
 
 ### Response Headers
 
-| Header | Description |
-|--------|-------------|
-| `mcp-session-id` | Session ID (if active) |
-| `Content-Type` | `application/json` or `text/event-stream` |
-| `Cache-Control` | `no-cache, no-transform` (SSE) |
-| `Connection` | `keep-alive` (SSE) |
+| Header           | Description                               |
+| ---------------- | ----------------------------------------- |
+| `mcp-session-id` | Session ID (if active)                    |
+| `Content-Type`   | `application/json` or `text/event-stream` |
+| `Cache-Control`  | `no-cache, no-transform` (SSE)            |
+| `Connection`     | `keep-alive` (SSE)                        |
 
 ## Status Codes
 
@@ -199,7 +202,7 @@ graph TD
         S200[200 OK<br/>Success]
         S202[202 Accepted<br/>Notification Received]
     end
-    
+
     subgraph "Client Errors"
         E400[400 Bad Request<br/>Invalid JSON/Params]
         E404[404 Not Found<br/>Invalid Session]
@@ -207,7 +210,7 @@ graph TD
         E409[409 Conflict<br/>Stream Already Exists]
         E415[415 Unsupported Media<br/>Wrong Content-Type]
     end
-    
+
     subgraph "Server Errors"
         E500[500 Internal Error<br/>Processing Failed]
     end
@@ -241,15 +244,15 @@ sequenceDiagram
     participant Client
     participant Server
     participant EventStore
-    
+
     Note over Client,EventStore: Normal Operation
     Client->>Server: Request
     Server->>EventStore: store_event()
     Server-->>Client: Response (id: 123)
-    
+
     Note over Client,EventStore: Connection Lost
     Client--xServer: Connection Drops
-    
+
     Note over Client,EventStore: Reconnection
     Client->>Server: GET /<br/>Last-Event-ID: 123
     Server->>EventStore: replay_events_after(123)
@@ -294,24 +297,24 @@ graph TD
     Init[POST /initialize<br/>No Session ID]
     GetSession[Receive Session ID<br/>from Response]
     Store[Store Session ID]
-    
+
     UseAPI{API Operations}
     Post[POST /<br/>Include Session ID]
     Get[GET /<br/>Optional SSE Stream]
-    
+
     End[DELETE /<br/>Terminate Session]
     Stop([Client Stop])
-    
+
     Start --> Init
     Init --> GetSession
     GetSession --> Store
     Store --> UseAPI
-    
+
     UseAPI --> Post
     UseAPI --> Get
     Post --> UseAPI
     Get --> UseAPI
-    
+
     UseAPI --> End
     End --> Stop
 ```
@@ -319,16 +322,19 @@ graph TD
 ## Security Features
 
 ### DNS Rebinding Protection
+
 - Validates Host headers against allowed origins
 - Configurable via `TransportSecuritySettings`
 - Prevents malicious redirects
 
 ### Session Security
+
 - Session IDs use visible ASCII characters only (0x21-0x7E)
 - Validation pattern: `^[\x21-\x7E]+$`
 - Sessions isolated from each other
 
 ### Protocol Versioning
+
 - Negotiated during initialization
 - Supports version compatibility checks
 - Default: `2025-03-26`
@@ -336,6 +342,7 @@ graph TD
 ## Performance Considerations
 
 ### Stateful Mode
+
 - ✅ Session persistence
 - ✅ Event store support
 - ✅ Multiple concurrent streams
@@ -343,6 +350,7 @@ graph TD
 - **Use for:** Traditional server deployments
 
 ### Stateless Mode
+
 - ✅ No session overhead
 - ✅ Scales horizontally
 - ✅ Serverless compatible
@@ -359,18 +367,18 @@ graph LR
         V3[Check Session]
         V4[Parse JSON]
     end
-    
+
     subgraph "Error Response"
         E1[Error Code]
         E2[Error Message]
         E3[Status Code]
     end
-    
+
     V1 -->|Invalid| E1
     V2 -->|Missing| E2
     V3 -->|Invalid| E3
     V4 -->|Failed| E1
-    
+
     E1 --> Response[JSON Error Response]
     E2 --> Response
     E3 --> Response
@@ -379,16 +387,19 @@ graph LR
 ## Best Practices
 
 1. **Session Management**
+
    - Always store session IDs securely
    - Implement proper cleanup on disconnect
    - Use event stores for critical applications
 
 2. **Error Recovery**
+
    - Implement exponential backoff for reconnections
    - Store Last-Event-ID for resumability
    - Handle all HTTP status codes
 
 3. **Performance**
+
    - Use JSON mode for simple request-response
    - Implement connection pooling
    - Monitor stream health

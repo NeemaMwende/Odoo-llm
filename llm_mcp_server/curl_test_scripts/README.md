@@ -10,7 +10,7 @@ cd curl_test_scripts
 # Run quick smoke test
 ./run_all_tests.sh quick
 
-# Test current server configuration  
+# Test current server configuration
 ./run_all_tests.sh current
 
 # Run all available tests
@@ -24,7 +24,7 @@ curl_test_scripts/
 ├── run_all_tests.sh              # Master test runner
 ├── test_mcp_current_mode.sh       # Quick smoke test (any mode)
 ├── test_mode1_stateless_json.sh   # Mode 1: Stateless + JSON
-├── test_mode3_stateful_json.sh    # Mode 3: Stateful + JSON  
+├── test_mode3_stateful_json.sh    # Mode 3: Stateful + JSON
 ├── test_mode4_stateful_sse.sh     # Mode 4: Stateful + SSE
 ├── test_resumability.sh           # Resumability features
 └── README.md                     # Comprehensive documentation
@@ -35,28 +35,32 @@ curl_test_scripts/
 ### 🚀 **Quick Tests** (No Configuration Changes Needed)
 
 #### `test_mcp_current_mode.sh`
+
 - **Purpose**: Smoke test for current server configuration
 - **Tests**: 7 essential test cases
 - **Time**: ~30 seconds
 - **Usage**: `./test_mcp_current_mode.sh`
 
 #### `test_resumability.sh`
+
 - **Purpose**: Focused resumability testing
 - **Tests**: Event IDs, stream resumption, replay functionality
-- **Time**: ~45 seconds  
+- **Time**: ~45 seconds
 - **Usage**: `./test_resumability.sh`
 
 ### ⚙️ **Mode-Specific Tests** (Require Specific Configuration)
 
 #### `test_mode1_stateless_json.sh`
+
 - **Configuration Required**:
   - Stateless Mode = `True`
-  - JSON Response Mode = `True` 
+  - JSON Response Mode = `True`
   - Enable Resumability = `False` (irrelevant)
 - **Tests**: POST works, GET/DELETE fail
 - **Usage**: `./test_mode1_stateless_json.sh`
 
 #### `test_mode3_stateful_json.sh`
+
 - **Configuration Required**:
   - Stateless Mode = `False`
   - JSON Response Mode = `True`
@@ -64,7 +68,8 @@ curl_test_scripts/
 - **Tests**: POST works, DELETE works, GET behavior varies
 - **Usage**: `./test_mode3_stateful_json.sh`
 
-#### `test_mode4_stateful_sse.sh`  
+#### `test_mode4_stateful_sse.sh`
+
 - **Configuration Required**:
   - Stateless Mode = `False`
   - JSON Response Mode = `False`
@@ -75,6 +80,7 @@ curl_test_scripts/
 ### 📋 **Comprehensive Tests** (Manual Configuration Changes)
 
 Use the master test runner for comprehensive testing across all modes:
+
 - **run_all_tests.sh comprehensive**: Runs all available tests with prompts
 - **Individual mode tests**: Use mode-specific commands for targeted testing
 
@@ -119,26 +125,28 @@ export MCP_BASE_URL="http://localhost:8069/mcp"
 ## Server Configuration
 
 Change server configuration in Odoo UI:
+
 - **Path**: LLM → Configuration → MCP Server
 - **Fields**:
   - **Stateless Mode**: True/False
-  - **JSON Response Mode**: True/False  
+  - **JSON Response Mode**: True/False
   - **Enable Resumability**: True/False
 
 ### Mode Matrix
 
 | Mode | Stateless | JSON Response | Resumability | POST | GET | DELETE |
-|------|-----------|---------------|-------------|------|-----|--------|
-| 1    | ✅        | ✅            | ❌          | ✅   | ❌  | ❌     |
-| 2*   | ✅        | ❌            | ❌          | ✅   | ❌  | ❌     |
-| 3    | ❌        | ✅            | ❌/✅       | ✅   | ❓  | ✅     |
-| 4    | ❌        | ❌            | ❌/✅       | ✅   | ✅  | ✅     |
+| ---- | --------- | ------------- | ------------ | ---- | --- | ------ |
+| 1    | ✅        | ✅            | ❌           | ✅   | ❌  | ❌     |
+| 2\*  | ✅        | ❌            | ❌           | ✅   | ❌  | ❌     |
+| 3    | ❌        | ✅            | ❌/✅        | ✅   | ❓  | ✅     |
+| 4    | ❌        | ❌            | ❌/✅        | ✅   | ✅  | ✅     |
 
-*Mode 2 (Stateless + SSE) is theoretical - not commonly used
+\*Mode 2 (Stateless + SSE) is theoretical - not commonly used
 
 ## Test Coverage
 
 ### Protocol Features ✅
+
 - JSON-RPC 2.0 compliance
 - HTTP method validation (POST/GET/DELETE)
 - Header validation (Accept, Content-Type)
@@ -146,12 +154,14 @@ Change server configuration in Odoo UI:
 - Error code compliance
 
 ### Authentication ✅
+
 - Anonymous requests (initialize, tools/list)
 - Authenticated requests (tools/call)
 - API key validation (Bearer token)
 - Invalid key handling
 
 ### MCP Features ✅
+
 - Server initialization
 - Tool discovery (tools/list)
 - Tool execution (tools/call)
@@ -160,8 +170,9 @@ Change server configuration in Odoo UI:
 - **Resumability** (event IDs, stream resumption)
 
 ### Error Handling ✅
+
 - Invalid JSON parsing
-- Unknown methods  
+- Unknown methods
 - Invalid parameters
 - Missing authentication
 - Protocol violations
@@ -223,14 +234,17 @@ Failed: 0
 ### Common Issues
 
 1. **Connection Refused**
+
    - Ensure Odoo server is running
    - Check MCP module is installed/updated
 
-2. **Authentication Errors**  
+2. **Authentication Errors**
+
    - Set valid `MCP_API_KEY` environment variable
    - Generate API key in Odoo UI
 
 3. **Mode Detection Failures**
+
    - Check server configuration matches expected mode
    - Use mode-specific test scripts directly
 
@@ -240,12 +254,14 @@ Failed: 0
 ### Debug Mode
 
 Enable verbose curl output:
+
 ```bash
 # Add -v flag to curl commands in test scripts
 curl -v -X POST ...
 ```
 
 Check Odoo logs:
+
 ```bash
 tail -f /var/log/odoo/odoo.log | grep -E "(MCP|mcp)"
 ```
@@ -253,6 +269,7 @@ tail -f /var/log/odoo/odoo.log | grep -E "(MCP|mcp)"
 ## CI/CD Integration
 
 ### GitHub Actions
+
 ```yaml
 - name: Test MCP Server
   run: |
@@ -261,6 +278,7 @@ tail -f /var/log/odoo/odoo.log | grep -E "(MCP|mcp)"
 ```
 
 ### Jenkins
+
 ```groovy
 stage('MCP Tests') {
     steps {
@@ -274,6 +292,7 @@ stage('MCP Tests') {
 ## Contributing
 
 To add new tests:
+
 1. Follow existing script patterns
 2. Use consistent naming: `test_<category>_<specific>.sh`
 3. Add to `run_all_tests.sh` if needed

@@ -11,7 +11,7 @@ The `llm_mcp_server` module implements a Model Context Protocol (MCP) server tha
 The server follows a clean component-based architecture:
 
 - **MCP Server Controller** (`controllers/mcp_controller.py`): Thin orchestration layer that coordinates components
-- **MCP Transport** (`mcp_transport.py`): HTTP/SSE transport with streaming and resumability support  
+- **MCP Transport** (`mcp_transport.py`): HTTP/SSE transport with streaming and resumability support
 - **MCP Validator** (`mcp_validator.py`): Protocol validation and API key authentication
 - **MCP Request Handler** (`mcp_request_handler.py`): JSON-RPC method routing and tool execution
 - **MCP Session Manager** (`mcp_session_manager.py`): Session lifecycle and configuration management
@@ -23,7 +23,7 @@ The server follows a clean component-based architecture:
 The server implements MCP protocol with multiple operational modes:
 
 - **Endpoint**: `/mcp`
-- **Transport**: `streamable_http` with SSE infrastructure 
+- **Transport**: `streamable_http` with SSE infrastructure
 - **Protocol**: JSON-RPC 2.0 with MCP SDK compliance
 - **Authentication**: API key-based with Bearer token support
 - **Tool Execution**: Synchronous execution with immediate responses
@@ -76,6 +76,7 @@ Configure the MCP server in Odoo UI:
 ### 4. Configure External MCP Clients
 
 **Prerequisites**: Install mcp-remote globally:
+
 ```bash
 npm install -g mcp-remote
 ```
@@ -117,8 +118,9 @@ POST /mcp → tools/call → tool.execute(arguments) → immediate result → JS
 ```
 
 **Typical execution times:**
+
 - `odoo_record_retriever`: < 1 second (database queries)
-- `odoo_record_updater`: < 1 second (record updates)  
+- `odoo_record_updater`: < 1 second (record updates)
 - `odoo_record_unlinker`: < 1 second (record deletion)
 
 ### SSE Infrastructure Status
@@ -126,18 +128,21 @@ POST /mcp → tools/call → tool.execute(arguments) → immediate result → JS
 While the server includes complete SSE (Server-Sent Events) infrastructure with resumability, it's currently used for:
 
 ✅ **Active Use Cases:**
+
 - **Protocol compliance** - Full MCP streamable_http transport support
 - **Session management** - Stateful connection handling
 - **Testing infrastructure** - Comprehensive test coverage
 
 🔄 **Future Use Cases (Infrastructure Ready):**
+
 - **Long-running operations** - Bulk record processing with progress updates
-- **Background job integration** - Async operations with status streaming  
+- **Background job integration** - Async operations with status streaming
 - **Real-time notifications** - Server-initiated events for config changes
 
 ### When SSE Streaming Will Be Valuable
 
 SSE streaming will become important for:
+
 - **Bulk operations**: Processing 1000+ records with progress reporting
 - **Complex reports**: Multi-step report generation with status updates
 - **External integrations**: API calls with real-time progress
@@ -190,7 +195,7 @@ def mcp_server(self):
 def handle_tools_list(self, request_id, _params):
     """Handle tools/list request using proper MCP types"""
     tools = request.env["llm.tool"].sudo().search([("active", "=", True)])
-    
+
     mcp_tools = []
     for tool in tools:
         mcp_tool = tool.get_tool_definition()  # Returns MCP SDK Tool object
@@ -291,11 +296,11 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
    async def bulk_operation_tool(name: str, arguments: dict, ctx: Context):
        await ctx.info("Starting bulk operation...")
        total = arguments.get('count', 100)
-       
+
        for i in range(total):
            await ctx.report_progress(i, total)
            # Process record
-           
+
        return f"Processed {total} records"
    ```
 
@@ -368,18 +373,19 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
 The module includes a comprehensive curl-based test suite in `curl_test_scripts/`:
 
 ### **Quick Testing Commands**
+
 ```bash
 cd curl_test_scripts/
 
 # Quick smoke test
 ./run_all_tests.sh quick
 
-# Test current server configuration  
+# Test current server configuration
 ./run_all_tests.sh current
 
 # Mode-specific tests
 ./run_all_tests.sh mode1  # Stateless + JSON
-./run_all_tests.sh mode3  # Stateful + JSON  
+./run_all_tests.sh mode3  # Stateful + JSON
 ./run_all_tests.sh mode4  # Stateful + SSE
 
 # Test resumability features
@@ -389,14 +395,15 @@ cd curl_test_scripts/
 ### **Server Configuration Modes**
 
 | Mode | Stateless | JSON Response | Resumability | POST | GET | DELETE |
-|------|-----------|---------------|-------------|------|-----|--------|
-| 1    | ✅        | ✅            | ❌          | ✅   | ❌  | ❌     |
-| 3    | ❌        | ✅            | ❌/✅       | ✅   | ❓  | ✅     |
-| 4    | ❌        | ❌            | ❌/✅       | ✅   | ✅  | ✅     |
+| ---- | --------- | ------------- | ------------ | ---- | --- | ------ |
+| 1    | ✅        | ✅            | ❌           | ✅   | ❌  | ❌     |
+| 3    | ❌        | ✅            | ❌/✅        | ✅   | ❓  | ✅     |
+| 4    | ❌        | ❌            | ❌/✅        | ✅   | ✅  | ✅     |
 
-*Mode 2 (Stateless + SSE) is theoretical and not commonly used*
+_Mode 2 (Stateless + SSE) is theoretical and not commonly used_
 
 ### **Test Coverage**
+
 - ✅ JSON-RPC 2.0 protocol compliance
 - ✅ Authentication (API key validation)
 - ✅ Tool discovery and execution
@@ -435,7 +442,7 @@ Schema generation is handled by the `llm_tool` module. If you need custom schema
 # Extend the tool's get_tool_definition() method if needed
 class CustomTool(models.Model):
     _inherit = 'llm.tool'
-    
+
     def get_tool_definition(self):
         """Override for custom MCP Tool object generation"""
         # This returns an MCP SDK Tool object

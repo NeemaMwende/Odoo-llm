@@ -36,7 +36,7 @@ class LLMMCPServerConfig(models.Model):
         "Leave empty to auto-detect from web.base.url",
         tracking=True,
     )
-    
+
     # MCP Transport Mode Configuration
     stateless_mode = fields.Boolean(
         string="Stateless Mode",

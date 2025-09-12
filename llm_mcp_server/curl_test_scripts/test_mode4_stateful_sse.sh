@@ -51,18 +51,18 @@ run_test() {
     local expected_content="$3"
     shift 3
     local curl_command=("$@")
-    
+
     print_test "$test_name"
-    
+
     local response
     local http_status
     local temp_file=$(mktemp)
-    
+
     if response=$(curl -s -w "%{http_code}" -o "$temp_file" --max-time 10 "${curl_command[@]}" 2>/dev/null); then
         http_status="${response}"
         response=$(cat "$temp_file")
         rm -f "$temp_file"
-        
+
         if [[ "$http_status" == "$expected_status" ]] && [[ -z "$expected_content" || "$response" == *"$expected_content"* ]]; then
             print_success
             return 0
@@ -85,7 +85,7 @@ detect_resumability() {
         if [[ "$output" == *"id: "* ]]; then
             echo "enabled"
         else
-            echo "disabled"  
+            echo "disabled"
         fi
     else
         echo "unknown"
@@ -94,13 +94,13 @@ detect_resumability() {
 
 test_resumability_features() {
     print_header "RESUMABILITY TESTS"
-    
+
     local resumability_mode
     resumability_mode=$(detect_resumability)
-    
+
     if [[ "$resumability_mode" == "enabled" ]]; then
         print_info "✅ Resumability is ENABLED"
-        
+
         # Test event ID generation
         print_test "Event ID Generation"
         local stream_output
@@ -110,62 +110,62 @@ test_resumability_features() {
                 local first_event_id
                 first_event_id=$(echo "$stream_output" | grep "^id: " | head -1 | cut -d' ' -f2 | tr -d '\r')
                 print_info "Sample Event ID: $first_event_id"
-                
+
                 # Test proper event replay with concurrent streams
                 print_test "Event Replay (Concurrent Stream Test)"
-                
+
                 # Create temp files for stream capture
                 local stream1_log=$(mktemp)
                 local stream2_log=$(mktemp)
-                
+
                 # Start first stream in background and let it run partially
                 print_info "Starting initial stream..."
                 curl -s --max-time 4 -X GET "$BASE_URL" -H "Accept: text/event-stream" > "$stream1_log" 2>/dev/null &
                 local stream1_pid=$!
-                
+
                 # Let it generate some events (connected + ping1 + ping2)
                 sleep 2
-                
+
                 # Kill the first stream to simulate disconnection
                 kill $stream1_pid 2>/dev/null || true
                 wait $stream1_pid 2>/dev/null || true
-                
+
                 # Extract event IDs from the partial stream
                 local event_ids
                 event_ids=$(grep "^id: " "$stream1_log" | cut -d' ' -f2 | tr -d '\r')
-                
+
                 if [[ -n "$event_ids" ]]; then
                     # Get the second event ID (should be ping1 with id=1)
                     local middle_event_id
                     middle_event_id=$(echo "$event_ids" | sed -n '2p')
-                    
+
                     if [[ -n "$middle_event_id" ]]; then
                         print_info "Resuming from Event ID: $middle_event_id"
-                        
+
                         # Start new stream with Last-Event-ID to test replay
                         if curl -s --max-time 8 -X GET "$BASE_URL" \
                             -H "Accept: text/event-stream" \
                             -H "Last-Event-ID: $middle_event_id" > "$stream2_log" 2>/dev/null; then
-                            
+
                             local resumed_content
                             resumed_content=$(cat "$stream2_log")
-                            
+
                             # Verify replay functionality
                             local tests_passed=0
                             local total_checks=3
-                            
+
                             # Check 1: Reconnected event present
                             if [[ "$resumed_content" == *"reconnected"* ]]; then
                                 tests_passed=$((tests_passed + 1))
                                 print_info "✓ Reconnection event found"
                             fi
-                            
+
                             # Check 2: Resumed_from field contains our event ID
                             if [[ "$resumed_content" == *"resumed_from"* && "$resumed_content" == *"$middle_event_id"* ]]; then
                                 tests_passed=$((tests_passed + 1))
                                 print_info "✓ Resumed_from event ID verified"
                             fi
-                            
+
                             # Check 3: Later events are replayed (ping with higher count OR type ping/close)
                             if [[ "$resumed_content" == *'"count":'* ]] || [[ "$resumed_content" == *'"type":"ping"'* ]] || [[ "$resumed_content" == *'"type":"stream_closed"'* ]]; then
                                 tests_passed=$((tests_passed + 1))
@@ -175,7 +175,7 @@ test_resumability_features() {
                                 echo "Full resumed content:"
                                 echo "$resumed_content"
                             fi
-                            
+
                             if [[ $tests_passed -eq $total_checks ]]; then
                                 print_success
                             else
@@ -191,7 +191,7 @@ test_resumability_features() {
                 else
                     print_failure "No event IDs captured from initial stream"
                 fi
-                
+
                 # Cleanup temp files
                 rm -f "$stream1_log" "$stream2_log"
             else
@@ -200,10 +200,10 @@ test_resumability_features() {
         else
             print_failure "SSE stream request failed"
         fi
-        
+
     elif [[ "$resumability_mode" == "disabled" ]]; then
         print_info "❌ Resumability is DISABLED"
-        
+
         print_test "SSE without Event IDs"
         local stream_output
         if stream_output=$(curl -s --max-time 5 -X GET "$BASE_URL" -H "Accept: text/event-stream" 2>/dev/null); then
@@ -299,7 +299,7 @@ session1_response=$(curl -s -X POST "$BASE_URL" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json, text/event-stream" \
     -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"clientInfo":{"name":"session1"}}}' 2>/dev/null)
-    
+
 session2_response=$(curl -s -X POST "$BASE_URL" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json, text/event-stream" \
@@ -308,7 +308,7 @@ session2_response=$(curl -s -X POST "$BASE_URL" \
 if [[ "$session1_response" == *'"sessionId"'* ]] && [[ "$session2_response" == *'"sessionId"'* ]]; then
     session1_id=$(echo "$session1_response" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
     session2_id=$(echo "$session2_response" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
-    
+
     if [[ "$session1_id" != "$session2_id" ]]; then
         print_success
         print_info "Session 1: ${session1_id:0:20}..."
@@ -335,7 +335,7 @@ if [[ $FAILED_TESTS -gt 0 ]]; then
 else
     echo -e "\n${GREEN}🎉 All Mode 4 tests passed!${NC}"
     echo -e "${GREEN}Server is correctly configured for Stateful + SSE mode${NC}"
-    
+
     resumability_status=$(detect_resumability)
     case "$resumability_status" in
         "enabled")  echo -e "${GREEN}✅ Resumability is working${NC}" ;;
