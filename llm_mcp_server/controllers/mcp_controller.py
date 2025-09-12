@@ -85,8 +85,6 @@ class MCPServerController(http.Controller):
         # Ensure we always return JSON, even for unhandled exceptions
         try:
             request_data = self._parse_request()
-            _logger.info(f"MCP Request received: {len(request.httprequest.get_data())} bytes")
-            _logger.info(f"Raw request data: {request.httprequest.get_data()}")
             return self._route_request(request_data)
         except ValueError as e:
             # Handle parsing and validation errors
@@ -119,7 +117,6 @@ class MCPServerController(http.Controller):
     def _parse_request(self) -> JSONRPCMessage:
         """Parse and validate the incoming request using MCP SDK types"""
         raw_body = request.httprequest.get_data(as_text=True)
-        _logger.info(f"MCP Request received: {len(raw_body)} bytes")
         
         if not raw_body.strip():
             # Empty request - create a default message
@@ -133,7 +130,6 @@ class MCPServerController(http.Controller):
         try:
             # Use MCP SDK to parse and validate JSON-RPC message
             message = JSONRPCMessage.model_validate_json(raw_body)
-            _logger.info(f"Parsed MCP Message: {message.model_dump_json()}")
             return message
         except json.JSONDecodeError as e:
             _logger.error(f"Invalid JSON in request: {e}")
@@ -170,12 +166,10 @@ class MCPServerController(http.Controller):
         
         # Check if authentication is required for this method
         auth_required = self._is_authentication_required(method)
-        _logger.info(f"Method '{method}' - authentication required: {auth_required}")
         
         if auth_required:
             # Only tools/call requires API key authentication
             self._authenticate_api_key_or_error()
-            _logger.info(f"Authentication successful for method '{method}'")
         
         # Route to handlers
         handlers = {
@@ -183,9 +177,6 @@ class MCPServerController(http.Controller):
             "tools/list": self._http_handle_tools_list,
             "tools/call": self._http_handle_tools_call,
         }
-        
-        _logger.info(f"Looking for handler for method: {method}")
-        _logger.info(f"Available handlers: {list(handlers.keys())}")
         
         handler = handlers.get(method)
         if not handler:
@@ -195,9 +186,7 @@ class MCPServerController(http.Controller):
         
         # Execute handler with centralized error handling
         try:
-            _logger.info(f"Calling handler for method: {method}")
             result = handler(request_id, request_params)
-            _logger.info(f"Handler returned: {type(result)} - {result}")
             return result
         except Exception as e:
             _logger.exception(f"Error in {method}: {e}")
@@ -234,25 +223,17 @@ class MCPServerController(http.Controller):
     def _authenticate_api_key_or_error(self):
         """Validate API key and bind request to corresponding user. Raises exception on failure."""
         token = self._extract_api_key()
-        _logger.info(f"API key authentication - token found: {'Yes' if token else 'No'}")
         if not token:
-            _logger.warning("API key authentication failed - no token in headers")
             raise ValueError("Missing API key in Authorization or X-API-KEY header")
         
         # Validate API key using Odoo's built-in system
         # We create keys with scope=None which matches any scope, so we can use 'rpc' for validation
-        _logger.info(f"Validating API key: {token[:10]}...{token[-4:] if len(token) > 14 else token}")
         uid = request.env['res.users.apikeys']._check_credentials(scope='rpc', key=token)
-        _logger.info(f"API key validation result - uid: {uid}")
         if not uid:
-            _logger.error(f"Invalid API key provided: {token[:10]}...{token[-4:] if len(token) > 14 else token}")
             raise ValueError("Invalid API key")
-        
-        # No session conflict check needed - API key authentication takes precedence
         
         # Bind request environment to API key owner
         request.update_env(user=uid)
-        _logger.info(f"Successfully authenticated and bound to user {uid}")
         # Success - no exception raised
 
     def _is_authentication_required(self, method: str) -> bool:
@@ -304,15 +285,6 @@ class MCPServerController(http.Controller):
         self, request_id: Optional[Any], params: dict[str, Any]
     ):
         """Handle MCP initialize request"""
-        _logger.info(f"MCP Initialize request: {params}")
-
-        # Extract client info
-        client_info = params.get("clientInfo", {})
-        client_name = client_info.get("name", "Unknown")
-        client_version = client_info.get("version", "Unknown")
-
-        _logger.info(f"MCP client {client_name} v{client_version}")
-
         # Get configuration from database
         config = self._get_server_config()
 
@@ -323,16 +295,12 @@ class MCPServerController(http.Controller):
             "serverInfo": {"name": config.name, "version": config.version},
         }
 
-        _logger.info(f"MCP initialization successful with capabilities: {capabilities}")
-        _logger.info(f"Full initialize result: {result}")
         return self._json_rpc_http_response(request_id, result=result)
 
     def _http_handle_tools_list(
         self, request_id: Optional[Any], params: dict[str, Any]
     ):
         """Handle tools/list request using proper MCP types"""
-        _logger.info("MCP tools/list request")
-
         # Get all active tools from llm.tool model
         tools_model = request.env["llm.tool"].sudo()
         tools = tools_model.search([("active", "=", True)])
@@ -344,23 +312,15 @@ class MCPServerController(http.Controller):
                 mcp_tool = tool.get_tool_definition()  # This returns a Tool object
                 if mcp_tool is not None:
                     mcp_tools.append(mcp_tool)
-                    _logger.info(f"Added tool: {mcp_tool.name}")
-                else:
-                    _logger.warning(f"Tool {tool.name} returned None from get_tool_definition()")
             except Exception as e:
                 _logger.error(f"Error getting tool definition for {tool.name}: {e}")
                 continue
-
-        _logger.info(f"Total tools collected: {len(mcp_tools)}")
         
         # Create proper MCP response using ListToolsResult
         result = ListToolsResult(tools=mcp_tools)
         
-        _logger.info(f"Created ListToolsResult with {len(result.tools)} tools")
-        
         # Use exclude_none=True to omit null fields that Letta doesn't expect
         result_data = result.model_dump(exclude_none=True)
-        _logger.info(f"Result data: {result_data}")
         
         return self._json_rpc_http_response(request_id, result=result_data)
 
@@ -409,7 +369,6 @@ class MCPServerController(http.Controller):
         # Check if user has access to this tool
         try:
             tool.check_access('read')
-            _logger.info(f"Authenticated tools/call request for tool: {tool_name} by user: {user.login}")
             return tool
         except Exception as e:
             _logger.warning(f"User {user.login} denied access to tool {tool_name}: {e}")
@@ -423,7 +382,6 @@ class MCPServerController(http.Controller):
             result = tool.execute(arguments)
             content_text = self._format_tool_result(result)
             
-            _logger.info(f"Tool {tool.name} executed successfully by user {user.login}")
             return {
                 "content": [{"type": "text", "text": content_text}],
                 "isError": False,
