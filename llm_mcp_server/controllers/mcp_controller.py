@@ -98,8 +98,6 @@ class MCPServerController(http.Controller):
         while still allowing basic health checks.
         """
         try:
-            # Count available tools (respects current user's access rights)
-            tools_count = request.env["llm.tool"].search_count([("active", "=", True)])
 
             # Get configuration from database (respects current user's access rights)
             config_model = request.env["llm.mcp.server.config"]
@@ -110,7 +108,6 @@ class MCPServerController(http.Controller):
                 "server": config.name,
                 "version": config.version,
                 "protocol_version": config.protocol_version,
-                "tools_count": tools_count,
             }
         except Exception as e:
             _logger.exception(f"Health check failed: {e}")
