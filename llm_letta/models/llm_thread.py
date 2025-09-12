@@ -172,12 +172,10 @@ class LLMThread(models.Model):
             model_name = f"openai/{model_name}"
 
         # Create or get API key for MCP authentication
-        try:
-            api_key = self._ensure_user_api_key(thread.user_id)
-            _logger.info(f"Created/found API key for user {thread.user_id.login}")
-        except Exception as e:
-            _logger.error(f"Failed to create API key: {e}")
-            api_key = None
+        
+        api_key = self._ensure_user_api_key(thread.user_id)
+        _logger.info(f"Created/found API key for user {thread.user_id.login}")
+        
 
         # Build full configuration
         agent_config = {
@@ -197,7 +195,7 @@ class LLMThread(models.Model):
         return agent_config
 
     def _ensure_user_api_key(self, user):
-        """Create persistent API key for MCP client authentication if it doesn't exist"""
+        """Create long-lived API key for MCP client authentication if it doesn't exist"""
         # Look for existing MCP API key for this user
         existing_key = self.env['res.users.apikeys'].sudo().search([
             ('user_id', '=', user.id),
@@ -208,15 +206,26 @@ class LLMThread(models.Model):
             _logger.info(f"Using existing API key for user {user.login}")
             return existing_key.key
         
-        # Create new API key following the pattern from FINAL_ODOO_MCP_APPROACH.md
-        key = self.env['res.users.apikeys'].sudo().with_user(user)._generate(
-            scope=None,                 # Global key for RPC/HTTP usage
-            name='MCP Integration Key', # Description
-            expiration_date=None        # Persistent key (no expiration)
-        )
+        # Get user's maximum allowed duration (36500 days for LLM managers, 90 days for regular users)
+        from datetime import datetime, timedelta
+        max_duration = max(group.api_key_duration for group in user.groups_id) or 1.0
+        expiration = datetime.now() + timedelta(days=max_duration)
         
-        _logger.info(f"Created new MCP API key for user {user.login}")
-        return key
+        _logger.info(f"Creating API key for user {user.login} with {max_duration} days duration")
+        
+        try:
+            # Create new API key with proper expiration date
+            key = self.env['res.users.apikeys'].sudo().with_user(user)._generate(
+                scope=None,                 # Global key for RPC/HTTP usage
+                name='MCP Integration Key', # Description
+                expiration_date=expiration  # Respects user group permissions
+            )
+            
+            _logger.info(f"Created new MCP API key for user {user.login}")
+            return key
+        except Exception as e:
+            _logger.error(f"Failed to create API key: {e}")
+            return None
 
     def get_letta_agent_id(self):
         """Get the Letta agent ID for this thread.
