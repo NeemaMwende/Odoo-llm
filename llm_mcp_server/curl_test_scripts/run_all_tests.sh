@@ -127,9 +127,37 @@ case "${1:-help}" in
         
     "comprehensive")
         print_test_section "COMPREHENSIVE TEST SUITE"
-        echo -e "${BLUE}ℹ️  This will require manual configuration changes between modes${NC}"
+        echo -e "${BLUE}ℹ️  This will run all mode-specific tests sequentially${NC}"
+        echo -e "${BLUE}ℹ️  You'll need to change server configuration between modes${NC}"
         read -p "Press Enter to continue..."
-        run_test_script "test_mcp_server.sh" "Complete comprehensive test suite"
+        
+        failed_tests=0
+        total_tests=0
+        
+        # Run each mode test
+        for mode in mode1 mode3 mode4; do
+            echo -e "${BLUE}ℹ️  Please configure server for $mode before continuing${NC}"
+            read -p "Press Enter when server is configured for $mode..."
+            total_tests=$((total_tests + 1))
+            case $mode in
+                "mode1") run_test_script "test_mode1_stateless_json.sh" "Mode 1 test" || failed_tests=$((failed_tests + 1)) ;;
+                "mode3") run_test_script "test_mode3_stateful_json.sh" "Mode 3 test" || failed_tests=$((failed_tests + 1)) ;;
+                "mode4") run_test_script "test_mode4_stateful_sse.sh" "Mode 4 test" || failed_tests=$((failed_tests + 1)) ;;
+            esac
+        done
+        
+        # Summary
+        echo -e "${BLUE}ℹ️  Comprehensive Test Results:${NC}"
+        echo -e "Total Mode Tests: $total_tests"
+        echo -e "${GREEN}Successful: $((total_tests - failed_tests))${NC}"
+        echo -e "${RED}Failed: $failed_tests${NC}"
+        
+        if [[ $failed_tests -eq 0 ]]; then
+            echo -e "${GREEN}🎉 All comprehensive tests passed!${NC}"
+        else
+            echo -e "${RED}❌ Some comprehensive tests failed${NC}"
+            exit 1
+        fi
         ;;
         
     "current-full")

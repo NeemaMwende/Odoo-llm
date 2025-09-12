@@ -27,8 +27,7 @@ curl_test_scripts/
 ├── test_mode3_stateful_json.sh    # Mode 3: Stateful + JSON  
 ├── test_mode4_stateful_sse.sh     # Mode 4: Stateful + SSE
 ├── test_resumability.sh           # Resumability features
-├── test_mcp_server.sh            # Comprehensive test suite
-└── README_TESTING.md             # Detailed documentation
+└── README.md                     # Comprehensive documentation
 ```
 
 ## Test Scripts Overview
@@ -75,11 +74,9 @@ curl_test_scripts/
 
 ### 📋 **Comprehensive Tests** (Manual Configuration Changes)
 
-#### `test_mcp_server.sh`
-- **Purpose**: Tests all modes with manual configuration prompts
-- **Tests**: 30+ test cases across all modes
-- **Time**: 10+ minutes (with configuration changes)
-- **Usage**: `./test_mcp_server.sh`
+Use the master test runner for comprehensive testing across all modes:
+- **run_all_tests.sh comprehensive**: Runs all available tests with prompts
+- **Individual mode tests**: Use mode-specific commands for targeted testing
 
 ## Master Test Runner
 
