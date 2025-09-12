@@ -3,22 +3,40 @@ import logging
 import time
 from typing import Any, Optional
 
+from mcp.server.streamable_http import (
+    CONTENT_TYPE_JSON,
+    CONTENT_TYPE_SSE,
+    MCP_PROTOCOL_VERSION_HEADER,
+    MCP_SESSION_ID_HEADER,
+)
+
 # MCP SDK imports - required for MCP compliance
 from mcp.types import (
-    JSONRPCMessage, JSONRPCRequest, JSONRPCNotification, JSONRPCResponse, JSONRPCError,
-    InitializeRequest, CallToolRequest, ListToolsRequest, ListToolsResult,
-    Tool, CallToolResult, TextContent, ErrorData,
-    PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, 
-    INVALID_PARAMS, INTERNAL_ERROR
-)
-from mcp.server.streamable_http import (
-    MCP_SESSION_ID_HEADER, MCP_PROTOCOL_VERSION_HEADER,
-    CONTENT_TYPE_JSON, CONTENT_TYPE_SSE
+    INTERNAL_ERROR,
+    INVALID_PARAMS,
+    INVALID_REQUEST,
+    METHOD_NOT_FOUND,
+    PARSE_ERROR,
+    CallToolRequest,
+    CallToolResult,
+    ErrorData,
+    InitializeRequest,
+    JSONRPCError,
+    JSONRPCMessage,
+    JSONRPCNotification,
+    JSONRPCRequest,
+    JSONRPCResponse,
+    ListToolsRequest,
+    ListToolsResult,
+    TextContent,
+    Tool,
 )
 from pydantic import ValidationError
 
 from odoo import http
 from odoo.http import request
+
+from .event_store import InMemoryEventStore
 
 _logger = logging.getLogger(__name__)
 
@@ -48,6 +66,16 @@ class MCPServerController(http.Controller):
         'tools/call',
         # Add future authenticated methods here
     }
+    
+    # Class-level event store for resumability (shared across all requests)
+    _event_store = None
+
+    @classmethod
+    def get_event_store(cls):
+        """Get or create the shared event store instance"""
+        if cls._event_store is None:
+            cls._event_store = InMemoryEventStore(max_events_per_stream=100)
+        return cls._event_store
 
     @property 
     def CAPABILITIES(self):
@@ -75,29 +103,31 @@ class MCPServerController(http.Controller):
         return int(time.time() * 1000)  # Milliseconds since epoch
 
 
-    @http.route("/mcp", type="http", auth="public", methods=["POST"], csrf=False)
+    @http.route("/mcp", type="http", auth="public", methods=["GET", "POST", "DELETE"], csrf=False)
     def mcp_server(self):
         """
-        Main MCP server endpoint handling JSON-RPC 2.0 requests
+        Main MCP server endpoint handling multiple HTTP methods per MCP spec
 
-        This endpoint routes MCP protocol messages to appropriate handlers.
+        - POST: JSON-RPC 2.0 requests
+        - GET: SSE streaming for stateful mode  
+        - DELETE: Session termination
         """
-        # Ensure we always return JSON, even for unhandled exceptions
+        # Route based on HTTP method
+        method = request.httprequest.method
+        
         try:
-            request_data = self._parse_request()
-            return self._route_request(request_data)
-        except ValueError as e:
-            # Handle parsing and validation errors
-            _logger.error(f"MCP parsing error: {e}")
-            if "Parse error" in str(e):
-                return self._http_error_response(None, PARSE_ERROR, str(e))
-            elif "Invalid JSON-RPC version" in str(e):
-                return self._http_error_response(None, INVALID_REQUEST, str(e))
+            if method == "POST":
+                return self._handle_post_request()
+            elif method == "GET":
+                return self._handle_get_request()
+            elif method == "DELETE":
+                return self._handle_delete_request()
             else:
-                return self._http_error_response(None, INVALID_PARAMS, str(e))
+                return self._http_error_response(None, METHOD_NOT_FOUND, f"Method {method} not supported")
+                
         except Exception as e:
             _logger.exception(f"Unhandled error in MCP server: {e}")
-            # Ensure we return JSON even for unexpected errors
+            # Ensure we return appropriate response even for unexpected errors
             try:
                 return self._http_error_response(None, INTERNAL_ERROR, f"Internal error: {str(e)}")
             except Exception as inner_e:
@@ -240,6 +270,358 @@ class MCPServerController(http.Controller):
         """Determine if API key authentication is required for this method"""
         return method in self.AUTHENTICATED_METHODS
     
+    def _get_session_id(self):
+        """Get session ID from MCP header or Odoo session"""
+        # Check for explicit MCP session ID header first
+        mcp_session_id = request.httprequest.headers.get(MCP_SESSION_ID_HEADER)
+        if mcp_session_id:
+            return mcp_session_id
+        
+        # Fallback to Odoo session ID (most common case)
+        return request.session.sid
+    
+    def _handle_post_request(self):
+        """Handle POST requests - JSON-RPC 2.0 messages"""
+        try:
+            # Validate protocol headers
+            accept_error = self._validate_accept_headers('POST')
+            if accept_error:
+                return accept_error
+            
+            content_type_error = self._validate_content_type('POST')
+            if content_type_error:
+                return content_type_error
+            
+            protocol_error = self._validate_protocol_version()
+            if protocol_error:
+                return protocol_error
+            
+            # Get configuration to check mode
+            config = self._get_server_config()
+            
+            if config.stateless_mode:
+                return self._handle_stateless_post()
+            else:
+                return self._handle_stateful_post()
+                
+        except ValueError as e:
+            # Handle parsing and validation errors
+            _logger.error(f"MCP POST parsing error: {e}")
+            if "Parse error" in str(e):
+                return self._http_error_response(None, PARSE_ERROR, str(e))
+            elif "Invalid JSON-RPC version" in str(e):
+                return self._http_error_response(None, INVALID_REQUEST, str(e))
+            else:
+                return self._http_error_response(None, INVALID_PARAMS, str(e))
+    
+    def _handle_get_request(self):
+        """Handle GET requests - SSE streaming for stateful mode"""
+        # Validate protocol headers
+        accept_error = self._validate_accept_headers('GET')
+        if accept_error:
+            return accept_error
+        
+        protocol_error = self._validate_protocol_version()
+        if protocol_error:
+            return protocol_error
+            
+        config = self._get_server_config()
+        
+        if config.stateless_mode:
+            return self._http_error_response(None, METHOD_NOT_FOUND, "GET not supported in stateless mode")
+        
+        return self._handle_sse_stream()
+    
+    def _handle_delete_request(self):
+        """Handle DELETE requests - Session termination"""
+        config = self._get_server_config()
+        
+        if config.stateless_mode:
+            return self._http_error_response(None, METHOD_NOT_FOUND, "DELETE not supported in stateless mode")
+        
+        return self._handle_session_delete()
+    
+    def _handle_stateless_post(self):
+        """Handle POST in stateless mode - direct JSON responses"""
+        request_data = self._parse_request()
+        return self._route_request(request_data)
+    
+    def _handle_stateful_post(self):
+        """Handle POST in stateful mode - always return JSON responses"""
+        # POST requests always return direct JSON responses per MCP spec
+        # SSE streaming is handled by GET requests in _handle_sse_stream()
+        request_data = self._parse_request()
+        return self._route_request(request_data)
+    
+    def _handle_sse_stream(self):
+        """Handle SSE streaming with resumability support"""
+        session_id = self._get_session_id()
+        
+        # Validate session ID format
+        if not self._validate_session_id_format(session_id):
+            return self._http_error_response(None, 400, "Invalid session ID format")
+        
+        # Handle resumability - check for Last-Event-ID header
+        last_event_id = request.httprequest.headers.get('last-event-id')
+        if last_event_id:
+            return self._replay_events(session_id, last_event_id)
+        
+        # Get event store
+        event_store = self.get_event_store()
+        
+        def generate():
+            try:
+                # Send connection established event
+                connection_msg = JSONRPCResponse(
+                    jsonrpc="2.0",
+                    id=None,
+                    result={"type": "connected", "timestamp": time.time()}
+                )
+                
+                # Store event if resumability enabled
+                config = self._get_server_config()
+                if config.enable_resumability:
+                    # Use asyncio to call async method
+                    import asyncio
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    event_id = loop.run_until_complete(
+                        event_store.store_event(session_id, connection_msg)
+                    )
+                    loop.close()
+                    yield f"event: connected\ndata: {connection_msg.model_dump_json()}\nid: {event_id}\n\n"
+                else:
+                    yield f"event: connected\ndata: {connection_msg.model_dump_json()}\n\n"
+                
+                # Keep connection alive with periodic pings
+                ping_count = 0
+                while True:
+                    try:
+                        # Send periodic ping to keep connection alive
+                        ping_count += 1
+                        ping_msg = JSONRPCResponse(
+                            jsonrpc="2.0",
+                            id=None,
+                            result={
+                                "type": "ping", 
+                                "count": ping_count,
+                                "timestamp": time.time()
+                            }
+                        )
+                        
+                        if config.enable_resumability:
+                            import asyncio
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            event_id = loop.run_until_complete(
+                                event_store.store_event(session_id, ping_msg)
+                            )
+                            loop.close()
+                            yield f"event: ping\ndata: {ping_msg.model_dump_json()}\nid: {event_id}\n\n"
+                        else:
+                            yield f"event: ping\ndata: {ping_msg.model_dump_json()}\n\n"
+                        
+                        # Wait before next ping (30 seconds)
+                        time.sleep(30)
+                        
+                    except GeneratorExit:
+                        _logger.info(f"SSE stream closed by client for session {session_id}")
+                        break
+                    except Exception as e:
+                        _logger.error(f"Error in SSE stream for session {session_id}: {e}")
+                        break
+                
+            except Exception as e:
+                _logger.error(f"Error in SSE generator: {e}")
+        
+        return http.Response(
+            generate(),
+            content_type=CONTENT_TYPE_SSE,
+            headers={
+                'Cache-Control': 'no-cache, no-transform',
+                'Connection': 'keep-alive',
+                MCP_SESSION_ID_HEADER: session_id
+            }
+        )
+    
+    def _handle_session_delete(self):
+        """Handle session deletion"""
+        try:
+            session_id = self._get_session_id()
+            
+            # For in-memory implementation, we could clear the stream from event store
+            # But since it's in-memory, this is mainly for protocol compliance
+            _logger.info(f"Session {session_id} deletion requested")
+            
+            return http.Response("", status=HTTP_NO_CONTENT)
+            
+        except Exception as e:
+            _logger.error(f"Error deleting session: {e}")
+            return self._http_error_response(None, INTERNAL_ERROR, f"Failed to delete session: {str(e)}")
+    
+    def _validate_accept_headers(self, method: str):
+        """Validate Accept headers per MCP specification"""
+        accept_header = request.httprequest.headers.get('accept', '')
+        
+        if method == 'POST':
+            # POST MUST accept BOTH application/json AND text/event-stream
+            required_types = ['application/json', 'text/event-stream']
+            
+            # Check if accept header contains both required types or is wildcard
+            if accept_header == '*/*' or 'application/*' in accept_header:
+                return None  # Wildcard accepts everything
+                
+            missing_types = []
+            for required_type in required_types:
+                if required_type not in accept_header:
+                    missing_types.append(required_type)
+            
+            if missing_types:
+                return self._http_error_response(
+                    None, 406, 
+                    f"POST requests must accept both application/json and text/event-stream. Missing: {', '.join(missing_types)}"
+                )
+                
+        elif method == 'GET':
+            # GET MUST accept text/event-stream for SSE
+            if 'text/event-stream' not in accept_header and accept_header not in ['*/*', 'text/*']:
+                return self._http_error_response(
+                    None, 406,
+                    "GET requests must accept text/event-stream for SSE streaming"
+                )
+                
+        return None  # Valid headers
+    
+    def _validate_content_type(self, method: str):
+        """Validate Content-Type headers per MCP specification"""
+        if method != 'POST':
+            return None  # Only validate POST content-type
+        
+        content_type = request.httprequest.headers.get('content-type', '')
+        
+        if not content_type.startswith('application/json'):
+            return self._http_error_response(
+                None, 415,
+                "POST requests must have Content-Type: application/json"
+            )
+        
+        return None  # Valid content-type
+    
+    def _validate_protocol_version(self):
+        """Validate MCP protocol version header"""
+        protocol_version = request.httprequest.headers.get(MCP_PROTOCOL_VERSION_HEADER, '')
+        config = self._get_server_config()
+        
+        if protocol_version and protocol_version != config.protocol_version:
+            _logger.warning(f"Client protocol version {protocol_version} differs from server {config.protocol_version}")
+            # This is a warning, not an error - servers should be backwards compatible
+        
+        return None  # Protocol version validation is informational
+    
+    def _validate_session_id_format(self, session_id: str) -> bool:
+        """Validate session ID format - Odoo session IDs are always valid"""
+        # Odoo generates proper session IDs, so this is mainly for external validation
+        if not session_id or len(session_id) < 10:
+            return False
+        return True
+    
+    def _extract_session_id(self):
+        """Extract session ID from MCP-Session-Id header or use Odoo session"""
+        # Check for explicit MCP session ID header
+        mcp_session_id = request.httprequest.headers.get(MCP_SESSION_ID_HEADER)
+        
+        if mcp_session_id:
+            return mcp_session_id
+        
+        # Fallback to Odoo session ID
+        return request.session.sid
+    
+    def _replay_events(self, session_id: str, last_event_id: str):
+        """Replay events after specified event ID for resumability"""
+        try:
+            event_store = self.get_event_store()
+            
+            def generate():
+                try:
+                    # Send reconnection event
+                    reconnect_msg = JSONRPCResponse(
+                        jsonrpc="2.0",
+                        id=None,
+                        result={"type": "reconnected", "resumed_from": last_event_id}
+                    )
+                    yield f"event: reconnected\ndata: {reconnect_msg.model_dump_json()}\n\n"
+                    
+                    # Define callback for replaying events
+                    async def replay_callback(event_message):
+                        event_data = event_message.message.model_dump_json()
+                        yield f"event: message\ndata: {event_data}\nid: {event_message.event_id}\n\n"
+                    
+                    # Replay missed events using the event store
+                    import asyncio
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    resumed_stream_id = loop.run_until_complete(
+                        event_store.replay_events_after(last_event_id, replay_callback)
+                    )
+                    loop.close()
+                    
+                    if resumed_stream_id:
+                        _logger.info(f"Resumed stream {resumed_stream_id} from event {last_event_id}")
+                    
+                    # Continue with live streaming (simplified)
+                    config = self._get_server_config()
+                    ping_count = 0
+                    while True:
+                        try:
+                            ping_count += 1
+                            ping_msg = JSONRPCResponse(
+                                jsonrpc="2.0",
+                                id=None,
+                                result={
+                                    "type": "ping", 
+                                    "count": ping_count,
+                                    "timestamp": time.time()
+                                }
+                            )
+                            
+                            if config.enable_resumability:
+                                import asyncio
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+                                event_id = loop.run_until_complete(
+                                    event_store.store_event(session_id, ping_msg)
+                                )
+                                loop.close()
+                                yield f"event: ping\ndata: {ping_msg.model_dump_json()}\nid: {event_id}\n\n"
+                            else:
+                                yield f"event: ping\ndata: {ping_msg.model_dump_json()}\n\n"
+                            
+                            time.sleep(30)
+                            
+                        except GeneratorExit:
+                            _logger.info(f"Resumed SSE stream closed by client for session {session_id}")
+                            break
+                        except Exception as e:
+                            _logger.error(f"Error in resumed SSE stream for session {session_id}: {e}")
+                            break
+                    
+                except Exception as e:
+                    _logger.error(f"Error in replay generator: {e}")
+            
+            return http.Response(
+                generate(),
+                content_type=CONTENT_TYPE_SSE,
+                headers={
+                    'Cache-Control': 'no-cache, no-transform',
+                    'Connection': 'keep-alive',
+                    MCP_SESSION_ID_HEADER: session_id
+                }
+            )
+            
+        except Exception as e:
+            _logger.error(f"Failed to replay events: {e}")
+            return self._http_error_response(None, INTERNAL_ERROR, f"Failed to resume stream: {str(e)}")
+    
     def _build_json_rpc_response(
         self, request_id: Optional[Any], result: dict = None, error: dict = None
     ):
@@ -285,6 +667,14 @@ class MCPServerController(http.Controller):
         self, request_id: Optional[Any], params: dict[str, Any]
     ):
         """Handle MCP initialize request"""
+        # Get session ID
+        session_id = self._get_session_id()
+        
+        # Store client information if provided (could be stored in event store as metadata)
+        if params.get("clientInfo"):
+            client_info = params["clientInfo"]
+            _logger.info(f"MCP client connected: {client_info.get('name')} v{client_info.get('version')}")
+        
         # Get configuration from database
         config = self._get_server_config()
 
@@ -293,6 +683,8 @@ class MCPServerController(http.Controller):
             "protocolVersion": config.protocol_version,
             "capabilities": capabilities,
             "serverInfo": {"name": config.name, "version": config.version},
+            # Return session ID for MCP protocol compliance
+            "sessionId": session_id
         }
 
         return self._json_rpc_http_response(request_id, result=result)

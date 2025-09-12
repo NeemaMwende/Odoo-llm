@@ -36,6 +36,26 @@ class LLMMCPServerConfig(models.Model):
         "Leave empty to auto-detect from web.base.url",
         tracking=True,
     )
+    
+    # MCP Transport Mode Configuration
+    stateless_mode = fields.Boolean(
+        string="Stateless Mode",
+        default=True,
+        help="Stateless mode: create fresh transport for each request (no session tracking)",
+        tracking=True,
+    )
+    json_response_mode = fields.Boolean(
+        string="JSON Response Mode",
+        default=True,
+        help="JSON response mode: return JSON directly instead of SSE streams (for both stateful/stateless)",
+        tracking=True,
+    )
+    enable_resumability = fields.Boolean(
+        string="Enable Resumability",
+        default=False,
+        help="Enable in-memory event storage for resumability support (development/testing only)",
+        tracking=True,
+    )
 
     @api.constrains("active")
     def _check_single_active_record(self):
