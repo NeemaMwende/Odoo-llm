@@ -135,8 +135,8 @@ case "${1:-help}" in
     "current-full")
         print_header "FULL TEST FOR CURRENT CONFIGURATION"
         
-        local failed_tests=0
-        local total_tests=0
+        failed_tests=0
+        total_tests=0
         
         # Quick test
         print_test_section "1. QUICK SMOKE TEST"
@@ -154,8 +154,8 @@ case "${1:-help}" in
         
         # Detect current mode and run appropriate test
         echo -e "${BLUE}ℹ️  Detecting current server mode...${NC}"
-        local mode_test=""
-        local sse_check
+        mode_test=""
+        sse_check=""
         if sse_check=$(curl -s --max-time 3 -X GET "${MCP_BASE_URL:-http://localhost:8069/mcp}" -H "Accept: text/event-stream" 2>/dev/null); then
             if [[ "$sse_check" == *"not supported in stateless mode"* ]]; then
                 mode_test="test_mode1_stateless_json.sh"

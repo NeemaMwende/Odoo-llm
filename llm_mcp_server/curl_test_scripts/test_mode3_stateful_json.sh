@@ -144,9 +144,9 @@ run_test "DELETE Request (session cleanup)" "204" "" \
 
 # GET request behavior depends on json_response_mode
 print_test "GET Request (behavior depends on json_response_mode)"
-local get_response
-local get_status
-local get_temp=$(mktemp)
+get_response=""
+get_status=""
+get_temp=$(mktemp)
 
 if get_response=$(curl -s -w "%{http_code}" -o "$get_temp" --max-time 8 -X GET "$BASE_URL" -H "Accept: text/event-stream" 2>/dev/null); then
     get_status="${get_response}"

@@ -139,12 +139,12 @@ run_test "Notification (POST)" "202" "" \
     }'
 
 # GET requests should fail in stateless mode
-run_test "GET Request (should fail)" "200" "not supported in stateless mode\|METHOD_NOT_FOUND" \
+run_test "GET Request (should fail)" "200" "not supported in stateless mode" \
     -X GET "$BASE_URL" \
     -H "Accept: text/event-stream"
 
 # DELETE requests should fail in stateless mode  
-run_test "DELETE Request (should fail)" "200" "not supported in stateless mode\|METHOD_NOT_FOUND" \
+run_test "DELETE Request (should fail)" "200" "not supported in stateless mode" \
     -X DELETE "$BASE_URL"
 
 # Protocol validation tests
