@@ -716,20 +716,20 @@ def _handle_tools_call(self, request_id, params):
 - [x] Use MCP constants and error codes
 - [x] Create API key generation utilities
 
-### Week 2: Authentication & Session Management  
+### Week 2: Authentication & Session Management ✅ 
 - [x] Add conditional API key authentication (tools/call requires auth, initialize/tools_list anonymous)
 - [x] Implement API key creation and validation using Odoo's built-in system
 - [x] Update Letta provider integration to use API key authentication 
 - [x] Fix type annotations for MCP schema validation (Union types vs Any)
-- [ ] Add mode configuration to `llm_mcp_server_config`
-- [ ] Implement session storage models (`mcp.session`, `mcp.event`)
-- [ ] Implement Odoo session ID integration
+- [x] Add mode configuration to `llm_mcp_server_config`
+- [x] Implement session storage models (`mcp.session`, `mcp.event`)
+- [x] Implement Odoo session ID integration
 
-### Week 3: Transport Layer & Protocol Compliance
-- [ ] Implement full HTTP method routing (GET, POST, DELETE)
-- [ ] Add critical protocol validation (Accept headers, Content-Type)
-- [ ] Implement SSE streaming with resumability
-- [ ] Add stateful/stateless mode support
+### Week 3: Transport Layer & Protocol Compliance ✅ 
+- [x] Implement full HTTP method routing (GET, POST, DELETE)
+- [x] Add critical protocol validation (Accept headers, Content-Type)
+- [x] Implement SSE streaming with resumability
+- [x] Add stateful/stateless mode support
 
 ### Week 4: Testing & Production Ready
 - [ ] Test with real MCP clients (Claude Desktop, Letta)
