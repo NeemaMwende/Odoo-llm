@@ -84,6 +84,14 @@ class MCPController(http.Controller):
         """Single MCP endpoint with method-based conditional authentication"""
         request_id = None
         
+        # Log incoming request details
+        _logger.info("=== MCP REQUEST START ===")
+        _logger.info(f"Method: {request.httprequest.method}")
+        _logger.info(f"Headers: {dict(request.httprequest.headers)}")
+        raw_body = request.httprequest.get_data(as_text=True)
+        _logger.info(f"Body: {raw_body}")
+        _logger.info("=== MCP REQUEST END ===")
+        
         try:
             # Parse full JSON-RPC request - controller handles all protocol details
             request_data = self._parse_mcp_request()
@@ -162,13 +170,23 @@ class MCPController(http.Controller):
             
         response = JSONRPCResponse(
             jsonrpc="2.0",
-            id=request_id or int(time.time() * 1000),
+            id=request_id if request_id is not None else int(time.time() * 1000),
             result=result_data
         )
         
+        response_json = response.model_dump_json()
+        response_headers = {'Content-Type': 'application/json'}
+        
+        # Log outgoing response details
+        _logger.info("=== MCP RESPONSE START ===")
+        _logger.info(f"Status: {HTTP_OK}")
+        _logger.info(f"Headers: {response_headers}")
+        _logger.info(f"Body: {response_json}")
+        _logger.info("=== MCP RESPONSE END ===")
+        
         return http.Response(
-            response.model_dump_json(),
-            headers={'Content-Type': 'application/json'},
+            response_json,
+            headers=response_headers,
             status=HTTP_OK  # JSON-RPC always uses 200
         )
     
@@ -181,7 +199,7 @@ class MCPController(http.Controller):
         
         response = JSONRPCError(
             jsonrpc="2.0",
-            id=request_id or int(time.time() * 1000),
+            id=request_id if request_id is not None else int(time.time() * 1000),
             error=error_data
         )
         
