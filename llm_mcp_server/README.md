@@ -2,6 +2,11 @@
 
 This module implements a Model Context Protocol (MCP) server that exposes Odoo's LLM tools to external systems.
 
+**✅ Verified Working With:**
+- **Claude Desktop** - Full integration with native MCP support
+- **Letta Agents** - Complete tool discovery and execution
+- **Any MCP-compatible client** - Standards-compliant implementation
+
 ## Features
 
 - **MCP Protocol Compliance**: Full Model Context Protocol implementation with streamable_http transport
@@ -191,9 +196,16 @@ After adding the configuration to Claude Desktop:
 3. **Type**: "What tools do you have available?"
 4. **Expected**: Claude should list your Odoo LLM tools
 
-### Other MCP Client Libraries
+## Supported MCP Clients
 
-For other MCP clients, configure them to connect to:
+### ✅ **Claude Desktop** (Verified)
+Complete integration with Anthropic's Claude Desktop application using the configuration above.
+
+### ✅ **Letta Agents** (Verified) 
+Full compatibility with Letta's MCP client for AI agent tool integration. Use our llm_letta module.
+### 🔧 **Other MCP Client Libraries**
+
+For any MCP-compatible client, configure them to connect to:
 
 - **URL**: `http://your-odoo-server:8069/mcp`
 - **Transport**: `streamable_http`
