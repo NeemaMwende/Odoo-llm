@@ -207,6 +207,8 @@ class LLMThread(models.Model):
             return existing_key.key
         
         # Get user's maximum allowed duration (36500 days for LLM managers, 90 days for regular users)
+        # TODO: Review if 36500 days (100 years) max expiration is appropriate for API keys
+        # Consider security implications of extremely long-lived API keys
         from datetime import datetime, timedelta
         max_duration = max(group.api_key_duration for group in user.groups_id) or 1.0
         expiration = datetime.now() + timedelta(days=max_duration)
