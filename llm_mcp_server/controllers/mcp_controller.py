@@ -9,17 +9,58 @@ import json
 import logging
 import time
 
-from mcp.types import ErrorData, JSONRPCError, JSONRPCResponse
+from mcp.types import (
+    INTERNAL_ERROR,
+    INVALID_PARAMS,
+    INVALID_REQUEST,
+    METHOD_NOT_FOUND,
+    PARSE_ERROR,
+    ErrorData,
+    JSONRPCError,
+    JSONRPCResponse,
+)
 
 from odoo import http
 from odoo.http import request
 
-from ..mcp_exceptions import (
-    MCPError,
-    MCPInvalidRequestError,
-    MCPMethodNotFoundError,
-    MCPParseError,
-)
+
+# MCP Exception Classes
+class MCPError(Exception):
+    """Base MCP exception with JSON-RPC error code"""
+
+    def __init__(self, message: str, code: int = INTERNAL_ERROR):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+class MCPParseError(MCPError):
+    """JSON parsing error"""
+
+    def __init__(self, message: str = "Parse error"):
+        super().__init__(message, PARSE_ERROR)
+
+
+class MCPInvalidRequestError(MCPError):
+    """Invalid JSON-RPC request structure"""
+
+    def __init__(self, message: str = "Invalid JSON-RPC request"):
+        super().__init__(message, INVALID_REQUEST)
+
+
+class MCPMethodNotFoundError(MCPError):
+    """JSON-RPC method not found"""
+
+    def __init__(self, method: str):
+        message = f"Method not found: {method}"
+        super().__init__(message, METHOD_NOT_FOUND)
+
+
+class MCPInvalidParamsError(MCPError):
+    """Invalid method parameters"""
+
+    def __init__(self, message: str = "Invalid parameters"):
+        super().__init__(message, INVALID_PARAMS)
 
 _logger = logging.getLogger(__name__)
 
