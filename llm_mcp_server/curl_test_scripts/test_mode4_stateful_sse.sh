@@ -111,21 +111,89 @@ test_resumability_features() {
                 first_event_id=$(echo "$stream_output" | grep "^id: " | head -1 | cut -d' ' -f2 | tr -d '\r')
                 print_info "Sample Event ID: $first_event_id"
                 
-                # Test resumption
-                print_test "Stream Resumption"
-                local resumed_stream
-                if resumed_stream=$(curl -s --max-time 8 -X GET "$BASE_URL" \
-                    -H "Accept: text/event-stream" \
-                    -H "Last-Event-ID: $first_event_id" 2>/dev/null); then
+                # Test proper event replay with concurrent streams
+                print_test "Event Replay (Concurrent Stream Test)"
+                
+                # Create temp files for stream capture
+                local stream1_log=$(mktemp)
+                local stream2_log=$(mktemp)
+                
+                # Start first stream in background and let it run partially
+                print_info "Starting initial stream..."
+                curl -s --max-time 4 -X GET "$BASE_URL" -H "Accept: text/event-stream" > "$stream1_log" 2>/dev/null &
+                local stream1_pid=$!
+                
+                # Let it generate some events (connected + ping1 + ping2)
+                sleep 2
+                
+                # Kill the first stream to simulate disconnection
+                kill $stream1_pid 2>/dev/null || true
+                wait $stream1_pid 2>/dev/null || true
+                
+                # Extract event IDs from the partial stream
+                local event_ids
+                event_ids=$(grep "^id: " "$stream1_log" | cut -d' ' -f2 | tr -d '\r')
+                
+                if [[ -n "$event_ids" ]]; then
+                    # Get the second event ID (should be ping1 with id=1)
+                    local middle_event_id
+                    middle_event_id=$(echo "$event_ids" | sed -n '2p')
                     
-                    if [[ "$resumed_stream" == *"reconnected"* ]]; then
-                        print_success
+                    if [[ -n "$middle_event_id" ]]; then
+                        print_info "Resuming from Event ID: $middle_event_id"
+                        
+                        # Start new stream with Last-Event-ID to test replay
+                        if curl -s --max-time 8 -X GET "$BASE_URL" \
+                            -H "Accept: text/event-stream" \
+                            -H "Last-Event-ID: $middle_event_id" > "$stream2_log" 2>/dev/null; then
+                            
+                            local resumed_content
+                            resumed_content=$(cat "$stream2_log")
+                            
+                            # Verify replay functionality
+                            local tests_passed=0
+                            local total_checks=3
+                            
+                            # Check 1: Reconnected event present
+                            if [[ "$resumed_content" == *"reconnected"* ]]; then
+                                tests_passed=$((tests_passed + 1))
+                                print_info "✓ Reconnection event found"
+                            fi
+                            
+                            # Check 2: Resumed_from field contains our event ID
+                            if [[ "$resumed_content" == *"resumed_from"* && "$resumed_content" == *"$middle_event_id"* ]]; then
+                                tests_passed=$((tests_passed + 1))
+                                print_info "✓ Resumed_from event ID verified"
+                            fi
+                            
+                            # Check 3: Later events are replayed (ping with higher count OR type ping/close)
+                            if [[ "$resumed_content" == *'"count":'* ]] || [[ "$resumed_content" == *'"type":"ping"'* ]] || [[ "$resumed_content" == *'"type":"stream_closed"'* ]]; then
+                                tests_passed=$((tests_passed + 1))
+                                print_info "✓ Later events replayed (found ping/close events)"
+                            else
+                                print_info "✗ No later events found in replay"
+                                echo "Full resumed content:"
+                                echo "$resumed_content"
+                            fi
+                            
+                            if [[ $tests_passed -eq $total_checks ]]; then
+                                print_success
+                            else
+                                print_failure "Replay verification failed ($tests_passed/$total_checks checks passed)"
+                                echo "Resume content preview: ${resumed_content:0:200}..."
+                            fi
+                        else
+                            print_failure "Resume request failed"
+                        fi
                     else
-                        print_failure "No reconnection event found"
+                        print_failure "Could not extract middle event ID"
                     fi
                 else
-                    print_failure "Resume request failed"
+                    print_failure "No event IDs captured from initial stream"
                 fi
+                
+                # Cleanup temp files
+                rm -f "$stream1_log" "$stream2_log"
             else
                 print_failure "No event IDs found"
             fi
