@@ -189,8 +189,8 @@ class LLMProvider(models.Model):
                 server_url=server_url, 
                 type="streamable_http",
                 custom_headers={
-                    # Letta will replace this template with session_id from environment variables
-                    "Cookie": "session_id={{ ODOO_SESSION_ID | NO_SESSION }}",
+                    # Letta will replace this template with API key from environment variables
+                    "Authorization": "Bearer {{ ODOO_API_KEY }}",
                 },
             )
 

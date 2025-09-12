@@ -171,13 +171,13 @@ class LLMThread(models.Model):
             # Default to openai prefix if no provider specified
             model_name = f"openai/{model_name}"
 
-        # Get MCP session for authentication
+        # Create or get API key for MCP authentication
         try:
-            mcp_session_id = thread.ensure_mcp_session()
-            _logger.info(f"Created MCP session {mcp_session_id} for Letta agent")
+            api_key = self._ensure_user_api_key(thread.user_id)
+            _logger.info(f"Created/found API key for user {thread.user_id.login}")
         except Exception as e:
-            _logger.error(f"Failed to create MCP session: {e}")
-            mcp_session_id = None
+            _logger.error(f"Failed to create API key: {e}")
+            api_key = None
 
         # Build full configuration
         agent_config = {
@@ -189,12 +189,34 @@ class LLMThread(models.Model):
         }
 
         # Add environment variables for MCP authentication
-        if mcp_session_id:
+        if api_key:
             agent_config["tool_exec_environment_variables"] = {
-                "ODOO_SESSION_ID": mcp_session_id,
+                "ODOO_API_KEY": api_key,
             }
 
         return agent_config
+
+    def _ensure_user_api_key(self, user):
+        """Create persistent API key for MCP client authentication if it doesn't exist"""
+        # Look for existing MCP API key for this user
+        existing_key = self.env['res.users.apikeys'].sudo().search([
+            ('user_id', '=', user.id),
+            ('name', '=', 'MCP Integration Key')
+        ], limit=1)
+        
+        if existing_key:
+            _logger.info(f"Using existing API key for user {user.login}")
+            return existing_key.key
+        
+        # Create new API key following the pattern from FINAL_ODOO_MCP_APPROACH.md
+        key = self.env['res.users.apikeys'].sudo().with_user(user)._generate(
+            scope=None,                 # Global key for RPC/HTTP usage
+            name='MCP Integration Key', # Description
+            expiration_date=None        # Persistent key (no expiration)
+        )
+        
+        _logger.info(f"Created new MCP API key for user {user.login}")
+        return key
 
     def get_letta_agent_id(self):
         """Get the Letta agent ID for this thread.

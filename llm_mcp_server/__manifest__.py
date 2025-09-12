@@ -22,7 +22,7 @@
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "license": "LGPL-3",
-    "depends": ["base", "llm", "llm_tool", "llm_thread"],
+    "depends": ["base", "llm", "llm_tool"],
     "external_dependencies": {
         "python": ["mcp"],
     },

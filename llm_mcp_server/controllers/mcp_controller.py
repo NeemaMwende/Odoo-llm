@@ -43,6 +43,12 @@ class MCPServerController(http.Controller):
     Transport: streamable_http
     """
 
+    # Methods that require API key authentication
+    AUTHENTICATED_METHODS = {
+        'tools/call',
+        # Add future authenticated methods here
+    }
+
     @property 
     def CAPABILITIES(self):
         """Generate proper MCP ServerCapabilities"""
@@ -162,6 +168,15 @@ class MCPServerController(http.Controller):
                 request_id, INVALID_REQUEST, "Missing required 'method' field"
             )
         
+        # Check if authentication is required for this method
+        auth_required = self._is_authentication_required(method)
+        _logger.info(f"Method '{method}' - authentication required: {auth_required}")
+        
+        if auth_required:
+            # Only tools/call requires API key authentication
+            self._authenticate_api_key_or_error()
+            _logger.info(f"Authentication successful for method '{method}'")
+        
         # Route to handlers
         handlers = {
             "initialize": self._http_handle_initialize,
@@ -217,46 +232,32 @@ class MCPServerController(http.Controller):
         return request.httprequest.headers.get('X-API-KEY')
 
     def _authenticate_api_key_or_error(self):
-        """Validate API key and bind request to corresponding user"""
+        """Validate API key and bind request to corresponding user. Raises exception on failure."""
         token = self._extract_api_key()
+        _logger.info(f"API key authentication - token found: {'Yes' if token else 'No'}")
         if not token:
-            return self._http_error_response(
-                None, AUTHENTICATION_REQUIRED,
-                "Missing API key in Authorization or X-API-KEY header"
-            )
+            _logger.warning("API key authentication failed - no token in headers")
+            raise ValueError("Missing API key in Authorization or X-API-KEY header")
         
         # Validate API key using Odoo's built-in system
+        # We create keys with scope=None which matches any scope, so we can use 'rpc' for validation
+        _logger.info(f"Validating API key: {token[:10]}...{token[-4:] if len(token) > 14 else token}")
         uid = request.env['res.users.apikeys']._check_credentials(scope='rpc', key=token)
+        _logger.info(f"API key validation result - uid: {uid}")
         if not uid:
-            return self._http_error_response(
-                None, AUTHENTICATION_REQUIRED,
-                "Invalid API key"
-            )
+            _logger.error(f"Invalid API key provided: {token[:10]}...{token[-4:] if len(token) > 14 else token}")
+            raise ValueError("Invalid API key")
         
-        # Check for session conflict
-        if request.env.uid and request.env.uid != uid:
-            return self._http_error_response(
-                None, ACCESS_DENIED,
-                "Session user does not match API key user"
-            )
+        # No session conflict check needed - API key authentication takes precedence
         
         # Bind request environment to API key owner
         request.update_env(user=uid)
-        return None  # Success
+        _logger.info(f"Successfully authenticated and bound to user {uid}")
+        # Success - no exception raised
 
-    def _authenticate_request(self):
-        """Authenticate MCP request - check if user is logged in"""
-        try:
-            # Try to get current user from session
-            if hasattr(request, 'env') and request.env.user and not request.env.user._is_public():
-                user = request.env.user
-                _logger.info(f"Authenticated user: {user.login} ({user.name}) - ID: {user.id}")
-                return user, None
-            else:
-                raise Exception("User not authenticated")
-        except Exception as e:
-            _logger.warning(f"Authentication error: {e}")
-            return None, f"Authentication failed: {str(e)}"
+    def _is_authentication_required(self, method: str) -> bool:
+        """Determine if API key authentication is required for this method"""
+        return method in self.AUTHENTICATED_METHODS
     
     def _build_json_rpc_response(
         self, request_id: Optional[Any], result: dict = None, error: dict = None
@@ -366,20 +367,15 @@ class MCPServerController(http.Controller):
     def _http_handle_tools_call(
         self, request_id: Optional[Any], params: dict[str, Any]
     ):
-        """Handle tools/call request with authentication"""
-        # Check authentication first
-        user, auth_error = self._authenticate_request()
-        if not user:
-            return self._http_error_response(request_id, AUTHENTICATION_REQUIRED, auth_error)
-
+        """Handle tools/call request (authentication already handled centrally)"""
         try:
             tool_name, arguments = self._extract_tool_params(params, request_id)
-            tool = self._get_authorized_tool(tool_name, user, request_id)
+            tool = self._get_authorized_tool(tool_name, request.env.user, request_id)
             
             if isinstance(tool, http.Response):  # Error response
                 return tool
                 
-            result = self._execute_tool_safely(tool, arguments, user)
+            result = self._execute_tool_safely(tool, arguments, request.env.user)
             return self._json_rpc_http_response(request_id, result=result)
             
         except ValueError as e:
