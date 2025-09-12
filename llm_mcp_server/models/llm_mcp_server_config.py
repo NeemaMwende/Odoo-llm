@@ -37,25 +37,12 @@ class LLMMCPServerConfig(models.Model):
         tracking=True,
     )
 
-    # MCP Transport Mode Configuration
-    stateless_mode = fields.Boolean(
-        string="Stateless Mode",
-        default=True,
-        help="Stateless mode: create fresh transport for each request (no session tracking)",
-        tracking=True,
-    )
-    json_response_mode = fields.Boolean(
-        string="JSON Response Mode",
-        default=True,
-        help="JSON response mode: return JSON directly instead of SSE streams (for both stateful/stateless)",
-        tracking=True,
-    )
-    enable_resumability = fields.Boolean(
-        string="Enable Resumability",
-        default=False,
-        help="Enable in-memory event storage for resumability support (development/testing only)",
-        tracking=True,
-    )
+    # MCP Server Mode Configuration
+    mode = fields.Selection([
+        ('stateless', 'Stateless Mode'),
+        # ('stateful', 'Stateful Mode'),  # Future implementation
+    ], default='stateless', required=True, tracking=True,
+       help="Server operation mode")
 
     @api.constrains("active")
     def _check_single_active_record(self):
@@ -94,3 +81,41 @@ class LLMMCPServerConfig(models.Model):
                 .get_param("web.base.url", "http://localhost:8069")
             )
             return f"{base_url}/mcp"
+    
+    def handle_initialize_request(self, client_info=None):
+        """Handle MCP initialize request - return plain business data"""
+        # Log client connection if info provided
+        if client_info:
+            self._log_client_connection(client_info)
+        
+        return {
+            "protocolVersion": self.protocol_version,
+            "capabilities": self._get_server_capabilities(),
+            "serverInfo": {"name": self.name, "version": self.version}
+        }
+    
+    def _get_server_capabilities(self):
+        """Get server capabilities based on configuration"""
+        from mcp.types import ServerCapabilities, ToolsCapability
+        
+        capabilities = ServerCapabilities(
+            tools=ToolsCapability(listChanged=False)
+        )
+        return capabilities.model_dump(exclude_none=True)
+    
+    def get_health_status_data(self):
+        """Get health status data - return plain dict"""
+        return {
+            "status": "healthy",
+            "server": self.name,
+            "version": self.version
+        }
+    
+    def _log_client_connection(self, client_info):
+        """Log MCP client connection for audit trail"""
+        # Uses mail.thread mixin for proper logging
+        self.message_post(
+            body=f"MCP client connected: {client_info.get('name', 'Unknown')} "
+                 f"v{client_info.get('version', 'Unknown')}",
+            message_type='comment'
+        )

@@ -1,129 +1,141 @@
 """
 MCP Server Controller for Odoo
 
-Thin HTTP controller that orchestrates MCP components following proper separation of concerns.
+Ultra-thin HTTP controller that routes requests to appropriate Odoo models 
+following proper separation of concerns.
 """
 
+import json
 import logging
+import time
 
-from mcp.types import INTERNAL_ERROR, METHOD_NOT_FOUND
+from mcp.types import ErrorData, JSONRPCError, JSONRPCResponse
 
 from odoo import http
 from odoo.http import request
 
-from ..mcp_request_handler import MCPRequestHandler
-from ..mcp_session_manager import MCPSessionManager
-from ..mcp_transport import MCPTransport
-from ..mcp_validator import MCPValidator
+from ..mcp_exceptions import (
+    MCPError,
+    MCPInvalidRequestError,
+    MCPMethodNotFoundError,
+    MCPParseError,
+)
 
 _logger = logging.getLogger(__name__)
 
 
-class MCPServerController(http.Controller):
+class MCPController(http.Controller):
     """
-    Thin MCP Server Controller that orchestrates components.
+    Ultra-thin MCP Server Controller following Odoo best practices.
 
-    This controller follows Odoo best practices by being thin and delegating
-    business logic to specialized service classes, following MCP SDK patterns.
-
-    Components:
-    - MCPSessionManager: Session lifecycle and configuration
-    - MCPValidator: Protocol validation and authentication
-    - MCPRequestHandler: JSON-RPC request processing
-    - MCPTransport: HTTP/SSE transport handling
+    This controller delegates all business logic to Odoo models:
+    - Config model handles initialize and server configuration
+    - Tool model handles tools/list and tools/call
+    - Authentication is handled by custom _auth_method_mcp_bearer
     """
 
-    def _get_components(self):
-        """Get initialized MCP components"""
-        session_manager = MCPSessionManager()
-        validator = MCPValidator()
-        request_handler = MCPRequestHandler(session_manager, validator)
-        transport = MCPTransport(session_manager, validator, request_handler)
-
-        return transport
-
-    @http.route(
-        "/mcp",
-        type="http",
-        auth="public",
-        methods=["GET", "POST", "DELETE"],
-        csrf=False,
-    )
-    def mcp_server(self):
-        """
-        Main MCP server endpoint - routes to transport layer.
-
-        This is the only HTTP routing logic. All business logic is delegated
-        to the transport layer following proper separation of concerns.
-        """
-        method = request.httprequest.method
-        headers = dict(request.httprequest.headers)
-        body = request.httprequest.get_data(as_text=True) if method == "POST" else ""
-
-        _logger.info("=== MCP REQUEST START ===")
-        _logger.info(f"Method: {method}")
-        _logger.info(f"Headers: {headers}")
-        _logger.info(f"Body: {body[:500]}...")  # First 500 chars to avoid huge logs
-
-        transport = self._get_components()
-
+    @http.route('/mcp', type='http', auth='public', methods=['POST'], csrf=False)
+    def mcp_endpoint(self):
+        """Single MCP endpoint with method-based conditional authentication"""
+        request_id = None
+        
         try:
-            if method == "POST":
-                result = transport.handle_post_request()
-            elif method == "GET":
-                result = transport.handle_get_request()
-            elif method == "DELETE":
-                result = transport.handle_delete_request()
+            # Parse full JSON-RPC request - controller handles all protocol details
+            request_data = self._parse_mcp_request()
+            method = request_data['method']
+            request_id = request_data.get('id')
+            params = request_data.get('params', {})
+            
+            # Apply authentication only for tools/call (MCP protocol requirement)
+            if method == 'tools/call':
+                # Use our custom MCP-compatible bearer authentication
+                request.env['ir.http']._auth_method_mcp_bearer()
+            
+            # Route to appropriate model based on method
+            if method == 'initialize':
+                config = request.env['llm.mcp.server.config'].get_active_config()
+                client_info = params.get('clientInfo')
+                result = config.handle_initialize_request(client_info=client_info)
+                return self._build_success_response(request_id, result)
+            elif method == 'tools/list':
+                result = request.env['llm.tool'].handle_mcp_tools_list(params=params)
+                return self._build_success_response(request_id, result)
+            elif method == 'tools/call':
+                result = request.env['llm.tool'].handle_mcp_tools_call(params=params)
+                return self._build_success_response(request_id, result)
             else:
-                result = transport.http_error_response(
-                    None, METHOD_NOT_FOUND, f"Method {method} not supported"
-                )
-
-            _logger.info("=== MCP RESPONSE ===")
-            if hasattr(result, "data"):
-                response_data = (
-                    result.data[:500]
-                    if isinstance(result.data, str)
-                    else str(result.data)[:500]
-                )
-                _logger.info(f"Response data: {response_data}...")
-            if hasattr(result, "status_code"):
-                _logger.info(f"Status code: {result.status_code}")
-            _logger.info("=== MCP REQUEST END ===")
-
-            return result
-
+                raise MCPMethodNotFoundError(method)
+        
+        except MCPError as e:
+            # Handle all MCP-specific errors with their proper error codes
+            return self._build_error_response(request_id, e.message, e.code)
         except Exception as e:
-            _logger.exception(f"Unhandled error in MCP server: {e}")
-            error_response = transport.http_error_response(
-                None, INTERNAL_ERROR, f"Internal error: {str(e)}"
-            )
-            _logger.info("=== MCP ERROR RESPONSE ===")
-            _logger.info(f"Error response: {error_response}")
-            _logger.info("=== MCP REQUEST END ===")
-            return error_response
-
-    @http.route(
-        "/mcp/health", type="json", auth="public", methods=["GET", "POST"], csrf=False
-    )
-    def health_check(self, **_params):
-        """
-        Health check endpoint for MCP server.
-
-        Uses public authentication to respect Odoo's access control system
-        while still allowing basic health checks.
-        """
+            # Handle unexpected errors
+            _logger.exception("Unexpected error in MCP endpoint")
+            return self._build_error_response(request_id, f"Internal server error: {str(e)}", -32603)
+    
+    def _parse_mcp_request(self):
+        """Parse full MCP JSON-RPC request"""
+        raw_body = request.httprequest.get_data(as_text=True)
+        
+        if not raw_body.strip():
+            raise MCPInvalidRequestError("Empty request body")
+        
         try:
-            # Get configuration from database (respects current user's access rights)
-            config_model = request.env["llm.mcp.server.config"]
-            config = config_model.get_active_config()
+            data = json.loads(raw_body)
+        except json.JSONDecodeError as e:
+            raise MCPParseError(f"Invalid JSON: {str(e)}") from e
+        
+        if 'method' not in data:
+            raise MCPInvalidRequestError("Missing 'method' in JSON-RPC request")
+        
+        # Validate basic JSON-RPC 2.0 structure
+        if data.get('jsonrpc') != '2.0':
+            raise MCPInvalidRequestError("Invalid JSON-RPC version, must be '2.0'")
+        
+        return data
+    
+    def _build_success_response(self, request_id, result):
+        """Build JSON-RPC 2.0 success response using MCP types"""
+        response = JSONRPCResponse(
+            jsonrpc="2.0",
+            id=request_id or int(time.time() * 1000),
+            result=result or {}
+        )
+        
+        return http.Response(
+            response.model_dump_json(),
+            headers={'Content-Type': 'application/json'},
+            status=200  # JSON-RPC always uses 200
+        )
+    
+    def _build_error_response(self, request_id, error, error_code):
+        """Build JSON-RPC 2.0 error response using MCP types"""
+        error_data = ErrorData(
+            code=error_code,
+            message=str(error)
+        )
+        
+        response = JSONRPCError(
+            jsonrpc="2.0",
+            id=request_id or int(time.time() * 1000),
+            error=error_data
+        )
+        
+        return http.Response(
+            response.model_dump_json(),
+            headers={'Content-Type': 'application/json'},
+            status=200  # JSON-RPC always uses 200, error is in response body
+        )
 
-            return {
-                "status": "healthy",
-                "server": config.name,
-                "version": config.version,
-                "protocol_version": config.protocol_version,
-            }
-        except Exception as e:
-            _logger.exception(f"Health check failed: {e}")
-            return {"status": "unhealthy", "error": str(e)}
+    @http.route('/mcp/health', type='http', auth='public', methods=['GET', 'POST'])
+    def health_check(self):
+        """Health check endpoint"""
+        config = request.env['llm.mcp.server.config'].get_active_config()
+        health_data = config.get_health_status_data()
+        
+        return http.Response(
+            json.dumps(health_data, indent=2),
+            headers={'Content-Type': 'application/json'},
+            status=200
+        )
