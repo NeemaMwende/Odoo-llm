@@ -23,6 +23,10 @@ from ..mcp_exceptions import (
 
 _logger = logging.getLogger(__name__)
 
+# HTTP status codes
+HTTP_OK = 200
+HTTP_ACCEPTED = 202
+
 
 class MCPController(http.Controller):
     """
@@ -34,7 +38,7 @@ class MCPController(http.Controller):
     - Authentication is handled by custom _auth_method_mcp_bearer
     """
 
-    @http.route('/mcp', type='http', auth='public', methods=['POST'], csrf=False)
+    @http.route('/mcp', type='http', auth='public', methods=['POST', 'OPTIONS'], csrf=False)
     def mcp_endpoint(self):
         """Single MCP endpoint with method-based conditional authentication"""
         request_id = None
@@ -50,29 +54,36 @@ class MCPController(http.Controller):
             if method == 'tools/call':
                 # Use our custom MCP-compatible bearer authentication
                 request.env['ir.http']._auth_method_mcp_bearer()
-            
+            LLMTool = request.env['llm.tool']
             # Route to appropriate model based on method
             if method == 'initialize':
                 config = request.env['llm.mcp.server.config'].get_active_config()
                 client_info = params.get('clientInfo')
                 result = config.handle_initialize_request(client_info=client_info)
-                return self._build_success_response(request_id, result)
+                return self._build_rpc_success_response(request_id, result)
+            elif method == 'notifications/initialized':
+                # Client notification after initialization - no response needed for notifications
+                _logger.info("Client initialization complete")
+                return http.Response('', headers={}, status=HTTP_ACCEPTED)  # Accepted for notifications
+            elif method == 'ping':
+                # Ping request - return empty result to confirm server is alive
+                return self._build_rpc_success_response(request_id, {})
             elif method == 'tools/list':
-                result = request.env['llm.tool'].handle_mcp_tools_list(params=params)
-                return self._build_success_response(request_id, result)
+                result = LLMTool.get_mcp_tools_list(params=params)
+                return self._build_rpc_success_response(request_id, result)
             elif method == 'tools/call':
-                result = request.env['llm.tool'].handle_mcp_tools_call(params=params)
-                return self._build_success_response(request_id, result)
+                result = LLMTool.execute_mcp_tool(params=params)
+                return self._build_rpc_success_response(request_id, result)
             else:
                 raise MCPMethodNotFoundError(method)
         
         except MCPError as e:
             # Handle all MCP-specific errors with their proper error codes
-            return self._build_error_response(request_id, e.message, e.code)
+            return self._build_rpc_error_response(request_id, e.message, e.code)
         except Exception as e:
             # Handle unexpected errors
             _logger.exception("Unexpected error in MCP endpoint")
-            return self._build_error_response(request_id, f"Internal server error: {str(e)}", -32603)
+            return self._build_rpc_error_response(request_id, f"Internal server error: {str(e)}", -32603)
     
     def _parse_mcp_request(self):
         """Parse full MCP JSON-RPC request"""
@@ -95,21 +106,32 @@ class MCPController(http.Controller):
         
         return data
     
-    def _build_success_response(self, request_id, result):
-        """Build JSON-RPC 2.0 success response using MCP types"""
+    def _build_rpc_success_response(self, request_id, result):
+        """Build JSON-RPC 2.0 success response using MCP types
+        
+        Args:
+            request_id: The JSON-RPC request ID
+            result: MCP pydantic result object (InitializeResult, ListToolsResult, CallToolResult, etc.)
+        """
+        # Convert pydantic result object to dict for JSON-RPC response
+        if hasattr(result, 'model_dump'):
+            result_data = result.model_dump(exclude_none=True)
+        else:
+            result_data = result or {}
+            
         response = JSONRPCResponse(
             jsonrpc="2.0",
             id=request_id or int(time.time() * 1000),
-            result=result or {}
+            result=result_data
         )
         
         return http.Response(
             response.model_dump_json(),
             headers={'Content-Type': 'application/json'},
-            status=200  # JSON-RPC always uses 200
+            status=HTTP_OK  # JSON-RPC always uses 200
         )
     
-    def _build_error_response(self, request_id, error, error_code):
+    def _build_rpc_error_response(self, request_id, error, error_code):
         """Build JSON-RPC 2.0 error response using MCP types"""
         error_data = ErrorData(
             code=error_code,
@@ -125,7 +147,7 @@ class MCPController(http.Controller):
         return http.Response(
             response.model_dump_json(),
             headers={'Content-Type': 'application/json'},
-            status=200  # JSON-RPC always uses 200, error is in response body
+            status=HTTP_OK  # JSON-RPC always uses 200, error is in response body
         )
 
     @http.route('/mcp/health', type='http', auth='public', methods=['GET', 'POST'])
@@ -137,5 +159,5 @@ class MCPController(http.Controller):
         return http.Response(
             json.dumps(health_data, indent=2),
             headers={'Content-Type': 'application/json'},
-            status=200
+            status=HTTP_OK
         )

@@ -83,16 +83,20 @@ class LLMMCPServerConfig(models.Model):
             return f"{base_url}/mcp"
     
     def handle_initialize_request(self, client_info=None):
-        """Handle MCP initialize request - return plain business data"""
+        """Handle MCP initialize request - return MCP InitializeResult"""
+        from mcp.types import Implementation, InitializeResult
+        
         # Log client connection if info provided
         if client_info:
             self._log_client_connection(client_info)
         
-        return {
-            "protocolVersion": self.protocol_version,
-            "capabilities": self._get_server_capabilities(),
-            "serverInfo": {"name": self.name, "version": self.version}
-        }
+        server_info = Implementation(version=self.version)
+        
+        return InitializeResult(
+            protocolVersion=self.protocol_version,
+            capabilities=self._get_server_capabilities(),
+            serverInfo=server_info
+        )
     
     def _get_server_capabilities(self):
         """Get server capabilities based on configuration"""
@@ -101,7 +105,7 @@ class LLMMCPServerConfig(models.Model):
         capabilities = ServerCapabilities(
             tools=ToolsCapability(listChanged=False)
         )
-        return capabilities.model_dump(exclude_none=True)
+        return capabilities
     
     def get_health_status_data(self):
         """Get health status data - return plain dict"""

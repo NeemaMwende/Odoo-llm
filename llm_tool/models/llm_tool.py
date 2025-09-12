@@ -151,7 +151,7 @@ class LLMTool(models.Model):
 
     # API methods for the Tool schema
     def get_tool_definition(self):
-        """Returns MCP-compatible tool definition using MCP SDK"""
+        """Returns MCP-compatible tool definition"""
         self.ensure_one()
 
         # Get the input schema - either from input_schema field or compute it
@@ -190,8 +190,8 @@ class LLMTool(models.Model):
             annotations=tool_annotations,
         )
 
-        # Return the actual MCP Tool object
-        return mcp_tool
+        # Return plain dict following 'Models Return Plain Data' pattern
+        return mcp_tool.model_dump(exclude_none=True)
 
     @api.onchange("implementation")
     def _onchange_implementation(self):
