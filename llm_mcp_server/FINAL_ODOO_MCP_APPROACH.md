@@ -710,16 +710,19 @@ def _handle_tools_call(self, request_id, params):
 
 ## Implementation Roadmap
 
-### Week 1: SDK Integration & Core Setup
+### Week 1: SDK Integration & Core Setup ✅ COMPLETED
 - [x] Add MCP dependency to `__manifest__.py`
 - [x] Replace manual JSON parsing with `JSONRPCMessage`
 - [x] Use MCP constants and error codes
-- [ ] Create API key generation utilities
+- [x] Create API key generation utilities
 
 ### Week 2: Authentication & Session Management  
+- [x] Add conditional API key authentication (tools/call requires auth, initialize/tools_list anonymous)
+- [x] Implement API key creation and validation using Odoo's built-in system
+- [x] Update Letta provider integration to use API key authentication 
+- [x] Fix type annotations for MCP schema validation (Union types vs Any)
 - [ ] Add mode configuration to `llm_mcp_server_config`
 - [ ] Implement session storage models (`mcp.session`, `mcp.event`)
-- [ ] Add conditional API key authentication
 - [ ] Implement Odoo session ID integration
 
 ### Week 3: Transport Layer & Protocol Compliance
