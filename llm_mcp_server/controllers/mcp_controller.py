@@ -7,6 +7,7 @@ Thin HTTP controller that orchestrates MCP components following proper separatio
 import logging
 
 from mcp.types import INTERNAL_ERROR, METHOD_NOT_FOUND
+
 from odoo import http
 from odoo.http import request
 
@@ -53,7 +54,7 @@ class MCPServerController(http.Controller):
         headers = dict(request.httprequest.headers)
         body = request.httprequest.get_data(as_text=True) if method == "POST" else ""
         
-        _logger.info(f"=== MCP REQUEST START ===")
+        _logger.info("=== MCP REQUEST START ===")
         _logger.info(f"Method: {method}")
         _logger.info(f"Headers: {headers}")
         _logger.info(f"Body: {body[:500]}...")  # First 500 chars to avoid huge logs
@@ -70,22 +71,22 @@ class MCPServerController(http.Controller):
             else:
                 result = transport.http_error_response(None, METHOD_NOT_FOUND, f"Method {method} not supported")
             
-            _logger.info(f"=== MCP RESPONSE ===")
+            _logger.info("=== MCP RESPONSE ===")
             if hasattr(result, 'data'):
                 response_data = result.data[:500] if isinstance(result.data, str) else str(result.data)[:500]
                 _logger.info(f"Response data: {response_data}...")
             if hasattr(result, 'status_code'):
                 _logger.info(f"Status code: {result.status_code}")
-            _logger.info(f"=== MCP REQUEST END ===")
+            _logger.info("=== MCP REQUEST END ===")
             
             return result
                 
         except Exception as e:
             _logger.exception(f"Unhandled error in MCP server: {e}")
             error_response = transport.http_error_response(None, INTERNAL_ERROR, f"Internal error: {str(e)}")
-            _logger.info(f"=== MCP ERROR RESPONSE ===")
+            _logger.info("=== MCP ERROR RESPONSE ===")
             _logger.info(f"Error response: {error_response}")
-            _logger.info(f"=== MCP REQUEST END ===")
+            _logger.info("=== MCP REQUEST END ===")
             return error_response
 
     @http.route("/mcp/health", type="json", auth="public", methods=["GET", "POST"], csrf=False)
