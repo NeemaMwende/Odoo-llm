@@ -19,8 +19,11 @@
                         <group>
                             <field name="version" />
                             <field name="protocol_version" />
+                            <field name="stateless_mode" />
                         </group>
                         <group>
+                            <field name="json_response_mode" />
+                            <field name="enable_resumability" />
                             <field
                 name="external_url"
                 placeholder="e.g., http://host.docker.internal:8069"
