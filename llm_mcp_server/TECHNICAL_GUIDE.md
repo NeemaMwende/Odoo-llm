@@ -8,19 +8,27 @@ The `llm_mcp_server` module implements a Model Context Protocol (MCP) server tha
 
 ### Core Components
 
-- **MCP Server Controller** (`controllers/mcp_controller.py`): HTTP-based JSON-RPC 2.0 server implementing the MCP protocol
-- **Tool Discovery**: Automatic exposure of all active `llm.tool` records as MCP tools
-- **Schema Patching**: OpenAI compatibility layer for tool parameters
-- **Session Management**: Placeholder for future user context tracking
+The server follows a clean component-based architecture:
+
+- **MCP Server Controller** (`controllers/mcp_controller.py`): Thin orchestration layer that coordinates components
+- **MCP Transport** (`mcp_transport.py`): HTTP/SSE transport with streaming and resumability support  
+- **MCP Validator** (`mcp_validator.py`): Protocol validation and API key authentication
+- **MCP Request Handler** (`mcp_request_handler.py`): JSON-RPC method routing and tool execution
+- **MCP Session Manager** (`mcp_session_manager.py`): Session lifecycle and configuration management
+- **Event Store** (`event_store.py`): Event storage for SSE resumability and replay
+- **MCP Exceptions** (`mcp_exceptions.py`): Custom exception hierarchy for proper error handling
 
 ### Protocol Implementation
 
-The server implements MCP protocol over HTTP transport using pure JSON-RPC 2.0:
+The server implements MCP protocol with multiple operational modes:
 
 - **Endpoint**: `/mcp`
-- **Transport**: `streamable_http`
-- **Protocol**: JSON-RPC 2.0
-- **Authentication**: None (currently uses `sudo()` for simplicity)
+- **Transport**: `streamable_http` with SSE support
+- **Protocol**: JSON-RPC 2.0 with MCP SDK compliance
+- **Authentication**: API key-based with Bearer token support
+- **Session Management**: Stateful and stateless modes
+- **Streaming**: Server-Sent Events (SSE) with resumability and event replay
+- **Configuration**: 4 operational modes via database configuration
 
 ## Setup and Installation
 
@@ -53,31 +61,48 @@ curl -X POST http://localhost:8069/mcp \
   }'
 ```
 
-### 3. Configure External MCP Clients
+### 3. Configure Server Settings
 
-For **Letta** (or similar systems):
+Configure the MCP server in Odoo UI:
 
-```python
-# Register MCP server with Letta
-letta_client.tools.add_mcp_server(
-    server_name="odoo_mcp",
-    server_url="http://your-odoo-server:8069/mcp",
-    type="streamable_http"
-)
+- **Path**: LLM → Configuration → MCP Server
+- **Settings**:
+  - **API Key**: Generate/copy for client authentication
+  - **Stateless Mode**: True/False (session management)
+  - **JSON Response Mode**: True/False (JSON vs SSE responses)
+  - **Enable Resumability**: True/False (stream resumption support)
+
+### 4. Configure External MCP Clients
+
+**Prerequisites**: Install mcp-remote globally:
+```bash
+npm install -g mcp-remote
 ```
 
-For **Claude Desktop**:
+For **Claude Desktop**, add to config file:
 
 ```json
 {
   "mcpServers": {
-    "odoo": {
-      "command": "mcp-client",
-      "args": ["--url", "http://your-odoo-server:8069/mcp"]
+    "odoo-llm-mcp-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:8069/mcp",
+        "--header",
+        "Authorization: Bearer YOUR_API_KEY_HERE"
+      ],
+      "env": {
+        "MCP_TRANSPORT": "streamable-http"
+      }
     }
   }
 }
 ```
+
+**Note**: Replace `YOUR_API_KEY_HERE` with your actual API key from Odoo.
 
 ## Troubleshooting Journey
 
@@ -113,38 +138,28 @@ def mcp_server(self):
 
 **Key Insight**: Odoo's JSON-RPC format is incompatible with standard JSON-RPC 2.0 that MCP requires.
 
-### Issue 2: OpenAI Tool Schema Validation Failures
+### Issue 2: Tool Schema Generation
 
-**Problem**: Letta forwarded tools to OpenAI, which rejected them with:
+**Problem**: Early versions had issues with tool schema generation for MCP clients.
 
-```
-Invalid schema for function 'odoo_model_inspector': array schema missing items
-```
+**Root Cause**: Direct Pydantic schema generation didn't align with MCP protocol expectations.
 
-**Root Cause**: Pydantic's `model_json_schema()` generated incomplete schemas for modern Python type hints:
+**Solution**: Integrated with Odoo's `llm_tool` module schema system:
 
 ```python
-# Modern Python syntax
-method_type_filter: Optional[list[str]] = None
-
-# Generated broken schema
-{
-  "type": "array"  // Missing "items": {"type": "string"}
-}
+# Current approach in handle_tools_list()
+def handle_tools_list(self, request_id, _params):
+    """Handle tools/list request using proper MCP types"""
+    tools = request.env["llm.tool"].sudo().search([("active", "=", True)])
+    
+    mcp_tools = []
+    for tool in tools:
+        mcp_tool = tool.get_tool_definition()  # Returns MCP SDK Tool object
+        if mcp_tool is not None:
+            mcp_tools.append(mcp_tool)
 ```
 
-**Solution**: Implemented schema patching (same approach as `llm_openai` module):
-
-```python
-def _patch_schema_for_openai_compatibility(self, schema_node):
-    """Fix array schemas that don't specify items type"""
-    if "items" in schema_node and isinstance(schema_node["items"], dict):
-        items_dict = schema_node["items"]
-        if "type" not in items_dict:
-            items_dict["type"] = "string"  # Default for OpenAI compatibility
-```
-
-**Key Insight**: Modern Python type hints (`list[str]`) don't translate perfectly to OpenAI-compatible JSON Schema via Pydantic. The same patching logic exists in Odoo's OpenAI provider for the same reason.
+**Key Insight**: The `llm_tool.get_tool_definition()` method returns proper MCP SDK `Tool` objects with correct schema generation, ensuring consistency across all LLM providers and MCP protocol compliance.
 
 ### Issue 3: Request ID Validation Failures
 
@@ -194,66 +209,74 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
 
 **Recommendation**: Test additional tools individually before relying on them in production workflows.
 
-## Current Limitations
+## Current Features ✅
 
-### 1. **No Authentication**
+### 1. **Authentication & Security**
 
-- Uses `sudo()` for all operations
-- No user context tracking
-- No permission enforcement
+- ✅ **API Key Authentication**: Integrated with Odoo's `res.users.apikeys` system
+- ✅ **User Context Binding**: `request.update_env(user=uid)` for proper user context
+- ✅ **Permission Enforcement**: `tool.check_access('read')` respects Odoo ACL rules
+- ✅ **No sudo()**: Tool execution runs in authenticated user context
+- ✅ **Audit Logging**: User access attempts and tool executions are logged
 
-### 2. **No Session Management**
+### 2. **Session Management**
 
-- Stateless tool execution
-- No audit trail of external usage
-- Can't track which external user performed actions
+- ✅ **Stateful/Stateless Modes**: Configurable session management
+- ✅ **Session Tracking**: Each session has unique ID and lifecycle management
+- ✅ **Event Storage**: Comprehensive event tracking for SSE streams
+- ✅ **User Activity Logging**: Track which user performed which actions
 
-### 3. **Limited Error Handling**
+### 3. **Error Handling**
 
-- Basic error responses
-- No detailed error codes
-- Tool execution failures return generic messages
+- ✅ **Structured Exception Hierarchy**: Custom MCP exception classes
+- ✅ **JSON-RPC Compliant Errors**: Proper error codes and messages
+- ✅ **Detailed Error Responses**: Context-rich error information
+- ✅ **Tool Execution Safety**: Graceful handling of tool failures
 
-### 4. **Performance Concerns**
+### 4. **Performance & Scalability**
 
-- No rate limiting
-- No caching of tool definitions
-- Each request searches database for tools
+- ✅ **Component-Based Architecture**: Separation of concerns for maintainability
+- ✅ **SSE Streaming**: Non-blocking event-driven responses
+- ✅ **Event Replay**: Efficient resumability with minimal resource usage
+- ✅ **Session Cleanup**: Proper resource management
 
-## Improvements Needed
+## Future Improvements
 
 ### High Priority
 
-1. **Authentication & Authorization**
+1. **Rate Limiting & Performance**
 
    ```python
-   # Add session-based auth
-   def _authenticate_mcp_request(self, headers):
-       session_token = headers.get('X-Odoo-Session-Token')
-       return self._validate_session(session_token)
+   # Add per-user rate limiting
+   def _check_rate_limit(self, user_id):
+       recent_requests = self._get_recent_requests(user_id, minutes=1)
+       if len(recent_requests) > MAX_REQUESTS_PER_MINUTE:
+           raise MCPRateLimitError("Rate limit exceeded")
    ```
 
-2. **User Context Tracking**
+2. **Tool Discovery Enhancement**
 
    ```python
-   # Log tool usage with user context
-   env['mcp.tool.usage'].create({
-       'tool_id': tool.id,
-       'external_user': session_data.user,
-       'arguments': json.dumps(arguments),
-       'timestamp': fields.Datetime.now()
-   })
+   # Cache tool definitions for performance
+   @cached_property
+   def available_tools(self):
+       return self._build_tool_definitions()
+   
+   # Filter tools by category/capability
+   def _filter_tools_by_category(self, category, tools):
+       return [t for t in tools if t.category == category]
    ```
 
-3. **Better Error Handling**
+3. **Enhanced Monitoring**
    ```python
-   # Structured error responses
-   TOOL_ERROR_CODES = {
-       'TOOL_NOT_FOUND': -32001,
-       'INVALID_ARGUMENTS': -32002,
-       'PERMISSION_DENIED': -32003,
-       'EXECUTION_FAILED': -32004
-   }
+   # Detailed metrics collection
+   def _record_tool_metrics(self, tool_name, execution_time, success):
+       env['mcp.tool.metrics'].create({
+           'tool_name': tool_name,
+           'execution_time_ms': execution_time * 1000,
+           'success': success,
+           'timestamp': fields.Datetime.now()
+       })
    ```
 
 ### Medium Priority
@@ -284,14 +307,62 @@ All other tools in your Odoo instance are automatically exposed via MCP but have
 
 ## Security Considerations
 
-⚠️ **WARNING**: Current implementation has significant security risks:
+✅ **Current Security Features**:
 
-- **No authentication**: Any client can execute any tool
-- **Full system access**: Uses `sudo()` with no restrictions
-- **No audit trail**: External usage is not tracked
-- **No rate limiting**: Vulnerable to abuse
+- ✅ **API Key Authentication**: Bearer token authentication required for tool execution
+- ✅ **User Context Security**: Tools execute in authenticated user context (no sudo)
+- ✅ **Permission Enforcement**: Odoo ACL rules are respected for all operations
+- ✅ **Audit Trail**: Comprehensive logging of user actions and tool executions
+- ✅ **Session Management**: Proper session isolation and cleanup
 
-**Do not deploy to production** without implementing proper authentication and authorization.
+⚠️ **Remaining Considerations**:
+
+- **Rate Limiting**: Not yet implemented - consider for high-traffic scenarios
+- **API Key Rotation**: Plan for regular API key rotation policies
+- **Network Security**: Ensure HTTPS in production deployments
+- **Tool Permissions**: Review and restrict tool access as needed per user role
+
+## Testing
+
+The module includes a comprehensive curl-based test suite in `curl_test_scripts/`:
+
+### **Quick Testing Commands**
+```bash
+cd curl_test_scripts/
+
+# Quick smoke test
+./run_all_tests.sh quick
+
+# Test current server configuration  
+./run_all_tests.sh current
+
+# Mode-specific tests
+./run_all_tests.sh mode1  # Stateless + JSON
+./run_all_tests.sh mode3  # Stateful + JSON  
+./run_all_tests.sh mode4  # Stateful + SSE
+
+# Test resumability features
+./run_all_tests.sh resumability
+```
+
+### **Server Configuration Modes**
+
+| Mode | Stateless | JSON Response | Resumability | POST | GET | DELETE |
+|------|-----------|---------------|-------------|------|-----|--------|
+| 1    | ✅        | ✅            | ❌          | ✅   | ❌  | ❌     |
+| 3    | ❌        | ✅            | ❌/✅       | ✅   | ❓  | ✅     |
+| 4    | ❌        | ❌            | ❌/✅       | ✅   | ✅  | ✅     |
+
+*Mode 2 (Stateless + SSE) is theoretical and not commonly used*
+
+### **Test Coverage**
+- ✅ JSON-RPC 2.0 protocol compliance
+- ✅ Authentication (API key validation)
+- ✅ Tool discovery and execution
+- ✅ Session management across all modes
+- ✅ SSE streaming and resumability
+- ✅ Event replay functionality
+- ✅ Error handling and edge cases
 
 ## Development Notes
 
@@ -314,19 +385,22 @@ def _http_handle_your_method(self, request_id, params):
         return self._http_error_response(request_id, -32603, str(e))
 ```
 
-### Schema Patching for New Tool Types
+### Tool Schema Integration
 
-If you encounter schema validation issues with new tools:
+Schema generation is handled by the `llm_tool` module. If you need custom schema behavior:
 
 ```python
-# Extend _patch_schema_for_openai_compatibility()
-def _patch_schema_for_openai_compatibility(self, schema_node):
-    # Existing array patching...
-
-    # Add new schema fixes as needed
-    if "your_problematic_type" in schema_node:
-        # Fix the schema issue
-        pass
+# Tool schema is handled by llm_tool module
+# Extend the tool's get_tool_definition() method if needed
+class CustomTool(models.Model):
+    _inherit = 'llm.tool'
+    
+    def get_tool_definition(self):
+        """Override for custom MCP Tool object generation"""
+        # This returns an MCP SDK Tool object
+        tool_obj = super().get_tool_definition()
+        # Modify the Tool object if needed
+        return tool_obj
 ```
 
 ## Integration Examples
