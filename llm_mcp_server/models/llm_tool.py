@@ -14,7 +14,7 @@ class LLMTool(models.Model):
     @api.model
     def get_mcp_tools_list(self, params=None):
         """Handle MCP tools/list request - return MCP ListToolsResult"""
-        active_tools = self.search([("active", "=", True)])
+        active_tools = self.sudo().search([("active", "=", True)])
         mcp_tools = []
         
         for tool in active_tools:

@@ -86,11 +86,7 @@ class LLMMCPServerConfig(models.Model):
         """Handle MCP initialize request - return MCP InitializeResult"""
         from mcp.types import Implementation, InitializeResult
         
-        # Log client connection if info provided
-        if client_info:
-            self._log_client_connection(client_info)
-        
-        server_info = Implementation(version=self.version)
+        server_info = Implementation(name=self.name, version=self.version)
         
         return InitializeResult(
             protocolVersion=self.protocol_version,
@@ -115,11 +111,3 @@ class LLMMCPServerConfig(models.Model):
             "version": self.version
         }
     
-    def _log_client_connection(self, client_info):
-        """Log MCP client connection for audit trail"""
-        # Uses mail.thread mixin for proper logging
-        self.message_post(
-            body=f"MCP client connected: {client_info.get('name', 'Unknown')} "
-                 f"v{client_info.get('version', 'Unknown')}",
-            message_type='comment'
-        )
