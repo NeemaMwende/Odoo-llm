@@ -101,8 +101,8 @@ class LLMMCPSession(models.Model):
         # Define allowed methods per state for stateful mode
         allowed_methods = {
             'not_initialized': ['initialize', 'ping'],
-            'initializing': ['ping'],
-            'initialized': ['ping', 'tools/list', 'tools/call', 'notifications/initialized'],
+            'initializing': ['ping', 'notifications/initialized'],
+            'initialized': ['ping', 'tools/list', 'tools/call'],
         }
         
         return method in allowed_methods.get(self.state, [])
