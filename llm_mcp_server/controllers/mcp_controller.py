@@ -98,32 +98,15 @@ class MCPController(http.Controller):
             request_id = request_data.get('id')
             params = request_data.get('params', {})
             
-            # Apply authentication only for tools/call (MCP protocol requirement)
-            if method == 'tools/call':
-                # Use our custom MCP-compatible bearer authentication
-                request.env['ir.http']._auth_method_mcp_bearer()
-            LLMTool = request.env['llm.tool']
-            # Route to appropriate model based on method
-            if method == 'initialize':
-                config = request.env['llm.mcp.server.config'].get_active_config()
-                client_info = params.get('clientInfo')
-                result = config.handle_initialize_request(client_info=client_info)
-                return self._build_rpc_success_response(request_id, result)
-            elif method == 'notifications/initialized':
-                # Client notification after initialization - no response needed for notifications
-                _logger.info("Client initialization complete")
-                return http.Response('', headers={}, status=HTTPStatus.ACCEPTED)  # Accepted for notifications
-            elif method == 'ping':
-                # Ping request - return empty result to confirm server is alive
-                return self._build_rpc_success_response(request_id, {})
-            elif method == 'tools/list':
-                result = LLMTool.get_mcp_tools_list(params=params)
-                return self._build_rpc_success_response(request_id, result)
-            elif method == 'tools/call':
-                result = LLMTool.execute_mcp_tool(params=params)
-                return self._build_rpc_success_response(request_id, result)
-            else:
-                raise MCPMethodNotFoundError(method)
+            # Dispatch to appropriate handler
+            result = self._dispatch(method, params, request_id)
+            
+            # Handle special case for notifications that return HTTP Response directly
+            if isinstance(result, http.Response):
+                return result
+            
+            # For all other methods, build JSON-RPC success response
+            return self._build_rpc_success_response(request_id, result)
         
         except MCPError as e:
             # Handle all MCP-specific errors with their proper error codes
@@ -154,6 +137,45 @@ class MCPController(http.Controller):
         
         return data
     
+    # MCP Method Handlers
+    def _handle_initialize(self, params, request_id):
+        """Handle initialize method"""
+        config = request.env['llm.mcp.server.config'].get_active_config()
+        client_info = params.get('clientInfo')
+        return config.handle_initialize_request(client_info=client_info)
+    
+    def _handle_notifications_initialized(self, params, request_id):
+        """Handle notifications/initialized method"""
+        _logger.info("Client initialization complete")
+        return http.Response('', headers={}, status=HTTPStatus.ACCEPTED)
+    
+    def _handle_ping(self, params, request_id):
+        """Handle ping method"""
+        return {}
+    
+    def _handle_tools_list(self, params, request_id):
+        """Handle tools/list method"""
+        return request.env['llm.tool'].get_mcp_tools_list(params=params)
+    
+    def _handle_tools_call(self, params, request_id):
+        """Handle tools/call method"""
+        # Apply authentication for tools/call
+        request.env['ir.http']._auth_method_mcp_bearer()
+        return request.env['llm.tool'].execute_mcp_tool(params=params)
+
+    def _dispatch(self, method_name, params, request_id):
+        """Dispatch MCP method to appropriate handler"""
+        # Transform method name to handler name
+        handler_name = f"_handle_{method_name.replace('/', '_').replace('-', '_')}"
+        
+        # Get handler method
+        handler = getattr(self, handler_name, None)
+        if not handler:
+            raise MCPMethodNotFoundError(method_name)
+        
+        # Call handler
+        return handler(params, request_id)
+
     def _build_rpc_success_response(self, request_id, result):
         """Build JSON-RPC 2.0 success response using MCP types
         
