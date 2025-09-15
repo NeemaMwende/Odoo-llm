@@ -15,11 +15,13 @@ Production-ready Model Context Protocol (MCP) server that exposes Odoo LLM tools
 
 ## Core Features
 
+- **Native Odoo Implementation**: 100% pure Odoo module using standard HTTP controllers and models
 - **MCP 2025-06-18 Compliance**: Full protocol implementation with JSON-RPC 2.0
 - **Bearer Authentication**: Secure API key-based authentication
 - **Auto Tool Discovery**: Exposes all active `llm.tool` records automatically
 - **Session Management**: Stateful operation with concurrent request handling
 - **Production Ready**: Optimized logging, error handling, and performance
+- **Future SSE Support**: Architecture ready for Server-Sent Events streaming (planned)
 
 ## Integration with Claude Desktop
 
