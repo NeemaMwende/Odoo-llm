@@ -373,6 +373,13 @@ class MCPController(http.Controller):
     @require_bearer_auth
     def _mcp_tools_call(self, params, request_id, session_id):
         """Handle tools/call method"""
+        # Update session user_id if we have a session and authenticated user
+        if session_id and request.env.user and not request.env.user._is_public():
+            session = request.env['llm.mcp.session'].get_session(session_id)
+            if session and not session.user_id:
+                session.user_id = request.env.user.id
+                _logger.info(f"Updated session {session_id} with user {request.env.user.login}")
+        
         return request.env['llm.tool'].execute_mcp_tool(params=params)
 
     def _dispatch(self, method_name, params, request_id, session_id):
