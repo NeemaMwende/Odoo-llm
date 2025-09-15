@@ -374,6 +374,7 @@ class MCPController(http.Controller):
     def _mcp_tools_call(self, params, request_id, session_id):
         """Handle tools/call method"""
         # Update session user_id if we have a session and authenticated user
+        # Might be better in some other place?(future)
         if session_id and request.env.user and not request.env.user._is_public():
             session = request.env['llm.mcp.session'].get_session(session_id)
             if session and not session.user_id:
