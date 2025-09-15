@@ -38,14 +38,14 @@ class MCPInitializeResponse(BaseModel):
 
 def require_bearer_auth(handler_func):
     """Decorator that applies MCP-compatible bearer authentication"""
-    def wrapper(self, params, request_id):
+    def wrapper(self, *args, **kwargs):
             # Clean up the public uid and use built-in _auth_method_bearer
             request.update_env(user=False)
             request.env['ir.http']._auth_method_bearer()
             _logger.info("Bearer authentication succeeded %s", request.env.user)
             
             # Authentication succeeded - proceed with handler
-            return handler_func(self, params, request_id)
+            return handler_func(self, *args, **kwargs)
             
     return wrapper
 
