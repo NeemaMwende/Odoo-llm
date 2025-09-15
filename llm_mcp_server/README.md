@@ -1,136 +1,25 @@
 # LLM MCP Server for Odoo
 
-This module implements a Model Context Protocol (MCP) server that exposes Odoo's LLM tools to external systems.
+Production-ready Model Context Protocol (MCP) server that exposes Odoo LLM tools to AI clients.
 
 **✅ Verified Working With:**
 - **Claude Desktop** - Full integration with native MCP support
 - **Letta Agents** - Complete tool discovery and execution
 - **Any MCP-compatible client** - Standards-compliant implementation
 
-## Features
+## Quick Start
 
-- **MCP Protocol Compliance**: Full Model Context Protocol implementation with streamable_http transport
-- **JSON-RPC 2.0**: Complete JSON-RPC 2.0 specification compliance
-- **Authentication**: API key-based authentication with Bearer tokens
-- **Automatic Tool Discovery**: All active `llm.tool` records are automatically exposed as MCP tools
-- **Tool Execution**: Execute any configured LLM tool via MCP protocol (synchronous)
-- **Session Management**: Stateful and stateless operation modes
-- **SSE Infrastructure**: Server-Sent Events support ready for future streaming needs
-- **Resumability**: Event replay infrastructure for connection recovery (future use)
-- **Comprehensive Testing**: Full test suite with curl-based integration tests
+1. **Configure MCP Server**: Go to **LLM → Configuration → MCP Server** and copy your API key
+2. **Add to Claude Desktop**: Use the configuration below with your API key
+3. **Start using**: Ask Claude "What tools do you have available?"
 
-## Endpoints
+## Core Features
 
-### Main MCP Endpoint
-
-- **URL**: `/mcp`
-- **Method**: POST
-- **Content-Type**: application/json
-
-### Health Check
-
-- **URL**: `/mcp/health`
-- **Method**: GET or POST
-- **Returns**: Server status and tools count
-
-## MCP Protocol Methods
-
-### 1. Initialize
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": {},
-    "clientInfo": {
-      "name": "MCP Client",
-      "version": "1.0.0"
-    }
-  }
-}
-```
-
-### 2. List Tools
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/list",
-  "params": {}
-}
-```
-
-### 3. Call Tool
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 3,
-  "method": "tools/call",
-  "params": {
-    "name": "tool_name",
-    "arguments": {
-      "param1": "value1"
-    }
-  }
-}
-```
-
-## Testing with cURL
-
-### Initialize
-
-```bash
-curl -X POST http://localhost:8069/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "initialize",
-    "params": {
-      "protocolVersion": "2024-11-05",
-      "clientInfo": {"name": "test", "version": "1.0"}
-    }
-  }'
-```
-
-### List Tools
-
-```bash
-curl -X POST http://localhost:8069/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 2,
-    "method": "tools/list",
-    "params": {}
-  }'
-```
-
-### Call a Tool
-
-```bash
-curl -X POST http://localhost:8069/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 3,
-    "method": "tools/call",
-    "params": {
-      "name": "record_retriever",
-      "arguments": {
-        "model_name": "res.partner",
-        "domain": [["is_company", "=", true]],
-        "fields": ["name", "email"],
-        "limit": 5
-      }
-    }
-  }'
-```
+- **MCP 2025-06-18 Compliance**: Full protocol implementation with JSON-RPC 2.0
+- **Bearer Authentication**: Secure API key-based authentication
+- **Auto Tool Discovery**: Exposes all active `llm.tool` records automatically
+- **Session Management**: Stateful operation with concurrent request handling
+- **Production Ready**: Optimized logging, error handling, and performance
 
 ## Integration with Claude Desktop
 
@@ -143,8 +32,7 @@ curl -X POST http://localhost:8069/mcp \
    ```
 
 2. **Get your API key** from Odoo:
-   - Go to: **LLM → Configuration → MCP Server**
-   - Copy the **API Key** value
+   - Follow -> https://www.odoo.com/documentation/19.0/developer/reference/external_api.html#api-keys
 
 ### Claude Desktop Configuration
 
@@ -175,18 +63,6 @@ Add this configuration to your Claude Desktop config file:
 
 **⚠️ Important**: Replace `YOUR_API_KEY_HERE` with your actual API key from the Odoo MCP Server configuration.
 
-### Server Configuration Modes
-
-The MCP server supports different operational modes via configuration:
-
-- **Stateless Mode**: True/False (enables session management and GET streams)
-- **JSON Response Mode**: True/False (JSON responses vs SSE infrastructure)
-- **Enable Resumability**: True/False (event replay support for future streaming)
-
-**Current Usage**: Most users should use **Mode 4** (Stateful + SSE) as it provides the most complete MCP compliance, even though current tools execute synchronously.
-
-Configure these in: **LLM → Configuration → MCP Server**
-
 ### Testing the Connection
 
 After adding the configuration to Claude Desktop:
@@ -208,61 +84,11 @@ Full compatibility with Letta's MCP client for AI agent tool integration. Use ou
 For any MCP-compatible client, configure them to connect to:
 
 - **URL**: `http://your-odoo-server:8069/mcp`
-- **Transport**: `streamable_http`
-- **Protocol**: JSON-RPC 2.0
+- **Transport**: `streamable_http`  
 - **Authentication**: Bearer token with API key
 
-## Testing
+## Security
 
-The module includes a comprehensive test suite located in `curl_test_scripts/`:
-
-```bash
-cd curl_test_scripts/
-
-# Quick smoke test
-./run_all_tests.sh quick
-
-# Test current server configuration
-./run_all_tests.sh current
-
-# Mode-specific tests
-./run_all_tests.sh mode1  # Stateless + JSON
-./run_all_tests.sh mode3  # Stateful + JSON
-./run_all_tests.sh mode4  # Stateful + SSE
-
-# Test resumability features
-./run_all_tests.sh resumability
-```
-
-See `curl_test_scripts/README.md` for detailed testing documentation.
-
-## Security & Access Control
-
-### ✅ **Current Implementation**
-
-- **User Context Tracking**: All tool calls track the authenticated user
-- **API Key Authentication**: Integrated with Odoo's `res.users.apikeys` system
-- **Permission Enforcement**: Respects Odoo's built-in access control (ACL) rules
-- **Tool-Level Security**: Each tool execution checks user read permissions
-- **Audit Logging**: User access attempts and tool executions are logged
-
-### **Access Control Flow**
-
-1. **API Key Validation**: Uses `res.users.apikeys._check_credentials()`
-2. **User Binding**: Request environment bound to API key owner via `request.update_env(user=uid)`
-3. **Permission Check**: `tool.check_access('read')` validates user access to specific tools
-4. **Execution Context**: Tool executes in authenticated user's context (no sudo)
-
-## Next Steps (Future Enhancements)
-
-1. **Tool Filtering**: Allow filtering tools by category or capability in tools/list
-2. **Rate Limiting**: Per-user request throttling
-3. **Enhanced Logging**: Structured audit logs with detailed tool execution metrics
-4. **Permission Caching**: Cache permission checks for improved performance
-5. **WebSocket Support**: Direct WebSocket transport (alternative to mcp-remote)
-
-## Development
-
-To add more capabilities, extend the `MCPServerController` class in `controllers/mcp_controller.py`.
-
-The controller follows the MCP specification from: https://github.com/anthropics/mcp
+- **API Key Authentication**: Integrated with Odoo's user system
+- **Access Control**: Respects all Odoo permissions and ACL rules
+- **User Context**: Tools execute with authenticated user's permissions

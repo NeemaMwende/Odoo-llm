@@ -2,22 +2,27 @@
     "name": "LLM MCP Server",
     "version": "18.0.1.0.0",
     "category": "Technical",
-    "summary": "Model Context Protocol (MCP) server for exposing LLM tools",
+    "summary": "MCP server exposing Odoo LLM tools to Claude Desktop and other AI clients",
     "description": """
         Model Context Protocol (MCP) Server for Odoo LLM
 
-        This module exposes Odoo LLM tools as an MCP server, allowing external systems
-        like Claude Desktop, Letta, or other MCP clients to access and execute Odoo tools.
+        Enables Claude Desktop, Letta, and other MCP clients to access and execute 
+        Odoo tools directly through a standards-compliant MCP server.
 
-        Key features:
-        - Full MCP streamable_http transport compliance
-        - JSON-RPC 2.0 protocol with MCP SDK types
-        - Stateful and stateless mode support
-        - API key authentication with Odoo integration
-        - SSE streams with resumability support
-        - Session management using Odoo session IDs
-        - Automatic tool discovery from llm.tool records
-        - Tool execution with proper context handling
+        Core Features:
+        • MCP 2025-06-18 protocol compliance with JSON-RPC 2.0
+        • Bearer token authentication with Odoo user integration
+        • Stateful session management with concurrent request handling
+        • Automatic tool discovery from llm.tool registry
+        • Real-time tool execution with proper Odoo context
+        • Health monitoring and protocol version negotiation
+        • Production-ready with optimized logging and error handling
+
+        Supported Methods:
+        • initialize - Server capability negotiation
+        • tools/list - Dynamic tool discovery
+        • tools/call - Authenticated tool execution
+        • ping - Connection health checks
     """,
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
