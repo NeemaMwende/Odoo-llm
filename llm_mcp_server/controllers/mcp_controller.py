@@ -9,6 +9,7 @@ import json
 import logging
 import time
 from http import HTTPStatus
+from typing import Optional
 
 from mcp.types import (
     INTERNAL_ERROR,
@@ -17,12 +18,11 @@ from mcp.types import (
     METHOD_NOT_FOUND,
     PARSE_ERROR,
     ErrorData,
+    InitializeResult,
     JSONRPCError,
     JSONRPCResponse,
-    InitializeResult,
 )
 from pydantic import BaseModel
-from typing import Optional
 
 from odoo import http
 from odoo.http import request
@@ -40,18 +40,14 @@ def require_bearer_auth(handler_func):
     """Decorator that applies MCP-compatible bearer authentication"""
     def wrapper(self, params, request_id):
             # Clean up the public uid and use built-in _auth_method_bearer
-            _authenticate_user()
+            request.update_env(user=False)
+            request.env['ir.http']._auth_method_bearer()
             _logger.info("Bearer authentication succeeded %s", request.env.user)
             
             # Authentication succeeded - proceed with handler
             return handler_func(self, params, request_id)
             
     return wrapper
-
-def _authenticate_user():
-    request.update_env(user=False)
-    request.env['ir.http']._auth_method_bearer()
-    return request.env.user.id
 
 
 
@@ -261,7 +257,6 @@ class MCPController(http.Controller):
         
         # Get server response (same for both modes)
         result = config.handle_initialize_request(client_info=params.get('clientInfo'))
-        session_id = None
         # For stateful mode, create new session
         if config.mode == 'stateful':
             session = request.env['llm.mcp.session'].create_new_session()
