@@ -47,7 +47,6 @@ def require_bearer_auth(handler_func):
             # Clean up the public uid and use built-in _auth_method_bearer
             request.update_env(user=False)
             request.env['ir.http']._auth_method_bearer()
-            _logger.info("Bearer authentication succeeded %s", request.env.user)
             
             # Authentication succeeded - proceed with handler
             return handler_func(self, *args, **kwargs)
@@ -111,13 +110,6 @@ class MCPController(http.Controller):
         """MCP endpoint for JSON-RPC methods"""
         request_id = None
         
-        # Log incoming request details
-        _logger.info("=== MCP REQUEST START ===")
-        _logger.info(f"Method: {request.httprequest.method}")
-        _logger.info(f"Headers: {dict(request.httprequest.headers)}")
-        raw_body = request.httprequest.get_data(as_text=True)
-        _logger.info(f"Body: {raw_body}")
-        _logger.info("=== MCP REQUEST END ===")
         
         # Parse session ID once
         session_id = request.httprequest.headers.get('mcp-session-id')
@@ -143,7 +135,6 @@ class MCPController(http.Controller):
             
             # Handle special case for notifications that return HTTP Response directly
             if isinstance(dispatch_result, http.Response):
-                _logger.info("Response: %s", dispatch_result)
                 return dispatch_result
             
             # Handle MCPInitializeResponse wrapper (from initialize method)
@@ -184,7 +175,7 @@ class MCPController(http.Controller):
                 )
             )
             return self._create_json_response(response_message=error_response)
-        except Exception as e:
+        except Exception:
             # Handle unexpected errors
             _logger.exception("Unexpected error in MCP endpoint")
             return self._create_error_response(
@@ -250,11 +241,8 @@ class MCPController(http.Controller):
                     status=404
                 )
             
-            _logger.info(f"Session {session_id} state: {session.state} for method: {method_name}")
-            
             # Check if method is allowed in current session state
             if not session.is_method_allowed(method_name):
-                _logger.info(f"Method {method_name} NOT allowed in state {session.state}")
                 return http.Response(
                     json.dumps({
                         "error": "Bad Request",
@@ -360,7 +348,6 @@ class MCPController(http.Controller):
                 # Force immediate commit so concurrent requests see the updated state
                 session._cr.commit()
         
-        _logger.info("Client initialization complete")
         return http.Response(
             '',
             headers={
@@ -381,12 +368,10 @@ class MCPController(http.Controller):
     def _mcp_tools_call(self, params, request_id, session_id):
         """Handle tools/call method"""
         # Update session user_id if we have a session and authenticated user
-        # Might be better in some other place?(future)
         if session_id and request.env.user and not request.env.user._is_public():
             session = request.env['llm.mcp.session'].get_session(session_id)
             if session and not session.user_id:
                 session.user_id = request.env.user.id
-                _logger.info(f"Updated session {session_id} with user {request.env.user.login}")
         
         return request.env['llm.tool'].execute_mcp_tool(params=params)
 
@@ -397,7 +382,6 @@ class MCPController(http.Controller):
 
     def _dispatch(self, method_name, params, request_id, session_id):
         """Dispatch MCP method to appropriate handler"""
-        _logger.info(f"=== DISPATCH CALLED: {method_name} ===")
         # Transform method name to handler name
         handler_name = f"_mcp_{method_name.replace('/', '_').replace('-', '_')}"
         
@@ -432,13 +416,6 @@ class MCPController(http.Controller):
             response_headers[MCP_SESSION_ID_HEADER] = session_id
 
         response_json = response_message.model_dump_json(by_alias=True, exclude_none=True) if response_message else None
-        
-        # Log outgoing response details
-        _logger.info("=== MCP RESPONSE START ===")
-        _logger.info(f"Status: {status_code}")
-        _logger.info(f"Headers: {response_headers}")
-        _logger.info(f"Body: {response_json}")
-        _logger.info("=== MCP RESPONSE END ===")
 
         return http.Response(
             response_json,

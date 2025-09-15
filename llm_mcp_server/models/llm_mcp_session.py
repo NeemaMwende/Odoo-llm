@@ -79,8 +79,6 @@ class LLMMCPSession(models.Model):
             
         session = self.create(session_vals)
         
-        user_info = f"for user ID {user_id}" if user_id else "without user"
-        _logger.info(f"Created new MCP session {session_id} {user_info} (stateful mode)")
         return session
 
     def is_method_allowed(self, method):
@@ -113,10 +111,8 @@ class LLMMCPSession(models.Model):
                 f"Invalid state transition from '{self.state}' to '{new_state}'"
             )
         
-        old_state = self.state
         self.state = new_state
         
-        _logger.info(f"Session {self.session_id} transitioned from '{old_state}' to '{new_state}'")
 
 
     def terminate(self):
