@@ -255,9 +255,6 @@ class MCPController(http.Controller):
                     headers={'Content-Type': 'application/json'},
                     status=400
                 )
-            
-            # Update session activity
-            session.update_activity()
         
         return None  # No error
     
@@ -385,6 +382,7 @@ class MCPController(http.Controller):
 
     def _dispatch(self, method_name, params, request_id, session_id):
         """Dispatch MCP method to appropriate handler"""
+        _logger.info(f"=== DISPATCH CALLED: {method_name} ===")
         # Transform method name to handler name
         handler_name = f"_mcp_{method_name.replace('/', '_').replace('-', '_')}"
         

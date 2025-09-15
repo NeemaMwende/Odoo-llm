@@ -24,8 +24,6 @@ class LLMMCPSession(models.Model):
     ], default='not_initialized', required=True)
     
     user_id = fields.Many2one('res.users', index=True, help="User associated with session, set when Bearer token is available")
-    created_at = fields.Datetime(default=fields.Datetime.now, required=True)
-    last_activity = fields.Datetime(default=fields.Datetime.now, required=True)
     
     # Client data
     client_capabilities = fields.Json(help="Client capabilities from initialize request")
@@ -75,8 +73,6 @@ class LLMMCPSession(models.Model):
         session_vals = {
             'session_id': session_id,
             'state': 'not_initialized',
-            'created_at': fields.Datetime.now(),
-            'last_activity': fields.Datetime.now(),
         }
         if user_id:
             session_vals['user_id'] = user_id
@@ -95,10 +91,11 @@ class LLMMCPSession(models.Model):
         allowed_methods = {
             'not_initialized': ['initialize', 'ping'],
             'initializing': ['ping', 'notifications/initialized'],
-            'initialized': ['ping', 'tools/list', 'tools/call'],
+            'initialized': ['*'],  # Allow any method when initialized
         }
         
-        return method in allowed_methods.get(self.state, [])
+        allowed = allowed_methods.get(self.state, [])
+        return '*' in allowed or method in allowed
 
     def transition_to(self, new_state):
         """Transition session to new state with validation"""
@@ -118,14 +115,9 @@ class LLMMCPSession(models.Model):
         
         old_state = self.state
         self.state = new_state
-        self.last_activity = fields.Datetime.now()
         
         _logger.info(f"Session {self.session_id} transitioned from '{old_state}' to '{new_state}'")
 
-    def update_activity(self):
-        """Update last activity timestamp"""
-        self.ensure_one()
-        self.last_activity = fields.Datetime.now()
 
     def terminate(self):
         """Terminate the session (delete it)"""
