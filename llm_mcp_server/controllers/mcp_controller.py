@@ -8,6 +8,7 @@ following proper separation of concerns.
 import json
 import logging
 import time
+from http import HTTPStatus
 
 from mcp.types import (
     INTERNAL_ERROR,
@@ -64,9 +65,7 @@ class MCPInvalidParamsError(MCPError):
 
 _logger = logging.getLogger(__name__)
 
-# HTTP status codes
-HTTP_OK = 200
-HTTP_ACCEPTED = 202
+
 
 
 class MCPController(http.Controller):
@@ -113,7 +112,7 @@ class MCPController(http.Controller):
             elif method == 'notifications/initialized':
                 # Client notification after initialization - no response needed for notifications
                 _logger.info("Client initialization complete")
-                return http.Response('', headers={}, status=HTTP_ACCEPTED)  # Accepted for notifications
+                return http.Response('', headers={}, status=HTTPStatus.ACCEPTED)  # Accepted for notifications
             elif method == 'ping':
                 # Ping request - return empty result to confirm server is alive
                 return self._build_rpc_success_response(request_id, {})
@@ -179,7 +178,7 @@ class MCPController(http.Controller):
         
         # Log outgoing response details
         _logger.info("=== MCP RESPONSE START ===")
-        _logger.info(f"Status: {HTTP_OK}")
+        _logger.info(f"Status: {HTTPStatus.OK}")
         _logger.info(f"Headers: {response_headers}")
         _logger.info(f"Body: {response_json}")
         _logger.info("=== MCP RESPONSE END ===")
@@ -187,7 +186,7 @@ class MCPController(http.Controller):
         return http.Response(
             response_json,
             headers=response_headers,
-            status=HTTP_OK  # JSON-RPC always uses 200
+            status=HTTPStatus.OK  # JSON-RPC always uses 200
         )
     
     def _build_rpc_error_response(self, request_id, error, error_code):
@@ -206,7 +205,7 @@ class MCPController(http.Controller):
         return http.Response(
             response.model_dump_json(),
             headers={'Content-Type': 'application/json'},
-            status=HTTP_OK  # JSON-RPC always uses 200, error is in response body
+            status=HTTPStatus.OK  # JSON-RPC always uses 200, error is in response body
         )
 
     @http.route('/mcp/health', type='http', auth='public', methods=['GET', 'POST'])
@@ -218,5 +217,5 @@ class MCPController(http.Controller):
         return http.Response(
             json.dumps(health_data, indent=2),
             headers={'Content-Type': 'application/json'},
-            status=HTTP_OK
+            status=HTTPStatus.OK
         )
