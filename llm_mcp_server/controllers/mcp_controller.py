@@ -147,7 +147,13 @@ class MCPController(http.Controller):
     def _handle_notifications_initialized(self, params, request_id):
         """Handle notifications/initialized method"""
         _logger.info("Client initialization complete")
-        return http.Response('', headers={}, status=HTTPStatus.ACCEPTED)
+        return http.Response(
+            '',
+            headers={
+                "Content-Type": "application/json"
+            },
+            status=HTTPStatus.ACCEPTED
+        )
     
     def _handle_ping(self, params, request_id):
         """Handle ping method"""
