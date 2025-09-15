@@ -10,7 +10,6 @@ import logging
 import time
 from http import HTTPStatus
 
-import werkzeug.exceptions
 from mcp.types import (
     INTERNAL_ERROR,
     INVALID_PARAMS,
@@ -152,13 +151,13 @@ class MCPController(http.Controller):
         return data
     
     # MCP Method Handlers
-    def _handle_initialize(self, params, request_id):
+    def _mcp_initialize(self, params, request_id):
         """Handle initialize method"""
         config = request.env['llm.mcp.server.config'].get_active_config()
         client_info = params.get('clientInfo')
         return config.handle_initialize_request(client_info=client_info)
     
-    def _handle_notifications_initialized(self, params, request_id):
+    def _mcp_notifications_initialized(self, params, request_id):
         """Handle notifications/initialized method"""
         _logger.info("Client initialization complete")
         return http.Response(
@@ -169,23 +168,23 @@ class MCPController(http.Controller):
             status=HTTPStatus.ACCEPTED
         )
     
-    def _handle_ping(self, params, request_id):
+    def _mcp_ping(self, params, request_id):
         """Handle ping method"""
         return {}
     
-    def _handle_tools_list(self, params, request_id):
+    def _mcp_tools_list(self, params, request_id):
         """Handle tools/list method"""
         return request.env['llm.tool'].get_mcp_tools_list(params=params)
     
     @require_bearer_auth
-    def _handle_tools_call(self, params, request_id):
+    def _mcp_tools_call(self, params, request_id):
         """Handle tools/call method"""
         return request.env['llm.tool'].execute_mcp_tool(params=params)
 
     def _dispatch(self, method_name, params, request_id):
         """Dispatch MCP method to appropriate handler"""
         # Transform method name to handler name
-        handler_name = f"_handle_{method_name.replace('/', '_').replace('-', '_')}"
+        handler_name = f"_mcp_{method_name.replace('/', '_').replace('-', '_')}"
         
         # Get handler method
         handler = getattr(self, handler_name, None)
