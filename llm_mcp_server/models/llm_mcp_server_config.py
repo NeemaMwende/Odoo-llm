@@ -19,11 +19,23 @@ class LLMMCPServerConfig(models.Model):
         default="1.0.0",
         tracking=True,
     )
-    protocol_version = fields.Char(
-        string="Protocol Version",
+    latest_protocol_version = fields.Char(
+        string="Latest Protocol Version",
         required=True,
-        default="2024-11-05",
+        help="The latest/default protocol version this server supports",
         tracking=True,
+    )
+    supported_protocol_versions = fields.Json(
+        string="Supported Protocol Versions",
+        required=False,
+        help="List of additional MCP protocol versions this server supports (excluding latest) in json array[str]",
+        tracking=True,
+    )
+    all_supported_protocol_versions = fields.Json(
+        string="All Supported Protocol Versions",
+        compute="_compute_all_supported_protocol_versions",
+        help="Complete list of all protocol versions (supported + latest)",
+        store=False,
     )
     active = fields.Boolean(
         string="Active",
@@ -59,15 +71,7 @@ class LLMMCPServerConfig(models.Model):
         """Get the active MCP server configuration"""
         config = self.search([("active", "=", True)], limit=1)
         if not config:
-            # Create default config if none exists
-            config = self.create(
-                {
-                    "name": "Odoo LLM MCP Server",
-                    "version": "1.0.0",
-                    "protocol_version": "2024-11-05",
-                    "active": True,
-                }
-            )
+            raise ValidationError("No active MCP Server configuration found.")
         return config
 
     def get_mcp_server_url(self):
@@ -82,14 +86,14 @@ class LLMMCPServerConfig(models.Model):
             )
             return f"{base_url}/mcp"
     
-    def handle_initialize_request(self, client_info=None):
+    def handle_initialize_request(self, client_info=None, protocol_version=None):
         """Handle MCP initialize request - return MCP InitializeResult"""
         from mcp.types import Implementation, InitializeResult
         
         server_info = Implementation(name=self.name, version=self.version)
         
         return InitializeResult(
-            protocolVersion=self.protocol_version,
+            protocolVersion=protocol_version,
             capabilities=self._get_server_capabilities(),
             serverInfo=server_info
         )
@@ -103,11 +107,39 @@ class LLMMCPServerConfig(models.Model):
         )
         return capabilities
     
+    @api.depends('latest_protocol_version', 'supported_protocol_versions')
+    def _compute_all_supported_protocol_versions(self):
+        """Compute all supported protocol versions (supported + latest)"""
+        for record in self:
+            all_versions = []
+            if record.latest_protocol_version:
+                all_versions.append(record.latest_protocol_version)
+            if record.supported_protocol_versions:
+                all_versions.extend(record.supported_protocol_versions)
+            # Remove duplicates while preserving order
+            record.all_supported_protocol_versions = list(dict.fromkeys(all_versions))
+    
+    def is_protocol_version_supported(self, version):
+        """Check if protocol version is supported"""
+        if not version:
+            return False
+        return version in (self.all_supported_protocol_versions or [])
+
+    def get_supported_versions_string(self):
+        """Get comma-separated string of supported versions for error messages"""
+        if not self.all_supported_protocol_versions:
+            return "None configured"
+        return ", ".join(self.all_supported_protocol_versions)
+    
+    def get_default_protocol_version(self):
+        """Get the default protocol version (latest)"""
+        return self.latest_protocol_version
+    
     def get_health_status_data(self):
         """Get health status data - return plain dict"""
         return {
             "status": "healthy",
             "server": self.name,
-            "version": self.version
+            "version": self.version,
         }
     

@@ -32,6 +32,7 @@ _logger = logging.getLogger(__name__)
 # MCP SDK Constants
 CONTENT_TYPE_JSON = "application/json"
 MCP_SESSION_ID_HEADER = "Mcp-Session-Id"
+MCP_PROTOCOL_VERSION_HEADER = "Mcp-Protocol-Version"
 
 
 class MCPInitializeResponse(BaseModel):
@@ -260,6 +261,25 @@ class MCPController(http.Controller):
         
         return None  # No error
     
+    def _validate_protocol_version(self, requested_version, config):
+        """Validate protocol version following MCP SDK pattern"""
+        # If no version requested, use default (latest)
+        if not requested_version:
+            return config.get_default_protocol_version(), None
+        
+        # Validate requested version
+        if not config.is_protocol_version_supported(requested_version):
+            supported_versions = config.get_supported_versions_string()
+            error_response = self._create_error_response(
+                error_message=f"Bad Request: Unsupported protocol version: {requested_version}. "
+                             f"Supported versions: {supported_versions}",
+                status_code=HTTPStatus.BAD_REQUEST,
+                error_code=INVALID_REQUEST
+            )
+            return None, error_response
+        
+        return requested_version, None  # No error
+    
     def _handle_delete_session(self):
         """Handle DELETE request for session termination"""
         session_id = request.httprequest.headers.get('mcp-session-id')
@@ -284,11 +304,25 @@ class MCPController(http.Controller):
     
     # MCP Method Handlers
     def _mcp_initialize(self, params, request_id, session_id):
-        """Handle initialize method"""
+        """Handle initialize method with protocol version validation"""
         config = request.env['llm.mcp.server.config'].get_active_config()
         
-        # Get server response (same for both modes)
-        result = config.handle_initialize_request(client_info=params.get('clientInfo'))
+        # Extract protocol version from headers or params  
+        requested_version = (
+            request.httprequest.headers.get(MCP_PROTOCOL_VERSION_HEADER) or 
+            params.get('protocolVersion')
+        )
+        
+        # Validate protocol version (use default if missing)
+        negotiated_version, error_response = self._validate_protocol_version(requested_version, config)
+        if error_response:
+            return error_response
+        
+        # Get server response using the negotiated version
+        result = config.handle_initialize_request(
+            client_info=params.get('clientInfo'),
+            protocol_version=negotiated_version
+        )
         # For stateful mode, create new session
         if config.mode == 'stateful':
             session = request.env['llm.mcp.session'].create_new_session()
@@ -298,8 +332,8 @@ class MCPController(http.Controller):
                 session.client_info = params['clientInfo']
             if params.get('capabilities'):
                 session.client_capabilities = params['capabilities']
-            if params.get('protocolVersion'):
-                session.protocol_version = params['protocolVersion']
+            # Store the negotiated protocol version
+            session.protocol_version = negotiated_version
             
             # Transition to initializing state
             session.transition_to('initializing')
