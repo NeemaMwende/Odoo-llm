@@ -2,11 +2,11 @@
     "name": "LLM MCP Server",
     "version": "18.0.1.0.0",
     "category": "Technical",
-    "summary": "MCP server exposing Odoo LLM tools to Claude Desktop and other AI clients",
+    "summary": "MCP server exposing Odoo LLM tools to Claude Desktop and other MCP hosts",
     "description": """
         Model Context Protocol (MCP) Server for Odoo LLM
 
-        Enables Claude Desktop, Letta, and other MCP clients to access and execute 
+        Enables Claude Desktop, Letta, and other MCP hosts to access and execute 
         Odoo tools directly through a standards-compliant MCP server.
 
         Core Features:
