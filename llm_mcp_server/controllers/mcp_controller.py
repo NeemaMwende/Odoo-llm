@@ -9,7 +9,7 @@ import json
 import logging
 import time
 from http import HTTPStatus
-from typing import Optional
+from typing import Optional, Union
 
 from mcp.types import (
     INTERNAL_ERROR,
@@ -28,6 +28,10 @@ from odoo import http
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+
+# MCP SDK Constants
+CONTENT_TYPE_JSON = "application/json"
+MCP_SESSION_ID_HEADER = "Mcp-Session-Id"
 
 
 class MCPInitializeResponse(BaseModel):
@@ -146,15 +150,43 @@ class MCPController(http.Controller):
                 response_session_id = None
             
             # Build JSON-RPC success response
-            return self._build_rpc_success_response(request_id, result, response_session_id)
+            # Convert pydantic result object to dict for JSON-RPC response
+            if hasattr(result, 'model_dump'):
+                result_data = result.model_dump(exclude_none=True)
+            else:
+                result_data = result or {}
+                
+            response = JSONRPCResponse(
+                jsonrpc="2.0",
+                id=request_id if request_id is not None else int(time.time() * 1000),
+                result=result_data
+            )
+            
+            return self._create_json_response(
+                response_message=response,
+                session_id=response_session_id
+            )
         
         except MCPError as e:
             # Handle all MCP-specific errors with their proper error codes
-            return self._build_rpc_error_response(request_id, e.message, e.code)
+            error_response = JSONRPCError(
+                jsonrpc="2.0",
+                id=request_id if request_id is not None else int(time.time() * 1000),
+                error=ErrorData(
+                    code=e.code,
+                    message=e.message
+                )
+            )
+            return self._create_json_response(response_message=error_response)
         except Exception as e:
             # Handle unexpected errors
             _logger.exception("Unexpected error in MCP endpoint")
-            return self._build_rpc_error_response(request_id, f"Internal server error: {str(e)}", -32603)
+            return self._create_error_response(
+                error_message="Internal server error",
+                status_code=HTTPStatus.OK,  # JSON-RPC always uses 200, error is in response body
+                error_code=INTERNAL_ERROR,
+                request_id=request_id
+            )
 
     @http.route('/mcp', type='http', auth='bearer', methods=['DELETE'], csrf=False)
     def mcp_delete_session(self):
@@ -322,64 +354,86 @@ class MCPController(http.Controller):
         # Call handler
         return handler(params, request_id, session_id)
 
-    def _build_rpc_success_response(self, request_id, result, session_id=None):
-        """Build JSON-RPC 2.0 success response using MCP types
+    def _create_json_response(
+        self,
+        response_message: Union[JSONRPCResponse, JSONRPCError, None],
+        status_code: HTTPStatus = HTTPStatus.OK,
+        headers: Optional[dict[str, str]] = None,
+        session_id: Optional[str] = None,
+    ) -> http.Response:
+        """Create a JSON response from a JSONRPCMessage following MCP SDK patterns
         
         Args:
-            request_id: The JSON-RPC request ID
-            result: MCP pydantic result object (InitializeResult, ListToolsResult, CallToolResult, etc.)
+            response_message: The JSON-RPC response message
+            status_code: HTTP status code (defaults to 200 OK)
+            headers: Additional headers to include
             session_id: Optional session ID for Mcp-Session-Id header
         """
-        # Convert pydantic result object to dict for JSON-RPC response
-        if hasattr(result, 'model_dump'):
-            result_data = result.model_dump(exclude_none=True)
-        else:
-            result_data = result or {}
-            
-        response = JSONRPCResponse(
-            jsonrpc="2.0",
-            id=request_id if request_id is not None else int(time.time() * 1000),
-            result=result_data
-        )
-        
-        response_json = response.model_dump_json()
-        response_headers = {'Content-Type': 'application/json'}
-        
-        # Add session ID header if present
+        response_headers = {"Content-Type": CONTENT_TYPE_JSON}
+        if headers:
+            response_headers.update(headers)
+
         if session_id:
-            response_headers['Mcp-Session-Id'] = session_id
+            response_headers[MCP_SESSION_ID_HEADER] = session_id
+
+        response_json = response_message.model_dump_json(by_alias=True, exclude_none=True) if response_message else None
         
         # Log outgoing response details
         _logger.info("=== MCP RESPONSE START ===")
-        _logger.info(f"Status: {HTTPStatus.OK}")
+        _logger.info(f"Status: {status_code}")
         _logger.info(f"Headers: {response_headers}")
         _logger.info(f"Body: {response_json}")
         _logger.info("=== MCP RESPONSE END ===")
-        
+
         return http.Response(
             response_json,
             headers=response_headers,
-            status=HTTPStatus.OK  # JSON-RPC always uses 200
+            status=status_code
         )
     
-    def _build_rpc_error_response(self, request_id, error, error_code):
-        """Build JSON-RPC 2.0 error response using MCP types"""
-        error_data = ErrorData(
-            code=error_code,
-            message=str(error)
-        )
+    
+    def _create_error_response(
+        self,
+        error_message: str,
+        status_code: HTTPStatus,
+        error_code: int = INVALID_REQUEST,
+        headers: Optional[dict[str, str]] = None,
+        session_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+    ) -> http.Response:
+        """Create an error response with a simple string message following MCP SDK patterns
         
-        response = JSONRPCError(
+        Args:
+            error_message: The error message to include
+            status_code: HTTP status code
+            error_code: JSON-RPC error code (defaults to INVALID_REQUEST)
+            headers: Additional headers to include
+            session_id: Optional session ID for Mcp-Session-Id header
+            request_id: Optional request ID for correlation
+        """
+        response_headers = {"Content-Type": CONTENT_TYPE_JSON}
+        if headers:
+            response_headers.update(headers)
+
+        if session_id:
+            response_headers[MCP_SESSION_ID_HEADER] = session_id
+
+        # Return a properly formatted JSON error response
+        error_response = JSONRPCError(
             jsonrpc="2.0",
-            id=request_id if request_id is not None else int(time.time() * 1000),
-            error=error_data
+            id=request_id if request_id is not None else "server-error",
+            error=ErrorData(
+                code=error_code,
+                message=error_message,
+            ),
         )
-        
+
         return http.Response(
-            response.model_dump_json(),
-            headers={'Content-Type': 'application/json'},
-            status=HTTPStatus.OK  # JSON-RPC always uses 200, error is in response body
+            error_response.model_dump_json(by_alias=True, exclude_none=True),
+            headers=response_headers,
+            status=status_code
         )
+    
 
     @http.route('/mcp/health', type='http', auth='public', methods=['GET', 'POST'])
     def health_check(self):
