@@ -31,13 +31,19 @@ def require_bearer_auth(handler_func):
     """Decorator that applies MCP-compatible bearer authentication"""
     def wrapper(self, params, request_id):
             # Clean up the public uid and use built-in _auth_method_bearer
-            request.update_env(user=False)
-            request.env['ir.http']._auth_method_bearer()
+            _authenticate_user()
+            _logger.info("Bearer authentication succeeded %s", request.env.user)
             
             # Authentication succeeded - proceed with handler
             return handler_func(self, params, request_id)
             
     return wrapper
+
+def _authenticate_user():
+    request.update_env(user=False)
+    request.env['ir.http']._auth_method_bearer()
+    return request.env.user.id
+
 
 
 # MCP Exception Classes
@@ -88,12 +94,11 @@ class MCPController(http.Controller):
     This controller delegates all business logic to Odoo models:
     - Config model handles initialize and server configuration
     - Tool model handles tools/list and tools/call
-    - Authentication is handled by custom _auth_method_mcp_bearer
     """
 
     @http.route('/mcp', type='http', auth='public', methods=['POST', 'OPTIONS'], csrf=False)
     def mcp_endpoint(self):
-        """Single MCP endpoint with method-based conditional authentication"""
+        """MCP endpoint for JSON-RPC methods"""
         request_id = None
         
         # Log incoming request details
@@ -104,6 +109,9 @@ class MCPController(http.Controller):
         _logger.info(f"Body: {raw_body}")
         _logger.info("=== MCP REQUEST END ===")
         
+        # Parse session ID once
+        session_id = request.httprequest.headers.get('mcp-session-id')
+        
         try:
             # Parse full JSON-RPC request - controller handles all protocol details
             request_data = self._parse_mcp_request()
@@ -111,15 +119,23 @@ class MCPController(http.Controller):
             request_id = request_data.get('id')
             params = request_data.get('params', {})
             
+            # Validate session requirements
+            session_error = self._validate_session_requirements(method, session_id)
+            if session_error:
+                return session_error
+            
             # Dispatch to appropriate handler
-            result = self._dispatch(method, params, request_id)
+            result = self._dispatch(method, params, request_id, session_id)
             
             # Handle special case for notifications that return HTTP Response directly
             if isinstance(result, http.Response):
                 return result
             
-            # For all other methods, build JSON-RPC success response
-            return self._build_rpc_success_response(request_id, result)
+            # Get session ID for response headers
+            response_session_id = self._get_response_session_id(method, session_id)
+            
+            # Build JSON-RPC success response
+            return self._build_rpc_success_response(request_id, result, response_session_id)
         
         except MCPError as e:
             # Handle all MCP-specific errors with their proper error codes
@@ -128,6 +144,11 @@ class MCPController(http.Controller):
             # Handle unexpected errors
             _logger.exception("Unexpected error in MCP endpoint")
             return self._build_rpc_error_response(request_id, f"Internal server error: {str(e)}", -32603)
+
+    @http.route('/mcp', type='http', auth='bearer', methods=['DELETE'], csrf=False)
+    def mcp_delete_session(self):
+        """MCP endpoint for session termination"""
+        return self._handle_delete_session()
     
     def _parse_mcp_request(self):
         """Parse full MCP JSON-RPC request"""
@@ -150,15 +171,126 @@ class MCPController(http.Controller):
         
         return data
     
+    def _get_or_create_session(self, session_id):
+        """Get or create MCP session from session_id (only for stateful mode)"""
+        return request.env['llm.mcp.session'].get_or_create_session(
+            session_id
+        )
+
+    def _get_session(self, session_id):
+        return request.env['llm.mcp.session'].get_session(
+            session_id
+        )
+
+    def _validate_session_requirements(self, method_name, session_id):
+        """Validate session requirements based on server mode and method"""
+        config = request.env['llm.mcp.server.config'].get_active_config()
+        
+        # For stateless mode, no session validation needed
+        if config.mode == 'stateless':
+            return None
+        
+        # For stateful mode, check session requirements
+        if method_name not in ['initialize', 'ping']:
+            if not session_id:
+                return http.Response(
+                    json.dumps({"error": "Missing mcp-session-id header"}),
+                    headers={'Content-Type': 'application/json'},
+                    status=400
+                )
+            
+            session = request.env['llm.mcp.session'].get_session(session_id)
+            if not session:
+                return http.Response(
+                    json.dumps({"error": "Session not found"}),
+                    headers={'Content-Type': 'application/json'}, 
+                    status=404
+                )
+            
+            # Check if method is allowed in current session state
+            if not session.is_method_allowed(method_name):
+                return http.Response(
+                    json.dumps({
+                        "error": "Bad Request",
+                        "message": f"Method '{method_name}' not allowed in state '{session.state}'"
+                    }),
+                    headers={'Content-Type': 'application/json'},
+                    status=400
+                )
+            
+            # Update session activity
+            session.update_activity()
+        
+        return None  # No error
+
+    def _get_response_session_id(self, method_name, session_id):
+        """Get session ID for response headers (only for initialize in stateful mode)"""
+        config = request.env['llm.mcp.server.config'].get_active_config()
+        
+        if config.mode == 'stateful' and method_name == 'initialize':
+            # Create session for initialize in stateful mode
+            session = request.env['llm.mcp.session'].get_or_create_session(session_id)
+            return session.session_id
+        
+        return None
+    
+    def _handle_delete_session(self):
+        """Handle DELETE request for session termination"""
+        session_id = request.httprequest.headers.get('mcp-session-id')
+        
+        if not session_id:
+            return http.Response(
+                'Missing mcp-session-id header',
+                status=HTTPStatus.BAD_REQUEST  # Bad Request
+            )
+        
+        # Find session using the model's get_session method
+        session = request.env['llm.mcp.session'].get_session(session_id)
+        
+        if not session:
+            return http.Response(
+                'Session not found',
+                status=HTTPStatus.NOT_FOUND  # Not Found
+            )
+        
+        session.terminate()
+        return http.Response('', status=HTTPStatus.NO_CONTENT)  # No Content
+    
     # MCP Method Handlers
-    def _mcp_initialize(self, params, request_id):
+    def _mcp_initialize(self, params, request_id, session_id):
         """Handle initialize method"""
         config = request.env['llm.mcp.server.config'].get_active_config()
-        client_info = params.get('clientInfo')
-        return config.handle_initialize_request(client_info=client_info)
+        
+        # For stateful mode, handle session management
+        if config.mode == 'stateful':
+            session = self._get_or_create_session(session_id)
+            
+            # Store client information in session
+            if params.get('clientInfo'):
+                session.client_info = params['clientInfo']
+            if params.get('capabilities'):
+                session.client_capabilities = params['capabilities']
+            if params.get('protocolVersion'):
+                session.protocol_version = params['protocolVersion']
+            
+            # Transition to initializing state
+            if session.state == 'not_initialized':
+                session.transition_to('initializing')
+        
+        # Get server response (same for both modes)
+        result = config.handle_initialize_request(client_info=params.get('clientInfo'))
+        
+        return result
     
-    def _mcp_notifications_initialized(self, params, request_id):
+    def _mcp_notifications_initialized(self, params, request_id, session_id):
         """Handle notifications/initialized method"""
+        # Get session and transition to initialized state
+        if session_id:
+            session = request.env['llm.mcp.session'].get_session(session_id)
+            
+            if session and session.state == 'initializing':
+                session.transition_to('initialized')
+        
         _logger.info("Client initialization complete")
         return http.Response(
             '',
@@ -168,20 +300,20 @@ class MCPController(http.Controller):
             status=HTTPStatus.ACCEPTED
         )
     
-    def _mcp_ping(self, params, request_id):
+    def _mcp_ping(self, params, request_id, session_id):
         """Handle ping method"""
         return {}
     
-    def _mcp_tools_list(self, params, request_id):
+    def _mcp_tools_list(self, params, request_id, session_id):
         """Handle tools/list method"""
         return request.env['llm.tool'].get_mcp_tools_list(params=params)
     
     @require_bearer_auth
-    def _mcp_tools_call(self, params, request_id):
+    def _mcp_tools_call(self, params, request_id, session_id):
         """Handle tools/call method"""
         return request.env['llm.tool'].execute_mcp_tool(params=params)
 
-    def _dispatch(self, method_name, params, request_id):
+    def _dispatch(self, method_name, params, request_id, session_id):
         """Dispatch MCP method to appropriate handler"""
         # Transform method name to handler name
         handler_name = f"_mcp_{method_name.replace('/', '_').replace('-', '_')}"
@@ -192,14 +324,15 @@ class MCPController(http.Controller):
             raise MCPMethodNotFoundError(method_name)
         
         # Call handler
-        return handler(params, request_id)
+        return handler(params, request_id, session_id)
 
-    def _build_rpc_success_response(self, request_id, result):
+    def _build_rpc_success_response(self, request_id, result, session_id=None):
         """Build JSON-RPC 2.0 success response using MCP types
         
         Args:
             request_id: The JSON-RPC request ID
             result: MCP pydantic result object (InitializeResult, ListToolsResult, CallToolResult, etc.)
+            session_id: Optional session ID for Mcp-Session-Id header
         """
         # Convert pydantic result object to dict for JSON-RPC response
         if hasattr(result, 'model_dump'):
@@ -215,6 +348,10 @@ class MCPController(http.Controller):
         
         response_json = response.model_dump_json()
         response_headers = {'Content-Type': 'application/json'}
+        
+        # Add session ID header if present
+        if session_id:
+            response_headers['Mcp-Session-Id'] = session_id
         
         # Log outgoing response details
         _logger.info("=== MCP RESPONSE START ===")

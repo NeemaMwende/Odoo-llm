@@ -30,6 +30,7 @@
         "security/ir.model.access.csv",
         "data/llm_mcp_server_config.xml",
         "views/llm_mcp_server_config_views.xml",
+        "views/llm_mcp_session_views.xml",
     ],
     "images": [
         "static/description/banner.jpeg",

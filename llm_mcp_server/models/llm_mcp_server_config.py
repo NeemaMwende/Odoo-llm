@@ -40,8 +40,8 @@ class LLMMCPServerConfig(models.Model):
     # MCP Server Mode Configuration
     mode = fields.Selection([
         ('stateless', 'Stateless Mode'),
-        # ('stateful', 'Stateful Mode'),  # Future implementation
-    ], default='stateless', required=True, tracking=True,
+        ('stateful', 'Stateful Mode'),
+    ], default='stateful', required=True, tracking=True,
        help="Server operation mode")
 
     @api.constrains("active")
