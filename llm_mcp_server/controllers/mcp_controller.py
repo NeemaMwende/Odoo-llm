@@ -19,12 +19,21 @@ from mcp.types import (
     ErrorData,
     JSONRPCError,
     JSONRPCResponse,
+    InitializeResult,
 )
+from pydantic import BaseModel
+from typing import Optional
 
 from odoo import http
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+
+
+class MCPInitializeResponse(BaseModel):
+    """Wrapper for MCP initialize method response"""
+    result: InitializeResult
+    session_id: Optional[str] = None
 
 
 def require_bearer_auth(handler_func):
@@ -125,14 +134,20 @@ class MCPController(http.Controller):
                 return session_error
             
             # Dispatch to appropriate handler
-            result = self._dispatch(method, params, request_id, session_id)
+            dispatch_result = self._dispatch(method, params, request_id, session_id)
             
             # Handle special case for notifications that return HTTP Response directly
-            if isinstance(result, http.Response):
-                return result
+            if isinstance(dispatch_result, http.Response):
+                return dispatch_result
             
-            # Get session ID for response headers
-            response_session_id = self._get_response_session_id(method, session_id)
+            # Handle MCPInitializeResponse wrapper (from initialize method)
+            if isinstance(dispatch_result, MCPInitializeResponse):
+                result = dispatch_result.result
+                response_session_id = dispatch_result.session_id
+            else:
+                # All other methods return result directly
+                result = dispatch_result
+                response_session_id = None
             
             # Build JSON-RPC success response
             return self._build_rpc_success_response(request_id, result, response_session_id)
@@ -171,12 +186,6 @@ class MCPController(http.Controller):
         
         return data
     
-    def _get_or_create_session(self, session_id):
-        """Get or create MCP session from session_id (only for stateful mode)"""
-        return request.env['llm.mcp.session'].get_or_create_session(
-            session_id
-        )
-
     def _get_session(self, session_id):
         return request.env['llm.mcp.session'].get_session(
             session_id
@@ -222,17 +231,6 @@ class MCPController(http.Controller):
             session.update_activity()
         
         return None  # No error
-
-    def _get_response_session_id(self, method_name, session_id):
-        """Get session ID for response headers (only for initialize in stateful mode)"""
-        config = request.env['llm.mcp.server.config'].get_active_config()
-        
-        if config.mode == 'stateful' and method_name == 'initialize':
-            # Create session for initialize in stateful mode
-            session = request.env['llm.mcp.session'].get_or_create_session(session_id)
-            return session.session_id
-        
-        return None
     
     def _handle_delete_session(self):
         """Handle DELETE request for session termination"""
@@ -261,9 +259,12 @@ class MCPController(http.Controller):
         """Handle initialize method"""
         config = request.env['llm.mcp.server.config'].get_active_config()
         
-        # For stateful mode, handle session management
+        # Get server response (same for both modes)
+        result = config.handle_initialize_request(client_info=params.get('clientInfo'))
+        session_id = None
+        # For stateful mode, create new session
         if config.mode == 'stateful':
-            session = self._get_or_create_session(session_id)
+            session = request.env['llm.mcp.session'].create_new_session()
             
             # Store client information in session
             if params.get('clientInfo'):
@@ -274,13 +275,13 @@ class MCPController(http.Controller):
                 session.protocol_version = params['protocolVersion']
             
             # Transition to initializing state
-            if session.state == 'not_initialized':
-                session.transition_to('initializing')
+            session.transition_to('initializing')
+            
+            # Return wrapped response with session_id
+            return MCPInitializeResponse(result=result, session_id=session.session_id)
         
-        # Get server response (same for both modes)
-        result = config.handle_initialize_request(client_info=params.get('clientInfo'))
-        
-        return result
+        # For stateless mode, return wrapped response without session_id
+        return MCPInitializeResponse(result=result)
     
     def _mcp_notifications_initialized(self, params, request_id, session_id):
         """Handle notifications/initialized method"""

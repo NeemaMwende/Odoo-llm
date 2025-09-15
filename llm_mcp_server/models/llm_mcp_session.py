@@ -11,6 +11,10 @@ class LLMMCPSession(models.Model):
     _name = "llm.mcp.session"
     _description = "MCP Session Management"
     
+    _sql_constraints = [
+        ('session_id_unique', 'UNIQUE(session_id)', 'Session ID must be unique')
+    ]
+    
     # Required fields
     session_id = fields.Char(required=True, index=True, help="UUID hex format")
     state = fields.Selection([
@@ -62,21 +66,10 @@ class LLMMCPSession(models.Model):
         return self.search(domain, limit=1)
 
     @api.model
-    def get_or_create_session(self, session_id, user_id=None):
-        """Get existing session or create new one (only for stateful mode)"""
-        # If no session_id provided, generate one
-        if not session_id:
-            session_id = self.generate_session_id()
-        
-        # Try to find existing session
-        session = self.get_session(session_id)
-        
-        if session:
-            # Update last activity and user if provided
-            session.last_activity = fields.Datetime.now()
-            if user_id and not session.user_id:
-                session.user_id = user_id
-            return session
+    def create_new_session(self, user_id=None):
+        """Create a new session for initialize method (only for stateful mode)"""
+        # Always generate a new session_id
+        session_id = self.generate_session_id()
         
         # Create new session (always starts as not_initialized for stateful mode)
         session_vals = {
