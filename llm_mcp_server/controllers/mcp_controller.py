@@ -129,6 +129,10 @@ class MCPController(http.Controller):
             request_id = request_data.get('id')
             params = request_data.get('params', {})
             
+            # Check if method handler exists first (before session validation)
+            if not self._is_callable(method):
+                raise MCPMethodNotFoundError(method)
+            
             # Validate session requirements
             session_error = self._validate_session_requirements(method, session_id)
             if session_error:
@@ -139,6 +143,7 @@ class MCPController(http.Controller):
             
             # Handle special case for notifications that return HTTP Response directly
             if isinstance(dispatch_result, http.Response):
+                _logger.info("Response: %s", dispatch_result)
                 return dispatch_result
             
             # Handle MCPInitializeResponse wrapper (from initialize method)
@@ -229,7 +234,7 @@ class MCPController(http.Controller):
             return None
         
         # For stateful mode, check session requirements
-        if method_name not in ['initialize', 'ping']:
+        if method_name not in ['initialize', 'ping', 'notifications/initialized']:
             if not session_id:
                 return http.Response(
                     json.dumps({"error": "Missing mcp-session-id header"}),
@@ -245,8 +250,11 @@ class MCPController(http.Controller):
                     status=404
                 )
             
+            _logger.info(f"Session {session_id} state: {session.state} for method: {method_name}")
+            
             # Check if method is allowed in current session state
             if not session.is_method_allowed(method_name):
+                _logger.info(f"Method {method_name} NOT allowed in state {session.state}")
                 return http.Response(
                     json.dumps({
                         "error": "Bad Request",
@@ -349,6 +357,8 @@ class MCPController(http.Controller):
             
             if session and session.state == 'initializing':
                 session.transition_to('initialized')
+                # Force immediate commit so concurrent requests see the updated state
+                session._cr.commit()
         
         _logger.info("Client initialization complete")
         return http.Response(
@@ -379,6 +389,11 @@ class MCPController(http.Controller):
                 _logger.info(f"Updated session {session_id} with user {request.env.user.login}")
         
         return request.env['llm.tool'].execute_mcp_tool(params=params)
+
+    def _is_callable(self, method_name):
+        """Check if method handler exists"""
+        handler_name = f"_mcp_{method_name.replace('/', '_').replace('-', '_')}"
+        return hasattr(self, handler_name) and callable(getattr(self, handler_name))
 
     def _dispatch(self, method_name, params, request_id, session_id):
         """Dispatch MCP method to appropriate handler"""

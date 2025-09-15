@@ -90,7 +90,7 @@ class LLMMCPSession(models.Model):
         # Define allowed methods per state for stateful mode
         allowed_methods = {
             'not_initialized': ['initialize', 'ping'],
-            'initializing': ['ping', 'notifications/initialized'],
+            'initializing': ['*'], # TODO: temporarily allow, because claude desktop is sending both notifications/initialize and tools/list at the similar time and causing race condition
             'initialized': ['*'],  # Allow any method when initialized
         }
         
