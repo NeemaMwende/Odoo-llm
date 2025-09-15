@@ -10,6 +10,7 @@ import logging
 import time
 from http import HTTPStatus
 
+import werkzeug.exceptions
 from mcp.types import (
     INTERNAL_ERROR,
     INVALID_PARAMS,
@@ -23,6 +24,21 @@ from mcp.types import (
 
 from odoo import http
 from odoo.http import request
+
+_logger = logging.getLogger(__name__)
+
+
+def require_bearer_auth(handler_func):
+    """Decorator that applies MCP-compatible bearer authentication"""
+    def wrapper(self, params, request_id):
+            # Clean up the public uid and use built-in _auth_method_bearer
+            request.update_env(user=False)
+            request.env['ir.http']._auth_method_bearer()
+            
+            # Authentication succeeded - proceed with handler
+            return handler_func(self, params, request_id)
+            
+    return wrapper
 
 
 # MCP Exception Classes
@@ -62,8 +78,6 @@ class MCPInvalidParamsError(MCPError):
 
     def __init__(self, message: str = "Invalid parameters"):
         super().__init__(message, INVALID_PARAMS)
-
-_logger = logging.getLogger(__name__)
 
 
 
@@ -163,10 +177,9 @@ class MCPController(http.Controller):
         """Handle tools/list method"""
         return request.env['llm.tool'].get_mcp_tools_list(params=params)
     
+    @require_bearer_auth
     def _handle_tools_call(self, params, request_id):
         """Handle tools/call method"""
-        # Apply authentication for tools/call
-        request.env['ir.http']._auth_method_mcp_bearer()
         return request.env['llm.tool'].execute_mcp_tool(params=params)
 
     def _dispatch(self, method_name, params, request_id):
@@ -247,3 +260,4 @@ class MCPController(http.Controller):
             headers={'Content-Type': 'application/json'},
             status=HTTPStatus.OK
         )
+    
