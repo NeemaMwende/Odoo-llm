@@ -180,7 +180,7 @@ class MCPController(http.Controller):
             _logger.exception("Unexpected error in MCP endpoint")
             return self._create_error_response(
                 error_message="Internal server error",
-                status_code=HTTPStatus.OK,  # JSON-RPC always uses 200, error is in response body
+                status_code=HTTPStatus.OK,  # JSON-RPC always uses HTTPStatus.OK, error is in response body
                 error_code=INTERNAL_ERROR,
                 request_id=request_id
             )
@@ -230,7 +230,7 @@ class MCPController(http.Controller):
                 return http.Response(
                     json.dumps({"error": "Missing mcp-session-id header"}),
                     headers={'Content-Type': 'application/json'},
-                    status=400
+                    status=HTTPStatus.BAD_REQUEST
                 )
             
             session = request.env['llm.mcp.session'].get_session(session_id)
@@ -238,7 +238,7 @@ class MCPController(http.Controller):
                 return http.Response(
                     json.dumps({"error": "Session not found"}),
                     headers={'Content-Type': 'application/json'}, 
-                    status=404
+                    status=HTTPStatus.NOT_FOUND
                 )
             
             # Check if method is allowed in current session state
@@ -249,7 +249,7 @@ class MCPController(http.Controller):
                         "message": f"Method '{method_name}' not allowed in state '{session.state}'"
                     }),
                     headers={'Content-Type': 'application/json'},
-                    status=400
+                    status=HTTPStatus.BAD_REQUEST
                 )
         
         return None  # No error
@@ -404,7 +404,7 @@ class MCPController(http.Controller):
         
         Args:
             response_message: The JSON-RPC response message
-            status_code: HTTP status code (defaults to 200 OK)
+            status_code: HTTP status code (defaults to HTTPStatus.OK)
             headers: Additional headers to include
             session_id: Optional session ID for Mcp-Session-Id header
         """
