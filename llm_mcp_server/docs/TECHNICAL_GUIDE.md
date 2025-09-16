@@ -52,13 +52,19 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> not_initialized
-    not_initialized --> initializing : initialize
-    initializing --> initialized : notifications/initialized
-    initialized --> [*] : DELETE /mcp
-    
-    note right of not_initialized : Methods: initialize, ping
-    note right of initializing : Methods: *, concurrent requests allowed
-    note right of initialized : Methods: * (all methods)
+    not_initialized --> initializing: initialize
+    initializing --> initialized: notifications/initialized
+    initialized --> [*]: DELETE /mcp
+
+    note right of not_initialized
+      Methods: initialize, ping
+    end note
+    note right of initializing
+      Methods: * (concurrent requests allowed)
+    end note
+    note right of initialized
+      Methods: * (all methods)
+    end note
 ```
 
 ## Key Design Decisions
