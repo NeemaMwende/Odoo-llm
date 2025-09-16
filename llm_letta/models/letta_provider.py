@@ -339,9 +339,6 @@ class LLMProvider(models.Model):
                         response_content += chunk.content
                         yield {"content": chunk.content}
 
-
-
-
         # Yield final response
         yield {"content": "", "finish_reason": "stop"}
 
