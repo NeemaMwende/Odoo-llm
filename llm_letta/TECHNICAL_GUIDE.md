@@ -85,7 +85,7 @@ When `llm.thread.tool_ids` changes:
 ### 3. Message Streaming
 
 ```python
-def _letta_get_agent_stream(self, client, agent_id, user_content):
+def _letta_stream_agent_response(self, client, agent_id, user_content):
     stream = client.agents.messages.create_stream(
         agent_id=agent_id,
         messages=[MessageCreate(role="user", content=user_content)],
@@ -93,12 +93,14 @@ def _letta_get_agent_stream(self, client, agent_id, user_content):
     )
 
     for chunk in stream:
-        if chunk.message_type == "assistant_message":
-            yield {"content": chunk.content}
-        elif chunk.message_type == "tool_call_message":
-            _logger.info("Agent calling tool: %s", chunk.tool_call.name)
-        elif chunk.message_type == "tool_return_message":
-            _logger.info("Tool returned: %s", chunk.tool_return)
+        if hasattr(chunk, "message_type"):
+            message_type = getattr(chunk, "message_type", None)
+
+            # Handle assistant message chunks
+            if message_type == "assistant_message" and hasattr(chunk, "content"):
+                if chunk.content:
+                    response_content += chunk.content
+                    yield {"content": chunk.content}
 ```
 
 ## MCP Server Integration
@@ -187,10 +189,10 @@ thread = env['llm.thread'].create({
 ### Letta Streaming Messages
 
 - `assistant_message` - AI response content (streamed to user)
-- `reasoning_message` - Internal agent reasoning (logged)
-- `tool_call_message` - Tool execution requests (logged)
-- `tool_return_message` - Tool execution results (logged)
-- `usage_statistics` - Token usage information (logged)
+- `reasoning_message` - Internal agent reasoning (ignored in current implementation)
+- `tool_call_message` - Tool execution requests (ignored in current implementation)
+- `tool_return_message` - Tool execution results (ignored in current implementation)
+- `usage_statistics` - Token usage information (ignored in current implementation)
 
 ### Error Handling
 
@@ -219,9 +221,9 @@ New tools automatically available to Letta agents when:
 
 ### Debugging
 
-Enable INFO logging to see:
+The implementation uses minimal logging to reduce noise. Key events are logged:
 
-- Tool call details
-- Agent reasoning
-- Tool execution results
-- MCP communication logs
+- Agent deletion (for audit trails)
+- Failed agent deletions during cleanup (debug level)
+
+Most other operations let errors propagate naturally for better debugging.
