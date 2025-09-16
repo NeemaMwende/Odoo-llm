@@ -3,8 +3,8 @@ import logging
 from letta_client import Letta
 from letta_client.types import MessageCreate
 
-from odoo import api, models
-from odoo.exceptions import UserError
+from odoo import api, fields, models
+from odoo.exceptions import AccessDenied, UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -12,10 +12,42 @@ _logger = logging.getLogger(__name__)
 class LLMProvider(models.Model):
     _inherit = "llm.provider"
 
+    # Letta-specific fields
+    odoo_api_key = fields.Char(
+        string="Odoo API Key",
+        help="API key for Letta MCP server authentication with Odoo. "
+             "Create this in your Odoo profile: Avatar → Preferences → Account Security → New API Key"
+    )
+
     @api.model
     def _get_available_services(self):
         services = super()._get_available_services()
         return services + [("letta", "Letta")]
+
+    def write(self, vals):
+        """Override to validate Odoo API key for Letta providers"""
+        result = super().write(vals)
+
+        # Validate Odoo API key if it's being changed for Letta providers
+        if 'odoo_api_key' in vals:
+            for record in self:
+                if record.service == 'letta' and record.odoo_api_key:
+                    try:
+                        # Validate the API key using Odoo's built-in validation
+                        user_id = self.env['res.users.apikeys']._check_credentials(
+                            scope='rpc',
+                            key=record.odoo_api_key
+                        )
+                        if not user_id:
+                            raise UserError("Invalid Odoo API key")
+                        _logger.info(f"Validated Odoo API key for Letta provider {record.name}")
+                    except (AccessDenied, Exception) as e:
+                        _logger.error(f"Invalid Odoo API key for provider {record.name}: {e}")
+                        raise UserError(
+                            "Invalid Odoo API key. Please verify the key is correct and has proper permissions."
+                        ) from e
+
+        return result
 
     def letta_get_client(self):
         """Get Letta client instance"""

@@ -134,8 +134,13 @@ class LLMThread(models.Model):
         # Use the actual selected model (should already include provider prefix)
         model_name = thread.model_id.name
 
-        # Create or get API key for MCP authentication
-        api_key = self._ensure_user_api_key(thread.user_id)
+        # Get Odoo API key from provider for MCP authentication
+        api_key = thread.provider_id.odoo_api_key
+        if not api_key:
+            raise UserError(
+                "Odoo API key is required for Letta MCP integration.\n\n"
+                "Please go to: Configurations → Providers → Letta to add the API key."
+            )
         
         # Build full configuration
         agent_config = {
@@ -146,31 +151,12 @@ class LLMThread(models.Model):
             "tools": thread.provider_id.letta_format_tools([]),  # Basic tools for now
         }
 
-        # Add environment variables for MCP authentication
-        if api_key:
-            agent_config["tool_exec_environment_variables"] = {
-                "ODOO_API_KEY": api_key,
-            }
+        agent_config["tool_exec_environment_variables"] = {
+            "ODOO_API_KEY": api_key,
+        }
 
         return agent_config
 
-    def _ensure_user_api_key(self, user):
-        """Create long-lived API key for MCP client authentication if it doesn't exist"""
-        # Look for existing MCP API key for this user
-        existing_key = self.env['res.users.apikeys'].sudo().search([
-            ('user_id', '=', user.id),
-        ], limit=1)
-
-        if existing_key:
-            _logger.info(f"Using existing API key for user {user.login}")
-            return existing_key.key
-
-        # No API key exists - prompt user to create one
-        raise UserError(
-            "API key required for Letta MCP integration.\n\n"
-            "Please click on your profile avatar → Preferences → Account Security → 'New API Key' "
-            "to create an API key, then try again."
-        )
 
     def get_letta_agent_id(self):
         """Get the Letta agent ID for this thread.

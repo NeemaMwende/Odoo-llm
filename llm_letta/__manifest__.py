@@ -19,6 +19,7 @@
     "data": [
         "data/llm_publisher.xml",
         "data/llm_provider.xml",
+        "views/llm_provider_views.xml",
         "views/llm_thread_views.xml",
     ],
     "images": [
