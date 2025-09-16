@@ -41,8 +41,11 @@
                         <page string="Client Information" name="client_info">
                             <group>
                                 <field name="protocol_version" />
-                                <field name="client_info" widget="jsonb"/>
-                                <field name="client_capabilities" widget="jsonb"/>
+                                <field name="client_info" widget="jsonb" />
+                                <field
+                  name="client_capabilities"
+                  widget="jsonb"
+                />
                             </group>
                         </page>
                     </notebook>
@@ -68,11 +71,11 @@
 
     <!-- Menu Item under LLM Configuration -->
     <menuitem
-        id="menu_llm_mcp_session"
-        name="MCP Sessions"
-        action="llm_mcp_session_action"
-        parent="llm.menu_llm_config"
-        sequence="55"
-    />
+    id="menu_llm_mcp_session"
+    name="MCP Sessions"
+    action="llm_mcp_session_action"
+    parent="llm.menu_llm_config"
+    sequence="55"
+  />
 
 </odoo>

@@ -19,9 +19,15 @@
                         <group>
                             <field name="version" />
                             <field name="latest_protocol_version" />
-                            <field name="supported_protocol_versions" widget="json_editor" 
-                                   help="List of additional MCP protocol versions this server supports (e.g., [&quot;2024-11-05&quot;])" />
-                            <field name="all_supported_protocol_versions" readonly="1" />
+                            <field
+                name="supported_protocol_versions"
+                widget="json_editor"
+                help="List of additional MCP protocol versions this server supports (e.g., [&quot;2024-11-05&quot;])"
+              />
+                            <field
+                name="all_supported_protocol_versions"
+                readonly="1"
+              />
                             <field name="mode" />
                         </group>
                         <group>

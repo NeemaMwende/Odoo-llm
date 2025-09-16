@@ -57,11 +57,16 @@ class LLMMCPServerConfig(models.Model):
     )
 
     # MCP Server Mode Configuration
-    mode = fields.Selection([
-        ('stateless', 'Stateless Mode'),
-        ('stateful', 'Stateful Mode'),
-    ], default='stateful', required=True, tracking=True,
-       help="Server operation mode")
+    mode = fields.Selection(
+        [
+            ("stateless", "Stateless Mode"),
+            ("stateful", "Stateful Mode"),
+        ],
+        default="stateful",
+        required=True,
+        tracking=True,
+        help="Server operation mode",
+    )
 
     @api.constrains("active")
     def _check_single_active_record(self):
@@ -92,25 +97,23 @@ class LLMMCPServerConfig(models.Model):
                 .get_param("web.base.url", "http://localhost:8069")
             )
             return f"{base_url}/mcp"
-    
+
     def handle_initialize_request(self, client_info=None, protocol_version=None):
         """Handle MCP initialize request - return MCP InitializeResult"""
         server_info = Implementation(name=self.name, version=self.version)
-        
+
         return InitializeResult(
             protocolVersion=protocol_version,
             capabilities=self._get_server_capabilities(),
-            serverInfo=server_info
+            serverInfo=server_info,
         )
-    
+
     def _get_server_capabilities(self):
         """Get server capabilities based on configuration"""
-        capabilities = ServerCapabilities(
-            tools=ToolsCapability(listChanged=False)
-        )
+        capabilities = ServerCapabilities(tools=ToolsCapability(listChanged=False))
         return capabilities
-    
-    @api.depends('latest_protocol_version', 'supported_protocol_versions')
+
+    @api.depends("latest_protocol_version", "supported_protocol_versions")
     def _compute_all_supported_protocol_versions(self):
         """Compute all supported protocol versions (supported + latest)"""
         for record in self:
@@ -121,7 +124,7 @@ class LLMMCPServerConfig(models.Model):
                 all_versions.extend(record.supported_protocol_versions)
             # Remove duplicates while preserving order
             record.all_supported_protocol_versions = list(dict.fromkeys(all_versions))
-    
+
     def is_protocol_version_supported(self, version):
         """Check if protocol version is supported"""
         if not version:
@@ -133,11 +136,11 @@ class LLMMCPServerConfig(models.Model):
         if not self.all_supported_protocol_versions:
             return "None configured"
         return ", ".join(self.all_supported_protocol_versions)
-    
+
     def get_default_protocol_version(self):
         """Get the default protocol version (latest)"""
         return self.latest_protocol_version
-    
+
     def get_health_status_data(self):
         """Get health status data - return plain dict"""
         return {
@@ -145,4 +148,3 @@ class LLMMCPServerConfig(models.Model):
             "server": self.name,
             "version": self.version,
         }
-    

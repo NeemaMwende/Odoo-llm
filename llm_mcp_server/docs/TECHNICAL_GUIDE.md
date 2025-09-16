@@ -70,15 +70,18 @@ stateDiagram-v2
 ## Key Design Decisions
 
 ### Concurrent Request Handling
+
 - `initializing` state allows all methods to handle Claude Desktop's parallel discovery requests
 - Explicit `session._cr.commit()` ensures immediate state visibility
 
 ### Authentication Flow
+
 - `tools/call` requires Bearer authentication
 - Session user_id updated on first authenticated request
 - Tools execute with authenticated user's Odoo permissions
 
 ### Error Handling
+
 - Early method validation prevents unnecessary session lookups
 - JSON-RPC 2.0 compliant error responses
 - Proper HTTP status codes (200 for JSON-RPC, 400/404 for transport errors)

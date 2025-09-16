@@ -71,14 +71,14 @@ run_test() {
 
     # Run curl and capture both status and response
     response=$(curl -s -w "\n%{http_code}" --max-time 10 "${curl_command[@]}" 2>/dev/null)
-    
+
     if [ $? -eq 0 ]; then
         # Extract status code and response body
         status_code=$(echo "$response" | tail -n1)
         response_body=$(echo "$response" | sed '$d')
-        
+
         print_response "$response_body"
-        
+
         if [ "$status_code" = "$expected_status" ]; then
             print_success
         else
@@ -101,7 +101,7 @@ else
     echo -e "${CYAN}💡 Or follow: https://www.odoo.com/documentation/18.0/developer/reference/external_api.html#api-keys${NC}"
     echo -n "API Key: "
     read -r API_KEY
-    
+
     if [ -z "$API_KEY" ]; then
         echo -e "${RED}❌ ERROR: API key is required${NC}"
         exit 1
@@ -140,7 +140,7 @@ session_response=$(curl -s -D /tmp/mcp_headers.txt --max-time 10 \
     -H "Accept: application/json" \
     -d '{
         "jsonrpc": "2.0",
-        "method": "initialize", 
+        "method": "initialize",
         "id": 2,
         "params": {
             "protocolVersion": "2025-06-18",

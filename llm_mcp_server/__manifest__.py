@@ -6,7 +6,7 @@
     "description": """
         Model Context Protocol (MCP) Server for Odoo LLM
 
-        Enables Claude Desktop, Letta, and other MCP hosts to access and execute 
+        Enables Claude Desktop, Letta, and other MCP hosts to access and execute
         Odoo tools directly through a standards-compliant MCP server.
 
         Core Features:
