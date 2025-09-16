@@ -1,3 +1,10 @@
+from mcp.types import (
+    Implementation,
+    InitializeResult,
+    ServerCapabilities,
+    ToolsCapability,
+)
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -88,8 +95,6 @@ class LLMMCPServerConfig(models.Model):
     
     def handle_initialize_request(self, client_info=None, protocol_version=None):
         """Handle MCP initialize request - return MCP InitializeResult"""
-        from mcp.types import Implementation, InitializeResult
-        
         server_info = Implementation(name=self.name, version=self.version)
         
         return InitializeResult(
@@ -100,8 +105,6 @@ class LLMMCPServerConfig(models.Model):
     
     def _get_server_capabilities(self):
         """Get server capabilities based on configuration"""
-        from mcp.types import ServerCapabilities, ToolsCapability
-        
         capabilities = ServerCapabilities(
             tools=ToolsCapability(listChanged=False)
         )
