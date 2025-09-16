@@ -34,44 +34,37 @@ class LLMProvider(models.Model):
     def letta_models(self, model_id=None):
         """List available models from Letta"""
         client = self.letta_get_client()
+        models_response = client.models.list()
 
-        try:
-            # Use list_llms() for clarity - it's the same as list()
-            models_response = client.models.list()
+        # Convert Letta model format to our standard format
+        models = []
+        for model in models_response:
+            # Use handle as the name since that's what Letta agent config expects
+            model_handle = getattr(model, "handle", None)
+            if not model_handle:
+                # Fallback: construct handle if not provided
+                provider = getattr(model, "model_endpoint_type", "unknown")
+                model_handle = f"{provider}/{model.model}"
 
-            # Convert Letta model format to our standard format
-            models = []
-            for model in models_response:
-                # Use handle as the name since that's what Letta agent config expects
-                model_handle = getattr(model, "handle", None)
-                if not model_handle:
-                    # Fallback: construct handle if not provided
-                    provider = getattr(model, "model_endpoint_type", "unknown")
-                    model_handle = f"{provider}/{model.model}"
+            model_data = {
+                "name": model_handle,  # Use handle as name for Letta compatibility
+                "provider": model.provider_name
+                if hasattr(model, "provider_name")
+                else "letta",
+                "context_window": getattr(model, "context_window", None),
+                "model_endpoint_type": getattr(model, "model_endpoint_type", None),
+                "temperature": getattr(model, "temperature", None),
+                "max_tokens": getattr(model, "max_tokens", None),
+                "raw_model_name": model.model,  # Keep raw name for reference
+            }
 
-                model_data = {
-                    "name": model_handle,  # Use handle as name for Letta compatibility
-                    "provider": model.provider_name
-                    if hasattr(model, "provider_name")
-                    else "letta",
-                    "context_window": getattr(model, "context_window", None),
-                    "model_endpoint_type": getattr(model, "model_endpoint_type", None),
-                    "temperature": getattr(model, "temperature", None),
-                    "max_tokens": getattr(model, "max_tokens", None),
-                    "raw_model_name": model.model,  # Keep raw name for reference
-                }
+            # Filter by specific model if requested
+            if model_id and model_data["name"] != model_id:
+                continue
 
-                # Filter by specific model if requested
-                if model_id and model_data["name"] != model_id:
-                    continue
+            models.append(model_data)
 
-                models.append(model_data)
-
-            return models
-
-        except Exception as e:
-            _logger.error(f"Failed to fetch models from Letta: {str(e)}")
-            raise UserError(f"Failed to fetch models from Letta: {str(e)}") from e
+        return models
 
     def letta_chat(self, messages, model=None, stream=False, **kwargs):  # pylint: disable=unused-argument
         """Chat completion using Letta agents.
