@@ -146,7 +146,7 @@ class LLMThread(models.Model):
         agent_config = {
             "name": f"thread_{thread.id}",
             "model": model_name,
-            "embedding": "openai/text-embedding-3-small",  # Could make this configurable
+            "embedding": "openai/text-embedding-3-small",  # TODO: Make this configurable via provider settings
             "memory_blocks": memory_blocks,
             "tools": thread.provider_id.letta_format_tools([]),  # Basic tools for now
         }
