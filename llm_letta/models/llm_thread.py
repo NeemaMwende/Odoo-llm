@@ -15,6 +15,10 @@ DEFAULT_API_KEY_DURATION = 90.0
 LETTA_AGENT_KEY_PREFIX = "Letta Agent - Thread"
 DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small"
 
+# Default memory block values
+DEFAULT_PERSONA_BLOCK = "I am a helpful AI assistant."
+DEFAULT_HUMAN_BLOCK_TEMPLATE = "The human's name is {user_name}."
+
 
 class LLMThread(models.Model):
     _inherit = "llm.thread"
@@ -234,8 +238,8 @@ class LLMThread(models.Model):
 
         # Build memory blocks from thread context
         memory_blocks = [
-            {"label": "persona", "value": "I am a helpful AI assistant."},
-            {"label": "human", "value": f"The human's name is {user_name}."},
+            {"label": "persona", "value": DEFAULT_PERSONA_BLOCK},
+            {"label": "human", "value": DEFAULT_HUMAN_BLOCK_TEMPLATE.format(user_name=user_name)},
         ]
 
         # Add assistant-specific context if available
