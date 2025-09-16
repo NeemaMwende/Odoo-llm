@@ -41,7 +41,7 @@ class MCPInitializeResponse(BaseModel):
     session_id: Optional[str] = None
 
 
-def require_bearer_auth(handler_func):
+def requires_bearer_auth(handler_func):
     """Decorator that applies MCP-compatible bearer authentication"""
     def wrapper(self, *args, **kwargs):
             # Clean up the public uid and use built-in _auth_method_bearer
@@ -364,7 +364,7 @@ class MCPController(http.Controller):
         """Handle tools/list method"""
         return request.env['llm.tool'].get_mcp_tools_list(params=params)
     
-    @require_bearer_auth
+    @requires_bearer_auth
     def _mcp_tools_call(self, params, request_id, session_id):
         """Handle tools/call method"""
         # Update session user_id if we have a session and authenticated user
