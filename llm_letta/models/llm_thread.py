@@ -189,14 +189,21 @@ class LLMThread(models.Model):
         """
         if not thread.model_id:
             return None
-        
+
         # Get Letta client from provider
         client = thread.provider_id.letta_get_client()
         # Build agent configuration
         agent_config = self._build_agent_config(thread)
         # Create agent
         agent = client.agents.create(**agent_config)
-        return agent.id
+        agent_id = agent.id
+
+        # Sync tools after creation if thread has any
+        if thread.tool_ids:
+            thread.provider_id.letta_sync_agent_tools(agent_id, thread.tool_ids)
+            _logger.info(f"Synced {len(thread.tool_ids)} tools for new Letta agent {agent_id}")
+
+        return agent_id
 
         
 
