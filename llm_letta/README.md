@@ -25,11 +25,44 @@ This module provides integration with Letta platform for Odoo's LLM framework.
 
 2. Install this module in Odoo along with `llm_mcp_server` dependency
 
-3. Ensure Letta server 0.11.7 is running and accessible
+3. Set up Letta server (see Local Setup section below)
 
 ## Dependencies
 
 This module requires `llm_mcp_server` module for tool integration. The MCP server exposes Odoo tools that Letta agents can access.
+
+## Local Setup (Docker - Recommended)
+
+### 1. Create Letta Database
+```bash
+psql -U odoo -h localhost postgres
+```
+```sql
+CREATE DATABASE letta OWNER odoo;
+\c letta
+CREATE EXTENSION vector;
+\q
+```
+
+### 2. Configure Environment
+Create a `.env.letta` file with:
+```bash
+LETTA_DEBUG=False
+LETTA_PG_URI=postgresql://odoo:odoo@host.docker.internal:5432/letta
+OPENAI_API_KEY=your_openai_api_key
+OLLAMA_BASE_URL=http://host.docker.internal:11434  # Optional, for local models
+```
+
+### 3. Start Docker Letta Server
+```bash
+# Close Letta Desktop app if running
+# Start only Letta server in Docker
+docker compose up letta_server -d
+```
+
+The server will be available at `http://localhost:8283`.
+
+For more detailed instructions on self-hosting Letta, see: https://docs.letta.com/guides/selfhosting#running-with-docker-recommended
 
 ## Configuration
 
@@ -58,12 +91,10 @@ See `TECHNICAL_GUIDE.md` for detailed integration information.
 
 ## Current Limitations
 
-The following features are not yet implemented:
+The following features are not yet supported:
 
-- Text embeddings (`letta_embedding`)
-- Content generation (`letta_generate`)
-
-All unimplemented methods will raise `NotImplementedError` with descriptive messages.
+- Text embeddings
+- Content generation
 
 ## Usage
 
@@ -88,7 +119,7 @@ This module follows the standard Odoo LLM provider pattern:
 
 To extend this module with additional functionality:
 
-1. Implement the placeholder methods in `models/letta_provider.py`
-2. Add message formatting by extending `mail.message` model
+1. Add new features to `models/letta_provider.py`
+2. Extend message formatting in `models/mail_message.py`
 3. Add any Letta-specific data models if needed
 4. Update tests and documentation
