@@ -96,21 +96,16 @@ class LLMThread(models.Model):
         """
         if not thread.model_id:
             return None
+        
+        # Get Letta client from provider
+        client = thread.provider_id.letta_get_client()
+        # Build agent configuration
+        agent_config = self._build_agent_config(thread)
+        # Create agent
+        agent = client.agents.create(**agent_config)
+        return agent.id
 
-        try:
-            # Get Letta client from provider
-            client = thread.provider_id.letta_get_client()
-
-            # Build agent configuration
-            agent_config = self._build_agent_config(thread)
-
-            # Create agent
-            agent = client.agents.create(**agent_config)
-            return agent.id
-
-        except Exception as e:
-            _logger.error(f"Error creating Letta agent: {e}")
-            return None
+        
 
     def _build_agent_config(self, thread):
         """Build agent configuration from thread context.
@@ -131,13 +126,10 @@ class LLMThread(models.Model):
 
         # Add assistant-specific context if available
         if thread.assistant_id and thread.assistant_id.prompt_id:
-            try:
-                context = thread.get_context()
-                system_content = thread.assistant_id.prompt_id.render_content(context)
-                if system_content:
-                    memory_blocks[0] = {"label": "persona", "value": system_content}
-            except Exception as e:
-                _logger.warning(f"Failed to render assistant prompt: {e}")
+            context = thread.get_context()
+            system_content = thread.assistant_id.prompt_id.render_content(context)
+            if system_content:
+                memory_blocks[0] = {"label": "persona", "value": system_content}
 
         # Use the actual selected model (should already include provider prefix)
         model_name = thread.model_id.name
@@ -213,13 +205,10 @@ class LLMThread(models.Model):
 
         # Verify agent exists in Letta
         if agent_id:
-            try:
-                client = self.provider_id.letta_get_client()
-                client.agents.retrieve(agent_id=agent_id)
-                return agent_id
-            except Exception as e:
-                _logger.warning(f"Agent {agent_id} not found in Letta, recreating: {e}")
-                agent_id = None
+            client = self.provider_id.letta_get_client()
+            client.agents.retrieve(agent_id=agent_id)
+            return agent_id
+            
 
         # Create new agent if needed
         if not agent_id:
