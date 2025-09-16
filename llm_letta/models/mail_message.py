@@ -33,7 +33,7 @@ class MailMessage(models.Model):
         elif self.is_llm_tool_message()[self]:
             # For Letta, tool messages might need different handling
             # This is a placeholder for future tool integration
-            _logger.debug(f"Letta: Skipping tool message {self.id} for now")
+            _logger.info(f"Letta: Skipping tool message {self.id} for now")
             return None
 
         else:
