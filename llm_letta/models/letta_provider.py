@@ -99,14 +99,10 @@ class LLMProvider(models.Model):
 
         user_content = formatted_message["content"]
 
-        try:
-            if stream:
-                return self._letta_stream_agent_response(client, agent_id, user_content)
-            else:
-                return self._letta_get_agent_response(client, agent_id, user_content)
-
-        except Exception as e:
-            raise UserError(f"Chat failed: {str(e)}") from e
+        if stream:
+            return self._letta_stream_agent_response(client, agent_id, user_content)
+        else:
+            return self._letta_get_agent_response(client, agent_id, user_content)
 
 
     def letta_format_tools(self, tools):
@@ -122,131 +118,119 @@ class LLMProvider(models.Model):
         mcp_config = mcp_config_model.get_active_config()
         server_name = mcp_config.name
 
-        try:
-            # Check if server already exists
-            servers = client.tools.list_mcp_servers()
+        # Check if server already exists
+        servers = client.tools.list_mcp_servers()
 
-            # Check if our server is already registered
-            server_exists = False
-            for server in servers:
-                if isinstance(server, str):
-                    if server == server_name:
-                        server_exists = True
-                        break
-                else:
-                    # Server object has server_name attribute
-                    if (
-                        hasattr(server, "server_name")
-                        and server.server_name == server_name
-                    ):
-                        server_exists = True
-                        break
+        # Check if our server is already registered
+        server_exists = False
+        for server in servers:
+            if isinstance(server, str):
+                if server == server_name:
+                    server_exists = True
+                    break
+            else:
+                # Server object has server_name attribute
+                if (
+                    hasattr(server, "server_name")
+                    and server.server_name == server_name
+                ):
+                    server_exists = True
+                    break
 
-            if server_exists:
-                return True
-
-            # Get MCP server URL from configuration
-            server_url = mcp_config.get_mcp_server_url()
-
-            # Create the proper MCP server config using Letta client types
-            from letta_client.types import StreamableHttpServerConfig
-
-            mcp_config = StreamableHttpServerConfig(
-                server_name=server_name, 
-                server_url=server_url, 
-                type="streamable_http",
-                custom_headers={
-                    # Letta will replace this template with API key from environment variables
-                    "Authorization": "Bearer {{ ODOO_API_KEY }}",
-                },
-            )
-
-            # Register the MCP server using the correct API
-            client.tools.add_mcp_server(request=mcp_config)
+        if server_exists:
             return True
 
-        except Exception as e:
-            raise UserError(f"Failed to register MCP server: {str(e)}") from e
+        # Get MCP server URL from configuration
+        server_url = mcp_config.get_mcp_server_url()
+
+        # Create the proper MCP server config using Letta client types
+        from letta_client.types import StreamableHttpServerConfig
+
+        mcp_config = StreamableHttpServerConfig(
+            server_name=server_name,
+            server_url=server_url,
+            type="streamable_http",
+            custom_headers={
+                # Letta will replace this template with API key from environment variables
+                "Authorization": "Bearer {{ ODOO_API_KEY }}",
+            },
+        )
+
+        # Register the MCP server using the correct API
+        client.tools.add_mcp_server(request=mcp_config)
+        return True
 
     def letta_attach_tool(self, agent_id, tool_name):
         """Attach a specific tool to a Letta agent."""
         client = self.letta_get_client()
 
-        try:
-            # First ensure MCP server is registered
-            self.letta_ensure_mcp_server()
+        # First ensure MCP server is registered
+        self.letta_ensure_mcp_server()
 
-            # Get MCP server config for server name
-            mcp_config_model = self.env["llm.mcp.server.config"]
-            mcp_config = mcp_config_model.get_active_config()
-            server_name = mcp_config.name
+        # Get MCP server config for server name
+        mcp_config_model = self.env["llm.mcp.server.config"]
+        mcp_config = mcp_config_model.get_active_config()
+        server_name = mcp_config.name
 
-            # Get available MCP tools to verify tool exists
-            mcp_tools = client.tools.list_mcp_tools_by_server(
-                mcp_server_name=server_name
-            )
+        # Get available MCP tools to verify tool exists
+        mcp_tools = client.tools.list_mcp_tools_by_server(
+            mcp_server_name=server_name
+        )
 
-            # Check if tool exists in MCP server
-            tool_exists = False
-            for tool in mcp_tools:
-                if tool.name == tool_name:
-                    tool_exists = True
-                    break
+        # Check if tool exists in MCP server
+        tool_exists = False
+        for tool in mcp_tools:
+            if tool.name == tool_name:
+                tool_exists = True
+                break
 
-            if not tool_exists:
-                raise UserError(f"Tool '{tool_name}' not found in Odoo MCP server")
+        if not tool_exists:
+            raise UserError(f"Tool '{tool_name}' not found in Odoo MCP server")
 
-            # Register the tool with Letta from the MCP server using correct API
-            client.tools.add_mcp_tool(
-                mcp_server_name=server_name, mcp_tool_name=tool_name
-            )
+        # Register the tool with Letta from the MCP server using correct API
+        client.tools.add_mcp_tool(
+            mcp_server_name=server_name, mcp_tool_name=tool_name
+        )
 
-            # Get the registered tool ID
-            registered_tools = client.tools.list()
-            tool_id = None
-            for tool in registered_tools:
-                if tool.name == tool_name:
-                    tool_id = tool.id
-                    break
+        # Get the registered tool ID
+        registered_tools = client.tools.list()
+        tool_id = None
+        for tool in registered_tools:
+            if tool.name == tool_name:
+                tool_id = tool.id
+                break
 
-            if not tool_id:
-                raise UserError(f"Could not find registered tool '{tool_name}' ID")
+        if not tool_id:
+            raise UserError(f"Could not find registered tool '{tool_name}' ID")
 
-            # Attach tool to agent
-            attach_response = client.agents.tools.attach(agent_id, tool_id)
-            return attach_response
-
-        except Exception as e:
-            raise UserError(f"Failed to attach tool '{tool_name}': {str(e)}") from e
+        # Attach tool to agent
+        attach_response = client.agents.tools.attach(agent_id, tool_id)
+        return attach_response
 
     def letta_detach_tool(self, agent_id, tool_name):
         """Detach a tool from a Letta agent."""
         client = self.letta_get_client()
 
-        try:
-            # Get agent's current tools
-            agent_tools = client.agents.tools.list(agent_id)
+        # Get agent's current tools
+        agent_tools = client.agents.tools.list(agent_id)
 
-            # Find the tool to detach - agent_tools is List[Tool]
-            tool_to_detach = None
-            for tool in agent_tools:
-                if tool.name == tool_name:
-                    tool_to_detach = tool
-                    break
+        # Find the tool to detach - agent_tools is List[Tool]
+        tool_to_detach = None
+        for tool in agent_tools:
+            if tool.name == tool_name:
+                tool_to_detach = tool
+                break
 
-            if not tool_to_detach:
-                return False
+        if not tool_to_detach:
+            return False
 
-            # Get tool ID from the Tool object
-            if not tool_to_detach.id:
-                raise UserError(f"Could not get tool ID for '{tool_name}'")
+        # Get tool ID from the Tool object
+        if not tool_to_detach.id:
+            raise UserError(f"Could not get tool ID for '{tool_name}'")
 
-            # Detach tool from agent
-            detach_response = client.agents.tools.detach(agent_id, tool_to_detach.id)
-            return detach_response
-
-        except Exception as e:
-            raise UserError(f"Failed to detach tool '{tool_name}': {str(e)}") from e
+        # Detach tool from agent
+        detach_response = client.agents.tools.detach(agent_id, tool_to_detach.id)
+        return detach_response
 
     def letta_sync_agent_tools(self, agent_id, tool_records):
         """Synchronize agent tools with thread tool_ids."""
@@ -254,54 +238,44 @@ class LLMProvider(models.Model):
         if not tool_records:
             # Remove all tools from agent if no tools specified
             client = self.letta_get_client()
-            try:
-                agent_tools = client.agents.tools.list(agent_id)
-                mcp_tools = []
-                for tool in agent_tools:
-                    if tool.tool_type == "external_mcp":
-                        mcp_tools.append(tool)
+            agent_tools = client.agents.tools.list(agent_id)
+            mcp_tools = []
+            for tool in agent_tools:
+                if tool.tool_type == "external_mcp":
+                    mcp_tools.append(tool)
 
-
-                for tool in mcp_tools:
-                    self.letta_detach_tool(agent_id, tool.name)
-                return True
-            except Exception:
-                return False
+            for tool in mcp_tools:
+                self.letta_detach_tool(agent_id, tool.name)
+            return
 
         # Get all tools from the thread (regardless of implementation type)
         thread_tools = tool_records.filtered(lambda t: t.active)
 
         if not thread_tools:
-            return True
+            return
 
-        try:
-            # Get current agent tools
-            client = self.letta_get_client()
-            agent_tools = client.agents.tools.list(agent_id)
+        # Get current agent tools
+        client = self.letta_get_client()
+        agent_tools = client.agents.tools.list(agent_id)
 
-            # Extract current MCP tool names from Tool objects
-            current_tool_names = set()
-            for tool in agent_tools:
-                if tool.tool_type == "external_mcp":
-                    current_tool_names.add(tool.name)
+        # Extract current MCP tool names from Tool objects
+        current_tool_names = set()
+        for tool in agent_tools:
+            if tool.tool_type == "external_mcp":
+                current_tool_names.add(tool.name)
 
-            # Get desired tool names from the thread's tool_ids
-            desired_tool_names = set(thread_tools.mapped("name"))
+        # Get desired tool names from the thread's tool_ids
+        desired_tool_names = set(thread_tools.mapped("name"))
 
-            # Attach new tools
-            tools_to_attach = desired_tool_names - current_tool_names
-            for tool_name in tools_to_attach:
-                self.letta_attach_tool(agent_id, tool_name)
+        # Attach new tools
+        tools_to_attach = desired_tool_names - current_tool_names
+        for tool_name in tools_to_attach:
+            self.letta_attach_tool(agent_id, tool_name)
 
-            # Detach removed tools
-            tools_to_detach = current_tool_names - desired_tool_names
-            for tool_name in tools_to_detach:
-                self.letta_detach_tool(agent_id, tool_name)
-
-            return True
-
-        except Exception as e:
-            raise UserError(f"Failed to sync agent tools: {str(e)}") from e
+        # Detach removed tools
+        tools_to_detach = current_tool_names - desired_tool_names
+        for tool_name in tools_to_detach:
+            self.letta_detach_tool(agent_id, tool_name)
 
     def letta_format_messages(self, messages, system_prompt=None):
         """Format messages for Letta (simplified - agent maintains history).
