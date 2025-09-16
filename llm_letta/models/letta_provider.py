@@ -21,37 +21,36 @@ class LLMProvider(models.Model):
         """Get Letta client instance"""
         _logger.info(f"Creating Letta client for provider {self.name}")
 
-        # Determine if using local or cloud
-        if self.api_base and "localhost" in self.api_base:
-            # Local server - no auth required
-            _logger.info(f"Using local Letta server at {self.api_base}")
-            return Letta(base_url=self.api_base)
-        else:
-            # Cloud server - requires token and project
-            if not self.api_key:
-                _logger.error("API key is required for Letta Cloud connection")
-                raise UserError("API key is required for Letta Cloud connection")
+        if not self.api_base:
+            _logger.error("API base URL is required for Letta connection")
+            raise UserError("API base URL is required for Letta connection")
 
-            # Use api_base as project if provided, otherwise default
-            project = "default-project"
-            if self.api_base and self.api_base != "https://api.letta.com/v1":
-                project = self.api_base
-
-            _logger.info(f"Using Letta Cloud with project: {project}")
-            return Letta(token=self.api_key, project=project)
+        # Simple unified initialization for both local and cloud
+        return Letta(
+            base_url=self.api_base,
+            token=self.api_key  # Will be None for local, which is fine
+        )
 
     def letta_models(self, model_id=None):
         """List available models from Letta"""
         client = self.letta_get_client()
 
         try:
+            # Use list_llms() for clarity - it's the same as list()
             models_response = client.models.list()
 
             # Convert Letta model format to our standard format
             models = []
             for model in models_response:
+                # Use handle as the name since that's what Letta agent config expects
+                model_handle = getattr(model, "handle", None)
+                if not model_handle:
+                    # Fallback: construct handle if not provided
+                    provider = getattr(model, "model_endpoint_type", "unknown")
+                    model_handle = f"{provider}/{model.model}"
+
                 model_data = {
-                    "name": model.model,
+                    "name": model_handle,  # Use handle as name for Letta compatibility
                     "provider": model.provider_name
                     if hasattr(model, "provider_name")
                     else "letta",
@@ -59,6 +58,7 @@ class LLMProvider(models.Model):
                     "model_endpoint_type": getattr(model, "model_endpoint_type", None),
                     "temperature": getattr(model, "temperature", None),
                     "max_tokens": getattr(model, "max_tokens", None),
+                    "raw_model_name": model.model,  # Keep raw name for reference
                 }
 
                 # Filter by specific model if requested
@@ -468,9 +468,6 @@ class LLMProvider(models.Model):
             agent_id=agent_id,
             messages=[MessageCreate(role="user", content=user_content)],
             stream_tokens=False,  # Even non-streaming uses the stream API
-            use_assistant_message=True,
-            assistant_message_tool_name="send_message",
-            assistant_message_tool_kwarg="message",
         )
 
         for chunk in stream:

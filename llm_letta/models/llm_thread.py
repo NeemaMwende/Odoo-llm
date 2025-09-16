@@ -164,13 +164,8 @@ class LLMThread(models.Model):
             except Exception as e:
                 _logger.warning(f"Failed to render assistant prompt: {e}")
 
-        # Use the actual selected model (no hardcoding!)
+        # Use the actual selected model (should already include provider prefix)
         model_name = thread.model_id.name
-
-        # Ensure provider prefix for compatibility
-        if "/" not in model_name:
-            # Default to openai prefix if no provider specified
-            model_name = f"openai/{model_name}"
 
         # Create or get API key for MCP authentication
         
