@@ -131,40 +131,31 @@ class LLMThread(models.Model):
                 thread.provider_id.letta_sync_agent_tools(
                     thread.external_id, thread.tool_ids
                 )
-                _logger.info(f"Synced tools for Letta agent {thread.external_id}")
 
     def _update_or_create_agent(self, thread):
         """Update existing agent or create new one"""
         if thread.external_id:
-            # Agent exists - try to update it
-            try:
-                client = thread.provider_id.letta_get_client()
+            # Agent exists - update it
+            client = thread.provider_id.letta_get_client()
 
-                # Build system instruction for updates
-                system_instruction = None
-                if thread.assistant_id and thread.assistant_id.prompt_id:
-                    context = thread.get_context()
-                    system_instruction = render_template(
-                        template=thread.assistant_id.prompt_id.template,
-                        context=context
-                    )
+            # Build system instruction for updates
+            system_instruction = None
+            if thread.assistant_id and thread.assistant_id.prompt_id:
+                context = thread.get_context()
+                system_instruction = render_template(
+                    template=thread.assistant_id.prompt_id.template,
+                    context=context
+                )
 
-                modify_params = {"agent_id": thread.external_id, "model": thread.model_id.name}
-                if system_instruction:
-                    modify_params["system"] = system_instruction
+            modify_params = {"agent_id": thread.external_id, "model": thread.model_id.name}
+            if system_instruction:
+                modify_params["system"] = system_instruction
 
-                client.agents.modify(**modify_params)
-                _logger.info(f"Updated Letta agent {thread.external_id} with model: {thread.model_id.name}")
-            except Exception:
-                # If update fails, recreate the agent (let error propagate from creation)
-                agent_id = self._create_letta_agent(thread)
-                thread.external_id = agent_id
-                _logger.info(f"Recreated Letta agent as fallback: {agent_id}")
+            client.agents.modify(**modify_params)
         else:
             # No agent exists - create one
             agent_id = self._create_letta_agent(thread)
             thread.external_id = agent_id
-            _logger.info(f"Created new Letta agent: {agent_id}")
 
     def unlink(self):
         """Clean up Letta resources when thread is deleted"""
@@ -180,7 +171,6 @@ class LLMThread(models.Model):
             api_key_record = self.env['res.users.apikeys'].sudo().browse(thread.metadata['api_key_id'])
             if api_key_record.exists():
                 api_key_record.unlink()
-                _logger.info(f"Deleted API key for thread {thread.id}")
 
         # Delete Letta agent if exists (allow this to fail silently as resource might be already gone)
         if thread.external_id:
@@ -219,7 +209,6 @@ class LLMThread(models.Model):
         # Sync tools after creation if thread has any
         if thread.tool_ids:
             thread.provider_id.letta_sync_agent_tools(agent_id, thread.tool_ids)
-            _logger.info(f"Synced {len(thread.tool_ids)} tools for new Letta agent {agent_id}")
 
         return agent_id
 
@@ -315,7 +304,6 @@ class LLMThread(models.Model):
         # Store API key info in metadata
         self._store_api_key(thread, api_key, api_key_record.id if api_key_record else None)
 
-        _logger.info(f"Generated new API key for Letta agent thread {thread.id}")
         return api_key
 
     def get_letta_agent_id(self):
@@ -376,22 +364,12 @@ class LLMThread(models.Model):
         if not self.external_id:
             raise UserError("No Letta agent found for this thread")
 
-        try:
-            self.provider_id.letta_sync_agent_tools(self.external_id, self.tool_ids)
-            return {
-                "type": "ir.actions.client",
-                "tag": "display_notification",
-                "params": {
-                    "message": f"Tools synchronized successfully for agent {self.external_id}",
-                    "type": "success",
-                },
-            }
-        except Exception as e:
-            return {
-                "type": "ir.actions.client",
-                "tag": "display_notification",
-                "params": {
-                    "message": f"Failed to sync tools: {str(e)}",
-                    "type": "danger",
-                },
-            }
+        self.provider_id.letta_sync_agent_tools(self.external_id, self.tool_ids)
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "message": f"Tools synchronized successfully for agent {self.external_id}",
+                "type": "success",
+            },
+        }
