@@ -2,9 +2,15 @@ import logging
 from datetime import datetime, timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, RedirectWarning
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
+
+# Constants
+LETTA_SERVICE = "letta"
+DEFAULT_API_KEY_DURATION = 90.0
+LETTA_AGENT_KEY_PREFIX = "Letta Agent - Thread"
+DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small"
 
 
 class LLMThread(models.Model):
@@ -30,7 +36,7 @@ class LLMThread(models.Model):
         """Compute if thread uses Letta provider"""
         for thread in self:
             thread.is_letta_provider = (
-                thread.provider_id and thread.provider_id.service == "letta"
+                thread.provider_id and thread.provider_id.service == LETTA_SERVICE
             )
 
     def _prepare_chat_kwargs(self, message_history, use_streaming):
@@ -38,10 +44,32 @@ class LLMThread(models.Model):
         chat_kwargs = super()._prepare_chat_kwargs(message_history, use_streaming)
 
         # Add thread context for Letta
-        if self.provider_id.service == "letta":
+        if self.provider_id.service == LETTA_SERVICE:
             chat_kwargs["thread_context"] = {"id": self.id}
 
         return chat_kwargs
+
+    # Metadata helper methods
+    def _get_stored_api_key(self, thread):
+        """Get API key from thread metadata"""
+        if thread.metadata and thread.metadata.get('api_key'):
+            return thread.metadata['api_key']
+        return None
+
+    def _store_api_key(self, thread, api_key, api_key_id):
+        """Store API key info in thread metadata"""
+        thread.metadata = {
+            'api_key': api_key,
+            'api_key_id': api_key_id
+        }
+
+    def _clear_api_key_metadata(self, thread):
+        """Clear API key from thread metadata"""
+        thread.metadata = {}
+
+    def _get_api_key_name(self, thread_id):
+        """Get standardized API key name for thread"""
+        return f"{LETTA_AGENT_KEY_PREFIX} {thread_id}"
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -49,7 +77,7 @@ class LLMThread(models.Model):
         threads = super().create(vals_list)
 
         for thread in threads:
-            if thread.provider_id.service == "letta":
+            if thread.provider_id.service == LETTA_SERVICE:
                 agent_id = self._create_letta_agent(thread)
                 if agent_id:
                     thread.external_id = agent_id
@@ -58,64 +86,72 @@ class LLMThread(models.Model):
 
     def write(self, vals):
         """Override to handle model/provider changes that require agent recreation."""
-        # Cleanup if switching away from Letta provider
-        if "provider_id" in vals:
-            for thread in self:
-                # Check if we're switching away from Letta
-                if thread.provider_id.service == "letta":
-                    new_provider = self.env['llm.provider'].browse(vals['provider_id'])
-                    if new_provider.service != "letta":
-                        self._cleanup_letta_resources(thread)
+        # Handle provider changes first
+        self._handle_provider_change(vals)
 
         result = super().write(vals)
 
-        # Check if provider or model changed for Letta threads
+        # Handle Letta-specific updates after write
         if "provider_id" in vals or "model_id" in vals:
-            for thread in self:
-                if thread.provider_id.service == "letta":
-                    if thread.external_id:
-                        # Agent exists - just update its configuration
-                        try:
-                            client = thread.provider_id.letta_get_client()
-                            client.agents.modify(
-                                agent_id=thread.external_id,
-                                model=thread.model_id.name
-                            )
-                            _logger.info(
-                                f"Updated Letta agent {thread.external_id} with new model: {thread.model_id.name}"
-                            )
-                        except Exception as e:
-                            _logger.error(f"Failed to update Letta agent {thread.external_id}: {e}")
-                            # If update fails, try to recreate the agent
-                            agent_id = self._create_letta_agent(thread)
-                            if agent_id:
-                                thread.external_id = agent_id
-                                _logger.info(f"Recreated Letta agent as fallback: {agent_id}")
-                    else:
-                        # No agent exists yet - create one
-                        agent_id = self._create_letta_agent(thread)
-                        if agent_id:
-                            thread.external_id = agent_id
-                            _logger.info(f"Created new Letta agent: {agent_id}")
+            self._handle_model_or_provider_change()
 
-        # Check if tool_ids changed for Letta threads
         if "tool_ids" in vals:
-            for thread in self:
-                if thread.provider_id.service == "letta" and thread.external_id:
-                    # Sync agent tools with updated tool_ids
-                    thread.provider_id.letta_sync_agent_tools(
-                        thread.external_id, thread.tool_ids
-                    )
-                    _logger.info(
-                        f"Synced tools for Letta agent {thread.external_id}"
-                    )
+            self._handle_tool_changes()
 
         return result
+
+    def _handle_provider_change(self, vals):
+        """Handle cleanup when switching away from Letta provider"""
+        if "provider_id" not in vals:
+            return
+
+        for thread in self:
+            if thread.provider_id.service == LETTA_SERVICE:
+                new_provider = self.env['llm.provider'].browse(vals['provider_id'])
+                if new_provider.service != LETTA_SERVICE:
+                    self._cleanup_letta_resources(thread)
+
+    def _handle_model_or_provider_change(self):
+        """Handle agent updates when model or provider changes"""
+        for thread in self:
+            if thread.provider_id.service == LETTA_SERVICE:
+                self._update_or_create_agent(thread)
+
+    def _handle_tool_changes(self):
+        """Handle tool synchronization for Letta agents"""
+        for thread in self:
+            if thread.provider_id.service == LETTA_SERVICE and thread.external_id:
+                thread.provider_id.letta_sync_agent_tools(
+                    thread.external_id, thread.tool_ids
+                )
+                _logger.info(f"Synced tools for Letta agent {thread.external_id}")
+
+    def _update_or_create_agent(self, thread):
+        """Update existing agent or create new one"""
+        if thread.external_id:
+            # Agent exists - try to update it
+            try:
+                client = thread.provider_id.letta_get_client()
+                client.agents.modify(
+                    agent_id=thread.external_id,
+                    model=thread.model_id.name
+                )
+                _logger.info(f"Updated Letta agent {thread.external_id} with model: {thread.model_id.name}")
+            except Exception:
+                # If update fails, recreate the agent (let error propagate from creation)
+                agent_id = self._create_letta_agent(thread)
+                thread.external_id = agent_id
+                _logger.info(f"Recreated Letta agent as fallback: {agent_id}")
+        else:
+            # No agent exists - create one
+            agent_id = self._create_letta_agent(thread)
+            thread.external_id = agent_id
+            _logger.info(f"Created new Letta agent: {agent_id}")
 
     def unlink(self):
         """Clean up Letta resources when thread is deleted"""
         for thread in self:
-            if thread.provider_id.service == "letta":
+            if thread.provider_id.service == LETTA_SERVICE:
                 self._cleanup_letta_resources(thread)
         return super().unlink()
 
@@ -123,25 +159,23 @@ class LLMThread(models.Model):
         """Clean up API keys and Letta agent when thread is deleted or provider changed"""
         # Delete API key if exists
         if thread.metadata and thread.metadata.get('api_key_id'):
-            try:
-                api_key_record = self.env['res.users.apikeys'].sudo().browse(thread.metadata['api_key_id'])
-                if api_key_record.exists():
-                    api_key_record.unlink()
-                    _logger.info(f"Deleted API key for thread {thread.id}")
-            except Exception as e:
-                _logger.warning(f"Failed to delete API key for thread {thread.id}: {e}")
+            api_key_record = self.env['res.users.apikeys'].sudo().browse(thread.metadata['api_key_id'])
+            if api_key_record.exists():
+                api_key_record.unlink()
+                _logger.info(f"Deleted API key for thread {thread.id}")
 
-        # Delete Letta agent if exists
+        # Delete Letta agent if exists (allow this to fail silently as resource might be already gone)
         if thread.external_id:
             try:
                 client = thread.provider_id.letta_get_client()
                 client.agents.delete(thread.external_id)
                 _logger.info(f"Deleted Letta agent {thread.external_id}")
-            except Exception as e:
-                _logger.warning(f"Failed to delete Letta agent {thread.external_id}: {e}")
+            except Exception:
+                # Agent might already be deleted or server unreachable - this is OK during cleanup
+                _logger.debug(f"Could not delete Letta agent {thread.external_id} (may already be gone)")
 
-        # Clear metadata
-        thread.metadata = {}
+        # Clear metadata and external_id
+        self._clear_api_key_metadata(thread)
         thread.external_id = False
 
     def _create_letta_agent(self, thread):
@@ -200,7 +234,7 @@ class LLMThread(models.Model):
         agent_config = {
             "name": f"thread_{thread.id}",
             "model": model_name,
-            "embedding": "openai/text-embedding-3-small",  # TODO: Make this configurable via provider settings
+            "embedding": DEFAULT_EMBEDDING_MODEL,  # TODO: Make this configurable via provider settings
             "memory_blocks": memory_blocks,
             "tools": thread.provider_id.letta_format_tools([]),  # Basic tools for now
         }
@@ -213,38 +247,35 @@ class LLMThread(models.Model):
 
     def _ensure_api_key_for_agent(self, thread):
         """Get or create API key for Letta agent MCP authentication"""
-        # Check if we already have an API key in metadata
-        if thread.metadata and thread.metadata.get('api_key'):
-            return thread.metadata['api_key']
+        # Check if we already have an API key
+        existing_key = self._get_stored_api_key(thread)
+        if existing_key:
+            return existing_key
 
         # Generate new API key with scope 'rpc'
-        # Get maximum allowed duration from user's groups
         max_duration = max(
             (group.api_key_duration for group in thread.user_id.groups_id if group.api_key_duration),
-            default=90.0
+            default=DEFAULT_API_KEY_DURATION
         )
 
-        # Calculate expiration date
         expiration_date = datetime.now() + timedelta(days=max_duration)
-        user = thread.user_id
+        api_key_name = self._get_api_key_name(thread.id)
+
         # Generate API key programmatically
-        api_key = self.env['res.users.apikeys'].sudo().with_user(user)._generate(
+        api_key = self.env['res.users.apikeys'].sudo().with_user(thread.user_id)._generate(
             scope='rpc',
-            name=f"Letta Agent - Thread {thread.id}",
+            name=api_key_name,
             expiration_date=expiration_date
         )
 
         # Find the created API key record to get its ID
         api_key_record = self.env['res.users.apikeys'].sudo().search([
             ('user_id', '=', thread.user_id.id),
-            ('name', '=', f"Letta Agent - Thread {thread.id}"),
+            ('name', '=', api_key_name),
         ], limit=1, order='create_date desc')
 
-        # Store API key and its ID in metadata
-        thread.metadata = {
-            'api_key': api_key,
-            'api_key_id': api_key_record.id if api_key_record else None
-        }
+        # Store API key info in metadata
+        self._store_api_key(thread, api_key, api_key_record.id if api_key_record else None)
 
         _logger.info(f"Generated new API key for Letta agent thread {thread.id}")
         return api_key
