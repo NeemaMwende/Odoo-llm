@@ -46,18 +46,9 @@ class LLMThread(models.Model):
 
         for thread in threads:
             if thread.provider_id.service == "letta":
-                try:
-                    agent_id = self._create_letta_agent(thread)
-                    if agent_id:
-                        thread.external_id = agent_id
-                        _logger.info(
-                            f"Created Letta agent {agent_id} for new thread {thread.id}"
-                        )
-                except Exception as e:
-                    _logger.error(
-                        f"Failed to create Letta agent for thread {thread.id}: {e}"
-                    )
-                    # Don't fail thread creation, just log the error
+                agent_id = self._create_letta_agent(thread)
+                if agent_id:
+                    thread.external_id = agent_id
 
         return threads
 
@@ -69,42 +60,30 @@ class LLMThread(models.Model):
         if "provider_id" in vals or "model_id" in vals:
             for thread in self:
                 if thread.provider_id.service == "letta":
-                    try:
-                        # Recreate agent with new configuration
-                        old_agent_id = thread.external_id
-                        new_agent_id = self._create_letta_agent(thread)
+                    # Recreate agent with new configuration
+                    old_agent_id = thread.external_id
+                    new_agent_id = self._create_letta_agent(thread)
 
-                        if new_agent_id:
-                            thread.external_id = new_agent_id
-                            _logger.info(
-                                f"Recreated Letta agent for thread {thread.id}: {old_agent_id} → {new_agent_id}"
-                            )
-
-                            # TODO: Optionally delete old agent from Letta
-                            # self._delete_letta_agent(old_agent_id)
-
-                    except Exception as e:
-                        _logger.error(
-                            f"Failed to recreate Letta agent for thread {thread.id}: {e}"
+                    if new_agent_id:
+                        thread.external_id = new_agent_id
+                        _logger.info(
+                            f"Recreated Letta agent for thread {thread.id}: {old_agent_id} → {new_agent_id}"
                         )
 
+                        # TODO: Optionally delete old agent from Letta
+                        # self._delete_letta_agent(old_agent_id)
         # Check if tool_ids changed for Letta threads
         if "tool_ids" in vals:
             for thread in self:
                 if thread.provider_id.service == "letta" and thread.external_id:
-                    try:
-                        # Sync agent tools with updated tool_ids
-                        thread.provider_id.letta_sync_agent_tools(
-                            thread.external_id, thread.tool_ids
-                        )
-                        _logger.info(
-                            f"Synced tools for Letta agent {thread.external_id}"
-                        )
-                    except Exception as e:
-                        _logger.error(
-                            f"Failed to sync tools for Letta agent {thread.external_id}: {e}"
-                        )
-
+                    # Sync agent tools with updated tool_ids
+                    thread.provider_id.letta_sync_agent_tools(
+                        thread.external_id, thread.tool_ids
+                    )
+                    _logger.info(
+                        f"Synced tools for Letta agent {thread.external_id}"
+                    )
+                    
         return result
 
     def _create_letta_agent(self, thread):
@@ -117,9 +96,6 @@ class LLMThread(models.Model):
             str: Agent ID if successful, None otherwise
         """
         if not thread.model_id:
-            _logger.warning(
-                f"Cannot create Letta agent for thread {thread.id}: no model selected"
-            )
             return None
 
         try:
@@ -168,11 +144,8 @@ class LLMThread(models.Model):
         model_name = thread.model_id.name
 
         # Create or get API key for MCP authentication
-        
         api_key = self._ensure_user_api_key(thread.user_id)
-        _logger.info(f"Created/found API key for user {thread.user_id.login}")
         
-
         # Build full configuration
         agent_config = {
             "name": f"thread_{thread.id}",
@@ -195,34 +168,18 @@ class LLMThread(models.Model):
         # Look for existing MCP API key for this user
         existing_key = self.env['res.users.apikeys'].sudo().search([
             ('user_id', '=', user.id),
-            ('name', '=', 'MCP Integration Key')
         ], limit=1)
-        
+
         if existing_key:
             _logger.info(f"Using existing API key for user {user.login}")
             return existing_key.key
-        
-        # Get user's maximum allowed duration (36500 days for LLM managers, 90 days for regular users)
-        # TODO: Review if 36500 days (100 years) max expiration is appropriate for API keys
-        # Consider security implications of extremely long-lived API keys
-        max_duration = max(group.api_key_duration for group in user.groups_id) or 1.0
-        expiration = datetime.now() + timedelta(days=max_duration)
-        
-        _logger.info(f"Creating API key for user {user.login} with {max_duration} days duration")
-        
-        try:
-            # Create new API key with proper expiration date
-            key = self.env['res.users.apikeys'].sudo().with_user(user)._generate(
-                scope=None,                 # Global key for RPC/HTTP usage
-                name='MCP Integration Key', # Description
-                expiration_date=expiration  # Respects user group permissions
-            )
-            
-            _logger.info(f"Created new MCP API key for user {user.login}")
-            return key
-        except Exception as e:
-            _logger.error(f"Failed to create API key: {e}")
-            return None
+
+        # No API key exists - prompt user to create one
+        raise UserError(
+            "API key required for Letta MCP integration.\n\n"
+            "Please click on your profile avatar → Preferences → Account Security → 'New API Key' "
+            "to create an API key, then try again."
+        )
 
     def get_letta_agent_id(self):
         """Get the Letta agent ID for this thread.
@@ -232,10 +189,12 @@ class LLMThread(models.Model):
         """
         self.ensure_one()
 
-        if self.provider_id.service != "letta":
+        if self.provider_id.service == "letta":
+            return self.external_id
+        else:
             return None
 
-        return self.external_id
+        
 
     def ensure_letta_agent(self):
         """Ensure this thread has a valid Letta agent.
