@@ -1,12 +1,17 @@
 {
     "name": "Letta LLM Integration",
-    "summary": "Letta provider integration for LLM module",
+    "summary": "Letta agent-based AI with persistent memory and MCP tools",
     "description": """
-        Implements Letta provider service for the LLM integration module.
-        Supports model fetching from Letta platform for stateful AI agents.
+        Integrates Letta platform for stateful AI agents with persistent memory.
 
-        Note: This initial implementation only supports model fetching.
-        Chat, embedding, and generation features are not yet implemented.
+        Features:
+        • Agent-based conversations with memory persistence
+        • Full MCP (Model Context Protocol) tool integration
+        • Automatic agent lifecycle management with threads
+        • Support for both Letta Cloud and self-hosted servers
+        • Real-time streaming responses
+
+        Requires Letta server v0.11.7+ and llm_mcp_server module.
     """,
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
