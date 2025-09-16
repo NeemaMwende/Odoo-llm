@@ -1,5 +1,5 @@
 from letta_client import Letta
-from letta_client.types import MessageCreate
+from letta_client.types import MessageCreate, StreamableHttpServerConfig
 
 from odoo import api, models
 from odoo.exceptions import UserError
@@ -144,8 +144,6 @@ class LLMProvider(models.Model):
         server_url = mcp_config.get_mcp_server_url()
 
         # Create the proper MCP server config using Letta client types
-        from letta_client.types import StreamableHttpServerConfig
-
         mcp_config = StreamableHttpServerConfig(
             server_name=server_name,
             server_url=server_url,
