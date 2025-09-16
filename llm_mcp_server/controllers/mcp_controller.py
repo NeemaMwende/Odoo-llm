@@ -223,7 +223,7 @@ class MCPController(http.Controller):
             if not session_id:
                 return http.Response(
                     json.dumps({"error": "Missing mcp-session-id header"}),
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": CONTENT_TYPE_JSON},
                     status=HTTPStatus.BAD_REQUEST,
                 )
 
@@ -231,7 +231,7 @@ class MCPController(http.Controller):
             if not session:
                 return http.Response(
                     json.dumps({"error": "Session not found"}),
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": CONTENT_TYPE_JSON},
                     status=HTTPStatus.NOT_FOUND,
                 )
 
@@ -244,7 +244,7 @@ class MCPController(http.Controller):
                             "message": f"Method '{method_name}' not allowed in state '{session.state}'",
                         }
                     ),
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": CONTENT_TYPE_JSON},
                     status=HTTPStatus.BAD_REQUEST,
                 )
 
@@ -345,7 +345,7 @@ class MCPController(http.Controller):
                 session._cr.commit()
 
         return http.Response(
-            "", headers={"Content-Type": "application/json"}, status=HTTPStatus.ACCEPTED
+            "", headers={"Content-Type": CONTENT_TYPE_JSON}, status=HTTPStatus.ACCEPTED
         )
 
     def _mcp_ping(self, params, request_id, session_id):
@@ -467,6 +467,6 @@ class MCPController(http.Controller):
 
         return http.Response(
             json.dumps(health_data, indent=2),
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": CONTENT_TYPE_JSON},
             status=HTTPStatus.OK,
         )
