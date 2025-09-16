@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+# Import render_template from llm_assistant utils
+from odoo.addons.llm_assistant.utils import render_template
+
 _logger = logging.getLogger(__name__)
 
 # Constants
@@ -92,7 +95,7 @@ class LLMThread(models.Model):
         result = super().write(vals)
 
         # Handle Letta-specific updates after write
-        if "provider_id" in vals or "model_id" in vals:
+        if "provider_id" in vals or "model_id" in vals or "assistant_id" in vals:
             self._handle_model_or_provider_change()
 
         if "tool_ids" in vals:
@@ -132,10 +135,21 @@ class LLMThread(models.Model):
             # Agent exists - try to update it
             try:
                 client = thread.provider_id.letta_get_client()
-                client.agents.modify(
-                    agent_id=thread.external_id,
-                    model=thread.model_id.name
-                )
+
+                # Build system instruction for updates
+                system_instruction = None
+                if thread.assistant_id and thread.assistant_id.prompt_id:
+                    context = thread.get_context()
+                    system_instruction = render_template(
+                        template=thread.assistant_id.prompt_id.template,
+                        context=context
+                    )
+
+                modify_params = {"agent_id": thread.external_id, "model": thread.model_id.name}
+                if system_instruction:
+                    modify_params["system"] = system_instruction
+
+                client.agents.modify(**modify_params)
                 _logger.info(f"Updated Letta agent {thread.external_id} with model: {thread.model_id.name}")
             except Exception:
                 # If update fails, recreate the agent (let error propagate from creation)
@@ -236,7 +250,16 @@ class LLMThread(models.Model):
 
         # Get or create API key for MCP authentication
         api_key = self._ensure_api_key_for_agent(thread)
-        
+
+        # Add system instruction if assistant is available
+        system_instruction = None
+        if thread.assistant_id and thread.assistant_id.prompt_id:
+            context = thread.get_context()
+            system_instruction = render_template(
+                template=thread.assistant_id.prompt_id.template,
+                context=context
+            )
+
         # Build full configuration
         agent_config = {
             "name": f"thread_{thread.id}",
@@ -245,6 +268,10 @@ class LLMThread(models.Model):
             "memory_blocks": memory_blocks,
             "tools": thread.provider_id.letta_format_tools([]),  # Basic tools for now
         }
+
+        # Add system instruction if available
+        if system_instruction:
+            agent_config["system"] = system_instruction
 
         agent_config["tool_exec_environment_variables"] = {
             "ODOO_API_KEY": api_key,
