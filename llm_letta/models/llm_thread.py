@@ -59,16 +59,13 @@ class LLMThread(models.Model):
     # Metadata helper methods
     def _get_stored_api_key(self, thread):
         """Get API key from thread metadata"""
-        if thread.metadata and thread.metadata.get('api_key'):
-            return thread.metadata['api_key']
+        if thread.metadata and thread.metadata.get("api_key"):
+            return thread.metadata["api_key"]
         return None
 
     def _store_api_key(self, thread, api_key, api_key_id):
         """Store API key info in thread metadata"""
-        thread.metadata = {
-            'api_key': api_key,
-            'api_key_id': api_key_id
-        }
+        thread.metadata = {"api_key": api_key, "api_key_id": api_key_id}
 
     def _clear_api_key_metadata(self, thread):
         """Clear API key from thread metadata"""
@@ -114,7 +111,7 @@ class LLMThread(models.Model):
 
         for thread in self:
             if thread.provider_id.service == LETTA_SERVICE:
-                new_provider = self.env['llm.provider'].browse(vals['provider_id'])
+                new_provider = self.env["llm.provider"].browse(vals["provider_id"])
                 if new_provider.service != LETTA_SERVICE:
                     self._cleanup_letta_resources(thread)
 
@@ -143,11 +140,13 @@ class LLMThread(models.Model):
             if thread.assistant_id and thread.assistant_id.prompt_id:
                 context = thread.get_context()
                 system_instruction = render_template(
-                    template=thread.assistant_id.prompt_id.template,
-                    context=context
+                    template=thread.assistant_id.prompt_id.template, context=context
                 )
 
-            modify_params = {"agent_id": thread.external_id, "model": thread.model_id.name}
+            modify_params = {
+                "agent_id": thread.external_id,
+                "model": thread.model_id.name,
+            }
             if system_instruction:
                 modify_params["system"] = system_instruction
 
@@ -167,8 +166,12 @@ class LLMThread(models.Model):
     def _cleanup_letta_resources(self, thread):
         """Clean up API keys and Letta agent when thread is deleted or provider changed"""
         # Delete API key if exists
-        if thread.metadata and thread.metadata.get('api_key_id'):
-            api_key_record = self.env['res.users.apikeys'].sudo().browse(thread.metadata['api_key_id'])
+        if thread.metadata and thread.metadata.get("api_key_id"):
+            api_key_record = (
+                self.env["res.users.apikeys"]
+                .sudo()
+                .browse(thread.metadata["api_key_id"])
+            )
             if api_key_record.exists():
                 api_key_record.unlink()
 
@@ -180,7 +183,9 @@ class LLMThread(models.Model):
                 _logger.info(f"Deleted Letta agent {thread.external_id}")
             except Exception:
                 # Agent might already be deleted or server unreachable - this is OK during cleanup
-                _logger.debug(f"Could not delete Letta agent {thread.external_id} (may already be gone)")
+                _logger.debug(
+                    f"Could not delete Letta agent {thread.external_id} (may already be gone)"
+                )
 
         # Clear metadata and external_id
         self._clear_api_key_metadata(thread)
@@ -212,8 +217,6 @@ class LLMThread(models.Model):
 
         return agent_id
 
-        
-
     def _build_agent_config(self, thread):
         """Build agent configuration from thread context.
 
@@ -228,7 +231,10 @@ class LLMThread(models.Model):
         # Build memory blocks from thread context
         memory_blocks = [
             {"label": "persona", "value": DEFAULT_PERSONA_BLOCK},
-            {"label": "human", "value": DEFAULT_HUMAN_BLOCK_TEMPLATE.format(user_name=user_name)},
+            {
+                "label": "human",
+                "value": DEFAULT_HUMAN_BLOCK_TEMPLATE.format(user_name=user_name),
+            },
         ]
 
         # Add assistant-specific context if available
@@ -249,8 +255,7 @@ class LLMThread(models.Model):
         if thread.assistant_id and thread.assistant_id.prompt_id:
             context = thread.get_context()
             system_instruction = render_template(
-                template=thread.assistant_id.prompt_id.template,
-                context=context
+                template=thread.assistant_id.prompt_id.template, context=context
             )
 
         # Build full configuration
@@ -281,28 +286,43 @@ class LLMThread(models.Model):
 
         # Generate new API key with scope 'rpc'
         max_duration = max(
-            (group.api_key_duration for group in thread.user_id.groups_id if group.api_key_duration),
-            default=DEFAULT_API_KEY_DURATION
+            (
+                group.api_key_duration
+                for group in thread.user_id.groups_id
+                if group.api_key_duration
+            ),
+            default=DEFAULT_API_KEY_DURATION,
         )
 
         expiration_date = datetime.now() + timedelta(days=max_duration)
         api_key_name = self._get_api_key_name(thread.id)
 
         # Generate API key programmatically
-        api_key = self.env['res.users.apikeys'].sudo().with_user(thread.user_id)._generate(
-            scope='rpc',
-            name=api_key_name,
-            expiration_date=expiration_date
+        api_key = (
+            self.env["res.users.apikeys"]
+            .sudo()
+            .with_user(thread.user_id)
+            ._generate(scope="rpc", name=api_key_name, expiration_date=expiration_date)
         )
 
         # Find the created API key record to get its ID
-        api_key_record = self.env['res.users.apikeys'].sudo().search([
-            ('user_id', '=', thread.user_id.id),
-            ('name', '=', api_key_name),
-        ], limit=1, order='create_date desc')
+        api_key_record = (
+            self.env["res.users.apikeys"]
+            .sudo()
+            .search(
+                [
+                    ("user_id", "=", thread.user_id.id),
+                    ("name", "=", api_key_name),
+                ],
+                limit=1,
+                order="create_date desc",
+            )
+        )
 
         # Store API key info in metadata
-        self._store_api_key(thread, api_key, api_key_record.id if api_key_record else None)
+        self._store_api_key(
+            thread, api_key, api_key_record.id if api_key_record else None
+        )
 
         return api_key
 
@@ -318,8 +338,6 @@ class LLMThread(models.Model):
             return self.external_id
         else:
             return None
-
-        
 
     def ensure_letta_agent(self):
         """Ensure this thread has a valid Letta agent.
@@ -342,7 +360,6 @@ class LLMThread(models.Model):
             client = self.provider_id.letta_get_client()
             client.agents.retrieve(agent_id=agent_id)
             return agent_id
-            
 
         # Create new agent if needed
         if not agent_id:

@@ -21,7 +21,7 @@ class LLMProvider(models.Model):
         # Simple unified initialization for both local and cloud
         return Letta(
             base_url=self.api_base,
-            token=self.api_key  # Will be None for local, which is fine
+            token=self.api_key,  # Will be None for local, which is fine
         )
 
     def letta_models(self, model_id=None):
@@ -104,7 +104,6 @@ class LLMProvider(models.Model):
         else:
             return self._letta_get_agent_response(client, agent_id, user_content)
 
-
     def letta_format_tools(self, tools):
         """Format tools for Letta (not used - tools are managed via MCP/API)."""
         return []
@@ -130,10 +129,7 @@ class LLMProvider(models.Model):
                     break
             else:
                 # Server object has server_name attribute
-                if (
-                    hasattr(server, "server_name")
-                    and server.server_name == server_name
-                ):
+                if hasattr(server, "server_name") and server.server_name == server_name:
                     server_exists = True
                     break
 
@@ -171,9 +167,7 @@ class LLMProvider(models.Model):
         server_name = mcp_config.name
 
         # Get available MCP tools to verify tool exists
-        mcp_tools = client.tools.list_mcp_tools_by_server(
-            mcp_server_name=server_name
-        )
+        mcp_tools = client.tools.list_mcp_tools_by_server(mcp_server_name=server_name)
 
         # Check if tool exists in MCP server
         tool_exists = False
@@ -186,9 +180,7 @@ class LLMProvider(models.Model):
             raise UserError(f"Tool '{tool_name}' not found in Odoo MCP server")
 
         # Register the tool with Letta from the MCP server using correct API
-        client.tools.add_mcp_tool(
-            mcp_server_name=server_name, mcp_tool_name=tool_name
-        )
+        client.tools.add_mcp_tool(mcp_server_name=server_name, mcp_tool_name=tool_name)
 
         # Get the registered tool ID
         registered_tools = client.tools.list()
@@ -335,7 +327,6 @@ class LLMProvider(models.Model):
                 if message_type == "assistant_message" and hasattr(chunk, "content"):
                     if chunk.content:
                         response_content += chunk.content
-
 
         return {
             "content": response_content or "I couldn't generate a response.",

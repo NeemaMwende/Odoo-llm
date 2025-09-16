@@ -34,9 +34,11 @@ This module requires `llm_mcp_server` module for tool integration. The MCP serve
 ## Local Setup (Docker - Recommended)
 
 ### 1. Create Letta Database
+
 ```bash
 psql -U odoo -h localhost postgres
 ```
+
 ```sql
 CREATE DATABASE letta OWNER odoo;
 \c letta
@@ -45,7 +47,9 @@ CREATE EXTENSION vector;
 ```
 
 ### 2. Configure Environment
+
 Create a `.env.letta` file with:
+
 ```bash
 LETTA_DEBUG=False
 LETTA_PG_URI=postgresql://odoo:odoo@host.docker.internal:5432/letta
@@ -54,6 +58,7 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434  # Optional, for local models
 ```
 
 ### 3. Start Docker Letta Server
+
 ```bash
 # Close Letta Desktop app if running
 # Start only Letta server in Docker
@@ -82,7 +87,7 @@ No API key is required for local connections.
 
 This module provides full integration with Odoo's MCP server, giving Letta agents access to:
 
-- **Record Operations**: Create, read, update, delete Odoo records  
+- **Record Operations**: Create, read, update, delete Odoo records
 - **Model Methods**: Execute any Odoo model method
 - **Model Inspection**: Explore Odoo model structure
 - **Automatic Sync**: Tools automatically sync when thread tools change
