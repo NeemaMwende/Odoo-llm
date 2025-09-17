@@ -237,12 +237,6 @@ class LLMThread(models.Model):
             },
         ]
 
-        # Add assistant-specific context if available
-        if thread.assistant_id and thread.assistant_id.prompt_id:
-            context = thread.get_context()
-            system_content = thread.assistant_id.prompt_id.render_content(context)
-            if system_content:
-                memory_blocks[0] = {"label": "persona", "value": system_content}
 
         # Use the actual selected model (should already include provider prefix)
         model_name = thread.model_id.name
