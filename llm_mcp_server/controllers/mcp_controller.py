@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from odoo import http
 from odoo.http import request
 
-from .http_dispatcher import MCPMethodNotFoundError
+from ..mcp_dispatcher import MCPMethodNotFoundError
 
 _logger = logging.getLogger(__name__)
 
