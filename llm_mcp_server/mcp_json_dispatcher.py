@@ -69,13 +69,13 @@ class MCPInvalidParamsError(MCPError):
         super().__init__(message, INVALID_PARAMS)
 
 
-class MCPDispatcher(JsonRPCDispatcher):
+class MCPJsonRPCDispatcher(JsonRPCDispatcher):
     """
     Custom dispatcher for MCP (Model Context Protocol) that extends JSON-RPC
     with MCP-specific error handling, custom HTTP status codes, and protocol headers.
     """
 
-    routing_type = 'mcp'
+    routing_type = 'mcp_json'
 
     def dispatch(self, endpoint, args):
         """

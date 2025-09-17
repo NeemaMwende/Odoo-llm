@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from odoo import http
 from odoo.http import request
 
-from ..mcp_dispatcher import MCPMethodNotFoundError
+from ..mcp_json_dispatcher import MCPMethodNotFoundError
 
 _logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class MCPController(http.Controller):
     """
 
     @http.route(
-        "/mcp", type="mcp", auth="public", methods=["POST"], csrf=False, cors="*"
+        "/mcp", type="mcp_json", auth="public", methods=["POST"], csrf=False, cors="*"
     )
     def mcp_endpoint(self, **params):
         """MCP endpoint for JSON-RPC methods using custom dispatcher"""
