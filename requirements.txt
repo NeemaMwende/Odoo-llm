@@ -5,9 +5,14 @@ chromadb-client
 emoji
 fal_client
 jinja2
+jsonschema
+# Note: letta-client requires forked version until streaming issue is fixed
+# Install manually: pip install git+https://github.com/apexive/letta-python.git@main
+letta-client
 llama_index
 markdown2
 markdownify
+mcp
 mistralai
 nltk
 numpy

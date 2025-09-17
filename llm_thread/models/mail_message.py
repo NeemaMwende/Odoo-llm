@@ -1,7 +1,8 @@
 import logging
 
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.osv import expression
 
 _logger = logging.getLogger(__name__)
 
@@ -14,6 +15,29 @@ class MailMessage(models.Model):
         default=0,
         help="Vote status given by the user. 0: No vote, 1: Upvoted, -1: Downvoted.",
     )
+
+    @api.model
+    def _message_fetch(self, domain, search_term=None, before=None, after=None, around=None, limit=30):
+        """Override to filter only LLM messages for llm.thread model.
+
+        For LLM threads, we only want to display messages that have an llm_role
+        (user, assistant, tool), not system notifications or other message types
+        that would clutter the AI conversation interface.
+        """
+        # Check if this is for an llm.thread model
+        is_llm_thread = any(
+            condition[0] == "model" and condition[1] == "=" and condition[2] == "llm.thread"
+            for condition in domain
+            if isinstance(condition, (list, tuple)) and len(condition) == 3
+        )
+
+        if is_llm_thread:
+            # Add LLM role filter for LLM threads - only show messages with llm_role
+            llm_role_filter = [("llm_role", "!=", False)]
+            domain = expression.AND([domain, llm_role_filter])
+
+        # Call parent method with modified domain
+        return super()._message_fetch(domain, search_term, before, after, around, limit)
 
     def _extras_to_store(self, store, format_reply):
         """Add LLM-specific fields to the message store."""

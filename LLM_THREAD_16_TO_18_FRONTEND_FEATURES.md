@@ -90,7 +90,21 @@ This document provides a comprehensive list of all frontend features from the 16
 - ❌ Custom animated indicators not implemented (uses standard UI)
 - **Status**: Functional with basic streaming feedback
 
-### ❌ Components Still Need Migration
+### ❌ Components Still Need Migration / Wiring
+
+#### 8. **Chatter AI Button** (`chatter-topbar` integration) - ⚠️ PARTIALLY PRESENT
+- 16.0: AI button in chatter topbar opened an LLM chat contextualized to the current record
+- 18.0 current state:
+  - Template extension exists: `llm_thread/static/src/templates/chatter_ai_button.xml` (adds button in `mail.Chatter` topbar)
+  - Patch exists: `llm_thread/static/src/patches/chatter_patch.js` (adds `supportsLLMChat` and `openAIChat()`)
+  - Not wired: template expects `shouldShowAIButton` and `onAIChatClick`; patch exposes `supportsLLMChat` and `openAIChat()`
+  - Import path to confirm: `@mail/chatter/web/chatter` vs `@mail/chatter/web_portal/chatter`
+  - Expected: Click opens client action `llm_thread.chat_client_action` for the current record (model/id)
+
+Fix plan:
+- Add `shouldShowAIButton` getter → return `this.supportsLLMChat`
+- Add `onAIChatClick()` → call `this.openAIChat()`
+- Verify correct Chatter import path and available props (`threadModel`/`threadLocalId`) or derive from `mail.store`
 
 ## llm_assistant Module Features
 
@@ -196,21 +210,23 @@ This document provides a comprehensive list of all frontend features from the 16
 | Module | Component | 16.0 | 18.0 | Priority | Status |
 |--------|-----------|------|------|----------|---------|
 | llm_thread | Container | ✅ | ✅ | - | ✅ Complete |
-| llm_thread | Sidebar | ✅ | ⚠️ | MEDIUM | ⚠️ Basic functional, needs mobile |
+| llm_thread | Sidebar | ✅ | ⚠️ | MEDIUM | ⚠️ Basic; needs mobile/loading/order |
 | llm_thread | Thread Header | ✅ | ✅ | - | ✅ Fully implemented |
 | llm_thread | Composer | ✅ | ✅ | - | ✅ Functional with mail system |
 | llm_thread | Message List | ✅ | ✅ | - | ✅ Functional with patches |
 | llm_thread | Streaming | ✅ | ✅ | - | ✅ EventSource implementation |
+| llm_thread | Chatter AI Button | ✅ | ⚠️ | MEDIUM | ⚠️ Present but not wired |
 | llm_assistant | Assistant Select | ✅ | ✅ | - | ✅ Fully implemented |
 | llm_generate | Media Form | ✅ | ❌ | LOW | ❌ Not migrated |
 
 ## Next Steps (Updated Priority)
 
-1. **Mobile Responsiveness** - Make components mobile-friendly
-2. **Auto Scrolling** - Implement automatic message scrolling  
-3. **Enhanced UX** - Loading states, better streaming feedback
-4. **Testing** - Comprehensive feature testing
-5. **Polish** - Final UI/UX improvements
+1. **Chatter AI Button** - Wire methods/imports; open chat client action
+2. **Mobile Responsiveness** - Make components mobile-friendly
+3. **Auto Scrolling** - Implement automatic message scrolling  
+4. **Enhanced UX** - Loading states, better streaming feedback
+5. **Testing** - Comprehensive feature testing
+6. **Polish** - Final UI/UX improvements
 
 ## 🎯 **MAJOR MILESTONE ACHIEVED**
 
@@ -225,17 +241,19 @@ This document provides a comprehensive list of all frontend features from the 16
 ## Testing Checklist
 
 - [ ] Thread creation and deletion
-- [ ] Thread name editing
-- [ ] Provider selection and switching
-- [ ] Model selection with search
-- [ ] Tool selection and management
-- [ ] Assistant selection (llm_assistant)
+- [x] Thread name editing
+- [x] Provider selection and switching
+- [x] Model selection with search
+- [x] Tool selection and management
+- [x] Assistant selection (llm_assistant)
 - [ ] Mobile responsiveness
 - [ ] Streaming indicators
 - [ ] Error handling
 - [ ] Loading states
 - [ ] Media generation mode (llm_generate)
-- [ ] Message rendering customizations
-- [ ] URL navigation
-- [ ] Browser back/forward
+- [x] Message rendering customizations
+- [x] URL navigation
+- [x] Browser back/forward
 - [ ] Multi-tab support
+- [ ] Thumbs up/down buttons per llm messages
+- [ ] Chatter AI button opens chat for current record
