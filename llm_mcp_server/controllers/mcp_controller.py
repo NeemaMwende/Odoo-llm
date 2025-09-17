@@ -10,6 +10,7 @@ import logging
 from http import HTTPStatus
 from typing import Optional
 
+import werkzeug.exceptions
 from mcp.types import InitializeResult
 from pydantic import BaseModel
 
@@ -176,9 +177,9 @@ class MCPController(http.Controller):
                 # Force immediate commit so concurrent requests see the updated state
                 session._cr.commit()
 
-        return http.Response(
-            "", headers={"Content-Type": CONTENT_TYPE_JSON}, status=HTTPStatus.ACCEPTED
-        )
+        # For JSON-RPC notifications, use werkzeug.abort to bypass JSON-RPC entirely
+        # Following Odoo's pattern from http.py line 2185 (and 2330 & 2333)
+        werkzeug.exceptions.abort(http.Response("", headers={"Content-Type": CONTENT_TYPE_JSON}, status=HTTPStatus.ACCEPTED))
 
     def _mcp_ping(self, params, request_id):
         """Handle ping method"""
