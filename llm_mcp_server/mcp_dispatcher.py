@@ -5,6 +5,7 @@ Custom MCP Dispatcher for handling MCP-specific JSON-RPC requirements
 import logging
 from typing import Optional
 
+import werkzeug.exceptions
 from mcp.types import (
     INTERNAL_ERROR,
     INVALID_PARAMS,
@@ -102,9 +103,12 @@ class MCPDispatcher(JsonRPCDispatcher):
         """
         Custom error handler that preserves MCP error codes and HTTP status codes
         """
+        # Log all errors for debugging
+        _logger.error(f"MCP Dispatcher handling error: {exc.__class__.__name__}: {exc}", exc_info=True)
+
+        # Handle MCP errors with custom HTTP status codes
         if isinstance(exc, MCPError) and exc.http_status != 200:
-            # Only handle MCP errors with custom HTTP status codes
-            # Build JSON-RPC error response manually for custom HTTP status
+            # Build JSON-RPC error response with custom HTTP status
             response_data = {
                 'jsonrpc': '2.0',
                 'id': self.request_id,
@@ -113,16 +117,29 @@ class MCPDispatcher(JsonRPCDispatcher):
                     'message': exc.message,
                 }
             }
-
-            # Create response with custom HTTP status (no MCP headers for errors)
             return request.make_json_response(
                 response_data,
                 status=exc.http_status,
                 headers={'Content-Type': 'application/json'}
             )
 
-        # For all other cases (including MCP errors with HTTP 200),
-        # let parent handle it and our _response() will add MCP headers
+        # Handle Werkzeug HTTP exceptions (401, 404, etc.)
+        if isinstance(exc, werkzeug.exceptions.HTTPException):
+            # Return proper HTTP status for Werkzeug exceptions
+            response_data = {
+                'jsonrpc': '2.0',
+                'id': self.request_id,
+                'error': {
+                    'code': exc.code,
+                    'message': exc.description or str(exc),
+                }
+            }
+            return request.make_json_response(
+                response_data,
+                status=exc.code,  # Use the actual HTTP status
+            )
+
+        # For everything else, let parent handle it
         return super().handle_error(exc)
 
     def pre_dispatch(self, rule, args):
