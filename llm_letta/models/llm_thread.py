@@ -390,3 +390,17 @@ class LLMThread(models.Model):
                 "type": "success",
             },
         }
+
+    def _process_llm_body(self, body):
+          """Override to handle Letta's specific escape sequence formatting."""
+          if not body:
+              return body
+
+          # Only apply Letta-specific cleaning if using Letta provider
+          # This preserves emojis and other unicode characters
+          if self.provider_id and self.provider_id.service == "letta":
+              # Handle Letta's split escape sequences
+              body = body.replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
+
+          # Call parent's implementation for standard markdown processing
+          return super()._process_llm_body(body)
