@@ -257,12 +257,19 @@ class LLMThread(models.Model):
             system_instruction = render_template(
                 template=thread.assistant_id.prompt_id.template, context=context
             )
+        
+        embedding = thread.provider_id.letta_get_embedding_model()
+        if not embedding:
+            raise UserError(
+                f"No embedding models found for Letta provider '{thread.provider_id.name}'. "
+                "Please run 'Fetch Models' first to import available embedding models."
+            )
 
         # Build full configuration
         agent_config = {
             "name": f"thread_{thread.id}",
             "model": model_name,
-            "embedding": DEFAULT_EMBEDDING_MODEL,  # TODO: Make this configurable via provider settings
+            "embedding": embedding,
             "memory_blocks": memory_blocks,
             "tools": thread.provider_id.letta_format_tools([]),  # Basic tools for now
         }

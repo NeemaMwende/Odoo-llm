@@ -96,6 +96,35 @@ class LLMProvider(models.Model):
             }
         }
 
+    def letta_get_embedding_model(self):
+        """Get the best available embedding model for this Letta provider.
+
+        Priority:
+        1. Default embedding model (default=True)
+        2. First available embedding model
+
+        Returns:
+            str: The embedding model name/handle
+        """
+        # Get all embedding models for this provider
+        embedding_models = self.env["llm.model"].search([
+            ("provider_id", "=", self.id),
+            ("model_use", "=", "embedding"),
+            ("active", "=", True),
+        ])
+
+        if not embedding_models:
+            return None
+
+        # Try to find default embedding model
+        default_models = embedding_models.filtered("default")
+        if default_models:
+            # If multiple defaults, just use the first one silently
+            return default_models[0].name
+
+        # Use first available embedding model
+        return embedding_models[0].name
+
     def letta_chat(self, messages, model=None, stream=False, **kwargs):  # pylint: disable=unused-argument
         """Chat completion using Letta agents.
 
