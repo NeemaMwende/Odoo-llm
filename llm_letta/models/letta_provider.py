@@ -30,36 +30,71 @@ class LLMProvider(models.Model):
         """List available models from Letta"""
         client = self.letta_get_client()
         models_response = client.models.list()
+        embedding_models_response = client.models.listembeddingmodels()
 
-        # Convert Letta model format to our standard format
         models = []
-        for model in models_response:
-            # Use handle as the name since that's what Letta agent config expects
-            model_handle = getattr(model, "handle", None)
-            if not model_handle:
-                # Fallback: construct handle if not provided
-                provider = getattr(model, "model_endpoint_type", "unknown")
-                model_handle = f"{provider}/{model.model}"
 
-            model_data = {
-                "name": model_handle,  # Use handle as name for Letta compatibility
-                "provider": model.provider_name
-                if hasattr(model, "provider_name")
-                else "letta",
+        # Process chat/completion models
+        for model in models_response:
+            model_data = self._letta_parse_llm_model(model)
+            if model_id and model_data["name"] != model_id:
+                continue
+            models.append(model_data)
+
+        # Process embedding models
+        for model in embedding_models_response:
+            model_data = self._letta_parse_embedding_model(model)
+            if model_id and model_data["name"] != model_id:
+                continue
+            models.append(model_data)
+
+        return models
+
+    def _letta_parse_llm_model(self, model):
+        """Parse a chat/completion model from Letta API"""
+        # Use handle as the name since that's what Letta agent config expects
+        model_handle = getattr(model, "handle", None)
+        if not model_handle:
+            # Fallback: construct handle if not provided
+            provider = getattr(model, "model_endpoint_type", "unknown")
+            model_name = getattr(model, "model", "unknown")
+            model_handle = f"{provider}/{model_name}"
+
+        return {
+            "name": model_handle,
+            "details": {
+                "provider": getattr(model, "provider_name", "letta"),
                 "context_window": getattr(model, "context_window", None),
                 "model_endpoint_type": getattr(model, "model_endpoint_type", None),
                 "temperature": getattr(model, "temperature", None),
                 "max_tokens": getattr(model, "max_tokens", None),
-                "raw_model_name": model.model,  # Keep raw name for reference
+                "raw_model_name": getattr(model, "model", None),
+                "capabilities": ["chat"],  # Used by wizard to determine model_use
             }
+        }
 
-            # Filter by specific model if requested
-            if model_id and model_data["name"] != model_id:
-                continue
+    def _letta_parse_embedding_model(self, model):
+        """Parse an embedding model from Letta API"""
+        # Use handle as the name
+        model_handle = getattr(model, "handle", None)
+        if not model_handle:
+            # Fallback: construct handle if not provided
+            provider = getattr(model, "embedding_endpoint_type", "unknown")
+            model_name = getattr(model, "embedding_model", "unknown")
+            model_handle = f"{provider}/{model_name}"
 
-            models.append(model_data)
-
-        return models
+        return {
+            "name": model_handle,
+            "details": {
+                "provider": getattr(model, "embedding_endpoint_type", "letta"),
+                "embedding_dim": getattr(model, "embedding_dim", None),
+                "embedding_chunk_size": getattr(model, "embedding_chunk_size", None),
+                "batch_size": getattr(model, "batch_size", None),
+                "embedding_endpoint": getattr(model, "embedding_endpoint", None),
+                "raw_model_name": getattr(model, "embedding_model", None),
+                "capabilities": ["embedding"],  # Used by wizard to determine model_use
+            }
+        }
 
     def letta_chat(self, messages, model=None, stream=False, **kwargs):  # pylint: disable=unused-argument
         """Chat completion using Letta agents.
