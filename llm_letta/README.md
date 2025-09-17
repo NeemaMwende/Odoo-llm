@@ -17,10 +17,29 @@ This module provides integration with Letta platform for Odoo's LLM framework.
 
 **⚠️ Important: Requires Letta server version 0.11.7. Earlier versions have MCP integration bugs.**
 
-1. Install the required Python client:
+### Letta Client Dependency
+
+**Important**: This module currently requires a forked version of the Letta Python client due to a streaming issue in the official package.
+
+- **Issue**: https://github.com/letta-ai/letta-python/issues/25
+- **Related PR**: https://github.com/letta-ai/letta-python/pull/24
+
+Until the official package is fixed, install the forked version:
+
+```bash
+pip install git+https://github.com/apexive/letta-python.git@main
+```
+
+This fork includes fixes for:
+- Proper streaming response handling
+- Escape sequence processing in chunked responses
+
+### Installation Steps
+
+1. Install the required Python client (forked version):
 
    ```bash
-   pip install letta-client
+   pip install git+https://github.com/apexive/letta-python.git@main
    ```
 
 2. Install this module in Odoo along with `llm_mcp_server` dependency

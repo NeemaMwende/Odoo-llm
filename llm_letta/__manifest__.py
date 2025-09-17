@@ -19,6 +19,8 @@
     "version": "18.0.1.0.0",
     "depends": ["llm", "llm_thread", "llm_assistant", "llm_mcp_server"],
     "external_dependencies": {
+        # Note: Using forked version until https://github.com/letta-ai/letta-python/issues/25 is fixed
+        # Install with: pip install git+https://github.com/apexive/letta-python.git@main
         "python": ["letta-client"],
     },
     "data": [
