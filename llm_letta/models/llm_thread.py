@@ -237,7 +237,6 @@ class LLMThread(models.Model):
             },
         ]
 
-
         # Use the actual selected model (should already include provider prefix)
         model_name = thread.model_id.name
 
@@ -251,7 +250,7 @@ class LLMThread(models.Model):
             system_instruction = render_template(
                 template=thread.assistant_id.prompt_id.template, context=context
             )
-        
+
         embedding = thread.provider_id.letta_get_embedding_model()
         if not embedding:
             raise UserError(
@@ -393,15 +392,15 @@ class LLMThread(models.Model):
         }
 
     def _process_llm_body(self, body):
-          """Override to handle Letta's specific escape sequence formatting."""
-          if not body:
-              return body
+        """Override to handle Letta's specific escape sequence formatting."""
+        if not body:
+            return body
 
-          # Only apply Letta-specific cleaning if using Letta provider
-          # This preserves emojis and other unicode characters
-          if self.provider_id and self.provider_id.service == "letta":
-              # Handle Letta's split escape sequences
-              body = body.replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
+        # Only apply Letta-specific cleaning if using Letta provider
+        # This preserves emojis and other unicode characters
+        if self.provider_id and self.provider_id.service == "letta":
+            # Handle Letta's split escape sequences
+            body = body.replace("\\n", "\n").replace("\\t", "\t").replace("\\r", "\r")
 
-          # Call parent's implementation for standard markdown processing
-          return super()._process_llm_body(body)
+        # Call parent's implementation for standard markdown processing
+        return super()._process_llm_body(body)

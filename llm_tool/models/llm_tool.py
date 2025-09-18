@@ -118,14 +118,17 @@ class LLMTool(models.Model):
 
         impl_method_name = f"{self.implementation}_{method}"
         if not hasattr(self, impl_method_name):
-            raise AttributeError(f"Method {impl_method_name} not found for tool {self.name}")
+            raise AttributeError(
+                f"Method {impl_method_name} not found for tool {self.name}"
+            )
 
         method_func = getattr(self, impl_method_name)
-        
+
         # Use MCP SDK's func_metadata to generate proper schema
         from mcp.server.fastmcp.utilities.func_metadata import func_metadata
+
         func_meta = func_metadata(method_func)
-        
+
         # Get MCP-compatible schema
         schema = func_meta.arg_model.model_json_schema(by_alias=True)
         return schema
@@ -167,7 +170,7 @@ class LLMTool(models.Model):
 
         # Create MCP ToolAnnotations (only with non-None values)
         from mcp.types import Tool, ToolAnnotations
-        
+
         # Build annotations dict with only non-None values
         annotations_data = {}
         if self.read_only_hint is not None:
@@ -178,13 +181,17 @@ class LLMTool(models.Model):
             annotations_data["destructiveHint"] = self.destructive_hint
         if self.open_world_hint is not None:
             annotations_data["openWorldHint"] = self.open_world_hint
-            
-        tool_annotations = ToolAnnotations(**annotations_data) if annotations_data else None
+
+        tool_annotations = (
+            ToolAnnotations(**annotations_data) if annotations_data else None
+        )
 
         # Create and validate MCP Tool instance
         mcp_tool = Tool(
             name=self.name,
-            title=self.title if self.title else self.name,  # title goes to BaseMetadata, not ToolAnnotations
+            title=self.title
+            if self.title
+            else self.name,  # title goes to BaseMetadata, not ToolAnnotations
             description=self.description or "",
             inputSchema=input_schema_data,
             annotations=tool_annotations,

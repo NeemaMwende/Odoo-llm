@@ -13,7 +13,7 @@ import { LLMThreadHeader } from "../llm_thread_header/llm_thread_header";
 export class LLMChatContainer extends Component {
   static components = { Thread, Composer, LLMThreadHeader };
   static template = "llm_thread.LLMChatContainer";
-  
+
   setup() {
     this.llmStore = useState(useService("llm.store"));
     this.mailStore = useState(useService("mail.store"));
@@ -34,7 +34,7 @@ export class LLMChatContainer extends Component {
    * Check if we have an active LLM thread
    */
   get hasActiveThread() {
-    return this.activeThread?.model === 'llm.thread';
+    return this.activeThread?.model === "llm.thread";
   }
 
   /**
@@ -69,7 +69,7 @@ export class LLMChatContainer extends Component {
    * Format date for display
    */
   formatDate(dateString) {
-    if (!dateString) return '';
+    if (!dateString) return "";
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now - date;
@@ -77,7 +77,7 @@ export class LLMChatContainer extends Component {
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffHours < 1) {
-      return 'Just now';
+      return "Just now";
     } else if (diffHours < 24) {
       return `${diffHours}h ago`;
     } else if (diffDays < 7) {

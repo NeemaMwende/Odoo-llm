@@ -4,7 +4,7 @@ import { Message } from "@mail/core/common/message";
 import { patch } from "@web/core/utils/patch";
 import { LLMToolMessage } from "../components/llm_tool_message/llm_tool_message";
 
-// Import Message model to patch it  
+// Import Message model to patch it
 import { Message as MessageModel } from "@mail/core/common/message_model";
 
 /**
@@ -12,7 +12,7 @@ import { Message as MessageModel } from "@mail/core/common/message_model";
  * Adds LLMToolMessage to the available components registry
  */
 patch(Message, {
-    components: { ...Message.components, LLMToolMessage },
+  components: { ...Message.components, LLMToolMessage },
 });
 
 /**
@@ -21,84 +21,89 @@ patch(Message, {
  * These methods are used by the component template and rendering logic
  */
 patch(Message.prototype, {
-    /**
-     * Check if this message is in an LLM thread
-     */
-    get isLLMMessage() {
-        return this.props.message?.model === 'llm.thread';
-    },
+  /**
+   * Check if this message is in an LLM thread
+   */
+  get isLLMMessage() {
+    return this.props.message?.model === "llm.thread";
+  },
 
-    /**
-     * Get LLM role for this message
-     */
-    get llmRole() {
-        return this.props.message?.llm_role;
-    },
+  /**
+   * Get LLM role for this message
+   */
+  get llmRole() {
+    return this.props.message?.llm_role;
+  },
 
-    /**
-     * Check if message is a tool message
-     */
-    get isToolMessage() {
-        return this.isLLMMessage && this.llmRole === 'tool';
-    },
+  /**
+   * Check if message is a tool message
+   */
+  get isToolMessage() {
+    return this.isLLMMessage && this.llmRole === "tool";
+  },
 
-    /**
-     * Check if assistant message has tool calls
-     */
-    get hasToolCalls() {
-        return this.isLLMMessage && this.llmRole === 'assistant' && this.props.message?.body_json?.tool_calls?.length > 0;
-    },
+  /**
+   * Check if assistant message has tool calls
+   */
+  get hasToolCalls() {
+    return (
+      this.isLLMMessage &&
+      this.llmRole === "assistant" &&
+      this.props.message?.body_json?.tool_calls?.length > 0
+    );
+  },
 
-    /**
-     * Add LLM-specific CSS classes
-     */
-    get className() {
-        let className = super.className || "";
-        
-        if (this.isLLMMessage) {
-            className += " o-llm-message";
-            
-            if (this.llmRole) {
-                className += ` o-llm-message-${this.llmRole}`;
-            }
-            
-            // Add streaming class for assistant messages that are still being generated
-            if (this.llmRole === 'assistant' && this.props.message?.isPending) {
-                className += " o-llm-message-streaming";
-            }
-        }
-        
-        return className;
-    },
+  /**
+   * Add LLM-specific CSS classes
+   */
+  get className() {
+    let className = super.className || "";
 
+    if (this.isLLMMessage) {
+      className += " o-llm-message";
 
+      if (this.llmRole) {
+        className += ` o-llm-message-${this.llmRole}`;
+      }
+
+      // Add streaming class for assistant messages that are still being generated
+      if (this.llmRole === "assistant" && this.props.message?.isPending) {
+        className += " o-llm-message-streaming";
+      }
+    }
+
+    return className;
+  },
 });
 
 /**
- * PATCH 3: Message Model (Data Layer) 
+ * PATCH 3: Message Model (Data Layer)
  * Patches the Message data model to handle LLM-specific isEmpty computation
  * This ensures LLM messages with tool calls or body_json are never filtered out
  * NOTE: This is NOT the component - this is the data model that holds message data
  */
 patch(MessageModel.prototype, {
-    /**
-     * Override computeIsEmpty for LLM messages with tool calls or body_json
-     */
-    computeIsEmpty() {
-        // For LLM messages, apply custom logic
-        if (this.model === 'llm.thread') {
-            // Assistant messages with tool calls are never empty
-            if (this.llm_role === 'assistant' && this.body_json?.tool_calls?.length > 0) {
-                return false;
-            }
-            
-            // Tool messages with body_json are never empty
-            if (this.llm_role === 'tool' && this.body_json) {
-                return false;
-            }
-        }
-        
-        // Use original computation for other messages
-        return super.computeIsEmpty();
-    },
+  /**
+   * Override computeIsEmpty for LLM messages with tool calls or body_json
+   */
+  computeIsEmpty() {
+    // For LLM messages, apply custom logic
+    if (this.model === "llm.thread") {
+      // Assistant messages with tool calls are never empty
+      if (
+        this.llm_role === "assistant" &&
+        this.body_json?.tool_calls?.length > 0
+      ) {
+        return false;
+      }
+
+      // Tool messages with body_json are never empty
+      if (this.llm_role === "tool" && this.body_json) {
+        return false;
+      }
+    }
+
+    // Use original computation for other messages
+    return super.computeIsEmpty();
+  },
 });

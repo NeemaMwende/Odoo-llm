@@ -143,6 +143,6 @@ JsonEditorField.props = {
 
 // Register the field widget (Odoo 18.0 format)
 registry.category("fields").add("json_editor", {
-    component: JsonEditorField,
-    supportedTypes: ["text", "char", "json"],
+  component: JsonEditorField,
+  supportedTypes: ["text", "char", "json"],
 });

@@ -136,9 +136,7 @@
                             </div>
 
                             <!-- JSON Format -->
-                            <div
-                invisible="result_format != 'json'"
-              >
+                            <div invisible="result_format != 'json'">
                                 <field
                   name="messages_json"
                   widget="ace"
@@ -149,9 +147,7 @@
                             </div>
 
                             <!-- YAML Format -->
-                            <div
-                invisible="result_format != 'yaml'"
-              >
+                            <div invisible="result_format != 'yaml'">
                                 <field
                   name="messages_yaml"
                   widget="ace"
@@ -162,9 +158,7 @@
                             </div>
 
                             <!-- Text Format -->
-                            <div
-                invisible="result_format != 'text'"
-              >
+                            <div invisible="result_format != 'text'">
                                 <field
                   name="messages_text"
                   widget="text"

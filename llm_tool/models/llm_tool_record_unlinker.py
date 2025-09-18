@@ -15,7 +15,10 @@ class LLMToolRecordUnlinker(models.Model):
         return implementations + [("odoo_record_unlinker", "Odoo Record Unlinker")]
 
     def odoo_record_unlinker_execute(
-        self, model: str, domain: list[list[Union[str, int, bool, float, None]]], limit: int = 1
+        self,
+        model: str,
+        domain: list[list[Union[str, int, bool, float, None]]],
+        limit: int = 1,
     ) -> dict[str, Any]:
         """
         Delete records from the specified Odoo model based on the provided domain

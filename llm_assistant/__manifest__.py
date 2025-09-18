@@ -63,7 +63,7 @@ Use cases include creating specialized assistants for customer support, data ana
         "web.assets_backend": [
             # Service patches
             "llm_assistant/static/src/services/llm_store_service_patch.js",
-            # Component patches  
+            # Component patches
             "llm_assistant/static/src/patches/llm_thread_header_patch.js",
             "llm_assistant/static/src/patches/llm_thread_header_patch.xml",
         ],

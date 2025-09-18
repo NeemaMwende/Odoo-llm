@@ -137,10 +137,12 @@ class FetchModelsWizard(models.TransientModel):
 
             if not name:
                 continue
-            
+
             # Skip duplicates within this wizard (prevent constraint violation)
             if name in wizard_models:
-                _logger.warning(f"Duplicate model '{name}' found in provider response, skipping duplicate")
+                _logger.warning(
+                    f"Duplicate model '{name}' found in provider response, skipping duplicate"
+                )
                 continue
             wizard_models.add(name)
 

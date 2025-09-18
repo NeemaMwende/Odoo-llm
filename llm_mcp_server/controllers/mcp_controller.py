@@ -100,9 +100,6 @@ class MCPController(http.Controller):
         """MCP endpoint for session termination"""
         return self._handle_delete_session()
 
-
-
-
     def _handle_delete_session(self):
         """Handle DELETE request for session termination"""
         session_id = request.httprequest.headers.get("mcp-session-id")
@@ -179,7 +176,13 @@ class MCPController(http.Controller):
 
         # For JSON-RPC notifications, use werkzeug.abort to bypass JSON-RPC entirely
         # Following Odoo's pattern from http.py line 2185 (and 2330 & 2333)
-        werkzeug.exceptions.abort(http.Response("", headers={"Content-Type": CONTENT_TYPE_JSON}, status=HTTPStatus.ACCEPTED))
+        werkzeug.exceptions.abort(
+            http.Response(
+                "",
+                headers={"Content-Type": CONTENT_TYPE_JSON},
+                status=HTTPStatus.ACCEPTED,
+            )
+        )
 
     def _mcp_ping(self, params, request_id):
         """Handle ping method"""
@@ -220,7 +223,6 @@ class MCPController(http.Controller):
 
         # Call handler
         return handler(params, request_id)
-
 
     @http.route("/mcp/health", type="http", auth="public", methods=["GET", "POST"])
     def health_check(self):

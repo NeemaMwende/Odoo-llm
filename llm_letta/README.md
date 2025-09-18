@@ -31,6 +31,7 @@ pip install git+https://github.com/apexive/letta-python.git@main
 ```
 
 This fork includes fixes for:
+
 - Proper streaming response handling
 - Escape sequence processing in chunked responses
 

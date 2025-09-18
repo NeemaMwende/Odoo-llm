@@ -70,7 +70,7 @@ class LLMProvider(models.Model):
                 "max_tokens": getattr(model, "max_tokens", None),
                 "raw_model_name": getattr(model, "model", None),
                 "capabilities": ["chat"],  # Used by wizard to determine model_use
-            }
+            },
         }
 
     def _letta_parse_embedding_model(self, model):
@@ -93,7 +93,7 @@ class LLMProvider(models.Model):
                 "embedding_endpoint": getattr(model, "embedding_endpoint", None),
                 "raw_model_name": getattr(model, "embedding_model", None),
                 "capabilities": ["embedding"],  # Used by wizard to determine model_use
-            }
+            },
         }
 
     def letta_get_embedding_model(self):
@@ -107,11 +107,13 @@ class LLMProvider(models.Model):
             str: The embedding model name/handle
         """
         # Get all embedding models for this provider
-        embedding_models = self.env["llm.model"].search([
-            ("provider_id", "=", self.id),
-            ("model_use", "=", "embedding"),
-            ("active", "=", True),
-        ])
+        embedding_models = self.env["llm.model"].search(
+            [
+                ("provider_id", "=", self.id),
+                ("model_use", "=", "embedding"),
+                ("active", "=", True),
+            ]
+        )
 
         if not embedding_models:
             return None

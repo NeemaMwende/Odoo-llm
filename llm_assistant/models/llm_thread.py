@@ -159,19 +159,21 @@ class LLMThread(models.Model):
     def _thread_to_store(self, store, **kwargs):
         """Extend base _thread_to_store to include assistant_id."""
         super()._thread_to_store(store, **kwargs)
-        
+
         # Always add assistant_id to thread data (either value or False)
         for thread in self:
             thread_data = {
-                'id': thread.id,
-                'model': 'llm.thread',
-                'assistant_id': {
-                    'id': thread.assistant_id.id,
-                    'name': thread.assistant_id.name,
-                    'model': 'llm.assistant'
-                } if thread.assistant_id else False
+                "id": thread.id,
+                "model": "llm.thread",
+                "assistant_id": {
+                    "id": thread.assistant_id.id,
+                    "name": thread.assistant_id.name,
+                    "model": "llm.assistant",
+                }
+                if thread.assistant_id
+                else False,
             }
-            store.add('mail.thread', thread_data)
+            store.add("mail.thread", thread_data)
 
     def _extract_message_content(self, message):
         """Extract text content from a message regardless of format"""
@@ -208,7 +210,7 @@ class LLMThread(models.Model):
     def generate_messages(self, last_message):
         """Generate messages with actual AI intelligence."""
         self.ensure_one()
-        
+
         # Get last message if not provided
         if not last_message:
             last_message = self.get_latest_llm_message()
@@ -221,10 +223,7 @@ class LLMThread(models.Model):
                 else:
                     # Generate assistant response
                     last_message = yield from self._generate_assistant_response()
-            elif (
-                last_message.llm_role == "assistant"
-                and last_message.has_tool_calls()
-            ):
+            elif last_message.llm_role == "assistant" and last_message.has_tool_calls():
                 # Execute ALL tool calls from assistant message
                 tool_calls = last_message.get_tool_calls()
                 for tool_call in tool_calls:
@@ -249,7 +248,7 @@ class LLMThread(models.Model):
         """Generate assistant response and handle tool calls."""
         # Flush any pending writes to ensure latest messages are visible
         self.env.flush_all()
-        
+
         # Use the new optimized method for LLM context
         message_history = self.get_llm_messages()
 
@@ -281,70 +280,65 @@ class LLMThread(models.Model):
 
     def get_llm_messages(self, limit=25):
         """Get the most recent LLM messages in chronological order.
-        
+
         This method is optimized for LLM context preparation:
         - Always returns messages in chronological order (ASC)
         - Limits to the most recent N messages for context window management
         - Uses efficient database queries with proper indexing
-        
+
         Args:
             limit (int): Maximum number of recent messages to retrieve (default: 25)
-        
+
         Returns:
             mail.message recordset: Recent LLM messages in chronological order
         """
         self.ensure_one()
-        
+
         # Domain for filtering LLM messages only
         domain = [
             ("model", "=", self._name),
             ("res_id", "=", self.id),
             ("llm_role", "!=", False),  # Only messages with LLM roles
         ]
-        
+
         if limit:
             # Two-step approach for efficiency:
             # 1. Get the N most recent messages (DESC order)
             recent_messages = self.env["mail.message"].search(
-                domain, 
-                order="create_date DESC, write_date DESC, id DESC", 
-                limit=limit
+                domain, order="create_date DESC, write_date DESC, id DESC", limit=limit
             )
             # 2. Sort them chronologically for LLM context (ASC order)
             return recent_messages.sorted(lambda m: (m.create_date, m.write_date, m.id))
         else:
             # If no limit, get all messages in chronological order
             return self.env["mail.message"].search(
-                domain, 
-                order="create_date ASC, write_date ASC, id ASC"
+                domain, order="create_date ASC, write_date ASC, id ASC"
             )
 
     def get_latest_llm_message(self):
         """Get the most recent LLM message for flow control.
-        
+
         Returns:
             mail.message: The latest LLM message
-            
+
         Raises:
             UserError: If no LLM messages exist
         """
         self.ensure_one()
-        
+
         domain = [
             ("model", "=", self._name),
             ("res_id", "=", self.id),
             ("llm_role", "!=", False),
         ]
-        
+
         result = self.env["mail.message"].search(
-            domain, 
-            order="create_date DESC, write_date DESC, id DESC", 
-            limit=1
+            domain, order="create_date DESC, write_date DESC, id DESC", limit=1
         )
-        
+
         if not result:
             raise UserError("No LLM messages found in this thread.")
-        
+
         return result[0]
 
     def _should_continue(self, last_message):

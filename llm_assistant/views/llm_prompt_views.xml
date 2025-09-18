@@ -94,9 +94,7 @@
               />
                             <div class="alert alert-info" role="alert">
                                 <h5>Template Format Guide:</h5>
-                                <div
-                  invisible="format != 'text'"
-                >
+                                <div invisible="format != 'text'">
                                     <p>
                                         <strong>Text Format:
                                         </strong>
@@ -106,9 +104,7 @@
                   >Hello {{user_name}}, please analyze the following data: {{data_input}}
                                     </pre>
                                 </div>
-                                <div
-                  invisible="format != 'yaml'"
-                >
+                                <div invisible="format != 'yaml'">
                                     <p>
                                         <strong>YAML Format:
                                         </strong>
@@ -123,9 +119,7 @@
                                         Please analyze: {{data_input}}
                                     </pre>
                                 </div>
-                                <div
-                  invisible="format != 'json'"
-                >
+                                <div invisible="format != 'json'">
                                     <p>
                                         <strong>JSON Format:
                                         </strong>

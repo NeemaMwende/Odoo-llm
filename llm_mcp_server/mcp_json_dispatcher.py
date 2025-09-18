@@ -26,7 +26,9 @@ MCP_PROTOCOL_VERSION_HEADER = "Mcp-Protocol-Version"
 class MCPError(Exception):
     """Enhanced MCP exception with both JSON-RPC and HTTP status codes"""
 
-    def __init__(self, message: str, code: int = INTERNAL_ERROR, http_status: int = 200):
+    def __init__(
+        self, message: str, code: int = INTERNAL_ERROR, http_status: int = 200
+    ):
         super().__init__(message)
         self.code = code
         self.message = message
@@ -75,7 +77,7 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
     with MCP-specific error handling, custom HTTP status codes, and protocol headers.
     """
 
-    routing_type = 'mcp_json'
+    routing_type = "mcp_json"
 
     def dispatch(self, endpoint, args):
         """
@@ -84,7 +86,7 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
         # 1. Peek at JSON to get method for PRE-validation (don't handle errors here)
         try:
             jsonrequest = self.request.get_json_data()
-            method = jsonrequest.get('method')
+            method = jsonrequest.get("method")
             session_id = request.httprequest.headers.get(MCP_SESSION_ID_HEADER.lower())
 
             # 2. MCP validations BEFORE endpoint execution
@@ -104,35 +106,38 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
         Custom error handler that preserves MCP error codes and HTTP status codes
         """
         # Log all errors for debugging
-        _logger.error(f"MCP Dispatcher handling error: {exc.__class__.__name__}: {exc}", exc_info=True)
+        _logger.error(
+            f"MCP Dispatcher handling error: {exc.__class__.__name__}: {exc}",
+            exc_info=True,
+        )
 
         # Handle MCP errors with custom HTTP status codes
         if isinstance(exc, MCPError) and exc.http_status != 200:
             # Build JSON-RPC error response with custom HTTP status
             response_data = {
-                'jsonrpc': '2.0',
-                'id': self.request_id,
-                'error': {
-                    'code': exc.code,
-                    'message': exc.message,
-                }
+                "jsonrpc": "2.0",
+                "id": self.request_id,
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                },
             }
             return request.make_json_response(
                 response_data,
                 status=exc.http_status,
-                headers={'Content-Type': 'application/json'}
+                headers={"Content-Type": "application/json"},
             )
 
         # Handle Werkzeug HTTP exceptions (401, 404, etc.)
         if isinstance(exc, werkzeug.exceptions.HTTPException):
             # Return proper HTTP status for Werkzeug exceptions
             response_data = {
-                'jsonrpc': '2.0',
-                'id': self.request_id,
-                'error': {
-                    'code': exc.code,
-                    'message': exc.description or str(exc),
-                }
+                "jsonrpc": "2.0",
+                "id": self.request_id,
+                "error": {
+                    "code": exc.code,
+                    "message": exc.description or str(exc),
+                },
             }
             return request.make_json_response(
                 response_data,
@@ -151,15 +156,14 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
 
         # Add custom MCP headers to CORS responses
         routing = rule.endpoint.routing
-        cors = routing.get('cors')
-        if cors and self.request.httprequest.method == 'OPTIONS':
+        cors = routing.get("cors")
+        if cors and self.request.httprequest.method == "OPTIONS":
             allowed_headers = (
-                'Origin, X-Requested-With, Content-Type, Accept, Authorization, '
-                'Mcp-Session-Id, Mcp-Protocol-Version'
+                "Origin, X-Requested-With, Content-Type, Accept, Authorization, "
+                "Mcp-Session-Id, Mcp-Protocol-Version"
             )
             self.request.future_response.headers.set(
-                'Access-Control-Allow-Headers',
-                allowed_headers
+                "Access-Control-Allow-Headers", allowed_headers
             )
 
     def _response(self, result=None, error=None):
@@ -170,19 +174,21 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
         response = super()._response(result, error)
 
         # Add MCP headers
-        if hasattr(request, 'mcp_session_id'):
+        if hasattr(request, "mcp_session_id"):
             response.headers[MCP_SESSION_ID_HEADER] = request.mcp_session_id
 
         return response
 
-    def _validate_session_requirements(self, method_name: str, session_id: Optional[str]):
+    def _validate_session_requirements(
+        self, method_name: str, session_id: Optional[str]
+    ):
         """
         Validate session requirements based on server mode and method
         Raises MCPError with appropriate HTTP status codes
         Following MCP SDK pattern (lines 677-704)
         """
         # Skip validation for test methods
-        if method_name and method_name.startswith('test'):
+        if method_name and method_name.startswith("test"):
             return
 
         config = request.env["llm.mcp.server.config"].get_active_config()
@@ -204,7 +210,7 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
             if not session.is_method_allowed(method_name):
                 raise MCPSessionError(
                     f"Method '{method_name}' not allowed in state '{session.state}'",
-                    http_status=400
+                    http_status=400,
                 )
 
     def _validate_protocol_version(self):
@@ -213,7 +219,9 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
         Following MCP SDK pattern (lines 706-726)
         """
         # Get protocol version from headers
-        protocol_version = request.httprequest.headers.get(MCP_PROTOCOL_VERSION_HEADER.lower())
+        protocol_version = request.httprequest.headers.get(
+            MCP_PROTOCOL_VERSION_HEADER.lower()
+        )
 
         # If no version provided, that's OK (we'll use default)
         if not protocol_version:
@@ -227,6 +235,5 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
             raise MCPProtocolError(
                 f"Unsupported protocol version: {protocol_version}. "
                 f"Supported versions: {supported_versions}",
-                http_status=400
+                http_status=400,
             )
-

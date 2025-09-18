@@ -1,19 +1,25 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <templates>
-    <!-- 
+    <!--
     Extend Chatter topbar to add AI Chat button
     IMPORTANT: Only adds AI button, preserves all existing chatter functionality
     -->
-    <t t-name="llm_thread.ChatterAIExtension" t-inherit="mail.Chatter" t-inherit-mode="extension">
+    <t
+    t-name="llm_thread.ChatterAIExtension"
+    t-inherit="mail.Chatter"
+    t-inherit-mode="extension"
+  >
         <!-- Add AI button to the topbar left buttons section -->
         <xpath expr="//t[@name='chatter-topbar-left-buttons']" position="after">
             <!-- Only show AI button when appropriate -->
-            <button t-if="shouldShowAIButton" 
-                    class="o-mail-Chatter-aiChat btn btn-link text-action" 
-                    type="button"
-                    t-on-click="onAIChatClick"
-                    title="Start AI Chat about this record">
-                <i class="fa fa-robot me-1" role="img" aria-label="AI Chat"/>
+            <button
+        t-if="shouldShowAIButton"
+        class="o-mail-Chatter-aiChat btn btn-link text-action"
+        type="button"
+        t-on-click="onAIChatClick"
+        title="Start AI Chat about this record"
+      >
+                <i class="fa fa-robot me-1" role="img" aria-label="AI Chat" />
                 <span class="d-none d-sm-inline">AI Chat</span>
             </button>
         </xpath>

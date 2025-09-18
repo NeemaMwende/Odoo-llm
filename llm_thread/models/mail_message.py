@@ -17,7 +17,9 @@ class MailMessage(models.Model):
     )
 
     @api.model
-    def _message_fetch(self, domain, search_term=None, before=None, after=None, around=None, limit=30):
+    def _message_fetch(
+        self, domain, search_term=None, before=None, after=None, around=None, limit=30
+    ):
         """Override to filter only LLM messages for llm.thread model.
 
         For LLM threads, we only want to display messages that have an llm_role
@@ -26,7 +28,9 @@ class MailMessage(models.Model):
         """
         # Check if this is for an llm.thread model
         is_llm_thread = any(
-            condition[0] == "model" and condition[1] == "=" and condition[2] == "llm.thread"
+            condition[0] == "model"
+            and condition[1] == "="
+            and condition[2] == "llm.thread"
             for condition in domain
             if isinstance(condition, (list, tuple)) and len(condition) == 3
         )
@@ -42,22 +46,22 @@ class MailMessage(models.Model):
     def _extras_to_store(self, store, format_reply):
         """Add LLM-specific fields to the message store."""
         super()._extras_to_store(store, format_reply)
-        
+
         for message in self:
             data = {}
-            
+
             # Add LLM-specific fields
-            if hasattr(message, 'llm_role') and message.llm_role:
-                data['llm_role'] = message.llm_role
+            if hasattr(message, "llm_role") and message.llm_role:
+                data["llm_role"] = message.llm_role
                 # Set is_note=True for LLM messages to get the right bubble style
-                data['is_note'] = True
-                
-            if hasattr(message, 'user_vote'):
-                data['user_vote'] = message.user_vote
-                
-            if hasattr(message, 'body_json') and message.body_json:
-                data['body_json'] = message.body_json
-                
+                data["is_note"] = True
+
+            if hasattr(message, "user_vote"):
+                data["user_vote"] = message.user_vote
+
+            if hasattr(message, "body_json") and message.body_json:
+                data["body_json"] = message.body_json
+
             if data:  # Only add to store if we have data
                 store.add(message, data)
 

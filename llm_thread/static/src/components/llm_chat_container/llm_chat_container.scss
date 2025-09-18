@@ -1,58 +1,58 @@
 .o_LLMChatContainer {
-    .o-llm-sidebar {
-        flex-shrink: 0; // Prevent shrinking
-        min-width: 280px; // Ensure minimum width
-        width: 280px !important; // Force width to stay consistent
-        
-        .o-llm-thread-item {
-            transition: background-color 0.2s ease;
-            
-            &.o-llm-thread-active {
-                background-color: var(--primary);
-                color: white;
-                
-                .text-muted {
-                    color: rgba(255, 255, 255, 0.7) !important;
-                }
-            }
+  .o-llm-sidebar {
+    flex-shrink: 0; // Prevent shrinking
+    min-width: 280px; // Ensure minimum width
+    width: 280px !important; // Force width to stay consistent
+
+    .o-llm-thread-item {
+      transition: background-color 0.2s ease;
+
+      &.o-llm-thread-active {
+        background-color: var(--primary);
+        color: white;
+
+        .text-muted {
+          color: rgba(255, 255, 255, 0.7) !important;
         }
+      }
     }
+  }
 }
 
 // LLM Message enhancements
 .o-llm-message {
-    // Add any global LLM message styles here
-    
-    &.o-llm-message-tool {
-        // Specific styles for tool messages
-    }
-    
-    &.o-llm-message-assistant {
-        // Specific styles for assistant messages
-    }
+  // Add any global LLM message styles here
+
+  &.o-llm-message-tool {
+    // Specific styles for tool messages
+  }
+
+  &.o-llm-message-assistant {
+    // Specific styles for assistant messages
+  }
 }
 
 // Tool call badges for assistant messages
 .o_llm_tool_calls {
-    .badge {
-        cursor: default;
-        font-size: 0.75rem;
-        
-        &:hover {
-            background-color: var(--bs-secondary) !important;
-        }
+  .badge {
+    cursor: default;
+    font-size: 0.75rem;
+
+    &:hover {
+      background-color: var(--bs-secondary) !important;
     }
-    
-    i.fa-cog {
-        opacity: 0.7;
-    }
+  }
+
+  i.fa-cog {
+    opacity: 0.7;
+  }
 }
 
 // Utility classes
 .cursor-pointer {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .min-width-0 {
-    min-width: 0;
+  min-width: 0;
 }
