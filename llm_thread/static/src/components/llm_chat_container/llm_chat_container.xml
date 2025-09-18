@@ -7,7 +7,7 @@
                 <!-- Sidebar Header -->
                 <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
                     <h6 class="mb-0 text-muted">Conversations</h6>
-                    <button class="btn btn-sm btn-primary" t-on-click="openCreateChatForm" title="New Chat">
+                    <button class="btn btn-sm btn-primary" t-on-click="createNewThread" title="New Thread">
                         <i class="fa fa-plus"/>
                     </button>
                 </div>
@@ -70,8 +70,8 @@
                         <i class="fa fa-robot fa-3x mb-3"/>
                         <h5>AI Chat</h5>
                         <p class="mb-3">No active conversation</p>
-                        <button class="btn btn-primary" t-on-click="openCreateChatForm">
-                            <i class="fa fa-plus"/> Create New Chat
+                        <button class="btn btn-primary" t-on-click="createNewThread">
+                            <i class="fa fa-plus"/> Create New Thread
                         </button>
                     </div>
                 </div>

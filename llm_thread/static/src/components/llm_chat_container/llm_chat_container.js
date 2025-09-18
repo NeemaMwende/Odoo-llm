@@ -18,7 +18,7 @@ export class LLMChatContainer extends Component {
     this.llmStore = useState(useService("llm.store"));
     this.mailStore = useState(useService("mail.store"));
     this.action = useService("action");
-    
+
     // No need for local thread tracking - use mail.store.discuss.thread
   }
 
@@ -88,21 +88,10 @@ export class LLMChatContainer extends Component {
   }
 
   /**
-   * Open llm.thread form to create new chat
+   * Create new thread - delegates to llm store service
    */
-  async openCreateChatForm() {
-    try {
-      await this.action.doAction({
-        name: 'Create AI Chat',
-        type: 'ir.actions.act_window',
-        res_model: 'llm.thread',
-        view_mode: 'form',
-        views: [[false, 'form']],
-        target: 'new',
-      });
-    } catch (error) {
-      console.error('Error opening create chat form:', error);
-    }
+  async createNewThread() {
+    await this.llmStore.createNewThread();
   }
 }
 

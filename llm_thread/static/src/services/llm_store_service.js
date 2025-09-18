@@ -187,21 +187,18 @@ export const llmStoreService = {
 
 
             async loadLLMTools() {
-                try {
-                    // Load available tools with minimal fields
-                    const tools = await orm.searchRead(
-                        'llm.tool',
-                        [['active', '=', true]],
-                        ['id', 'name']
-                    );
-                    
-                    tools.forEach(tool => {
-                        this.llmTools.set(tool.id, tool);
-                    });
-                } catch (error) {
-                    console.warn('LLM tools not available:', error.message);
-                    // Don't throw error, just log warning
-                }
+                
+                // Load available tools with minimal fields
+                const tools = await orm.searchRead(
+                    'llm.tool',
+                    [['active', '=', true]],
+                    ['id', 'name']
+                );
+                
+                tools.forEach(tool => {
+                    this.llmTools.set(tool.id, tool);
+                });
+                
             },
 
             // Thread selection using standard Odoo patterns
@@ -212,14 +209,74 @@ export const llmStoreService = {
                     if (!thread) {
                         throw new Error('Thread not found or failed to load');
                     }
-                    
+
                     // Set as active thread in discuss - this is all we need!
                     thread.setAsDiscussThread();
-                    
+
                 } catch (error) {
                     console.error('Error selecting thread:', error);
                     notification.add('Failed to load chat thread', { type: 'danger' });
                 }
+            },
+
+            // Create new thread with default provider and model
+            async createNewThread() {
+                // Get first available provider and model
+                const firstProvider = this.getFirstAvailableProvider();
+                const firstModel = this.getFirstAvailableModel();
+
+                // Check for null values and show notifications
+                if (!firstProvider) {
+                    notification.add('No LLM providers available. Please configure at least one provider.', { type: 'danger' });
+                    return;
+                }
+
+                if (!firstModel) {
+                    notification.add('No LLM models available. Please configure at least one model.', { type: 'danger' });
+                    return;
+                }
+
+                // Create thread with auto-generated name
+                const threadName = `Chat ${new Date().toLocaleString()}`;
+
+                const threadId = await orm.call(
+                    'llm.thread',
+                    'create',
+                    [{
+                        name: threadName,
+                        provider_id: firstProvider.id,
+                        model_id: firstModel.id,
+                    }]
+                );
+
+                // Reload user threads and select the new one
+                await this.refreshThreadsAndSelect(threadId);
+            },
+
+            // Get first available provider
+            getFirstAvailableProvider() {
+                const providers = Array.from(this.llmProviders.values());
+                return providers.length > 0 ? providers[0] : null;
+            },
+
+            // Get first available model
+            getFirstAvailableModel() {
+                const models = Array.from(this.llmModels.values());
+                return models.length > 0 ? models[0] : null;
+            },
+
+            // Refresh threads and select specific thread
+            async refreshThreadsAndSelect(threadId) {
+                // Use proper fetchData to refresh thread data
+                await mailStore.fetchData({
+                    "init_messaging": {}  // Will trigger proper reload of all threads
+                });
+
+                // Wait a moment for threads to be populated
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Select the newly created thread
+                await this.selectThread(threadId);
             },
             
 
