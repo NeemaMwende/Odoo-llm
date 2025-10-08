@@ -147,8 +147,9 @@ class LLMThread(models.Model):
         # Use message method to process URLs and create attachments
         markdown_content, attachments = generated_message.process_generation_urls(urls)
 
-        # Update message with final markdown content
-        generated_message.write({"body": markdown_content})
+        # Update message with final markdown content (process markdown to HTML)
+        html_content = self._process_llm_body(markdown_content)
+        generated_message.write({"body": html_content})
 
         # Yield the successful result
         yield {
