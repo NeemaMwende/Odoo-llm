@@ -321,6 +321,9 @@ export class LLMThreadHeader extends Component {
         tool_ids: [[6, 0, newToolIds]],
       });
 
+      // Immediately update local state to ensure UI reflects change
+      this.activeThread.tool_ids = newToolIds;
+
       // Reload thread data using proper fetchData pattern
       await this.activeThread.fetchData(["tool_ids"]);
     } catch (error) {
