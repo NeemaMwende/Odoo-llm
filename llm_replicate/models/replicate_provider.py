@@ -1,4 +1,3 @@
-import json
 import logging
 
 import jsonref
@@ -118,7 +117,10 @@ class LLMProvider(models.Model):
         input_schema = {}
         output_schema = {}
         if openapi_schema:
-            resolved_openapi_schema = jsonref.replace_refs(openapi_schema)
+            # proxies=False returns plain dicts instead of JsonRef proxy objects
+            resolved_openapi_schema = jsonref.replace_refs(openapi_schema, proxies=False)
+
+            # Extract schemas (now plain dicts, not proxies)
             input_schema = resolved_openapi_schema["components"]["schemas"]["Input"]
             output_schema = resolved_openapi_schema["components"]["schemas"]["Output"]
 
@@ -129,13 +131,14 @@ class LLMProvider(models.Model):
             _logger.warning(f"No OpenAPI schema found for model {model_name}")
 
         # Store schemas in details field
-        model_details = model_record.details or {}
-        model_details.update({
-            "input_schema": input_schema if input_schema else None,
-            "output_schema": output_schema if output_schema else None,
-        })
-        
-        model_record.write({
+        model_details = dict(model_record.details or {})
+        model_details["input_schema"] = input_schema if input_schema else None
+        model_details["output_schema"] = output_schema if output_schema else None
+
+        _logger.info(f"Writing schemas to model {model_name}")
+
+        # Use context to prevent recursion in write() hook
+        model_record.with_context(skip_replicate_schema_generation=True).write({
             "details": model_details
         })
 

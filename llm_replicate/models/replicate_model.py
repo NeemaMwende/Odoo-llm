@@ -1,4 +1,8 @@
+import logging
+
 from odoo import api, fields, models
+
+_logger = logging.getLogger(__name__)
 
 
 class LLMModel(models.Model):
@@ -24,6 +28,31 @@ class LLMModel(models.Model):
                 if record.provider_id
                 else False
             )
+
+    def write(self, vals):
+        """Override write to auto-generate schema when details or model_use changes"""
+        result = super().write(vals)
+
+        # Skip if we're in a context that should skip schema generation (prevent recursion)
+        if self.env.context.get('skip_replicate_schema_generation'):
+            return result
+
+        # Process if details or model_use was changed
+        if 'details' in vals or 'model_use' in vals:
+            for record in self.filtered('is_replicate_provider'):
+                # Only for generation models with OpenAPI schema
+                if (
+                    record.model_use in ["generation", "image_generation"]
+                    and record.details
+                    and record.details.get("latest_version", {}).get("openapi_schema")
+                    and not record.details.get("input_schema")
+                ):
+                    record.provider_id.replicate_generate_io_schema(record)
+                    _logger.info(
+                        f"Auto-generated I/O schema for Replicate model: {record.name}"
+                    )
+
+        return result
 
     def _replicate_model_name_with_version(self):
         """Get the full model name including version if specified"""
