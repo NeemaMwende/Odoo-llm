@@ -2,7 +2,7 @@
 emoji
 jinja2
 jsonschema
-letta-client
+git+https://github.com/apexive/letta-python.git@f86647abeb09945a67ed19060b8c4bd16a4adb7f
 markdown2
 mcp
 mistralai
