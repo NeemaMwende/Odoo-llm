@@ -72,7 +72,6 @@ export class JsonEditorField extends Component {
 
     // Set initial value - use record.data like Odoo's standard fields
     let value = this.props.record.data[this.props.name];
-    console.log("[JsonEditor] Field:", this.props.name, "Value:", value, "Type:", typeof value);
 
     if (!value) {
       value = {};
@@ -85,7 +84,6 @@ export class JsonEditorField extends Component {
       }
     }
 
-    console.log("[JsonEditor] Setting value:", value);
     this.editor.set(value);
   }
 
