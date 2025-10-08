@@ -1,12 +1,15 @@
 /** @odoo-module **/
 
-import { registerMessagingComponent } from "@mail/utils/messaging_component";
 import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor";
 import { LLMFormFieldsView } from "./llm_form_fields_view";
-const { Component, useState, onWillStart, useEffect, useRef } = owl;
+import { useService } from "@web/core/utils/hooks";
+import { Component, useState, onWillStart, useEffect, useRef } from "@odoo/owl";
 
 export class LLMMediaForm extends Component {
   setup() {
+    this.orm = useService("orm");
+    this.llmStore = useService("llm.store");
+    this.mailStore = useService("mail.store");
     this.attachmentInputRef = useRef("attachmentInput");
 
     this.state = useState({
@@ -45,42 +48,44 @@ export class LLMMediaForm extends Component {
       () => {
         this._handleContextChange();
       },
-      () => [
-        this.thread?.id,
-        this.llmAssistant?.id,
-        this.thread?.prompt_id?.id,
-        this.llmModel?.id,
-      ]
+      () => [this.props.threadId, this.thread?.model_id, this.thread?.assistant_id]
     );
   }
 
   get thread() {
-    return this.props.model;
+    // Get thread from mailStore using thread ID from props
+    const threadId = this.props.threadId;
+    if (!threadId) return null;
+
+    return this.mailStore.Thread.get({ model: "llm.thread", id: threadId });
   }
 
   get llmModel() {
-    return this.thread?.llmModel;
+    const modelId = this.thread?.model_id?.id || this.thread?.model_id;
+    if (!modelId) return null;
+
+    return this.llmStore.llmModels.get(modelId);
   }
 
-  get llmAssistant() {
-    return this.thread?.llmAssistant;
-  }
-
-  get llmChat() {
-    return this.thread?.llmChat;
+  get composer() {
+    // Get composer from thread
+    return this.thread?.composer;
   }
 
   /**
    * Load thread configuration (schema + defaults) from backend
    */
   async _loadThreadConfiguration() {
-    if (!this.thread?.id) {
+    const threadId = this.props.threadId;
+    if (!threadId) {
       return;
     }
 
     this.state.isLoading = true;
     try {
-      const config = await this.llmChat.getThreadFormConfiguration();
+      const config = await this.orm.call("llm.thread", "get_generation_form_config", [
+        threadId,
+      ]);
       this.state.threadConfig = config;
 
       if (config.error) {
@@ -341,7 +346,8 @@ export class LLMMediaForm extends Component {
    * Load template preview by calling the backend to render the prompt
    */
   async _loadTemplatePreview() {
-    if (!this.thread?.id) {
+    const threadId = this.props.threadId;
+    if (!threadId) {
       this.state.templatePreviewContent =
         "No thread available for template preview";
       return;
@@ -356,11 +362,10 @@ export class LLMMediaForm extends Component {
       };
 
       // Call backend method to prepare generation inputs (which handles template rendering)
-      const result = await this.thread.messaging.rpc({
-        model: "llm.thread",
-        method: "prepare_generation_inputs",
-        args: [this.thread.id, mergedInputs],
-      });
+      const result = await this.orm.call("llm.thread", "prepare_generation_inputs", [
+        threadId,
+        mergedInputs,
+      ]);
 
       // Display the result based on its type
       if (typeof result === "string") {
@@ -565,13 +570,16 @@ export class LLMMediaForm extends Component {
       return;
     }
 
-    if (!this.llmModel?.isMediaGenerationModel) {
+    // Check if model supports generation
+    const modelUse = this.llmModel?.model_use;
+    if (modelUse !== "generation" && modelUse !== "image_generation") {
       this.state.error = "Selected model is not configured for generation.";
       return;
     }
 
-    if (!this.thread?.composer) {
-      this.state.error = "Composer not available.";
+    const threadId = this.props.threadId;
+    if (!threadId) {
+      this.state.error = "Thread not available.";
       return;
     }
 
@@ -579,15 +587,18 @@ export class LLMMediaForm extends Component {
     this.state.error = null;
 
     try {
-      const composer = this.thread.composer;
       console.log("Submitting generation request:", validationResult.values);
       console.log("Attachments:", this.state.attachments);
 
-      // Submit through composer - now uses body_json and includes attachments
-      composer.postUserGenerationMessageForLLM(
+      // Submit through llmStore - uses body_json and includes attachments
+      await this.llmStore.postGenerationMessage(
+        threadId,
         validationResult.values,
         this.state.attachments
       );
+
+      // Clear attachments after successful submission
+      this.state.attachments = [];
     } catch (error) {
       console.error("Error submitting generation form:", error);
       this.state.error =
@@ -601,7 +612,8 @@ export class LLMMediaForm extends Component {
    * Check if streaming is active
    */
   isStreaming() {
-    return this.thread?.composer?.isStreaming || false;
+    const threadId = this.props.threadId;
+    return this.llmStore.getStreamingStatus(threadId) || false;
   }
 
   /**
@@ -615,24 +627,19 @@ export class LLMMediaForm extends Component {
 
     try {
       for (const file of files) {
-        // Use Odoo's RPC to create attachment record directly
+        // Use Odoo's ORM to create attachment record directly
         const fileDataUrl = await this._readFileAsDataURL(file);
         const base64Data = fileDataUrl.split(",")[1]; // Remove data:mime/type;base64, prefix
 
-        const attachment = await this.env.services.rpc("/web/dataset/call_kw", {
-          model: "ir.attachment",
-          method: "create",
-          args: [
-            {
-              name: file.name,
-              datas: base64Data,
-              res_model: "mail.compose.message",
-              res_id: 0, // Temporary attachment
-              mimetype: file.type,
-            },
-          ],
-          kwargs: {},
-        });
+        const attachment = await this.orm.create("ir.attachment", [
+          {
+            name: file.name,
+            datas: base64Data,
+            res_model: "mail.compose.message",
+            res_id: 0, // Temporary attachment
+            mimetype: file.type,
+          },
+        ]);
 
         if (attachment) {
           this.state.attachments.push({
@@ -692,10 +699,8 @@ export class LLMMediaForm extends Component {
 }
 
 LLMMediaForm.props = {
-  model: { type: Object, optional: false },
+  threadId: { type: Number, optional: false },
 };
 
 LLMMediaForm.template = "llm_thread.LLMMediaForm";
 LLMMediaForm.components = { JsonEditorComponent, LLMFormFieldsView };
-
-registerMessagingComponent(LLMMediaForm);

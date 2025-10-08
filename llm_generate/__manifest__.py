@@ -27,19 +27,18 @@
     ],
     "assets": {
         "web.assets_backend": [
-            # JavaScript Models
-            "llm_generate/static/src/models/llm_model.js",
-            "llm_generate/static/src/models/llm_chat.js",
-            "llm_generate/static/src/models/composer.js",
-            "llm_generate/static/src/models/message.js",
+            # Patches - Extend existing services and components
+            "llm_generate/static/src/patches/llm_store_service_patch.js",
+            "llm_generate/static/src/patches/composer_patch.js",
+            "llm_generate/static/src/patches/message_patch.js",
+            "llm_generate/static/src/patches/llm_chat_container_patch.js",
             # Components
             "llm_generate/static/src/components/llm_media_form/llm_form_fields_view.js",
             "llm_generate/static/src/components/llm_media_form/llm_media_form.js",
-            "llm_generate/static/src/components/llm_chat_composer/llm_chat_composer.js",
             # Templates
             "llm_generate/static/src/components/llm_media_form/llm_form_fields_view.xml",
             "llm_generate/static/src/components/llm_media_form/llm_media_form.xml",
-            "llm_generate/static/src/components/llm_chat_composer/llm_chat_composer.xml",
+            "llm_generate/static/src/templates/llm_chat_container_extension.xml",
             "llm_generate/static/src/components/message/message.xml",
             # Styles
             "llm_generate/static/src/components/llm_media_form/llm_media_form.scss",
