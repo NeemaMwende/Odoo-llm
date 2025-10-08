@@ -105,26 +105,24 @@ export class JsonEditorComponent extends Component {
   handleChange() {
     if (!this.props.onChange) return;
 
-    // Validate against schema
     this.editor
       .validate()
       .then((errors) => {
-        if (errors && errors.length > 0) {
-          // There are validation errors - handle them
+        const textValue = this.editor.getText();
+
+        // Try to get JSON value
+        let jsonValue = null;
+        try {
+          jsonValue = this.editor.get();
+        } catch (e) {
+          // Invalid JSON - handled below
+        }
+
+        // Handle validation errors
+        if (errors?.length > 0) {
           if (this.props.onValidationError) {
             this.props.onValidationError(errors);
           }
-
-          // Get the current text and JSON if possible
-          const textValue = this.editor.getText();
-          let jsonValue = null;
-          try {
-            jsonValue = this.editor.get();
-          } catch (e) {
-            // Invalid JSON, will use text value only
-          }
-
-          // Return both the validation errors and the current value
           this.props.onChange({
             value: jsonValue || textValue,
             isValid: false,
@@ -132,22 +130,26 @@ export class JsonEditorComponent extends Component {
             text: textValue,
             validationErrors: errors,
           });
-        } else {
-          // No validation errors, proceed with the valid JSON
-          const json = this.editor.get();
+        } else if (jsonValue !== null) {
+          // Valid JSON, no validation errors
           this.props.onChange({
-            value: json,
+            value: jsonValue,
             isValid: true,
-            text: this.editor.getText(),
+            text: textValue,
+          });
+        } else {
+          // No validation errors but invalid JSON
+          this.props.onChange({
+            value: textValue,
+            isValid: false,
+            error: "Invalid JSON",
+            text: textValue,
           });
         }
       })
       .catch((e) => {
-        // Handle all promise rejections (including if editor is null)
-        let textValue = "";
-        if (this.editor && typeof this.editor.getText === "function") {
-          textValue = this.editor.getText();
-        }
+        // Handle all promise rejections
+        const textValue = this.editor?.getText?.() || "";
         this.props.onChange({
           value: textValue,
           isValid: false,
