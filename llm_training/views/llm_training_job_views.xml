@@ -105,7 +105,7 @@
                         <page string="Hyperparameters" name="hyperparameters">
                             <field
                 name="hyperparameters"
-                widget="ace"
+                widget="json_editor"
                 readonly="state != 'draft'"
               />
                         </page>
@@ -121,7 +121,7 @@
                 />
                                 <field
                   name="training_metrics"
-                  widget="ace"
+                  widget="json_editor"
                   invisible="not training_metrics"
                 />
                             </group>
