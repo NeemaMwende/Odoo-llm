@@ -214,7 +214,7 @@ class LLMProvider(models.Model):
             type="streamable_http",
             custom_headers={
                 # Letta will replace this template with API key from environment variables
-                "Authorization": "Bearer {{ ODOO_API_KEY }}",
+                "Authorization": "Bearer {{ ODOO_API_KEY | system-api-key }}",
             },
         )
 
