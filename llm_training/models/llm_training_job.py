@@ -1,4 +1,3 @@
-import json
 import logging
 
 from odoo import api, fields, models
@@ -177,12 +176,5 @@ class LLMTrainingJob(models.Model):
     def update_training_metrics(self, metrics):
         """Update training metrics from the provider"""
         self.ensure_one()
-
-        # Convert metrics dict to JSON string due to lack of widget support
-        if isinstance(metrics, dict):
-            metrics_str = json.dumps(metrics, indent=2)
-        else:
-            metrics_str = str(metrics)
-
-        self.write({"training_metrics": metrics_str})
+        self.write({"training_metrics": metrics})
         return True
