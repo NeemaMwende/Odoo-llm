@@ -33,14 +33,11 @@ class LLMModel(models.Model):
         """Override write to auto-generate schema when details or model_use changes"""
         result = super().write(vals)
 
-        # Skip if we're in a context that should skip schema generation (prevent recursion)
-        if self.env.context.get('skip_replicate_schema_generation'):
-            return result
-
         # Process if details or model_use was changed
         if 'details' in vals or 'model_use' in vals:
             for record in self.filtered('is_replicate_provider'):
                 # Only for generation models with OpenAPI schema
+                # The check for "not input_schema" prevents infinite recursion
                 if (
                     record.model_use in ["generation", "image_generation"]
                     and record.details
@@ -48,9 +45,6 @@ class LLMModel(models.Model):
                     and not record.details.get("input_schema")
                 ):
                     record.provider_id.replicate_generate_io_schema(record)
-                    _logger.info(
-                        f"Auto-generated I/O schema for Replicate model: {record.name}"
-                    )
 
         return result
 

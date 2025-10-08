@@ -114,33 +114,26 @@ class LLMProvider(models.Model):
             openapi_schema = details["latest_version"]["openapi_schema"]
 
         # Extract and process input schema
-        input_schema = {}
-        output_schema = {}
-        if openapi_schema:
-            # proxies=False returns plain dicts instead of JsonRef proxy objects
-            resolved_openapi_schema = jsonref.replace_refs(openapi_schema, proxies=False)
+        if not openapi_schema:
+            raise ValueError(f"No OpenAPI schema found for model {model_name}")
 
-            # Extract schemas (now plain dicts, not proxies)
-            input_schema = resolved_openapi_schema["components"]["schemas"]["Input"]
-            output_schema = resolved_openapi_schema["components"]["schemas"]["Output"]
+        # proxies=False returns plain dicts instead of JsonRef proxy objects
+        resolved_openapi_schema = jsonref.replace_refs(openapi_schema, proxies=False)
 
-            # Enforce additionalProperties: false to validate against unknown fields
-            input_schema["additionalProperties"] = False
-            output_schema["additionalProperties"] = False
-        else:
-            _logger.warning(f"No OpenAPI schema found for model {model_name}")
+        # Extract schemas (now plain dicts, not proxies)
+        input_schema = resolved_openapi_schema["components"]["schemas"]["Input"]
+        output_schema = resolved_openapi_schema["components"]["schemas"]["Output"]
+
+        # Enforce additionalProperties: false to validate against unknown fields
+        input_schema["additionalProperties"] = False
+        output_schema["additionalProperties"] = False
 
         # Store schemas in details field
         model_details = dict(model_record.details or {})
         model_details["input_schema"] = input_schema if input_schema else None
         model_details["output_schema"] = output_schema if output_schema else None
 
-        _logger.info(f"Writing schemas to model {model_name}")
-
-        # Use context to prevent recursion in write() hook
-        model_record.with_context(skip_replicate_schema_generation=True).write({
-            "details": model_details
-        })
+        model_record.write({"details": model_details})
 
     def replicate_generate(self, inputs, model_record=None, stream=False):
         """Generate content using Replicate
