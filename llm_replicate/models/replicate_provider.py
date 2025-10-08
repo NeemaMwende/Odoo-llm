@@ -208,54 +208,40 @@ class LLMProvider(models.Model):
         if item is None:
             return None
 
-        url_data = {
-            'url': None,
-            'content_type': 'application/octet-stream',
-            'filename': 'generated_content'
+        # Extract URL from different item types
+        url = None
+        if hasattr(item, "url"):
+            url = item.url
+        elif isinstance(item, str):
+            url = item
+        else:
+            url = str(item)
+
+        if not url:
+            return None
+
+        # Extract filename from URL
+        filename = url.split('/')[-1] or 'generated_content'
+
+        # Determine content type from file extension
+        extension_map = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.mp4': 'video/mp4',
         }
 
-        # FileOutput object from Replicate v1.0.0+
-        if hasattr(item, "url"):
-            url_data['url'] = item.url
-            
-            # Extract filename from URL
-            if item.url:
-                filename = item.url.split('/')[-1]
-                if filename:
-                    url_data['filename'] = filename
-                    
-                # Try to determine content type from URL/filename
-                if filename.lower().endswith('.png'):
-                    url_data['content_type'] = 'image/png'
-                elif filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
-                    url_data['content_type'] = 'image/jpeg'
-                elif filename.lower().endswith('.gif'):
-                    url_data['content_type'] = 'image/gif'
-                elif filename.lower().endswith('.mp4'):
-                    url_data['content_type'] = 'video/mp4'
-                elif filename.lower().endswith('.webp'):
-                    url_data['content_type'] = 'image/webp'
-                    
-        # Direct string URL (older versions or direct URLs)
-        elif isinstance(item, str):
-            url_data['url'] = item
-            filename = item.split('/')[-1]
-            if filename:
-                url_data['filename'] = filename
-                
-                # Try to determine content type from URL/filename
-                if filename.lower().endswith('.png'):
-                    url_data['content_type'] = 'image/png'
-                elif filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
-                    url_data['content_type'] = 'image/jpeg'
-                elif filename.lower().endswith('.gif'):
-                    url_data['content_type'] = 'image/gif'
-                elif filename.lower().endswith('.mp4'):
-                    url_data['content_type'] = 'video/mp4'
-                elif filename.lower().endswith('.webp'):
-                    url_data['content_type'] = 'image/webp'
-        else:
-            # Convert other types to string as fallback
-            url_data['url'] = str(item)
+        content_type = 'application/octet-stream'
+        filename_lower = filename.lower()
+        for ext, mime_type in extension_map.items():
+            if filename_lower.endswith(ext):
+                content_type = mime_type
+                break
 
-        return url_data if url_data['url'] else None
+        return {
+            'url': url,
+            'content_type': content_type,
+            'filename': filename,
+        }
