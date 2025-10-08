@@ -105,81 +105,56 @@ export class JsonEditorComponent extends Component {
   handleChange() {
     if (!this.props.onChange) return;
 
-    try {
-      // First validate against schema
-      this.editor
-        .validate()
-        .then((errors) => {
-          if (errors && errors.length > 0) {
-            // There are validation errors - handle them
-            if (this.props.onValidationError) {
-              this.props.onValidationError(errors);
-            }
-
-            // Get the current text and JSON if possible
-            const textValue = this.editor.getText();
-            let jsonValue = null;
-            try {
-              jsonValue = this.editor.get();
-            } catch (e) {
-              // Invalid JSON, will use text value only
-            }
-
-            // Return both the validation errors and the current value
-            this.props.onChange({
-              value: jsonValue || textValue,
-              isValid: false,
-              error: "Schema validation failed",
-              text: textValue,
-              validationErrors: errors,
-            });
-          } else {
-            // No validation errors, proceed with the valid JSON
-            try {
-              const json = this.editor.get();
-              this.props.onChange({
-                value: json,
-                isValid: true,
-                text: this.editor.getText(),
-              });
-            } catch (e) {
-              // Handle JSON parse errors even when schema validation passes
-              const textValue = this.editor.getText();
-              this.props.onChange({
-                value: textValue,
-                isValid: false,
-                error: e.message,
-                text: textValue,
-              });
-            }
+    // Validate against schema
+    this.editor
+      .validate()
+      .then((errors) => {
+        if (errors && errors.length > 0) {
+          // There are validation errors - handle them
+          if (this.props.onValidationError) {
+            this.props.onValidationError(errors);
           }
-        })
-        .catch((e) => {
-          // Handle promise rejection from validate()
-          let textValue = "";
-          if (this.editor && typeof this.editor.getText === "function") {
-            textValue = this.editor.getText();
+
+          // Get the current text and JSON if possible
+          const textValue = this.editor.getText();
+          let jsonValue = null;
+          try {
+            jsonValue = this.editor.get();
+          } catch (e) {
+            // Invalid JSON, will use text value only
           }
+
+          // Return both the validation errors and the current value
           this.props.onChange({
-            value: textValue,
+            value: jsonValue || textValue,
             isValid: false,
-            error: e.message || "Validation error",
+            error: "Schema validation failed",
             text: textValue,
+            validationErrors: errors,
           });
+        } else {
+          // No validation errors, proceed with the valid JSON
+          const json = this.editor.get();
+          this.props.onChange({
+            value: json,
+            isValid: true,
+            text: this.editor.getText(),
+          });
+        }
+      })
+      .catch((e) => {
+        // Handle all promise rejections (including if editor is null)
+        let textValue = "";
+        if (this.editor && typeof this.editor.getText === "function") {
+          textValue = this.editor.getText();
+        }
+        this.props.onChange({
+          value: textValue,
+          isValid: false,
+          error: e.message || "Validation error",
+          text: textValue,
         });
-    } catch (e) {
-      // Handle synchronous errors
-      let textValue = "";
-      if (this.editor && typeof this.editor.getText === "function") {
-        textValue = this.editor.getText();
-      }
-      this.props.onChange({
-        value: textValue,
-        isValid: false,
-        error: e.message,
-        text: textValue,
       });
-    }
   }
 
   handleValidationError(errors) {
