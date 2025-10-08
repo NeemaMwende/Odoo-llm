@@ -187,11 +187,13 @@
                       class="form-check-input"
                       t-att-id="'tool_' + tool.id"
                       t-att-checked="isToolSelected(tool)"
+                      t-att-disabled="state.isLoadingUpdate"
                       t-on-change="() => this.toggleTool(tool)"
                     />
                                         <label
                       class="form-check-label w-100"
                       t-att-for="'tool_' + tool.id"
+                      t-att-class="{'text-muted': state.isLoadingUpdate}"
                     >
                                             <span t-esc="tool.name" />
                                         </label>
