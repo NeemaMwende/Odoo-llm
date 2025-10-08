@@ -75,7 +75,6 @@ class LLMTrainingJob(models.Model):
     training_metrics = fields.Json(
         string="Training Metrics",
         help="Metrics from the training job (loss, accuracy, etc.)",
-        tracking=True,
     )
     training_logs = fields.Text(
         string="Training Logs", help="Logs from the training process"
