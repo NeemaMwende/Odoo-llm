@@ -103,7 +103,6 @@ export class LLMMediaForm extends Component {
    * Handle context changes (prompt, assistant, etc.)
    */
   async _handleContextChange() {
-    console.log("Media form context changed, reloading...");
     this.state.isLoading = true;
     try {
       await this._loadThreadConfiguration();
@@ -146,7 +145,6 @@ export class LLMMediaForm extends Component {
 
     // Normalize the schema to fix JSON Schema compliance issues
     const normalizedSchema = this._normalizeSchema(parsedSchema);
-    console.log("Normalized schema:", normalizedSchema);
 
     return normalizedSchema;
   }
@@ -327,8 +325,6 @@ export class LLMMediaForm extends Component {
     this.state.assistantDefaults = defaults || {};
 
     this.state.formValues = initialValues;
-    console.log("Initialized form values:", initialValues);
-    console.log("Schema source:", this.schemaSource);
   }
 
   /**
