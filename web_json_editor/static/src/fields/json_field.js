@@ -70,8 +70,8 @@ export class JsonEditorField extends Component {
     // Create editor instance
     this.editor = new JSONEditor(this.editorRef.el, options);
 
-    // Set initial value
-    let value = this.props.value;
+    // Set initial value - use record.data like Odoo's standard fields
+    let value = this.props.record.data[this.props.name];
 
     if (!value) {
       value = {};
@@ -91,7 +91,7 @@ export class JsonEditorField extends Component {
    * Format the value for display mode
    */
   formatValue() {
-    const value = this.props.value;
+    const value = this.props.record.data[this.props.name];
     if (!value) return "{}";
 
     if (typeof value === "string") {
@@ -116,11 +116,11 @@ export class JsonEditorField extends Component {
     // Handle different field types
     if (this.props.record.fields[this.props.name].type === "json") {
       // For JSON fields, pass the object directly
-      this.props.update(jsonValue);
+      this.props.record.update({ [this.props.name]: jsonValue });
     } else {
       // For text and char fields, convert to a JSON string
       const stringValue = JSON.stringify(jsonValue);
-      this.props.update(stringValue);
+      this.props.record.update({ [this.props.name]: stringValue });
     }
   }
 
