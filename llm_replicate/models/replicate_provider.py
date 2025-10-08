@@ -135,38 +135,39 @@ class LLMProvider(models.Model):
 
         model_record.write({"details": model_details})
 
-    def replicate_generate(self, inputs, model_record=None, stream=False):
+    def replicate_generate(self, inputs, model=None, stream=False, **kwargs):
         """Generate content using Replicate
-        
+
         Returns:
             tuple: (output_dict, urls_list) where:
                 - output_dict: Dictionary containing provider-specific output data
                 - urls_list: List of dictionaries with URL metadata
         """
         # Get full model name including version if specified
-        model_name = model_record._replicate_model_name_with_version()
+        model_name = model._replicate_model_name_with_version()
         if not model_name:
-            model_name = model_record.name
+            model_name = model.name
 
         if not model_name:
             raise ValueError("Model name is required")
 
-        # Run the model
+        # Run the model (returns iterator in Replicate 1.0+)
         result = self.client.run(model_name, input=inputs)
+
+        # For non-streaming, collect all results from the iterator
+        # This ensures the iterator isn't exhausted before URL extraction
         if not stream:
-            for _ in result:
-                # consume the generator/iterator so it doesn't block
-                pass
+            result = list(result)
 
         # Extract URLs with metadata from the result
         urls = self._replicate_extract_urls_with_metadata(result)
-        
-        # Create output data
+
+        # Create output data (exclude raw FileOutput objects - not JSON serializable)
         output_data = {
-            "raw_response": result,
             "model_name": model_name,
             "inputs": inputs,
-            "provider": "replicate"
+            "provider": "replicate",
+            "num_outputs": len(urls),
         }
 
         if stream:
@@ -180,51 +181,6 @@ class LLMProvider(models.Model):
         This is a separate generator function to avoid making the main method a generator.
         """
         yield {"content": (output_data, urls)}
-
-    def replicate_format_generation_response(self, raw_response, output_schema):
-        """Format the raw generation response according to the output processing config
-
-        Args:
-            raw_response: The raw response from the provider (e.g., Replicate client.run()).
-                          Typically a list of URLs or a single URL string for images.
-            output_schema (dict): Schema of the output.
-
-        Returns:
-            list: A list of strings (e.g., URLs) extracted from the raw_response.
-                  Returns an empty list if no suitable strings are found or
-                  if the raw_response format is unexpected.
-        """
-
-        extracted_strings = []
-
-        # output_schema example: {"type": "array", "items": {"type": "string", "format": "uri"}}
-        # This implies the raw_response should ideally be a list of strings, or a single string.
-
-        if isinstance(raw_response, list):
-            for item in raw_response:
-                if isinstance(item, str):
-                    extracted_strings.append(item)
-                else:
-                    # Log if an item in the list is not a string, but continue processing
-                    _logger.warning(
-                        f"Replicate: Item in raw_response list is not a string: {item} (type: {type(item)}). Output schema: {output_schema}"
-                    )
-        elif isinstance(raw_response, str):
-            # If the raw_response is a single string, assume it's the URL/data itself.
-            extracted_strings.append(raw_response)
-        elif raw_response is None:
-            _logger.info(
-                f"Replicate: Raw response is None for schema {output_schema}. Returning empty list."
-            )
-        else:
-            _logger.warning(
-                f"Replicate: Unexpected raw_response type: {type(raw_response)}. Full response: {raw_response}. Output schema: {output_schema}"
-            )
-            # For now, we return an empty list. More sophisticated parsing based on
-            # output_schema could be added here if needed for complex objects.
-
-        _logger.info(f"Replicate: Extracted strings: {extracted_strings}")
-        return extracted_strings
 
     def _replicate_extract_urls_with_metadata(self, result):
         """Extract URLs with metadata from Replicate result"""
