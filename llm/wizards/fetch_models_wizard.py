@@ -174,7 +174,12 @@ class FetchModelsWizard(models.TransientModel):
 
     @api.model
     def _determine_model_use(self, name, capabilities):
-        """Helper to determine model use based on name and capabilities"""
+        """Helper to determine model use based on name and capabilities
+
+        TODO: Move this logic to provider-level via provider.classify_model_use()
+        so each provider can implement their own model classification logic
+        based on their specific naming conventions and capabilities.
+        """
         if (
             any(cap in capabilities for cap in ["embedding", "text-embedding"])
             or "embedding" in name.lower()

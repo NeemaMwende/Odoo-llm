@@ -398,7 +398,7 @@ class LLMProvider(models.Model):
         response = self.client.files.create(file=file_tuple, purpose=purpose)
         return response
 
-    def openai_create_fine_tuning_job(
+    def openai_create_training_job(
         self, training_file_id, model_name, hyperparameters=None
     ):
         """Create an OpenAI fine-tuning job."""
@@ -473,16 +473,10 @@ class LLMProvider(models.Model):
         )
         training_file_id = file_upload_response.id
 
-        hyperparameters = job.hyperparameters
-        if isinstance(hyperparameters, str):
-            try:
-                hyperparameters = json.loads(hyperparameters)
-            except (json.JSONDecodeError, ValueError):
-                hyperparameters = {}
-        elif not isinstance(hyperparameters, dict):
-            hyperparameters = {}
+        # hyperparameters is a Json field, already a dict
+        hyperparameters = job.hyperparameters or {}
 
-        training_job_response = job.provider_id.create_fine_tuning_job(
+        training_job_response = job.provider_id.create_training_job(
             training_file_id=training_file_id,
             model_name=job.base_model_id.name,
             hyperparameters=hyperparameters,
