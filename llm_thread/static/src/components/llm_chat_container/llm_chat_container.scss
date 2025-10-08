@@ -32,6 +32,17 @@
   }
 }
 
+// Style images in LLM message bodies
+.o-mail-Message-body {
+  img {
+    max-width: 512px;
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 0.5rem 0;
+  }
+}
+
 // Tool call badges for assistant messages
 .o_llm_tool_calls {
   .badge {
