@@ -79,6 +79,19 @@ class LLMThread(models.Model):
 
         return defaults
 
+    def get_generation_form_config(self):
+        """Get form configuration for generation (schema + defaults)
+
+        Wrapper method that combines get_input_schema() and get_form_defaults()
+        into a single call for the frontend.
+        """
+        self.ensure_one()
+
+        return {
+            "input_schema": self.get_input_schema(),
+            "form_defaults": self.get_form_defaults(),
+        }
+
     def prepare_generation_inputs(self, inputs, attachment_ids=None):
         """Prepare final inputs for generation.
 

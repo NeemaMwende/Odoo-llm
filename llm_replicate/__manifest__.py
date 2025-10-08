@@ -9,7 +9,7 @@
     "version": "18.0.1.1.1",
     "depends": ["llm", "llm_generate"],
     "external_dependencies": {
-        "python": ["replicate"],
+        "python": ["replicate", "jsonref"],
     },
     "data": [
         "data/llm_publisher.xml",
