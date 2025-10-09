@@ -2,15 +2,14 @@
 <templates xml:space="preserve">
     <!-- Extension of the main Message template to handle generation messages -->
     <t
-    t-name="llm_generate.Message"
+    t-name="mail.Message"
     t-inherit="mail.Message"
     t-inherit-mode="extension"
-    owl="1"
   >
         <!-- Target the content area where message body is displayed -->
-        <xpath expr="//div[hasclass('o_Message_content')]" position="inside">
+        <xpath expr="//div[hasclass('o-mail-Message-content')]" position="inside">
             <!-- Add generation parameters display for user messages with generation data -->
-            <t t-if="messageView.message.isLLMUserGenerationMessage">
+            <t t-if="message.isLLMUserGenerationMessage">
                 <!-- Generation Parameters Summary -->
                 <div class="o_llm_generation_params mt-2 small border-top pt-2">
                     <details>
@@ -18,7 +17,7 @@
                             <strong>Generation Input</strong>
                         </summary>
                         <pre class="bg-light p-1 rounded small mt-1"><code
-                t-esc="messageView.message.generationDataFormatted"
+                t-esc="message.generationDataFormatted"
               /></pre>
                     </details>
                 </div>

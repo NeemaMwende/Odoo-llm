@@ -45,15 +45,6 @@
                 decoration-success="status=='new'"
                 decoration-warning="status=='modified'"
               />
-
-                            <!-- Technical Details -->
-                            <field
-                name="details"
-                widget="json_inline"
-                optional="show"
-                readonly="1"
-                force_save="1"
-              />
                             <field name="existing_model_id" invisible="1" />
                         </list>
                     </field>

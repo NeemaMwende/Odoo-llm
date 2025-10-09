@@ -1,6 +1,6 @@
 /** @odoo-module */
 
-import { Component, onMounted, onWillUnmount, useRef } from "@odoo/owl";
+import { Component, onMounted, onWillUnmount, useEffect, useRef } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { standardFieldProps } from "@web/views/fields/standard_field_props";
 
@@ -25,9 +25,46 @@ export class JsonEditorField extends Component {
   setup() {
     this.editorRef = useRef("editor");
     this.editor = null;
+    this.isDirty = false; // Track if user is currently editing
 
     onMounted(() => this.initEditor());
     onWillUnmount(() => this.destroyEditor());
+
+    // Update editor when field value changes (similar to useInputField hook)
+    useEffect(() => {
+      // Get current value from record
+      let value = this.props.record.data[this.props.name];
+
+      // Only update if editor exists, user is not editing, and field is valid
+      if (
+        this.editor &&
+        !this.isDirty &&
+        !this.props.record.isFieldInvalid(this.props.name)
+      ) {
+        // Parse value if it's a string
+        if (!value) {
+          value = {};
+        } else if (typeof value === "string") {
+          try {
+            value = JSON.parse(value);
+          } catch (e) {
+            console.warn("Failed to parse JSON string:", e);
+            value = {};
+          }
+        }
+
+        // Only update if value actually changed
+        try {
+          const currentValue = this.editor.get();
+          if (JSON.stringify(currentValue) !== JSON.stringify(value)) {
+            this.editor.set(value);
+          }
+        } catch (e) {
+          // If editor.get() fails, force set the new value
+          this.editor.set(value);
+        }
+      }
+    });
   }
 
   initEditor() {
@@ -44,6 +81,7 @@ export class JsonEditorField extends Component {
       mainMenuBar: true,
       onChange: () => {
         if (!this.props.readonly) {
+          this.isDirty = true; // Mark as dirty when user edits
           this.onEditorChange();
         }
       },
@@ -122,6 +160,9 @@ export class JsonEditorField extends Component {
       const stringValue = JSON.stringify(jsonValue);
       this.props.record.update({ [this.props.name]: stringValue });
     }
+
+    // Reset dirty flag after update
+    this.isDirty = false;
   }
 
   /**

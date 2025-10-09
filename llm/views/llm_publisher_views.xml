@@ -20,7 +20,7 @@
                             <field name="model_count" />
                         </group>
                         <group>
-                            <field name="meta" widget="json_inline" />
+                            <field name="meta" widget="json_editor" />
                         </group>
                     </group>
                     <notebook>
@@ -54,7 +54,7 @@
         <field name="model">llm.publisher</field>
         <field name="arch" type="xml">
             <list>
-                <field name="logo" widget="image" class="oe_avatar" />
+                <field name="logo" widget="image" options="{'size': [40, 40]}" />
                 <field name="name" />
                 <field name="official" />
                 <field name="frontier" />

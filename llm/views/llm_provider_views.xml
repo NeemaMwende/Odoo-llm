@@ -61,10 +61,6 @@
                                     <field name="model_use" />
                                     <field name="default" />
                                     <field name="active" />
-                                    <field
-                    name="details"
-                    widget="json_inline"
-                  />
                                 </list>
                             </field>
                         </page>

@@ -79,6 +79,19 @@ class LLMThread(models.Model):
 
         return defaults
 
+    def get_generation_form_config(self):
+        """Get form configuration for generation (schema + defaults)
+
+        Wrapper method that combines get_input_schema() and get_form_defaults()
+        into a single call for the frontend.
+        """
+        self.ensure_one()
+
+        return {
+            "input_schema": self.get_input_schema(),
+            "form_defaults": self.get_form_defaults(),
+        }
+
     def prepare_generation_inputs(self, inputs, attachment_ids=None):
         """Prepare final inputs for generation.
 
@@ -134,8 +147,9 @@ class LLMThread(models.Model):
         # Use message method to process URLs and create attachments
         markdown_content, attachments = generated_message.process_generation_urls(urls)
 
-        # Update message with final markdown content
-        generated_message.write({"body": markdown_content})
+        # Update message with final markdown content (process markdown to HTML)
+        html_content = self._process_llm_body(markdown_content)
+        generated_message.write({"body": html_content})
 
         # Yield the successful result
         yield {
