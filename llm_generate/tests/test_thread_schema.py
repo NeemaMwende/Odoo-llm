@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from odoo.tests.common import TransactionCase
@@ -39,30 +40,53 @@ class TestThreadSchema(TransactionCase):
         )
 
         # Create a test prompt with schema
+        # Note: input_schema_json is computed from arguments_json
         self.test_prompt = self.prompt_model.create(
             {
                 "name": "Test Schema Prompt",
                 "template": "Hello {{name}}, you are {{age}} years old.",
                 "format": "text",
-                "input_schema_json": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "age": {"type": "integer"},
+                "arguments_json": json.dumps({
+                    "name": {
+                        "type": "string",
+                        "default": "John",
+                        "description": "Person's name",
                     },
-                },
+                    "age": {
+                        "type": "integer",
+                        "default": 30,
+                        "description": "Person's age",
+                    },
+                }),
             }
         )
 
-    def test_get_input_schema_priority_order(self):
-        """Test that schema is retrieved from model when no assistant/prompt"""
-        # Use new() to create in-memory records without database constraints
+    def test_get_input_schema_from_model(self):
+        """Test that schema is retrieved from model when no prompt"""
         thread = self.thread_model.new({"name": "Test Thread"})
         thread.model_id = self.test_model
 
-        # Test: No assistant, should return model schema
         schema = thread.get_input_schema()
+        self.assertIn("model_field", schema.get("properties", {}))
         self.assertEqual(schema["properties"]["model_field"]["type"], "string")
+
+    def test_get_input_schema_from_prompt(self):
+        """Test that schema is retrieved from prompt when available"""
+        # Create a real thread record with all required fields
+        thread = self.thread_model.create(
+            {
+                "name": "Test Thread",
+                "provider_id": self.test_provider.id,
+                "model_id": self.test_model.id,
+                "prompt_id": self.test_prompt.id,
+            }
+        )
+
+        schema = thread.get_input_schema()
+
+        # Should have prompt schema properties
+        self.assertIn("name", schema.get("properties", {}))
+        self.assertIn("age", schema.get("properties", {}))
 
     def test_get_form_defaults_with_schema(self):
         """Test that form defaults include context values"""
@@ -96,7 +120,36 @@ class TestThreadSchema(TransactionCase):
         # Test with None/other types
         result = thread._ensure_dict(None)
         self.assertEqual(result, {})
+    def test_prepare_generation_inputs_with_prompt(self):
+        """Test input preparation with prompt template rendering"""
+        thread = self.thread_model.new({"name": "Test Thread"})
+        thread.prompt_id = self.test_prompt
 
+        # Mock get_context at class level
+        with patch.object(
+            type(thread), "get_context", return_value={"name": "Alice"}
+        ):
+            # Test with additional inputs
+            inputs = {"age": 25}
+
+            # Mock the template rendering at the location where it's imported
+            with patch(
+                "odoo.addons.llm_generate.models.llm_thread.render_template"
+            ) as mock_render:
+                mock_render.return_value = '{"messages": [{"role": "user", "content": "Hello Alice, you are 25 years old."}]}'
+
+                result = thread.prepare_generation_inputs(inputs)
+
+                # Should have called render_template with merged inputs
+                mock_render.assert_called_once()
+                # render_template is called with (template, context) as positional args
+                call_args = mock_render.call_args[0]  # Get positional arguments
+                self.assertEqual(call_args[1]["name"], "Alice")
+                self.assertEqual(call_args[1]["age"], 25)
+
+                # Should return parsed JSON
+                self.assertIsInstance(result, dict)
+                self.assertIn("messages", result)
 
     def test_prepare_generation_inputs_without_prompt(self):
         """Test input preparation without prompt (direct passthrough)"""
@@ -115,3 +168,25 @@ class TestThreadSchema(TransactionCase):
             self.assertEqual(result["context_var"], "value")
             self.assertEqual(result["user_input"], "test")
 
+    def test_prepare_generation_inputs_error_handling(self):
+        """Test error handling in input preparation"""
+        thread = self.thread_model.new({"name": "Test Thread"})
+        thread.prompt_id = self.test_prompt
+
+        # Mock get_context at class level
+        with patch.object(
+            type(thread), "get_context", return_value={"name": "Bob"}
+        ):
+            inputs = {"age": 30}
+
+            # Mock template rendering to raise an exception
+            with patch(
+                "odoo.addons.llm_generate.models.llm_thread.render_template"
+            ) as mock_render:
+                mock_render.side_effect = Exception("Template error")
+
+                result = thread.prepare_generation_inputs(inputs)
+
+                # Should fall back to merged inputs on error
+                self.assertEqual(result["name"], "Bob")
+                self.assertEqual(result["age"], 30)
