@@ -457,6 +457,13 @@ class LLMThread(models.Model):
                     "model": "llm.model",
                 }
 
+            if thread.prompt_id:
+                thread_data["prompt_id"] = {
+                    "id": thread.prompt_id.id,
+                    "name": thread.prompt_id.name,
+                    "model": "llm.prompt",
+                }
+
             if thread.tool_ids:
                 thread_data["tool_ids"] = [
                     {"id": tool.id, "name": tool.name, "model": "llm.tool"}
