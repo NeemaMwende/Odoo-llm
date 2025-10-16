@@ -92,9 +92,9 @@ export class LLMToolMessage extends Component {
       return "fa-exclamation-circle text-danger";
     } else if (this.status === "executing") {
       return "fa-spinner fa-spin text-info";
-    } else {
-      return "fa-clock text-muted";
     }
+      return "fa-clock text-muted";
+
   }
 
   /**

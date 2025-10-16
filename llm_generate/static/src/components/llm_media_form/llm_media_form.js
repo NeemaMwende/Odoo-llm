@@ -153,7 +153,7 @@ export class LLMMediaForm extends Component {
       return {}; // Return empty object instead of null
     }
 
-    let parsedSchema;
+    let parsedSchema = null;
     if (typeof schema === "string") {
       try {
         parsedSchema = JSON.parse(schema);
@@ -243,7 +243,7 @@ export class LLMMediaForm extends Component {
         const isPromptField = name.toLowerCase() === "prompt";
 
         // Handle enum types
-        let choices;
+        let choices = null;
         let fieldType = fieldDef.type;
 
         if (fieldDef.allOf?.[0]?.enum) {
@@ -438,11 +438,9 @@ export class LLMMediaForm extends Component {
       if (!this.state.hasSchemaValidationErrors) {
         this.state.jsonEditorError = null;
       }
-    } else {
+    } else if (!this.state.hasSchemaValidationErrors) {
       // Only set syntax errors if we don't have schema validation errors
-      if (!this.state.hasSchemaValidationErrors) {
-        this.state.jsonEditorError = error || "Invalid JSON format.";
-      }
+      this.state.jsonEditorError = error || "Invalid JSON format.";
     }
   }
 
@@ -488,7 +486,7 @@ export class LLMMediaForm extends Component {
    */
   onInputChange(fieldName, event) {
     const target = event.target;
-    let value;
+    let value = null;
 
     const fieldDef = this.formFields.find((field) => field.name === fieldName);
 

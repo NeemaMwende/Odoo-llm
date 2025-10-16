@@ -1,8 +1,8 @@
 /** @odoo-module **/
 
+import { Deferred } from "@web/core/utils/concurrency";
 import { reactive } from "@odoo/owl";
 import { registry } from "@web/core/registry";
-import { Deferred } from "@web/core/utils/concurrency";
 
 /**
  * LLM Store Service - Integrates with existing mail.store
