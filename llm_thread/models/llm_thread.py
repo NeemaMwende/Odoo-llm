@@ -330,6 +330,9 @@ class LLMThread(models.Model):
             **(base_context or {}),
             "thread_id": self.id,
         }
+        # Guard clause: skip if model or res_id not set
+        if not self.model or not self.res_id:
+            return context
 
         try:
             related_record = self.env[self.model].browse(self.res_id)
