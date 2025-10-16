@@ -48,6 +48,20 @@ class LLMProvider(models.Model):
             )
         )
 
+    def comfyui_should_generate_io_schema(self, model_record):
+        """Check if I/O schema should be generated for this ComfyUI model.
+
+        Schema should be generated if model doesn't already have input_schema in details.
+        ComfyUI uses static schemas, so we only generate once.
+
+        Args:
+            model_record (llm.model): The model record to check
+
+        Returns:
+            bool: True if schema generation should be triggered
+        """
+        return not model_record.details or not model_record.details.get("input_schema")
+
     def comfyui_generate_io_schema(self, model_record):
         """Generate a configuration from ComfyUI model details
 
@@ -305,7 +319,7 @@ class LLMProvider(models.Model):
 
     @api.model
     def randomise_seeds(self, workflow_json):
-        for node_id, node in workflow_json.items():
+        for _node_id, node in workflow_json.items():
             inputs = node.get("inputs", {})
             seed_keys = ["seed", "noise_seed", "rand_seed"]
             for seed_key in seed_keys:

@@ -92,6 +92,20 @@ class LLMProvider(models.Model):
             "capabilities": ["image_generation"],
         }
 
+    def comfy_icu_should_generate_io_schema(self, model_record):
+        """Check if I/O schema should be generated for this ComfyICU model.
+
+        Schema should be generated if model doesn't already have input_schema in details.
+        ComfyICU uses static schemas, so we only generate once.
+
+        Args:
+            model_record (llm.model): The model record to check
+
+        Returns:
+            bool: True if schema generation should be triggered
+        """
+        return not model_record.details or not model_record.details.get("input_schema")
+
     def comfy_icu_generate_io_schema(self, model_record):
         """Generate a configuration from ComfyICU model details
 
