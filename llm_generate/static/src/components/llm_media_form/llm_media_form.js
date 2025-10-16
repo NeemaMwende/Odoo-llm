@@ -55,7 +55,6 @@ export class LLMMediaForm extends Component {
     // Compute schema source when prompt_id changes
     useEffect(
       () => {
-        console.log('[Schema Source] useEffect triggered - prompt_id:', this.thread?.prompt_id, 'assistant_id:', this.thread?.assistant_id);
         this._computeSchemaSource();
       },
       () => [this.thread?.prompt_id, this.thread?.assistant_id, this.state.threadConfig.input_schema, this.llmModel]
@@ -600,9 +599,6 @@ export class LLMMediaForm extends Component {
     this.state.error = null;
 
     try {
-      console.log("Submitting generation request:", validationResult.values);
-      console.log("Attachments:", this.state.attachments);
-
       // Submit through llmStore - uses body_json and includes attachments
       await this.llmStore.postGenerationMessage(
         threadId,
