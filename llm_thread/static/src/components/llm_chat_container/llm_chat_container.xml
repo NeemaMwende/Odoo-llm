@@ -82,7 +82,11 @@
             t-ref="threadScrollable"
             class="o-llm-thread-area flex-grow-1 overflow-auto p-3"
           >
-                        <Thread thread="activeThread" order="'asc'" scrollRef="threadScrollableRef" />
+                        <Thread
+              thread="activeThread"
+              order="'asc'"
+              scrollRef="threadScrollableRef"
+            />
                     </div>
 
                     <!-- Streaming indicator -->

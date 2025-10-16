@@ -76,9 +76,7 @@ class TestReplicateSchemaGeneration(TransactionCase):
                 "schemas": {
                     "Input": {
                         "type": "object",
-                        "properties": {
-                            "text": {"type": "string"}
-                        },
+                        "properties": {"text": {"type": "string"}},
                     },
                     "Output": {"type": "string"},
                 }
@@ -141,7 +139,10 @@ class TestReplicateSchemaGeneration(TransactionCase):
         test_openapi_schema = {
             "components": {
                 "schemas": {
-                    "Input": {"type": "object", "properties": {"input": {"type": "string"}}},
+                    "Input": {
+                        "type": "object",
+                        "properties": {"input": {"type": "string"}},
+                    },
                     "Output": {"type": "string"},
                 }
             }

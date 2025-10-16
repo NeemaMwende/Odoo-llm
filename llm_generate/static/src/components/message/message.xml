@@ -7,7 +7,10 @@
     t-inherit-mode="extension"
   >
         <!-- Target the content area where message body is displayed -->
-        <xpath expr="//div[hasclass('o-mail-Message-content')]" position="inside">
+        <xpath
+      expr="//div[hasclass('o-mail-Message-content')]"
+      position="inside"
+    >
             <!-- Add generation parameters display for user messages with generation data -->
             <t t-if="isLLMUserGenerationMessage">
                 <!-- Generation Parameters Summary -->

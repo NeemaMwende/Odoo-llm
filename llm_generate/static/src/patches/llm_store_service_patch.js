@@ -32,7 +32,9 @@ patch(llmStoreService, {
         }
 
         // Check if model supports generation
-        const model = this.llmModels.get(thread.model_id?.id || thread.model_id);
+        const model = this.llmModels.get(
+          thread.model_id?.id || thread.model_id
+        );
         if (!model?.model_use?.includes("generation")) {
           notification.add("Selected model does not support generation", {
             type: "warning",

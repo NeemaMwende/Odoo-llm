@@ -248,6 +248,7 @@ thread.message_post(
    ```
 
 2. **Implement Service Methods:**
+
    ```python
    def my_service_chat(self, messages, model=None, **kwargs):
        """Service-specific chat implementation"""
