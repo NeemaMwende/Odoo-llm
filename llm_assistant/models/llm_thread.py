@@ -32,6 +32,9 @@ class LLMThread(models.Model):
             self.model_id = self.assistant_id.model_id
             self.tool_ids = self.assistant_id.tool_ids
             self.prompt_id = self.assistant_id.prompt_id
+        else:
+            # Clear prompt when assistant is cleared
+            self.prompt_id = False
 
     def set_assistant(self, assistant_id):
         """Set the assistant for this thread and update related fields
@@ -44,9 +47,9 @@ class LLMThread(models.Model):
         """
         self.ensure_one()
 
-        # If assistant_id is False or 0, just clear the assistant
+        # If assistant_id is False or 0, clear the assistant and its prompt
         if not assistant_id:
-            return self.write({"assistant_id": False})
+            return self.write({"assistant_id": False, "prompt_id": False})
 
         # Get the assistant record
         assistant = self.env["llm.assistant"].browse(assistant_id)
