@@ -446,15 +446,3 @@ class LLMGenerationJob(models.Model):
         else:
             # Fallback to raw inputs if llm_generate module not installed
             return self.generation_inputs or {}
-
-    def action_open_thread(self):
-        """Open the related thread"""
-        self.ensure_one()
-        return {
-            "type": "ir.actions.act_window",
-            "name": f"Thread - {self.thread_id.name}",
-            "res_model": "llm.thread",
-            "view_mode": "form",
-            "res_id": self.thread_id.id,
-            "target": "current",
-        }

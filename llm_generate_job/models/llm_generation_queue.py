@@ -460,18 +460,6 @@ class LLMGenerationQueue(models.Model):
 
         return retried_count
 
-    def action_view_jobs(self):
-        """View all jobs for this model"""
-        self.ensure_one()
-        return {
-            "type": "ir.actions.act_window",
-            "name": f"Jobs - {self.model_id.name}",
-            "res_model": "llm.generation.job",
-            "view_mode": "tree,form",
-            "domain": [("model_id", "=", self.model_id.id)],
-            "context": {"default_model_id": self.model_id.id},
-        }
-
     def action_view_queued_jobs(self):
         """View queued jobs for this model"""
         self.ensure_one()

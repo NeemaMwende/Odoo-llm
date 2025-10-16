@@ -77,7 +77,7 @@ class LLMProvider(models.Model):
                 return self._fal_ai_generate_sync(client, model_name, input_data)
         except Exception as e:
             _logger.error(f"Error in FAL AI generate: {e}")
-            raise UserError(_(f"FAL AI generation failed: {str(e)}"))
+            raise UserError(_(f"FAL AI generation failed: {str(e)}")) from e
 
     def _fal_ai_generate_sync(self, client, model_name, input_data):
         """Generate content synchronously"""
@@ -140,7 +140,7 @@ class LLMProvider(models.Model):
                     yield {"content": (output_data, [])}
         except Exception as e:
             _logger.error(f"Error in FAL AI stream: {e}")
-            raise UserError(_(f"FAL AI streaming failed: {str(e)}"))
+            raise UserError(_(f"FAL AI streaming failed: {str(e)}")) from e
 
     def fal_ai_models(self, model_id=None):
         """Retrieves the list of available models on fal.ai."""
@@ -499,7 +499,7 @@ class LLMProvider(models.Model):
 
         except Exception as e:
             _logger.error(f"FAL.AI JOB CREATION - Error submitting job: {e}")
-            raise UserError(_(f"Failed to submit job to FAL.AI: {str(e)}"))
+            raise UserError(_(f"Failed to submit job to FAL.AI: {str(e)}")) from e
 
     def fal_ai_check_generation_job_status(self, job_record):
         """Check the status of a generation job with FAL.AI"""

@@ -46,4 +46,4 @@ def render_template(template=None, context=None):
         template = env.from_string(template)
         return template.render(**processed_args)
     except Exception as e:
-        raise ValidationError(_("Error rendering template: %s") % str(e))
+        raise ValidationError(_("Error rendering template: %s") % str(e)) from e

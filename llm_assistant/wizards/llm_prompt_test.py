@@ -6,10 +6,11 @@ import yaml
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
-_logger = logging.getLogger(__name__)
 from odoo.addons.llm_thread.models.llm_thread import RelatedRecordProxy
 
 from ..utils import render_template
+
+_logger = logging.getLogger(__name__)
 
 
 class LLMThreadMock(models.TransientModel):
@@ -514,7 +515,9 @@ class LLMPromptTest(models.TransientModel):
             try:
                 user_context = json.loads(self.test_context or "{}")
             except json.JSONDecodeError as e:
-                raise ValidationError(_("Invalid JSON in test context: %s") % str(e))
+                raise ValidationError(
+                    _("Invalid JSON in test context: %s") % str(e)
+                ) from e
 
             # Use our test method - this uses mock thread's get_context
             result = self.test_prompt_with_context(user_context)
@@ -629,7 +632,7 @@ class LLMPromptTest(models.TransientModel):
                     fixed_json = fixed_json[:-1]
                 context = json.loads(fixed_json)
                 self.test_context = json.dumps(context, indent=2, sort_keys=True)
-            except:
+            except Exception:
                 pass  # Keep original if we can't fix it
 
         return {
