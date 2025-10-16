@@ -8,7 +8,7 @@ import { Component, useState, onWillStart, useEffect, useRef } from "@odoo/owl";
 export class LLMMediaForm extends Component {
   setup() {
     this.orm = useService("orm");
-    this.llmStore = useService("llm.store");
+    this.llmStore = useState(useService("llm.store"));
     this.mailStore = useService("mail.store");
     this.attachmentInputRef = useRef("attachmentInput");
 
@@ -609,7 +609,7 @@ export class LLMMediaForm extends Component {
    */
   isStreaming() {
     const threadId = this.props.threadId;
-    return this.llmStore.getStreamingStatus(threadId) || false;
+    return this.llmStore.isStreamingThread(threadId) || false;
   }
 
   /**
