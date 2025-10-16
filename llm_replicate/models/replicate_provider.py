@@ -96,6 +96,25 @@ class LLMProvider(models.Model):
             "capabilities": capabilities or ["image_generation"],
         }
 
+    def replicate_should_generate_io_schema(self, model_record):
+        """Check if I/O schema should be generated for this Replicate model.
+
+        Schema should be generated if:
+        1. Model has details with OpenAPI schema from the API
+        2. Model doesn't already have input_schema in details (to avoid regenerating)
+
+        Args:
+            model_record (llm.model): The model record to check
+
+        Returns:
+            bool: True if schema generation should be triggered
+        """
+        return (
+            model_record.details
+            and model_record.details.get("latest_version", {}).get("openapi_schema")
+            and not model_record.details.get("input_schema")
+        )
+
     def replicate_generate_io_schema(self, model_record):
         """Generate a configuration from Replicate model details
 

@@ -8,8 +8,8 @@ import { Component, useState, onWillStart, useEffect, useRef } from "@odoo/owl";
 export class LLMMediaForm extends Component {
   setup() {
     this.orm = useService("orm");
-    this.llmStore = useService("llm.store");
-    this.mailStore = useService("mail.store");
+    this.llmStore = useState(useService("llm.store"));
+    this.mailStore = useState(useService("mail.store"));
     this.attachmentInputRef = useRef("attachmentInput");
 
     this.state = useState({
@@ -31,6 +31,7 @@ export class LLMMediaForm extends Component {
       },
       attachments: [],
       uploadingFiles: false,
+      schemaSource: { type: "loading", name: "Loading..." },
     });
 
     onWillStart(async () => {
@@ -49,6 +50,14 @@ export class LLMMediaForm extends Component {
         this._handleContextChange();
       },
       () => [this.props.threadId, this.thread?.model_id, this.thread?.assistant_id]
+    );
+
+    // Compute schema source when prompt_id changes
+    useEffect(
+      () => {
+        this._computeSchemaSource();
+      },
+      () => [this.thread?.prompt_id, this.thread?.assistant_id, this.state.threadConfig.input_schema, this.llmModel]
     );
   }
 
@@ -266,37 +275,44 @@ export class LLMMediaForm extends Component {
   }
 
   /**
-   * Get information about the schema source for transparency
+   * Compute schema source information - called when dependencies change
+   */
+  _computeSchemaSource() {
+    if (this.state.isLoading) {
+      this.state.schemaSource = { type: "loading", name: "Loading..." };
+      return;
+    }
+
+    // Check if thread has a prompt_id - if so, schema is from prompt
+    const hasPrompt = !!this.thread?.prompt_id;
+    const hasSchema = this.state.threadConfig.input_schema &&
+                      Object.keys(this.state.threadConfig.input_schema).length > 0;
+
+    if (hasSchema) {
+      if (hasPrompt) {
+        // Schema exists AND prompt is set -> schema is from prompt
+        this.state.schemaSource = {
+          type: "prompt",
+          name: this.thread?.prompt_id?.name || "Selected Prompt",
+        };
+      } else {
+        // Schema exists but NO prompt -> schema must be from model
+        this.state.schemaSource = {
+          type: "model",
+          name: this.llmModel?.name || "Model Default",
+        };
+      }
+      return;
+    }
+
+    this.state.schemaSource = { type: "none", name: "No Schema Available" };
+  }
+
+  /**
+   * Get schema source from state (for template access)
    */
   get schemaSource() {
-    if (this.state.isLoading) {
-      return { type: "loading", name: "Loading..." };
-    }
-
-    if (
-      this.state.threadConfig.input_schema &&
-      Object.keys(this.state.threadConfig.input_schema).length > 0
-    ) {
-      return {
-        type: "prompt",
-        name:
-          this.thread?.prompt_id?.name ||
-          this.llmAssistant?.prompt_id?.name ||
-          "Selected Prompt",
-      };
-    }
-
-    if (
-      this.llmModel?.inputSchema &&
-      Object.keys(this.llmModel.inputSchema).length > 0
-    ) {
-      return {
-        type: "model",
-        name: this.llmModel?.name || "Model Default",
-      };
-    }
-
-    return { type: "none", name: "No Schema Available" };
+    return this.state.schemaSource;
   }
 
   /**
@@ -583,9 +599,6 @@ export class LLMMediaForm extends Component {
     this.state.error = null;
 
     try {
-      console.log("Submitting generation request:", validationResult.values);
-      console.log("Attachments:", this.state.attachments);
-
       // Submit through llmStore - uses body_json and includes attachments
       await this.llmStore.postGenerationMessage(
         threadId,
@@ -609,7 +622,7 @@ export class LLMMediaForm extends Component {
    */
   isStreaming() {
     const threadId = this.props.threadId;
-    return this.llmStore.getStreamingStatus(threadId) || false;
+    return this.llmStore.isStreamingThread(threadId) || false;
   }
 
   /**
@@ -627,7 +640,7 @@ export class LLMMediaForm extends Component {
         const fileDataUrl = await this._readFileAsDataURL(file);
         const base64Data = fileDataUrl.split(",")[1]; // Remove data:mime/type;base64, prefix
 
-        const attachment = await this.orm.create("ir.attachment", [
+        const attachmentIds = await this.orm.create("ir.attachment", [
           {
             name: file.name,
             datas: base64Data,
@@ -637,9 +650,10 @@ export class LLMMediaForm extends Component {
           },
         ]);
 
-        if (attachment) {
+        // orm.create with array returns array of IDs, extract first element
+        if (attachmentIds && attachmentIds.length > 0) {
           this.state.attachments.push({
-            id: attachment,
+            id: attachmentIds[0],  // Get first ID from array
             name: file.name,
             size: file.size,
             mimetype: file.type,

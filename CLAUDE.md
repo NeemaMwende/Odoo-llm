@@ -137,6 +137,33 @@ ruff format . && ruff check . --fix --unsafe-fixes
 pre-commit run --all-files
 ```
 
+### Cherry-Picking Modules from Migration Branch
+
+When you need to restore already-migrated modules from `18.0-migration` to the current working branch:
+
+```bash
+# 1. Check what exists in the migration branch
+git show 18.0-migration:llm_module_name
+
+# 2. Cherry-pick entire module directory
+git checkout 18.0-migration -- llm_module_name
+
+# 3. Stage and commit
+git add llm_module_name
+git commit -m "chore: restore llm_module_name from 18.0-migration branch"
+```
+
+**Example:**
+```bash
+# Restore llm_comfyui and llm_comfy_icu
+git checkout 18.0-migration -- llm_comfyui
+git checkout 18.0-migration -- llm_comfy_icu
+git add llm_comfyui llm_comfy_icu
+git commit -m "chore: restore image generation modules from 18.0-migration"
+```
+
+**Note:** This brings the module as it exists in `18.0-migration` without bringing uncommitted changes from that branch.
+
 ## Migration Progress Tracking
 
 ### ✅ Completed (18.0 Compatible)
@@ -176,53 +203,106 @@ pre-commit run --all-files
 1. **llm_openai** - OpenAI GPT integration
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
-2. **llm_anthropic** - Anthropic Claude integration
-   - ✅ Migrated to Odoo 18.0
-   - ✅ Updated manifests and dependencies
-3. **llm_mistral** - Mistral AI integration
-   - ✅ Migrated to Odoo 18.0
-   - ✅ Updated manifests and dependencies
-4. **llm_ollama** - Ollama local LLM integration
 
+2. **llm_mistral** - Mistral AI integration
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
 
-5. **llm_litellm** - LiteLLM proxy integration
+3. **llm_ollama** - Ollama local LLM integration
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
+
+#### Image Generation Providers - COMPLETED ✅
+
+1. **llm_replicate** - Replicate API integration (image generation)
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+   - ⚠️ Known issue: API predictions auto-delete after 1 hour (TODO documented)
+
+2. **llm_comfyui** - ComfyUI integration (image workflows)
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+
+3. **llm_comfy_icu** - ComfyICU integration
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+
+#### Generation & Content Modules - COMPLETED ✅
+
+1. **llm_generate** - Content generation features
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+   - ✅ Media form with JSON editor integration
+   - ✅ Collapsible body_json display for debugging
+
+2. **llm_training** - Training dataset management
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+
+#### Integration Modules - COMPLETED ✅
+
+1. **llm_mcp_server** - Model Context Protocol server (MCP)
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+
+2. **llm_letta** - Letta SDK integration
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+
+#### Utility Modules - COMPLETED ✅
+
+1. **web_json_editor** - JSON editor widget
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+   - ✅ Used in llm_generate for generation parameter editing
+
+### 🚧 Recent Improvements (Latest Session)
+
+#### Bug Fixes & Architecture Cleanup
+
+- ✅ **Dead Code Cleanup**: Removed unused frontend model system (llm_assistant/static/src/models/, components/llm_chat_thread_header/)
+- ✅ **RPC Architecture**: Refactored assistant selection to use controller endpoint instead of direct ORM calls
+- ✅ **System Prompt Verification**: Confirmed prepend_messages correctly passes system prompts to LLM providers
+- ✅ **Reactivity Fixes**: Fixed assistant clearing, schema source indicator, and button state reactivity issues
+- ✅ **Jump-to-Present Button**: Fixed scroll direction for LLM threads by passing correct scrollRef to Thread component
+- ✅ **Body JSON Display**: Added collapsible UI for generation input/output data in user and assistant messages
+- ✅ **UI Alignment**: Fixed vertical alignment of schema source badge with text
+
+#### Technical Debt Identified
+
+- 📝 TODO: Fix Replicate file expiration (API predictions deleted after 1 hour) - implement provider hook pattern for downloading outputs
+- 📝 TODO: Fix misleading variable naming (output_data contains input metadata, not actual output)
+
+#### Documentation Updates
+
+- 📚 Added Odoo 18 frontend model system changes to CLAUDE.md (registerModel removal, Record-based pattern)
+- 📚 Documented correct RPC import pattern (`import { rpc }` as standalone function)
 
 ### 🚧 In Progress
 
 #### UI/UX Improvements
 
 - 🔄 Make LLM components responsive/mobile friendly
-- 🔄 Fix auto scrolling for new messages in thread
-- 🔄 Investigate `_to_store` pattern in mail module for future use
 
-### ⏳ Remaining Migration Tasks
+### ⏳ Remaining Migration Tasks (Not in Current Branch)
 
 #### High Priority (Image Generation Providers)
 
-- **llm_replicate** - Replicate API integration (image generation)
 - **llm_fal_ai** - Fal.ai integration (image generation)
-- **llm_comfyui** - ComfyUI integration (image workflows)
-- **llm_comfy_icu** - ComfyICU integration
 
 #### Medium Priority (Knowledge & Advanced Features)
 
 - **llm_knowledge** - Knowledge base with chunking and RAG
 - **llm_knowledge_automation** - Automated knowledge collection
-- **llm_mcp** - Model Context Protocol server
-- **llm_generate** - Content generation features
 - **llm_generate_job** - Job queue for generation tasks
-- **llm_training** - Training dataset management
 
 #### Low Priority (Vector Storage & Extensions)
 
 - **llm_pgvector**, **llm_chroma**, **llm_qdrant** - Vector database integrations
 - **llm_document_page** - Document page integration
 - **llm_store** - LLM marketplace functionality
-- **web_json_editor** - JSON editor widget
+- **llm_anthropic** - Anthropic Claude integration (needs to be re-added)
+- **llm_litellm** - LiteLLM proxy integration (needs to be re-added)
 
 ## Future Architecture Improvements
 
@@ -259,6 +339,82 @@ pre-commit run --all-files
 - Job queue modules need careful testing for async operations
 
 ## Odoo 18.0 Mail System Architecture (IMPORTANT)
+
+### Major Frontend Model System Changes
+
+**CRITICAL: Odoo 18 completely replaced the frontend model system!**
+
+#### Odoo 16 Pattern (REMOVED in 18.0):
+```javascript
+// ❌ DON'T USE - This doesn't exist in Odoo 18!
+import { registerModel } from '@mail/model/model_core';
+import { registerPatch } from '@mail/model/model_core';
+
+registerModel({
+    name: 'Thread',
+    fields: {
+        id: attr(),
+        name: attr(),
+    },
+    recordMethods: {
+        async doSomething() { ... }
+    }
+});
+
+registerPatch({
+    name: 'Thread',
+    fields: {
+        customField: attr(),
+    }
+});
+```
+
+#### Odoo 18 Pattern (NEW - Use This):
+```javascript
+// ✅ USE - ES6 classes extending Record
+import { Record } from "@mail/core/common/record";
+import { patch } from "@web/core/utils/patch";
+
+// Define model as ES6 class
+export class Thread extends Record {
+    static id = AND("model", "id");
+    static records = {};
+
+    // Properties as class fields
+    id;
+    model;
+    name;
+
+    // Methods as class methods
+    async doSomething() { ... }
+}
+
+// Patch using standard OWL patch()
+patch(Thread.prototype, {
+    customField = undefined;
+
+    async doCustomThing() { ... }
+});
+```
+
+#### Key Architectural Changes:
+
+1. **No `registerModel()`** - Models are ES6 classes extending `Record`
+2. **No `registerPatch()`** - Use OWL's `patch()` utility
+3. **Records in `static records`** - Centralized record storage
+4. **OWL reactivity** - Built-in reactive system via `@odoo/owl`
+5. **Type-safe** - Better JSDoc/TypeScript support
+6. **Auto-registration** - Via `modelRegistry` instead of explicit calls
+
+#### RPC Calls in Services:
+
+```javascript
+// ✅ Import rpc as standalone function
+import { rpc } from "@web/core/network/rpc";
+
+// Use directly (NOT via env.services.rpc)
+const result = await rpc("/my/endpoint", { param: value });
+```
 
 ### Mail Store System
 

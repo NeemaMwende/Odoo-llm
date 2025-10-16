@@ -330,6 +330,9 @@ class LLMThread(models.Model):
             **(base_context or {}),
             "thread_id": self.id,
         }
+        # Guard clause: skip if model or res_id not set
+        if not self.model or not self.res_id:
+            return context
 
         try:
             related_record = self.env[self.model].browse(self.res_id)
@@ -453,6 +456,16 @@ class LLMThread(models.Model):
                     "name": thread.model_id.name,
                     "model": "llm.model",
                 }
+
+            # Always include prompt_id (even if False) to ensure it's cleared in frontend
+            if thread.prompt_id:
+                thread_data["prompt_id"] = {
+                    "id": thread.prompt_id.id,
+                    "name": thread.prompt_id.name,
+                    "model": "llm.prompt",
+                }
+            else:
+                thread_data["prompt_id"] = False
 
             if thread.tool_ids:
                 thread_data["tool_ids"] = [
