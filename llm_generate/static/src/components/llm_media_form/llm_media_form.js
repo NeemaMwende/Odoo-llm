@@ -9,7 +9,7 @@ export class LLMMediaForm extends Component {
   setup() {
     this.orm = useService("orm");
     this.llmStore = useState(useService("llm.store"));
-    this.mailStore = useService("mail.store");
+    this.mailStore = useState(useService("mail.store"));
     this.attachmentInputRef = useRef("attachmentInput");
 
     this.state = useState({
