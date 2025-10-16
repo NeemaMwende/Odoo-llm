@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <data>
-        <!-- Generation Job Tree View -->
+    <!-- Generation Job Tree View -->
         <record id="view_llm_generation_job_tree" model="ir.ui.view">
             <field name="name">llm.generation.job.tree</field>
             <field name="model">llm.generation.job</field>
             <field name="arch" type="xml">
                 <list
-          decoration-info="state == 'queued'"
-          decoration-warning="state == 'running'"
-          decoration-success="state == 'completed'"
-          decoration-danger="state == 'failed'"
-          decoration-muted="state == 'cancelled'"
-        >
+        decoration-info="state == 'queued'"
+        decoration-warning="state == 'running'"
+        decoration-success="state == 'completed'"
+        decoration-danger="state == 'failed'"
+        decoration-muted="state == 'cancelled'"
+      >
                     <field name="display_name" />
                     <field name="thread_id" />
                     <field name="provider_id" />
@@ -37,50 +36,50 @@
                 <form>
                     <header>
                         <button
-              name="action_queue"
-              string="Queue"
-              type="object"
-              invisible="state != 'draft'"
-              class="btn-primary"
-            />
+            name="action_queue"
+            string="Queue"
+            type="object"
+            invisible="state != 'draft'"
+            class="btn-primary"
+          />
                         <button
-              name="action_start"
-              string="Start"
-              type="object"
-              invisible="state != 'queued'"
-              class="btn-primary"
-            />
+            name="action_start"
+            string="Start"
+            type="object"
+            invisible="state != 'queued'"
+            class="btn-primary"
+          />
                         <button
-              name="action_cancel"
-              string="Cancel"
-              type="object"
-              invisible="not can_cancel"
-              class="btn-secondary"
-            />
+            name="action_cancel"
+            string="Cancel"
+            type="object"
+            invisible="not can_cancel"
+            class="btn-secondary"
+          />
                         <button
-              name="action_retry"
-              string="Retry"
-              type="object"
-              invisible="not can_retry"
-              class="btn-warning"
-            />
+            name="action_retry"
+            string="Retry"
+            type="object"
+            invisible="not can_retry"
+            class="btn-warning"
+          />
                         <button
-              name="check_status"
-              string="Check Status"
-              type="object"
-              invisible="state != 'running'"
-              class="btn-info"
-            />
+            name="check_status"
+            string="Check Status"
+            type="object"
+            invisible="state != 'running'"
+            class="btn-info"
+          />
                         <field name="state" widget="statusbar" />
                     </header>
                     <sheet>
                         <div class="oe_button_box" name="button_box">
                             <button
-                class="oe_stat_button"
-                type="object"
-                name="action_open_thread"
-                icon="fa-comments"
-              >
+              class="oe_stat_button"
+              type="object"
+              name="action_open_thread"
+              icon="fa-comments"
+            >
                                 <div class="o_stat_info">
                                     <span class="o_stat_text">Thread</span>
                                 </div>
@@ -98,9 +97,9 @@
                                 <field name="model_id" />
                                 <field name="user_id" />
                                 <field
-                  name="external_job_id"
-                  invisible="not external_job_id"
-                />
+                name="external_job_id"
+                invisible="not external_job_id"
+              />
                             </group>
                             <group string="Status">
                                 <field name="is_active" />
@@ -119,9 +118,9 @@
                                 <field name="completed_at" />
                                 <field name="duration" widget="float_time" />
                                 <field
-                  name="queue_duration"
-                  widget="float_time"
-                />
+                name="queue_duration"
+                widget="float_time"
+              />
                             </group>
                             <group string="Messages">
                                 <field name="input_message_id" />
@@ -132,21 +131,21 @@
                         <notebook>
                             <page string="Generation Inputs" name="inputs">
                                 <field
-                  name="generation_inputs"
-                  widget="json_editor"
-                />
+                name="generation_inputs"
+                widget="json_editor"
+              />
                             </page>
                             <page string="Provider Data" name="provider_data">
                                 <field
-                  name="provider_data"
-                  widget="json_editor"
-                />
+                name="provider_data"
+                widget="json_editor"
+              />
                             </page>
                             <page
-                string="Error Details"
-                name="error"
-                invisible="not error_message"
-              >
+              string="Error Details"
+              name="error"
+              invisible="not error_message"
+            >
                                 <field name="error_message" widget="text" />
                             </page>
                         </notebook>
@@ -170,81 +169,81 @@
 
                     <!-- Replace is_active filter with state-based active filter -->
                     <filter
-            string="Active"
-            name="active"
-            domain="[('state', 'in', ['queued', 'running'])]"
-          />
+          string="Active"
+          name="active"
+          domain="[('state', 'in', ['queued', 'running'])]"
+        />
                     <filter
-            string="Queued"
-            name="queued"
-            domain="[('state', '=', 'queued')]"
-          />
+          string="Queued"
+          name="queued"
+          domain="[('state', '=', 'queued')]"
+        />
                     <filter
-            string="Running"
-            name="running"
-            domain="[('state', '=', 'running')]"
-          />
+          string="Running"
+          name="running"
+          domain="[('state', '=', 'running')]"
+        />
                     <filter
-            string="Completed"
-            name="completed"
-            domain="[('state', '=', 'completed')]"
-          />
+          string="Completed"
+          name="completed"
+          domain="[('state', '=', 'completed')]"
+        />
                     <filter
-            string="Failed"
-            name="failed"
-            domain="[('state', '=', 'failed')]"
-          />
+          string="Failed"
+          name="failed"
+          domain="[('state', '=', 'failed')]"
+        />
                     <!-- Remove can_retry filter if it's also a computed field without store=True -->
                     <!-- <filter string="Can Retry" name="can_retry" domain="[('can_retry', '=', True)]"/> -->
 
                     <separator />
                     <filter
-            string="My Jobs"
-            name="my_jobs"
-            domain="[('user_id', '=', uid)]"
-          />
+          string="My Jobs"
+          name="my_jobs"
+          domain="[('user_id', '=', uid)]"
+        />
                     <filter
-            string="Today"
-            name="today"
-            domain="[('create_date', '>=', context_today().strftime('%Y-%m-%d'))]"
-          />
+          string="Today"
+          name="today"
+          domain="[('create_date', '>=', context_today().strftime('%Y-%m-%d'))]"
+        />
                     <filter
-            string="This Week"
-            name="this_week"
-            domain="[('create_date', '>=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"
-          />
+          string="This Week"
+          name="this_week"
+          domain="[('create_date', '>=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"
+        />
 
                     <group expand="0" string="Group By">
                         <filter
-              string="State"
-              name="group_by_state"
-              domain="[]"
-              context="{'group_by': 'state'}"
-            />
+            string="State"
+            name="group_by_state"
+            domain="[]"
+            context="{'group_by': 'state'}"
+          />
                         <filter
-              string="Provider"
-              name="group_by_provider"
-              domain="[]"
-              context="{'group_by': 'provider_id'}"
-            />
+            string="Provider"
+            name="group_by_provider"
+            domain="[]"
+            context="{'group_by': 'provider_id'}"
+          />
                         <filter
-              string="Model"
-              name="group_by_model"
-              domain="[]"
-              context="{'group_by': 'model_id'}"
-            />
+            string="Model"
+            name="group_by_model"
+            domain="[]"
+            context="{'group_by': 'model_id'}"
+          />
                         <filter
-              string="User"
-              name="group_by_user"
-              domain="[]"
-              context="{'group_by': 'user_id'}"
-            />
+            string="User"
+            name="group_by_user"
+            domain="[]"
+            context="{'group_by': 'user_id'}"
+          />
                         <filter
-              string="Creation Date"
-              name="group_by_date"
-              domain="[]"
-              context="{'group_by': 'create_date'}"
-            />
+            string="Creation Date"
+            name="group_by_date"
+            domain="[]"
+            context="{'group_by': 'create_date'}"
+          />
                     </group>
                 </search>
             </field>
@@ -270,13 +269,13 @@
                                     <div class="row">
                                         <div class="col-6">
                                             <strong><field
-                          name="display_name"
-                        /></strong>
+                        name="display_name"
+                      /></strong>
                                         </div>
                                         <div class="col-6 text-right">
                                             <span
-                        t-att-class="'badge badge-' + (record.state.raw_value == 'completed' ? 'success' : record.state.raw_value == 'failed' ? 'danger' : record.state.raw_value == 'running' ? 'warning' : 'info')"
-                      >
+                      t-att-class="'badge badge-' + (record.state.raw_value == 'completed' ? 'success' : record.state.raw_value == 'failed' ? 'danger' : record.state.raw_value == 'running' ? 'warning' : 'info')"
+                    >
                                                 <field name="state" />
                                             </span>
                                         </div>
@@ -284,36 +283,36 @@
                                     <div class="row">
                                         <div class="col-12">
                                             <i class="fa fa-cube" /> <field
-                        name="model_id"
-                      />
+                      name="model_id"
+                    />
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-12">
                                             <i class="fa fa-user" /> <field
-                        name="user_id"
-                      />
+                      name="user_id"
+                    />
                                         </div>
                                     </div>
                                     <div
-                    class="row"
-                    t-if="record.duration.raw_value > 0"
-                  >
+                  class="row"
+                  t-if="record.duration.raw_value > 0"
+                >
                                         <div class="col-12">
                                             <i class="fa fa-clock-o" /> <field
-                        name="duration"
-                        widget="float_time"
-                      />
+                      name="duration"
+                      widget="float_time"
+                    />
                                         </div>
                                     </div>
                                     <div
-                    class="row"
-                    t-if="record.retry_count.raw_value > 0"
-                  >
+                  class="row"
+                  t-if="record.retry_count.raw_value > 0"
+                >
                                         <div class="col-12">
                                             <i
-                        class="fa fa-repeat"
-                      /> Retry <field name="retry_count" />
+                      class="fa fa-repeat"
+                    /> Retry <field name="retry_count" />
                                         </div>
                                     </div>
                                 </div>
@@ -342,5 +341,4 @@
                 </p>
             </field>
         </record>
-    </data>
 </odoo>
