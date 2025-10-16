@@ -1,6 +1,14 @@
 #!/bin/bash
 
 # Test runner for odoo-llm modules
+#
+# Usage:
+#   ./run_tests.sh                                    # Run all provider tests
+#   ./run_tests.sh llm_replicate                      # Run specific module
+#   ./run_tests.sh "llm_replicate,llm_comfyui"        # Run multiple modules
+#   ./run_tests.sh llm_replicate my_test_db           # Custom database name
+#   ./run_tests.sh llm_replicate my_test_db 8072      # Custom database and port
+#
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ODOO_PATH="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
