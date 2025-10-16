@@ -2,6 +2,7 @@
 
 import { llmStoreService } from "@llm_thread/services/llm_store_service";
 import { patch } from "@web/core/utils/patch";
+import { rpc } from "@web/core/network/rpc";
 
 /**
  * Minimal patch to add assistant functionality to existing LLM store
@@ -65,17 +66,24 @@ patch(llmStoreService, {
         }
 
         try {
-          await orm.call("llm.thread", "set_assistant", [
-            activeThread.id,
-            assistantId,
-          ]);
+          // Use RPC endpoint instead of direct ORM call for better separation of concerns
+          const result = await rpc("/llm/thread/set_assistant", {
+            thread_id: activeThread.id,
+            assistant_id: assistantId,
+          });
 
-          // Reuse existing fetchData pattern
+          if (!result.success && result.success !== undefined) {
+            notification.add("Failed to update assistant", { type: "danger" });
+            return;
+          }
+
+          // Reuse existing fetchData pattern to refresh thread data
           await activeThread.fetchData([
             "assistant_id",
             "provider_id",
             "model_id",
             "tool_ids",
+            "prompt_id",
           ]);
         } catch (error) {
           console.error("Error selecting assistant:", error);
