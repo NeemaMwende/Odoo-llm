@@ -629,3 +629,7 @@ class LLMProvider(models.Model):
         """Extract URLs from FAL.AI webhook payload"""
         # Use the main extraction method which handles all formats including training outputs
         return self._fal_ai_extract_urls_with_metadata(payload)
+
+    def fal_ai_should_generate_io_schema(self, model_record):
+        """FAL.AI models have predefined schemas, so we don't auto-generate them"""
+        return False
