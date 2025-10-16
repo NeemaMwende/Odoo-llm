@@ -137,11 +137,17 @@ class LLMThread(models.Model):
         # Generate using model - now returns tuple (output_data, urls)
         output_data, urls = self.model_id.generate(final_inputs)
 
+        # TODO: Fix misleading variable naming
+        # - "output_data" actually contains INPUT metadata (model_name, inputs, provider, num_outputs)
+        # - The actual OUTPUT (images/videos) is in "urls" and becomes attachments
+        # - URL attachments (type='url') will break after 1 hour when Replicate deletes the images
+        # - Should download and store as binary attachments (type='binary' with datas field)
+
         # Create assistant message first (without attachments)
         generated_message = self.message_post(
             body="",  # Will be updated with markdown content
             llm_role="assistant",
-            body_json=output_data,
+            body_json=output_data,  # Misleading name - contains input metadata, not output
         )
 
         # Use message method to process URLs and create attachments
