@@ -287,6 +287,82 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 
 ## Odoo 18.0 Mail System Architecture (IMPORTANT)
 
+### Major Frontend Model System Changes
+
+**CRITICAL: Odoo 18 completely replaced the frontend model system!**
+
+#### Odoo 16 Pattern (REMOVED in 18.0):
+```javascript
+// ❌ DON'T USE - This doesn't exist in Odoo 18!
+import { registerModel } from '@mail/model/model_core';
+import { registerPatch } from '@mail/model/model_core';
+
+registerModel({
+    name: 'Thread',
+    fields: {
+        id: attr(),
+        name: attr(),
+    },
+    recordMethods: {
+        async doSomething() { ... }
+    }
+});
+
+registerPatch({
+    name: 'Thread',
+    fields: {
+        customField: attr(),
+    }
+});
+```
+
+#### Odoo 18 Pattern (NEW - Use This):
+```javascript
+// ✅ USE - ES6 classes extending Record
+import { Record } from "@mail/core/common/record";
+import { patch } from "@web/core/utils/patch";
+
+// Define model as ES6 class
+export class Thread extends Record {
+    static id = AND("model", "id");
+    static records = {};
+
+    // Properties as class fields
+    id;
+    model;
+    name;
+
+    // Methods as class methods
+    async doSomething() { ... }
+}
+
+// Patch using standard OWL patch()
+patch(Thread.prototype, {
+    customField = undefined;
+
+    async doCustomThing() { ... }
+});
+```
+
+#### Key Architectural Changes:
+
+1. **No `registerModel()`** - Models are ES6 classes extending `Record`
+2. **No `registerPatch()`** - Use OWL's `patch()` utility
+3. **Records in `static records`** - Centralized record storage
+4. **OWL reactivity** - Built-in reactive system via `@odoo/owl`
+5. **Type-safe** - Better JSDoc/TypeScript support
+6. **Auto-registration** - Via `modelRegistry` instead of explicit calls
+
+#### RPC Calls in Services:
+
+```javascript
+// ✅ Import rpc as standalone function
+import { rpc } from "@web/core/network/rpc";
+
+// Use directly (NOT via env.services.rpc)
+const result = await rpc("/my/endpoint", { param: value });
+```
+
 ### Mail Store System
 
 - **USE** `mail.store` service for all message/thread operations
