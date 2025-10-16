@@ -627,7 +627,7 @@ export class LLMMediaForm extends Component {
         const fileDataUrl = await this._readFileAsDataURL(file);
         const base64Data = fileDataUrl.split(",")[1]; // Remove data:mime/type;base64, prefix
 
-        const attachment = await this.orm.create("ir.attachment", [
+        const attachmentIds = await this.orm.create("ir.attachment", [
           {
             name: file.name,
             datas: base64Data,
@@ -637,9 +637,10 @@ export class LLMMediaForm extends Component {
           },
         ]);
 
-        if (attachment) {
+        // orm.create with array returns array of IDs, extract first element
+        if (attachmentIds && attachmentIds.length > 0) {
           this.state.attachments.push({
-            id: attachment,
+            id: attachmentIds[0],  // Get first ID from array
             name: file.name,
             size: file.size,
             mimetype: file.type,
