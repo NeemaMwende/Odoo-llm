@@ -96,10 +96,10 @@
                         
                         <notebook>
                             <page string="Generation Inputs" name="inputs">
-                                <field name="generation_inputs" widget="json"/>
+                                <field name="generation_inputs" widget="json_editor"/>
                             </page>
                             <page string="Provider Data" name="provider_data">
-                                <field name="provider_data" widget="json"/>
+                                <field name="provider_data" widget="json_editor"/>
                             </page>
                             <page string="Error Details" name="error" invisible="not error_message">
                                 <field name="error_message" widget="text"/>

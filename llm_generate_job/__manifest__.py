@@ -31,6 +31,7 @@ Key Changes:
         "llm_thread",
         "llm_tool",
         "llm_generate",
+        "web_json_editor",
     ],
     "data": [
         "security/ir.model.access.csv",
