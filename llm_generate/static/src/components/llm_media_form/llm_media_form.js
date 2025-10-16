@@ -99,6 +99,8 @@ export class LLMMediaForm extends Component {
 
       if (config.error) {
         this.state.error = config.error;
+      } else {
+        this.state.error = null;
       }
     } catch (error) {
       console.error("Error loading thread configuration:", error);
