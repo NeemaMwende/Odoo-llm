@@ -137,6 +137,33 @@ ruff format . && ruff check . --fix --unsafe-fixes
 pre-commit run --all-files
 ```
 
+### Cherry-Picking Modules from Migration Branch
+
+When you need to restore already-migrated modules from `18.0-migration` to the current working branch:
+
+```bash
+# 1. Check what exists in the migration branch
+git show 18.0-migration:llm_module_name
+
+# 2. Cherry-pick entire module directory
+git checkout 18.0-migration -- llm_module_name
+
+# 3. Stage and commit
+git add llm_module_name
+git commit -m "chore: restore llm_module_name from 18.0-migration branch"
+```
+
+**Example:**
+```bash
+# Restore llm_comfyui and llm_comfy_icu
+git checkout 18.0-migration -- llm_comfyui
+git checkout 18.0-migration -- llm_comfy_icu
+git add llm_comfyui llm_comfy_icu
+git commit -m "chore: restore image generation modules from 18.0-migration"
+```
+
+**Note:** This brings the module as it exists in `18.0-migration` without bringing uncommitted changes from that branch.
+
 ## Migration Progress Tracking
 
 ### ✅ Completed (18.0 Compatible)
