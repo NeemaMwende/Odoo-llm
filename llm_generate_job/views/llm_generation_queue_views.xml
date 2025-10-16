@@ -6,7 +6,7 @@
             <field name="name">llm.generation.queue.tree</field>
             <field name="model">llm.generation.queue</field>
             <field name="arch" type="xml">
-                <tree decoration-success="queue_health == 'healthy'" decoration-warning="queue_health == 'warning'" 
+                <list decoration-success="queue_health == 'healthy'" decoration-warning="queue_health == 'warning'"
                       decoration-danger="queue_health == 'critical'" decoration-muted="queue_health == 'disabled'">
                     <field name="display_name"/>
                     <field name="model_id"/>
@@ -29,11 +29,11 @@
             <field name="arch" type="xml">
                 <form>
                     <header>
-                        <button name="action_enable" string="Enable" type="object" 
-                                attrs="{'invisible': [('enabled', '=', True)]}"
+                        <button name="action_enable" string="Enable" type="object"
+                                invisible="enabled"
                                 class="btn-success"/>
-                        <button name="action_disable" string="Disable" type="object" 
-                                attrs="{'invisible': [('enabled', '=', False)]}"
+                        <button name="action_disable" string="Disable" type="object"
+                                invisible="not enabled"
                                 class="btn-warning"/>
                         <button name="action_process_queue" string="Process Queue" type="object" 
                                 class="btn-primary"/>
@@ -82,7 +82,7 @@
                                 <field name="enabled"/>
                                 <field name="max_concurrent_jobs"/>
                                 <field name="auto_retry_failed"/>
-                                <field name="retry_delay_minutes" attrs="{'invisible': [('auto_retry_failed', '=', False)]}"/>
+                                <field name="retry_delay_minutes" invisible="not auto_retry_failed"/>
                             </group>
                             <group string="Status">
                                 <field name="queue_health"/>
@@ -113,7 +113,7 @@
                                 <!-- Recent jobs preview -->
                                 <group string="Recent Jobs">
                                     <field name="recent_job_ids" domain="[('model_id', '=', model_id)]" readonly="1" nolabel="1">
-                                    <tree decoration-info="state == 'queued'" decoration-warning="state == 'running'" 
+                                    <list decoration-info="state == 'queued'" decoration-warning="state == 'running'"
                                           decoration-success="state == 'completed'" decoration-danger="state == 'failed'">
                                         <field name="display_name"/>
                                         <field name="thread_id"/>
