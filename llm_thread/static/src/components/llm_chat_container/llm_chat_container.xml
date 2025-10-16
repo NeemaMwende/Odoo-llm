@@ -79,9 +79,10 @@
 
                     <!-- Thread area - reuse mail's Thread component -->
                     <div
+            t-ref="threadScrollable"
             class="o-llm-thread-area flex-grow-1 overflow-auto p-3"
           >
-                        <Thread thread="activeThread" order="'asc'" />
+                        <Thread thread="activeThread" order="'asc'" scrollRef="threadScrollableRef" />
                     </div>
 
                     <!-- Streaming indicator -->

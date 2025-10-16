@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState } from "@odoo/owl";
+import { Component, useState, useRef } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { Thread } from "@mail/core/common/thread";
 import { Composer } from "@mail/core/common/composer";
@@ -18,6 +18,9 @@ export class LLMChatContainer extends Component {
     this.llmStore = useState(useService("llm.store"));
     this.mailStore = useState(useService("mail.store"));
     this.action = useService("action");
+
+    // Reference to the scrollable thread container for proper jump-to-present behavior
+    this.threadScrollableRef = useRef("threadScrollable");
 
     // No need for local thread tracking - use mail.store.discuss.thread
   }
