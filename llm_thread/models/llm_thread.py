@@ -457,12 +457,15 @@ class LLMThread(models.Model):
                     "model": "llm.model",
                 }
 
+            # Always include prompt_id (even if False) to ensure it's cleared in frontend
             if thread.prompt_id:
                 thread_data["prompt_id"] = {
                     "id": thread.prompt_id.id,
                     "name": thread.prompt_id.name,
                     "model": "llm.prompt",
                 }
+            else:
+                thread_data["prompt_id"] = False
 
             if thread.tool_ids:
                 thread_data["tool_ids"] = [

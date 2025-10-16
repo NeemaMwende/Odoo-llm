@@ -36,6 +36,11 @@ registerPatch({
       // Handle assistant_id if provided
       if (assistantId !== undefined) {
         additionalValues.assistant_id = assistantId || false;
+
+        // If clearing assistant, also clear prompt_id
+        if (!assistantId) {
+          additionalValues.prompt_id = false;
+        }
       }
 
       // Call super with our additional values

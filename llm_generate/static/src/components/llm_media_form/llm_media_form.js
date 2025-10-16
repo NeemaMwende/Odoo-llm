@@ -55,6 +55,7 @@ export class LLMMediaForm extends Component {
     // Compute schema source when prompt_id changes
     useEffect(
       () => {
+        console.log('[Schema Source] useEffect triggered - prompt_id:', this.thread?.prompt_id, 'assistant_id:', this.thread?.assistant_id);
         this._computeSchemaSource();
       },
       () => [this.thread?.prompt_id, this.thread?.assistant_id, this.state.threadConfig.input_schema, this.llmModel]
