@@ -8,7 +8,10 @@
         >
                     <div>
                         <h5 class="mt-0 mb-0">Generate Media</h5>
-                        <small class="text-muted d-inline-flex align-items-center" t-if="!state.isLoading">
+                        <small
+              class="text-muted d-inline-flex align-items-center"
+              t-if="!state.isLoading"
+            >
                             <i class="fa fa-info-circle me-1" />
                             Schema source: <t t-esc="schemaSource.name" />
                             <span

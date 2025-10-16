@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, onWillStart, onWillDestroy } from "@odoo/owl";
+import { Component, onWillDestroy, onWillStart, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { LLMChatContainer } from "@llm_thread/components/llm_chat_container/llm_chat_container";

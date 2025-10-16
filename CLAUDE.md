@@ -154,6 +154,7 @@ git commit -m "chore: restore llm_module_name from 18.0-migration branch"
 ```
 
 **Example:**
+
 ```bash
 # Restore llm_comfyui and llm_comfy_icu
 git checkout 18.0-migration -- llm_comfyui
@@ -201,10 +202,12 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 #### Text/Chat Provider Modules - COMPLETED ✅
 
 1. **llm_openai** - OpenAI GPT integration
+
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
 
 2. **llm_mistral** - Mistral AI integration
+
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
 
@@ -215,11 +218,13 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 #### Image Generation Providers - COMPLETED ✅
 
 1. **llm_replicate** - Replicate API integration (image generation)
+
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
    - ⚠️ Known issue: API predictions auto-delete after 1 hour (TODO documented)
 
 2. **llm_comfyui** - ComfyUI integration (image workflows)
+
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
 
@@ -230,6 +235,7 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 #### Generation & Content Modules - COMPLETED ✅
 
 1. **llm_generate** - Content generation features
+
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
    - ✅ Media form with JSON editor integration
@@ -242,6 +248,7 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 #### Integration Modules - COMPLETED ✅
 
 1. **llm_mcp_server** - Model Context Protocol server (MCP)
+
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
 
@@ -345,6 +352,7 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 **CRITICAL: Odoo 18 completely replaced the frontend model system!**
 
 #### Odoo 16 Pattern (REMOVED in 18.0):
+
 ```javascript
 // ❌ DON'T USE - This doesn't exist in Odoo 18!
 import { registerModel } from '@mail/model/model_core';
@@ -370,6 +378,7 @@ registerPatch({
 ```
 
 #### Odoo 18 Pattern (NEW - Use This):
+
 ```javascript
 // ✅ USE - ES6 classes extending Record
 import { Record } from "@mail/core/common/record";

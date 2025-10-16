@@ -115,8 +115,7 @@ patch(Thread.prototype, {
       if (msg.llm_role === prevMsg.llm_role) {
         return true; // Different LLM roles should not be squashed
       }
-        return false;
-
+      return false;
     }
 
     // Use original squashing logic for everything else

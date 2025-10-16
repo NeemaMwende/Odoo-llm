@@ -1,8 +1,8 @@
 /** @odoo-module **/
 
+import { Deferred } from "@web/core/utils/concurrency";
 import { reactive } from "@odoo/owl";
 import { registry } from "@web/core/registry";
-import { Deferred } from "@web/core/utils/concurrency";
 
 /**
  * LLM Store Service - Integrates with existing mail.store
@@ -128,7 +128,10 @@ export const llmStoreService = {
             const createdMessage = mailStore.Message.get(data.message.id);
 
             // Add message to the correct thread's messages collection (not the active thread)
-            const createThread = mailStore.Thread.get({ model: "llm.thread", id: threadId });
+            const createThread = mailStore.Thread.get({
+              model: "llm.thread",
+              id: threadId,
+            });
             if (
               createThread &&
               createdMessage &&

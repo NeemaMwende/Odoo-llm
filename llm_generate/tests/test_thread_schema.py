@@ -46,18 +46,20 @@ class TestThreadSchema(TransactionCase):
                 "name": "Test Schema Prompt",
                 "template": "Hello {{name}}, you are {{age}} years old.",
                 "format": "text",
-                "arguments_json": json.dumps({
-                    "name": {
-                        "type": "string",
-                        "default": "John",
-                        "description": "Person's name",
-                    },
-                    "age": {
-                        "type": "integer",
-                        "default": 30,
-                        "description": "Person's age",
-                    },
-                }),
+                "arguments_json": json.dumps(
+                    {
+                        "name": {
+                            "type": "string",
+                            "default": "John",
+                            "description": "Person's name",
+                        },
+                        "age": {
+                            "type": "integer",
+                            "default": 30,
+                            "description": "Person's age",
+                        },
+                    }
+                ),
             }
         )
 
@@ -93,9 +95,7 @@ class TestThreadSchema(TransactionCase):
         thread = self.thread_model.new({"name": "Test Thread"})
 
         # Mock get_context at the class level instead of instance level
-        with patch.object(
-            type(thread), "get_context", return_value={"name": "John"}
-        ):
+        with patch.object(type(thread), "get_context", return_value={"name": "John"}):
             defaults = thread.get_form_defaults()
 
             # Should include context value
@@ -120,15 +120,14 @@ class TestThreadSchema(TransactionCase):
         # Test with None/other types
         result = thread._ensure_dict(None)
         self.assertEqual(result, {})
+
     def test_prepare_generation_inputs_with_prompt(self):
         """Test input preparation with prompt template rendering"""
         thread = self.thread_model.new({"name": "Test Thread"})
         thread.prompt_id = self.test_prompt
 
         # Mock get_context at class level
-        with patch.object(
-            type(thread), "get_context", return_value={"name": "Alice"}
-        ):
+        with patch.object(type(thread), "get_context", return_value={"name": "Alice"}):
             # Test with additional inputs
             inputs = {"age": 25}
 
@@ -174,9 +173,7 @@ class TestThreadSchema(TransactionCase):
         thread.prompt_id = self.test_prompt
 
         # Mock get_context at class level
-        with patch.object(
-            type(thread), "get_context", return_value={"name": "Bob"}
-        ):
+        with patch.object(type(thread), "get_context", return_value={"name": "Bob"}):
             inputs = {"age": 30}
 
             # Mock template rendering to raise an exception

@@ -373,7 +373,7 @@ class LLMPrompt(models.Model):
             )
             raise ValidationError(
                 _("Error parsing %s rendered content: %s") % (self.format, str(e))
-            )
+            ) from e
 
         return messages
 

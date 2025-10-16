@@ -1,6 +1,12 @@
 /** @odoo-module */
 
-import { Component, onMounted, onWillUnmount, useEffect, useRef } from "@odoo/owl";
+import {
+  Component,
+  onMounted,
+  onWillUnmount,
+  useEffect,
+  useRef,
+} from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { standardFieldProps } from "@web/views/fields/standard_field_props";
 

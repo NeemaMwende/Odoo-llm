@@ -176,7 +176,8 @@ export class JsonEditorComponent extends Component {
         this.props.allowSchemaSuggestions !== false &&
         !this.props.autocomplete
       ) {
-        const autocomplete = this.generateAutocompleteOptions();
+        // Generate autocomplete options for future use
+        this.generateAutocompleteOptions();
         // Note: JSONEditor doesn't have a direct method to update autocomplete options
         // A full reinitialize would be needed, which might disrupt user experience
       }
@@ -197,7 +198,7 @@ export class JsonEditorComponent extends Component {
     return {
       filter: "start",
       trigger: "key",
-      getOptions: function (text, path, input, editor) {
+      getOptions: function (text, path, input) {
         // For root level suggestions in an object
         if (path.length === 0 && schema.properties && input === "field") {
           return Object.keys(schema.properties).map((key) => {

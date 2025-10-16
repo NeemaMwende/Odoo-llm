@@ -1,11 +1,9 @@
 /** @odoo-module **/
 
-import { Message } from "@mail/core/common/message";
 import { patch } from "@web/core/utils/patch";
-import { LLMToolMessage } from "../components/llm_tool_message/llm_tool_message";
-
-// Import Message model to patch it
+import { Message } from "@mail/core/common/message";
 import { Message as MessageModel } from "@mail/core/common/message_model";
+import { LLMToolMessage } from "../components/llm_tool_message/llm_tool_message";
 
 /**
  * PATCH 1: Message Component Static Properties

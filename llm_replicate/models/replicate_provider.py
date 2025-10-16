@@ -240,19 +240,19 @@ class LLMProvider(models.Model):
             return None
 
         # Extract filename from URL
-        filename = url.split('/')[-1] or 'generated_content'
+        filename = url.split("/")[-1] or "generated_content"
 
         # Determine content type from file extension
         extension_map = {
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.gif': 'image/gif',
-            '.webp': 'image/webp',
-            '.mp4': 'video/mp4',
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+            ".mp4": "video/mp4",
         }
 
-        content_type = 'application/octet-stream'
+        content_type = "application/octet-stream"
         filename_lower = filename.lower()
         for ext, mime_type in extension_map.items():
             if filename_lower.endswith(ext):
@@ -260,7 +260,7 @@ class LLMProvider(models.Model):
                 break
 
         return {
-            'url': url,
-            'content_type': content_type,
-            'filename': filename,
+            "url": url,
+            "content_type": content_type,
+            "filename": filename,
         }

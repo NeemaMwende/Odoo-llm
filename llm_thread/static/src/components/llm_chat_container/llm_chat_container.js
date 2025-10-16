@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, useRef } from "@odoo/owl";
+import { Component, useRef, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { Thread } from "@mail/core/common/thread";
 import { Composer } from "@mail/core/common/composer";
@@ -85,9 +85,9 @@ export class LLMChatContainer extends Component {
       return `${diffHours}h ago`;
     } else if (diffDays < 7) {
       return `${diffDays}d ago`;
-    } else {
-      return date.toLocaleDateString();
     }
+      return date.toLocaleDateString();
+
   }
 
   /**

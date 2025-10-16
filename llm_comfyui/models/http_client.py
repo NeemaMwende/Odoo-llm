@@ -66,7 +66,7 @@ class ComfyUIClient:
                             _logger.error(
                                 f"Response content: {json.dumps(content, indent=2)}"
                             )
-                        except:
+                        except Exception:
                             # If not JSON, log as text
                             content = e.response.content.decode(
                                 "utf-8", errors="replace"

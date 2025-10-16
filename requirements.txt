@@ -1,8 +1,10 @@
 # generated from manifests external_dependencies
 emoji
+fal_client
 jinja2
+jsonref
 jsonschema
-git+https://github.com/apexive/letta-python.git@f86647abeb09945a67ed19060b8c4bd16a4adb7f
+letta-client
 markdown2
 mcp
 mistralai
@@ -10,3 +12,4 @@ ollama
 openai
 pydantic>=2.0.0
 pyyaml
+replicate

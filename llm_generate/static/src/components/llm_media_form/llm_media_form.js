@@ -3,7 +3,7 @@
 import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor";
 import { LLMFormFieldsView } from "./llm_form_fields_view";
 import { useService } from "@web/core/utils/hooks";
-import { Component, useState, onWillStart, useEffect, useRef } from "@odoo/owl";
+import { Component, onWillStart, useEffect, useRef, useState } from "@odoo/owl";
 
 export class LLMMediaForm extends Component {
   setup() {
@@ -49,7 +49,11 @@ export class LLMMediaForm extends Component {
       () => {
         this._handleContextChange();
       },
-      () => [this.props.threadId, this.thread?.model_id, this.thread?.assistant_id]
+      () => [
+        this.props.threadId,
+        this.thread?.model_id,
+        this.thread?.assistant_id,
+      ]
     );
 
     // Compute schema source when prompt_id changes
@@ -57,7 +61,12 @@ export class LLMMediaForm extends Component {
       () => {
         this._computeSchemaSource();
       },
-      () => [this.thread?.prompt_id, this.thread?.assistant_id, this.state.threadConfig.input_schema, this.llmModel]
+      () => [
+        this.thread?.prompt_id,
+        this.thread?.assistant_id,
+        this.state.threadConfig.input_schema,
+        this.llmModel,
+      ]
     );
   }
 
@@ -92,13 +101,17 @@ export class LLMMediaForm extends Component {
 
     this.state.isLoading = true;
     try {
-      const config = await this.orm.call("llm.thread", "get_generation_form_config", [
-        threadId,
-      ]);
+      const config = await this.orm.call(
+        "llm.thread",
+        "get_generation_form_config",
+        [threadId]
+      );
       this.state.threadConfig = config;
 
       if (config.error) {
         this.state.error = config.error;
+      } else {
+        this.state.error = null;
       }
     } catch (error) {
       console.error("Error loading thread configuration:", error);
@@ -140,7 +153,7 @@ export class LLMMediaForm extends Component {
       return {}; // Return empty object instead of null
     }
 
-    let parsedSchema;
+    let parsedSchema = null;
     if (typeof schema === "string") {
       try {
         parsedSchema = JSON.parse(schema);
@@ -230,7 +243,7 @@ export class LLMMediaForm extends Component {
         const isPromptField = name.toLowerCase() === "prompt";
 
         // Handle enum types
-        let choices;
+        let choices = null;
         let fieldType = fieldDef.type;
 
         if (fieldDef.allOf?.[0]?.enum) {
@@ -284,9 +297,10 @@ export class LLMMediaForm extends Component {
     }
 
     // Check if thread has a prompt_id - if so, schema is from prompt
-    const hasPrompt = !!this.thread?.prompt_id;
-    const hasSchema = this.state.threadConfig.input_schema &&
-                      Object.keys(this.state.threadConfig.input_schema).length > 0;
+    const hasPrompt = Boolean(this.thread?.prompt_id);
+    const hasSchema =
+      this.state.threadConfig.input_schema &&
+      Object.keys(this.state.threadConfig.input_schema).length > 0;
 
     if (hasSchema) {
       if (hasPrompt) {
@@ -374,10 +388,11 @@ export class LLMMediaForm extends Component {
       };
 
       // Call backend method to prepare generation inputs (which handles template rendering)
-      const result = await this.orm.call("llm.thread", "prepare_generation_inputs", [
-        threadId,
-        mergedInputs,
-      ]);
+      const result = await this.orm.call(
+        "llm.thread",
+        "prepare_generation_inputs",
+        [threadId, mergedInputs]
+      );
 
       // Display the result based on its type
       if (typeof result === "string") {
@@ -423,11 +438,9 @@ export class LLMMediaForm extends Component {
       if (!this.state.hasSchemaValidationErrors) {
         this.state.jsonEditorError = null;
       }
-    } else {
+    } else if (!this.state.hasSchemaValidationErrors) {
       // Only set syntax errors if we don't have schema validation errors
-      if (!this.state.hasSchemaValidationErrors) {
-        this.state.jsonEditorError = error || "Invalid JSON format.";
-      }
+      this.state.jsonEditorError = error || "Invalid JSON format.";
     }
   }
 
@@ -473,7 +486,7 @@ export class LLMMediaForm extends Component {
    */
   onInputChange(fieldName, event) {
     const target = event.target;
-    let value;
+    let value = null;
 
     const fieldDef = this.formFields.find((field) => field.name === fieldName);
 
@@ -650,10 +663,10 @@ export class LLMMediaForm extends Component {
           },
         ]);
 
-        // orm.create with array returns array of IDs, extract first element
+        // Orm.create with array returns array of IDs, extract first element
         if (attachmentIds && attachmentIds.length > 0) {
           this.state.attachments.push({
-            id: attachmentIds[0],  // Get first ID from array
+            id: attachmentIds[0], // Get first ID from array
             name: file.name,
             size: file.size,
             mimetype: file.type,
