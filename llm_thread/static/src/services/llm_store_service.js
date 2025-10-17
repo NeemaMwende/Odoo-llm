@@ -123,7 +123,7 @@ export const llmStoreService = {
 
       handleStreamMessage(threadId, data) {
         switch (data.type) {
-          case "message_create":
+          case "message_create": {
             // Handle all messages (user and AI) via EventSource
             mailStore.insert(
               { "mail.message": [data.message] },
@@ -146,6 +146,7 @@ export const llmStoreService = {
               createThread.messages.push(createdMessage);
             }
             break;
+          }
 
           case "message_chunk":
           case "message_update":
