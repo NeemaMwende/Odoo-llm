@@ -401,7 +401,7 @@
     <record id="action_llm_resource" model="ir.actions.act_window">
         <field name="name">Resources</field>
         <field name="res_model">llm.resource</field>
-        <field name="view_mode">kanban,tree,form</field>
+        <field name="view_mode">kanban,list,form</field>
         <field
       name="view_ids"
       eval="[(5, 0, 0),
@@ -455,7 +455,7 @@
     <record id="action_llm_knowledge_document" model="ir.actions.act_window">
         <field name="name">Documents</field>
         <field name="res_model">llm.resource</field>
-        <field name="view_mode">kanban,tree,form</field>
+        <field name="view_mode">kanban,list,form</field>
         <!-- Use the specific views -->
         <field
       name="view_ids"

@@ -8,7 +8,7 @@
             <xpath expr="//field[@name='service']" position="after">
                 <field
           name="pgvector_index_method"
-          attrs="{'invisible': [('service', '!=', 'pgvector')]}"
+          invisible="service != 'pgvector'"
         />
             </xpath>
         </field>
