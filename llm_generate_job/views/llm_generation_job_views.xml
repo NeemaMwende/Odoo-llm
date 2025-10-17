@@ -283,14 +283,14 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-12">
-                                            <i class="fa fa-cube" /> <field
+                                            <i class="fa fa-cube" title="Model" /> <field
                       name="model_id"
                     />
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-12">
-                                            <i class="fa fa-user" /> <field
+                                            <i class="fa fa-user" title="User" /> <field
                       name="user_id"
                     />
                                         </div>
@@ -300,7 +300,7 @@
                   t-if="record.duration.raw_value > 0"
                 >
                                         <div class="col-12">
-                                            <i class="fa fa-clock-o" /> <field
+                                            <i class="fa fa-clock-o" title="Duration" /> <field
                       name="duration"
                       widget="float_time"
                     />
