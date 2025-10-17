@@ -14,12 +14,18 @@ export const llmStoreService = {
   start(env, { orm, "mail.store": mailStore, notification }) {
     const llmStore = reactive({
       // NOTE: Threads are now loaded via standard mail.store, no need for separate Map
-      llmModels: new Map(), // Map<id, LLMModel>
-      llmProviders: new Map(), // Map<id, LLMProvider>
-      llmTools: new Map(), // Map<id, LLMTool>
-      streamingThreads: new Set(), // Set<threadId> currently streaming
-      eventSources: new Map(), // Map<threadId, EventSource>
-      isReady: new Deferred(), // Resolves when LLM data is loaded
+      // Map<id, LLMModel>
+      llmModels: new Map(),
+      // Map<id, LLMProvider>
+      llmProviders: new Map(),
+      // Map<id, LLMTool>
+      llmTools: new Map(),
+      // Set<threadId> currently streaming
+      streamingThreads: new Set(),
+      // Map<threadId, EventSource>
+      eventSources: new Map(),
+      // Resolves when LLM data is loaded
+      isReady: new Deferred(),
 
       // Computed properties - using mailStore as source of truth
       get activeLLMThread() {
@@ -295,8 +301,9 @@ export const llmStoreService = {
       // Refresh threads and select specific thread
       async refreshThreadsAndSelect(threadId) {
         // Use proper fetchData to refresh thread data
+        // Will trigger proper reload of all threads
         await mailStore.fetchData({
-          init_messaging: {}, // Will trigger proper reload of all threads
+          init_messaging: {},
         });
 
         // Wait a moment for threads to be populated
