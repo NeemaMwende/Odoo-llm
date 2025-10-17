@@ -123,7 +123,8 @@ class LLMKnowledgeChunk(models.Model):
         return super().unlink()
 
     @api.model
-    def search(self, args, offset=0, limit=None, order=None, count=False, **kwargs):
+    def search(self, args, offset=0, limit=None, order=None, **kwargs):
+        count = kwargs.pop('count', False)
         vector_search_term = None
         original_args = list(args)  # Keep original args for potential fallback
         search_args = []  # Args to pass to vector store filter or fallback search
@@ -150,12 +151,13 @@ class LLMKnowledgeChunk(models.Model):
 
         can_vector_search = bool(query_vector or vector_search_term)
         if not can_vector_search:
+            if count:
+                return super().search_count(original_args)
             return super().search(
                 original_args,
                 offset=offset,
                 limit=limit,
                 order=order,
-                count=count,
                 **kwargs,
             )
 
@@ -171,12 +173,13 @@ class LLMKnowledgeChunk(models.Model):
             ):
                 collections |= collection
             else:
+                if count:
+                    return super().search_count(original_args)
                 return super().search(
                     original_args,
                     offset=offset,
                     limit=limit,
                     order=order,
-                    count=count,
                     **kwargs,
                 )
         else:
@@ -216,12 +219,13 @@ class LLMKnowledgeChunk(models.Model):
                     )
 
         if not collections:
+            if count:
+                return super().search_count(original_args)
             return super().search(
                 original_args,
                 offset=offset,
                 limit=limit,
                 order=order,
-                count=count,
                 **kwargs,
             )
 
