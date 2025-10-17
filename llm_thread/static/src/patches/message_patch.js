@@ -1,9 +1,9 @@
 /** @odoo-module **/
 
-import { patch } from "@web/core/utils/patch";
+import { LLMToolMessage } from "../components/llm_tool_message/llm_tool_message";
 import { Message } from "@mail/core/common/message";
 import { Message as MessageModel } from "@mail/core/common/message_model";
-import { LLMToolMessage } from "../components/llm_tool_message/llm_tool_message";
+import { patch } from "@web/core/utils/patch";
 
 /**
  * PATCH 1: Message Component Static Properties
@@ -83,6 +83,7 @@ patch(Message.prototype, {
 patch(MessageModel.prototype, {
   /**
    * Override computeIsEmpty for LLM messages with tool calls or body_json
+   * @returns {Boolean} True if message is empty
    */
   computeIsEmpty() {
     // For LLM messages, apply custom logic
