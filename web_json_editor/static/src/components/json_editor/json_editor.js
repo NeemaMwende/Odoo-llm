@@ -1,6 +1,5 @@
 /** @odoo-module */
 
-import { registry } from "@web/core/registry";
 import {
   Component,
   onMounted,
@@ -8,6 +7,7 @@ import {
   useEffect,
   useRef,
 } from "@odoo/owl";
+import { registry } from "@web/core/registry";
 
 /**
  * Generic JSON Editor Component

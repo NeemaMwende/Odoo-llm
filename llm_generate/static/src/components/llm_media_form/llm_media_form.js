@@ -1,9 +1,9 @@
 /** @odoo-module **/
 
+import { Component, onWillStart, useEffect, useRef, useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor";
 import { LLMFormFieldsView } from "./llm_form_fields_view";
-import { useService } from "@web/core/utils/hooks";
-import { Component, onWillStart, useEffect, useRef, useState } from "@odoo/owl";
 
 export class LLMMediaForm extends Component {
   setup() {

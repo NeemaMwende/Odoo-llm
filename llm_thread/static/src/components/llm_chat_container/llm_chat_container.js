@@ -86,8 +86,7 @@ export class LLMChatContainer extends Component {
     } else if (diffDays < 7) {
       return `${diffDays}d ago`;
     }
-      return date.toLocaleDateString();
-
+    return date.toLocaleDateString();
   }
 
   /**

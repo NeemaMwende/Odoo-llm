@@ -93,8 +93,7 @@ export class LLMToolMessage extends Component {
     } else if (this.status === "executing") {
       return "fa-spinner fa-spin text-info";
     }
-      return "fa-clock text-muted";
-
+    return "fa-clock text-muted";
   }
 
   /**
