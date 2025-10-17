@@ -43,44 +43,17 @@ export class LLMChatClientAction extends Component {
 
       const activeId = this.getActiveId(props);
 
-      if (activeId) {
-        if (activeId.startsWith("llm.thread_")) {
-          // Direct LLM thread reference
-          const threadId = parseInt(activeId.split("_")[1], 10);
-
-          // Check if thread exists in loaded threads, if not load user threads first
-          const existingThread = this.mailStore.Thread.get({
-            model: "llm.thread",
-            id: threadId,
-          });
-          if (!existingThread) {
-            // Thread not loaded in init_messaging, might be from another user or not accessible
-            // Load user threads first, then try to select the specific one
-            await this.loadUserThreads();
-
-            // Try again after loading
-            const threadAfterLoad = this.mailStore.Thread.get({
-              model: "llm.thread",
-              id: threadId,
-            });
-            if (!threadAfterLoad) {
-              // Thread not found, fall back to first available thread
-              this.notification.add(
-                "Requested thread not found, showing recent threads",
-                { type: "warning" }
-              );
-              return;
-            }
-          }
-          // Thread exists (either already loaded or after loadUserThreads), select it
-          await this.selectLLMThread(threadId);
-        } else {
-          // Open form to create new LLM thread for the referenced record
-          await this.openCreateThreadForm(props);
-        }
-      } else {
+      if (!activeId) {
         // No specific context, load user's recent threads
         await this.loadUserThreads();
+        return;
+      }
+
+      if (activeId.startsWith("llm.thread_")) {
+        await this.handleThreadSelection(activeId);
+      } else {
+        // Open form to create new LLM thread for the referenced record
+        await this.openCreateThreadForm(props);
       }
     } catch (error) {
       console.error("Error initializing LLM chat:", error);
@@ -99,6 +72,35 @@ export class LLMChatClientAction extends Component {
       props.action.params?.active_id ??
       props.action.context?.default_active_id
     );
+  }
+
+  /**
+   * Handle thread selection from activeId
+   * @param {String} activeId - Active ID string in format "llm.thread_123"
+   */
+  async handleThreadSelection(activeId) {
+    const threadId = parseInt(activeId.split("_")[1], 10);
+    const existingThread = this.mailStore.Thread.get({
+      model: "llm.thread",
+      id: threadId,
+    });
+
+    if (!existingThread) {
+      await this.loadUserThreads();
+      const threadAfterLoad = this.mailStore.Thread.get({
+        model: "llm.thread",
+        id: threadId,
+      });
+      if (!threadAfterLoad) {
+        this.notification.add(
+          "Requested thread not found, showing recent threads",
+          { type: "warning" }
+        );
+        return;
+      }
+    }
+
+    await this.selectLLMThread(threadId);
   }
 
   /**
