@@ -155,21 +155,21 @@
             string="Retrieve"
             type="object"
             class="oe_highlight"
-            states="draft"
+            invisible="state != 'draft'"
           />
                     <button
             name="parse"
             string="Parse"
             type="object"
             class="oe_highlight"
-            states="retrieved"
+            invisible="state != 'retrieved'"
           />
                     <button
             name="chunk"
             string="Chunk"
             type="object"
             class="oe_highlight"
-            states="parsed"
+            invisible="state != 'parsed'"
           />
                     <button
             name="action_embed"
@@ -295,7 +295,7 @@
             >
                             <field
                 name="chunk_ids"
-                context="{'default_resource_id': active_id}"
+                context="{'default_resource_id': id}"
               >
                                 <list>
                                     <field name="sequence" widget="handle" />
@@ -406,7 +406,7 @@
       name="view_ids"
       eval="[(5, 0, 0),
             (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_llm_resource_kanban')}),
-            (0, 0, {'view_mode': 'tree', 'view_id': ref('view_llm_resource_tree')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_llm_resource_tree')}),
             (0, 0, {'view_mode': 'form', 'view_id': ref('view_llm_resource_form')})]"
     />
         <field name="search_view_id" ref="view_llm_resource_search" />
@@ -461,7 +461,7 @@
       name="view_ids"
       eval="[(5, 0, 0),
             (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_llm_resource_document_kanban')}),
-            (0, 0, {'view_mode': 'tree', 'view_id': ref('view_llm_resource_document_tree')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_llm_resource_document_tree')}),
             (0, 0, {'view_mode': 'form', 'view_id': ref('view_llm_resource_form')})]"
     />
         <field name="domain">[('collection_ids', '!=', False)]</field>

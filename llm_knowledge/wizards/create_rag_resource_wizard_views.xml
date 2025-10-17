@@ -10,7 +10,7 @@
             <form string="Create RAG Resources">
                 <field name="state" invisible="1" />
                 <sheet>
-                    <div states="confirm">
+                    <div invisible="state != 'confirm'">
                         <div class="alert alert-info" role="alert">
                             <p><strong
                 >You are about to create RAG resources for <field
@@ -39,7 +39,7 @@
                             </ul>
                         </div>
                     </div>
-                    <div states="done">
+                    <div invisible="state != 'done'">
                         <div class="alert alert-success" role="alert">
                             <p><i
                   class="fa fa-check-circle"
@@ -76,14 +76,14 @@
             string="Create Resources"
             type="object"
             class="btn-primary"
-            attrs="{'invisible': [('state', '=', 'done')]}"
+            invisible="state == 'done'"
           />
                     <button
             name="action_view_resources"
             string="View Resources"
             type="object"
             class="btn-primary"
-            attrs="{'invisible': [('state', '=', 'confirm')]}"
+            invisible="state == 'confirm'"
           />
                     <button
             special="cancel"

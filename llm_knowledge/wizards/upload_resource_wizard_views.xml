@@ -10,7 +10,7 @@
             <form string="Upload RAG Resources">
                 <field name="state" invisible="1" />
                 <sheet>
-                    <div states="confirm">
+                    <div invisible="state != 'confirm'">
                         <div class="alert alert-info" role="alert">
                             <p><strong
                 >Upload resources for RAG processing</strong></p>
@@ -66,7 +66,7 @@ https://example.com/document2.html"
                             </ul>
                         </div>
                     </div>
-                    <div states="done">
+                    <div invisible="state != 'done'">
                         <div class="alert alert-success" role="alert">
                             <p><i
                   class="fa fa-check-circle"
@@ -103,14 +103,14 @@ https://example.com/document2.html"
             string="Upload Resources"
             type="object"
             class="btn-primary"
-            attrs="{'invisible': [('state', '=', 'done')]}"
+            invisible="state == 'done'"
           />
                     <button
             name="action_view_resources"
             string="View Resources"
             type="object"
             class="btn-primary"
-            attrs="{'invisible': [('state', '=', 'confirm')]}"
+            invisible="state == 'confirm'"
           />
                     <button
             special="cancel"
