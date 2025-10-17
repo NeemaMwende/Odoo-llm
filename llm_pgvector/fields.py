@@ -5,6 +5,7 @@ from pgvector import Vector
 from pgvector.psycopg2 import register_vector
 
 from odoo import fields, tools
+from odoo.tools.misc import SENTINEL, Sentinel
 
 _logger = logging.getLogger(__name__)
 
@@ -25,9 +26,8 @@ class PgVector(fields.Field):
         "dimension": None,  # Vector dimensions
     }
 
-    def __init__(self, string=fields.Default, dimension=None, **kwargs):
-        super().__init__(string=string, **kwargs)
-        self.dimension = dimension
+    def __init__(self, string: str | Sentinel = SENTINEL, dimension: int | None = None, **kwargs):
+        super().__init__(string=string, dimension=dimension, **kwargs)
 
     def convert_to_column(self, value, record, values=None, validate=True):
         """Convert Python value to database format using pgvector.Vector."""
