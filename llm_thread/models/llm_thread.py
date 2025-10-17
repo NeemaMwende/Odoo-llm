@@ -148,7 +148,7 @@ class LLMThread(models.Model):
     )
 
     attachment_count = fields.Integer(
-        string="Attachment Count",
+        string="Thread Attachments",
         compute="_compute_attachment_count",
         store=True,
         help="Total number of attachments in this thread",
