@@ -699,7 +699,8 @@ export class LLMMediaForm extends Component {
         // Orm.create with array returns array of IDs, extract first element
         if (attachmentIds && attachmentIds.length > 0) {
           this.state.attachments.push({
-            id: attachmentIds[0], // Get first ID from array
+            // Get first ID from array
+            id: attachmentIds[0],
             name: file.name,
             size: file.size,
             mimetype: file.type,
