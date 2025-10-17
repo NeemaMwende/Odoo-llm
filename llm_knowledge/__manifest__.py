@@ -3,7 +3,7 @@
     "summary": "Retrieval Augmented Generation for LLM with Document Resource Management",
     "description": """
         Implements Retrieval Augmented Generation (chunking and embedding) for the LLM module.
-        
+
         This module consolidates the functionality of both llm_resource and llm_knowledge modules,
         providing a comprehensive solution for document resource management and RAG processing.
 

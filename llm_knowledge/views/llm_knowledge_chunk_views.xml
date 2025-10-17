@@ -107,10 +107,7 @@
                     <group string="Content">
                         <field name="content" readonly="1" nolabel="1" />
                     </group>
-                    <group
-            string="Metadata"
-            invisible="not metadata"
-          >
+                    <group string="Metadata" invisible="not metadata">
                         <field
               name="metadata"
               widget="json_widget"
