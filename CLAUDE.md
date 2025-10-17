@@ -334,6 +334,7 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 The knowledge management system provides RAG (Retrieval-Augmented Generation) capabilities. Modules must be restored in dependency order:
 
 **Dependency Chain:**
+
 ```
 Level 1: llm_store (foundation)
 Level 2: llm_knowledge (core)
@@ -343,15 +344,19 @@ Level 5: llm_tool_knowledge (integration)
 ```
 
 **Restore Order:**
+
 1. **llm_store** - LLM store/marketplace functionality (depends on: llm only)
+
    - Required by llm_knowledge
    - External deps: None
 
 2. **llm_knowledge** - Core knowledge base with chunking and RAG (depends on: llm, llm_store)
+
    - Provides resource management, chunking, embeddings
    - External deps: requests, markdownify, PyMuPDF, numpy
 
 3. **Vector Stores** (can be restored in parallel, all depend on llm_knowledge):
+
    - **llm_pgvector** - PostgreSQL pgvector integration (depends on: llm, llm_knowledge, llm_store)
      - External deps: pgvector, numpy
    - **llm_chroma** - ChromaDB integration (depends on: llm, llm_knowledge, llm_store)
@@ -360,6 +365,7 @@ Level 5: llm_tool_knowledge (integration)
      - External deps: qdrant-client
 
 4. **Knowledge Extensions** (can be restored in parallel):
+
    - **llm_knowledge_automation** - Automated knowledge collection (depends on: llm_knowledge, base_automation)
    - **llm_knowledge_llama** - Llama Index integration (depends on: llm_knowledge)
      - External deps: llama_index, nltk
