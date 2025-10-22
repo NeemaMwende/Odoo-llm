@@ -65,10 +65,7 @@ class LLMKnowledgeChunk(models.Model):
         We store the search term in context and return an always-true domain.
         The actual vector search is handled by the search() method override.
         """
-        _logger.info(f"[Vector Search] _search_embedding called with operator='{operator}', value='{value}'")
-
         # Store search term in context for search() to pick up
-        # Note: This modifies self's environment, which will be used in subsequent calls
         self.env.context = dict(self.env.context, _embedding_search_term=value)
 
         # Return always-true domain (search() will handle the actual filtering)
@@ -141,8 +138,6 @@ class LLMKnowledgeChunk(models.Model):
     @api.model
     def search_fetch(self, domain, field_names, offset=0, limit=None, order=None):
         """Override search_fetch to use our search() method when vector search is involved."""
-        _logger.info(f"[Vector Search] search_fetch() called with domain={domain}")
-
         # Check if this is a vector search (has embedding field in domain or context)
         has_embedding = any(
             isinstance(arg, (list, tuple)) and len(arg) == 3 and arg[0] == "embedding"
@@ -151,7 +146,6 @@ class LLMKnowledgeChunk(models.Model):
         has_context_search = self.env.context.get('_embedding_search_term')
 
         if has_embedding or has_context_search:
-            _logger.info("[Vector Search] search_fetch: Vector search detected, using custom search()")
             # Call our search() override which handles vector search
             records = self.search(domain, offset=offset, limit=limit, order=order)
 
@@ -161,13 +155,11 @@ class LLMKnowledgeChunk(models.Model):
 
             return records
         else:
-            _logger.info("[Vector Search] search_fetch: No vector search, using super()")
             # No vector search, use standard implementation
             return super().search_fetch(domain, field_names, offset=offset, limit=limit, order=order)
 
     @api.model
     def search(self, args, offset=0, limit=None, order=None, **kwargs):
-        _logger.info(f"[Vector Search] search() called with args={args}, kwargs={kwargs}, context={self.env.context.get('_embedding_search_term')}")
         count = kwargs.pop('count', False)
 
         # Check for vector_search_term from kwargs OR context (set by _search_embedding)
@@ -197,7 +189,6 @@ class LLMKnowledgeChunk(models.Model):
 
         can_vector_search = bool(query_vector or vector_search_term)
         if not can_vector_search:
-            _logger.info(f"[Vector Search] No vector search term/vector, falling back to standard search with args={search_args}")
             if count:
                 return super().search_count(search_args)
             return super().search(
@@ -220,7 +211,6 @@ class LLMKnowledgeChunk(models.Model):
             ):
                 collections |= collection
             else:
-                _logger.info(f"[Vector Search] Specific collection {specific_collection_id} not valid, falling back to standard search")
                 if count:
                     return super().search_count(search_args)
                 return super().search(
@@ -240,14 +230,12 @@ class LLMKnowledgeChunk(models.Model):
             collections = self.env["llm.knowledge.collection"].search(domain)
 
         if not collections:
-            _logger.info("[Vector Search] No collections found, returning empty")
             return 0 if count else self.browse([])
 
         model_vector_map = {}
         if vector_search_term and not query_vector:
             embedding_models = collections.mapped("embedding_model_id")
             if not embedding_models:
-                _logger.info("[Vector Search] No embedding models found, falling back to standard search")
                 if count:
                     return super().search_count(search_args)
                 return super().search(
@@ -270,7 +258,6 @@ class LLMKnowledgeChunk(models.Model):
                     )
 
         if not collections:
-            _logger.info("[Vector Search] No valid collections after embedding generation, falling back to standard search")
             if count:
                 return super().search_count(search_args)
             return super().search(
@@ -281,7 +268,6 @@ class LLMKnowledgeChunk(models.Model):
                 **kwargs,
             )
 
-        _logger.info(f"[Vector Search] Proceeding with vector search across {len(collections)} collections")
         return self._vector_search_aggregate(
             collections=collections,
             query_vector=query_vector,
@@ -337,9 +323,9 @@ class LLMKnowledgeChunk(models.Model):
                     offset=0,
                 )
                 for result in results:
-                    aggregated_results.append(
-                        (result.get("score", 0.0), result.get("id"))
-                    )
+                    score = result.get("score", 0.0)
+                    chunk_id = result.get("id")
+                    aggregated_results.append((score, chunk_id))
             except Exception as e:
                 _logger.error(f"Error searching collection {collection.name}: {e}")
                 continue
