@@ -9,6 +9,7 @@
 ### Successfully Migrated Modules
 
 1. **llm_pgvector** ✅
+
    - Fixed Odoo 18 compatibility issues:
      - Changed `fields.Default` → `SENTINEL` pattern for optional parameters
      - Fixed `pre_init_hook(cr)` → `pre_init_hook(env)` signature
@@ -35,11 +36,13 @@ Vector similarity search from the UI searchbar is **not working correctly**. The
 ### What Was Tried (and Reverted)
 
 #### Attempt 1: `_search_embedding()` Method
+
 - Added custom `search='_search_embedding'` to the `embedding` field
 - This method is called by Odoo when searching with `[('embedding', '=', 'search term')]`
 - **Problem**: Led to complex flow with context passing and multiple search() calls
 
 #### Attempt 2: Context-based Order Preservation
+
 - Tried passing `vector_search_ordered_ids` in context from `_vector_search_aggregate()`
 - Tried detecting this in `search()` to re-order results
 - **Problem**: Context doesn't persist when `_search_embedding()` returns a domain and Odoo calls `search()` again
@@ -61,22 +64,26 @@ The current flow is convoluted:
 ## What Needs Investigation
 
 ### Option 1: Remove `_search_embedding()` Entirely
+
 - Keep the `search()` override to handle embedding domains directly
 - Parse the domain in `search()` and do vector search there
 - Don't use the `search` parameter on the field at all
 - **Question**: Will Odoo still allow searching on a non-stored field without a search method?
 
 ### Option 2: Override `_order` Dynamically
+
 - Detect vector search and temporarily change model's `_order` attribute
 - Reset it after search completes
 - **Risk**: Thread safety issues, side effects
 
 ### Option 3: Post-process Results in RPC Layer
+
 - Let search return results in default order
 - Have the controller/RPC endpoint re-order by similarity from context
 - **Downside**: Breaks Odoo's standard search API contract
 
 ### Option 4: Check Odoo Source Code Examples
+
 - Look for other Odoo modules that do custom similarity/scoring searches
 - See how they handle order preservation
 - Example: product search with relevance scores, full-text search modules
@@ -84,12 +91,14 @@ The current flow is convoluted:
 ## Code State After Revert
 
 The `llm.knowledge.chunk` model currently has:
+
 - `embedding` field defined as virtual field (no `search` parameter)
 - `search()` method that handles vector search when it finds embedding domain
 - `_vector_search_aggregate()` helper method
 - Results returned with `similarity_scores` in context
 
 **Missing**:
+
 - No mechanism to preserve similarity-based order when called from UI
 - No `_search_embedding()` method (reverted)
 - No context-based order preservation logic (reverted)
@@ -97,16 +106,19 @@ The `llm.knowledge.chunk` model currently has:
 ## Next Steps (When Resuming)
 
 1. **Research Odoo patterns** for custom-ordered searches
+
    - Check mail module for message relevance ordering
    - Check product/website modules for search ranking
    - Look for similar vector search implementations
 
 2. **Test basic vector search functionality**
+
    - Verify vector search works programmatically: `chunk_obj.search([], query_vector=..., collection_id=...)`
    - Verify it works with embedding term: `chunk_obj.search([('embedding', '=', 'test')])`
    - Check if results contain similarity scores in context
 
 3. **Solve the ordering issue**
+
    - Based on research, implement proper solution
    - Test from UI searchbar
    - Verify results are ordered by similarity

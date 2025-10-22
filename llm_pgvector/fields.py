@@ -26,7 +26,9 @@ class PgVector(fields.Field):
         "dimension": None,  # Vector dimensions
     }
 
-    def __init__(self, string: str | Sentinel = SENTINEL, dimension: int | None = None, **kwargs):
+    def __init__(
+        self, string: str | Sentinel = SENTINEL, dimension: int | None = None, **kwargs
+    ):
         super().__init__(string=string, dimension=dimension, **kwargs)
 
     def convert_to_column(self, value, record, values=None, validate=True):

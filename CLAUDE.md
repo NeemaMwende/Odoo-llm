@@ -346,11 +346,13 @@ Level 5: llm_tool_knowledge (integration)
 **Restore Order:**
 
 1. ✅ **llm_store** - LLM store/marketplace functionality (depends on: llm only)
+
    - ✅ Restored and migrated
    - ✅ Odoo 18 compatible
    - External deps: None
 
 2. ⚠️ **llm_knowledge** - Core knowledge base with chunking and RAG (depends on: llm, llm_store)
+
    - ✅ Restored from 18.0-migration branch
    - ✅ Fixed view migrations (tree→list, attrs, states)
    - ⚠️ **BLOCKER**: Vector search not functional - see [VECTOR_SEARCH_STATUS.md](./VECTOR_SEARCH_STATUS.md)
