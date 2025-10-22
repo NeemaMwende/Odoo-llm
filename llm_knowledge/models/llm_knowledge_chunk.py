@@ -135,17 +135,102 @@ class LLMKnowledgeChunk(models.Model):
         # Proceed with standard deletion
         return super().unlink()
 
-    @api.model
-    def search_fetch(self, domain, field_names, offset=0, limit=None, order=None):
-        """Override search_fetch to use our search() method when vector search is involved."""
-        # Check if this is a vector search (has embedding field in domain or context)
+    def _has_vector_search(self, domain, vector_search_term=None, query_vector=None):
+        """Check if vector search should be performed.
+
+        Args:
+            domain: Search domain
+            vector_search_term: Explicit search term from kwargs
+            query_vector: Pre-computed query vector from kwargs
+
+        Returns:
+            bool: True if vector search should be performed
+        """
         has_embedding = any(
             isinstance(arg, (list, tuple)) and len(arg) == 3 and arg[0] == "embedding"
             for arg in domain
         )
         has_context_search = self.env.context.get('_embedding_search_term')
+        return bool(has_embedding or has_context_search or vector_search_term or query_vector)
 
-        if has_embedding or has_context_search:
+    def _parse_vector_search_domain(self, domain):
+        """Parse domain to extract vector search term and filter out embedding clauses.
+
+        Returns:
+            tuple: (vector_search_term, filtered_domain)
+                - vector_search_term: str or None
+                - filtered_domain: list of domain clauses without embedding
+        """
+        vector_search_term = self.env.context.get('_embedding_search_term')
+        filtered_domain = []
+
+        for arg in domain:
+            if (
+                isinstance(arg, (list, tuple))
+                and len(arg) == 3
+                and arg[0] == "embedding"
+                and isinstance(arg[2], str)
+            ):
+                vector_search_term = arg[2]
+            else:
+                filtered_domain.append(arg)
+
+        return vector_search_term, filtered_domain
+
+    def _get_vector_search_collections(self, vector_search_term, query_vector, collection_id):
+        """Get collections eligible for vector search.
+
+        Returns:
+            llm.knowledge.collection recordset
+        """
+        collections = self.env["llm.knowledge.collection"]
+
+        if collection_id:
+            collection = self.env["llm.knowledge.collection"].browse(collection_id)
+            if (
+                collection.exists()
+                and collection.store_id
+                and (query_vector or collection.embedding_model_id)
+            ):
+                collections |= collection
+        else:
+            domain = [
+                ("active", "=", True),
+                ("store_id", "!=", False),
+            ]
+            if vector_search_term and not query_vector:
+                domain.append(("embedding_model_id", "!=", False))
+            collections = self.env["llm.knowledge.collection"].search(domain)
+
+        return collections
+
+    def _generate_embeddings_for_collections(self, collections, vector_search_term):
+        """Generate embeddings for the search term across collection models.
+
+        Returns:
+            tuple: (model_vector_map, filtered_collections)
+        """
+        model_vector_map = {}
+        embedding_models = collections.mapped("embedding_model_id")
+
+        if not embedding_models:
+            return model_vector_map, collections
+
+        for model in embedding_models:
+            try:
+                model_vector_map[model.id] = model.embedding(vector_search_term.strip())[0]
+            except Exception:
+                # Remove collections using this failed model
+                collections = collections.filtered(
+                    lambda c, failed_model_id=model.id: c.embedding_model_id.id != failed_model_id
+                )
+
+        return model_vector_map, collections
+
+    @api.model
+    def search_fetch(self, domain, field_names, offset=0, limit=None, order=None):
+        """Override search_fetch to use our search() method when vector search is involved."""
+        if self._has_vector_search(domain):
             # Call our search() override which handles vector search
             records = self.search(domain, offset=offset, limit=limit, order=order)
 
@@ -162,20 +247,12 @@ class LLMKnowledgeChunk(models.Model):
     def search(self, args, offset=0, limit=None, order=None, **kwargs):
         count = kwargs.pop('count', False)
 
-        # Check for vector_search_term from kwargs OR context (set by _search_embedding)
-        vector_search_term = kwargs.get('vector_search_term') or self.env.context.get('_embedding_search_term')
+        # Parse domain to extract vector search term and remove embedding clauses
+        vector_search_term, search_args = self._parse_vector_search_domain(args)
 
-        search_args = []  # Args without embedding field, for vector store filter or fallback
-        for arg in args:
-            if (
-                isinstance(arg, (list, tuple))
-                and len(arg) == 3
-                and arg[0] == "embedding"
-                and isinstance(arg[2], str)
-            ):
-                vector_search_term = arg[2]
-            else:
-                search_args.append(arg)
+        # Override with explicit vector_search_term from kwargs if provided
+        if 'vector_search_term' in kwargs:
+            vector_search_term = kwargs['vector_search_term']
 
         query_vector = kwargs.get("query_vector")
         specific_collection_id = kwargs.get("collection_id")
@@ -187,8 +264,7 @@ class LLMKnowledgeChunk(models.Model):
                 )
             )
 
-        can_vector_search = bool(query_vector or vector_search_term)
-        if not can_vector_search:
+        if not self._has_vector_search(args, vector_search_term, query_vector):
             if count:
                 return super().search_count(search_args)
             return super().search(
@@ -199,43 +275,23 @@ class LLMKnowledgeChunk(models.Model):
                 **kwargs,
             )
 
-        collections = self.env["llm.knowledge.collection"]
-        if specific_collection_id:
-            collection = self.env["llm.knowledge.collection"].browse(
-                specific_collection_id
-            )
-            if (
-                collection.exists()
-                and collection.store_id
-                and (query_vector or collection.embedding_model_id)
-            ):
-                collections |= collection
-            else:
-                if count:
-                    return super().search_count(search_args)
-                return super().search(
-                    search_args,
-                    offset=offset,
-                    limit=limit,
-                    order=order,
-                    **kwargs,
-                )
-        else:
-            domain = [
-                ("active", "=", True),
-                ("store_id", "!=", False),
-            ]
-            if vector_search_term and not query_vector:
-                domain.append(("embedding_model_id", "!=", False))
-            collections = self.env["llm.knowledge.collection"].search(domain)
+        # Get eligible collections
+        collections = self._get_vector_search_collections(
+            vector_search_term, query_vector, specific_collection_id
+        )
 
         if not collections:
             return 0 if count else self.browse([])
 
+        # Generate embeddings if needed
         model_vector_map = {}
         if vector_search_term and not query_vector:
-            embedding_models = collections.mapped("embedding_model_id")
-            if not embedding_models:
+            model_vector_map, collections = self._generate_embeddings_for_collections(
+                collections, vector_search_term
+            )
+
+            # If no embeddings generated (no models or all failed), fallback
+            if not model_vector_map or not collections:
                 if count:
                     return super().search_count(search_args)
                 return super().search(
@@ -245,28 +301,6 @@ class LLMKnowledgeChunk(models.Model):
                     order=order,
                     **kwargs,
                 )
-
-            for model in embedding_models:
-                try:
-                    model_vector_map[model.id] = model.embedding(
-                        vector_search_term.strip()
-                    )[0]
-                except Exception:
-                    collections = collections.filtered(
-                        lambda c, failed_model_id=model.id: c.embedding_model_id.id
-                        != failed_model_id
-                    )
-
-        if not collections:
-            if count:
-                return super().search_count(search_args)
-            return super().search(
-                search_args,
-                offset=offset,
-                limit=limit,
-                order=order,
-                **kwargs,
-            )
 
         return self._vector_search_aggregate(
             collections=collections,
