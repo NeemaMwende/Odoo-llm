@@ -10,6 +10,7 @@ _logger = logging.getLogger(__name__)
 class LLMGenerationJob(models.Model):
     _name = "llm.generation.job"
     _description = "LLM Generation Job"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
     _rec_name = "display_name"
 
