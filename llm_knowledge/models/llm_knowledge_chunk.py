@@ -139,6 +139,33 @@ class LLMKnowledgeChunk(models.Model):
         return super().unlink()
 
     @api.model
+    def search_fetch(self, domain, field_names, offset=0, limit=None, order=None):
+        """Override search_fetch to use our search() method when vector search is involved."""
+        _logger.info(f"[Vector Search] search_fetch() called with domain={domain}")
+
+        # Check if this is a vector search (has embedding field in domain or context)
+        has_embedding = any(
+            isinstance(arg, (list, tuple)) and len(arg) == 3 and arg[0] == "embedding"
+            for arg in domain
+        )
+        has_context_search = self.env.context.get('_embedding_search_term')
+
+        if has_embedding or has_context_search:
+            _logger.info("[Vector Search] search_fetch: Vector search detected, using custom search()")
+            # Call our search() override which handles vector search
+            records = self.search(domain, offset=offset, limit=limit, order=order)
+
+            # Fetch the fields
+            if field_names:
+                records.fetch(field_names)
+
+            return records
+        else:
+            _logger.info("[Vector Search] search_fetch: No vector search, using super()")
+            # No vector search, use standard implementation
+            return super().search_fetch(domain, field_names, offset=offset, limit=limit, order=order)
+
+    @api.model
     def search(self, args, offset=0, limit=None, order=None, **kwargs):
         _logger.info(f"[Vector Search] search() called with args={args}, kwargs={kwargs}, context={self.env.context.get('_embedding_search_term')}")
         count = kwargs.pop('count', False)
