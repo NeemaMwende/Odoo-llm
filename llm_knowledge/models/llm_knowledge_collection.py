@@ -296,7 +296,7 @@ class LLMKnowledgeCollection(models.Model):
         self.ensure_one()
         return {
             "name": _("Collection Resources"),
-            "view_mode": "tree,form",
+            "view_mode": "list,form",
             "res_model": "llm.resource",
             "domain": [("id", "in", self.resource_ids.ids)],
             "type": "ir.actions.act_window",
@@ -309,7 +309,7 @@ class LLMKnowledgeCollection(models.Model):
 
         return {
             "name": _("Collection Chunks"),
-            "view_mode": "tree,form",
+            "view_mode": "list,form",
             "res_model": "llm.knowledge.chunk",
             "domain": [("collection_ids", "=", self.id)],
             "type": "ir.actions.act_window",
