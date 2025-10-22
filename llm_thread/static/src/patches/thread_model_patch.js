@@ -9,6 +9,31 @@ import { router } from "@web/core/browser/router";
  */
 patch(Thread.prototype, {
   /**
+   * Update action context with active_id
+   * @param {String} activeId - Active ID to set
+   */
+  _updateActionContext(activeId) {
+    if (
+      !this.store?.action_discuss_id ||
+      !this.store.env?.services?.action?.currentController?.action
+    ) {
+      return;
+    }
+
+    const currentAction =
+      this.store.env.services.action.currentController.action;
+    if (currentAction.id !== this.store.action_discuss_id) {
+      return;
+    }
+
+    // Keep the action stack up to date (used by breadcrumbs).
+    if (!currentAction.context) {
+      currentAction.context = {};
+    }
+    currentAction.context.active_id = activeId;
+  },
+
+  /**
    * Override setActiveURL to handle llm.thread model
    */
   setActiveURL() {
@@ -23,20 +48,7 @@ patch(Thread.prototype, {
         }
 
         // Update action context if available
-        if (
-          this.store?.action_discuss_id &&
-          this.store.env?.services?.action?.currentController?.action
-        ) {
-          const currentAction =
-            this.store.env.services.action.currentController.action;
-          if (currentAction.id === this.store.action_discuss_id) {
-            // Keep the action stack up to date (used by breadcrumbs).
-            if (!currentAction.context) {
-              currentAction.context = {};
-            }
-            currentAction.context.active_id = activeId;
-          }
-        }
+        this._updateActionContext(activeId);
       } catch (error) {
         console.warn("Error updating URL for LLM thread:", error);
         // Continue without failing

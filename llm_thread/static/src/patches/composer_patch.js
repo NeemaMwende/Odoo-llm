@@ -35,8 +35,9 @@ patch(Composer.prototype, {
    * Check if this LLM thread is currently streaming
    */
   get isStreaming() {
+    // Normal mail threads are never "streaming"
     if (!this.isLLMThread || !this.llmStore) {
-      return false; // Normal mail threads are never "streaming"
+      return false;
     }
     return this.llmStore.getStreamingStatus() || false;
   },
@@ -66,6 +67,7 @@ patch(Composer.prototype, {
 
   /**
    * Override onKeydown to handle LLM-specific shortcuts
+   * @param {KeyboardEvent} ev - Keyboard event
    */
   onKeydown(ev) {
     // LLM-specific handling

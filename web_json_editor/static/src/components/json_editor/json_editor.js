@@ -1,6 +1,5 @@
 /** @odoo-module */
 
-import { registry } from "@web/core/registry";
 import {
   Component,
   onMounted,
@@ -8,6 +7,7 @@ import {
   useEffect,
   useRef,
 } from "@odoo/owl";
+import { registry } from "@web/core/registry";
 
 /**
  * Generic JSON Editor Component
@@ -41,7 +41,8 @@ export class JsonEditorComponent extends Component {
           }
         }
       },
-      () => [this.props.value] // Dependency array: rerun effect if props.value changes
+      // Dependency array: rerun effect if props.value changes
+      () => [this.props.value]
     );
 
     // Update editor options when schema changes
@@ -130,19 +131,19 @@ export class JsonEditorComponent extends Component {
             text: textValue,
             validationErrors: errors,
           });
-        } else if (jsonValue !== null) {
-          // Valid JSON, no validation errors
-          this.props.onChange({
-            value: jsonValue,
-            isValid: true,
-            text: textValue,
-          });
-        } else {
+        } else if (jsonValue === null) {
           // No validation errors but invalid JSON
           this.props.onChange({
             value: textValue,
             isValid: false,
             error: "Invalid JSON",
+            text: textValue,
+          });
+        } else {
+          // Valid JSON, no validation errors
+          this.props.onChange({
+            value: jsonValue,
+            isValid: true,
             text: textValue,
           });
         }

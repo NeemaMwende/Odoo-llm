@@ -229,8 +229,16 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
    - ✅ Updated manifests and dependencies
 
 3. **llm_comfy_icu** - ComfyICU integration
+
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
+
+4. **llm_fal_ai** - Fal.ai integration (image generation)
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+   - ✅ Added `should_generate_io_schema` method
+   - ✅ Fixed JSON field parsing for FAL.AI models
+   - ✅ Model details properly loaded from XML data
 
 #### Generation & Content Modules - COMPLETED ✅
 
@@ -241,7 +249,16 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
    - ✅ Media form with JSON editor integration
    - ✅ Collapsible body_json display for debugging
 
-2. **llm_training** - Training dataset management
+2. **llm_generate_job** - Job queue for generation tasks
+
+   - ✅ Migrated to Odoo 18.0
+   - ✅ Updated manifests and dependencies
+   - ✅ Removed deprecated `numbercall` field from cron jobs
+   - ✅ Migrated views from `<tree>` to `<list>` tags
+   - ✅ Converted deprecated `attrs` to direct attributes
+   - ✅ Queue and job management for async generation
+
+3. **llm_training** - Training dataset management
    - ✅ Migrated to Odoo 18.0
    - ✅ Updated manifests and dependencies
 
@@ -275,6 +292,24 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 - ✅ **Body JSON Display**: Added collapsible UI for generation input/output data in user and assistant messages
 - ✅ **UI Alignment**: Fixed vertical alignment of schema source badge with text
 
+#### Code Quality & Linting - COMPLETED ✅
+
+- ✅ **JavaScript ESLint**: Fixed all JavaScript linting warnings across all modules
+  - Fixed import sorting (sort-imports)
+  - Added missing JSDoc documentation (@param, @returns)
+  - Moved inline comments to separate lines (no-inline-comments)
+  - Fixed variable shadowing (no-shadow)
+  - Reduced code complexity by extracting methods (max-depth, complexity)
+  - Fixed negated conditions (no-negated-condition)
+  - Fixed lexical declarations in case blocks (no-case-declarations)
+- ✅ **Python Ruff**: Fixed all Python linting errors
+  - Added exception chaining (B904)
+  - Fixed import ordering (E402)
+  - Replaced bare except clauses (E722)
+  - Removed duplicate definitions (F811)
+  - Renamed unused loop variables (B007)
+- ✅ **XML Linting**: Removed deprecated `<data>` wrapper tags
+
 #### Technical Debt Identified
 
 - 📝 TODO: Fix Replicate file expiration (API predictions deleted after 1 hour) - implement provider hook pattern for downloading outputs
@@ -284,6 +319,7 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 
 - 📚 Added Odoo 18 frontend model system changes to CLAUDE.md (registerModel removal, Record-based pattern)
 - 📚 Documented correct RPC import pattern (`import { rpc }` as standalone function)
+- 📚 Added comprehensive knowledge system dependency analysis and restore order
 
 ### 🚧 In Progress
 
@@ -293,23 +329,64 @@ git commit -m "chore: restore image generation modules from 18.0-migration"
 
 ### ⏳ Remaining Migration Tasks (Not in Current Branch)
 
-#### High Priority (Image Generation Providers)
+#### Knowledge System - NEXT PRIORITY 🎯
 
-- **llm_fal_ai** - Fal.ai integration (image generation)
+The knowledge management system provides RAG (Retrieval-Augmented Generation) capabilities. Modules must be restored in dependency order:
 
-#### Medium Priority (Knowledge & Advanced Features)
+**Dependency Chain:**
 
-- **llm_knowledge** - Knowledge base with chunking and RAG
-- **llm_knowledge_automation** - Automated knowledge collection
-- **llm_generate_job** - Job queue for generation tasks
+```
+Level 1: llm_store (foundation)
+Level 2: llm_knowledge (core)
+Level 3: llm_pgvector, llm_chroma, llm_qdrant (vector stores)
+Level 4: llm_knowledge_automation, llm_knowledge_llama, llm_knowledge_mistral (extensions)
+Level 5: llm_tool_knowledge (integration)
+```
 
-#### Low Priority (Vector Storage & Extensions)
+**Restore Order:**
 
-- **llm_pgvector**, **llm_chroma**, **llm_qdrant** - Vector database integrations
+1. ✅ **llm_store** - LLM store/marketplace functionality (depends on: llm only)
+
+   - ✅ Restored and migrated
+   - ✅ Odoo 18 compatible
+   - External deps: None
+
+2. ⚠️ **llm_knowledge** - Core knowledge base with chunking and RAG (depends on: llm, llm_store)
+
+   - ✅ Restored from 18.0-migration branch
+   - ✅ Fixed view migrations (tree→list, attrs, states)
+   - ⚠️ **BLOCKER**: Vector search not functional - see [VECTOR_SEARCH_STATUS.md](./VECTOR_SEARCH_STATUS.md)
+   - External deps: requests, markdownify, PyMuPDF, numpy
+
+3. **Vector Stores** (can be restored in parallel, all depend on llm_knowledge):
+
+   - ⚠️ **llm_pgvector** - PostgreSQL pgvector integration (depends on: llm, llm_knowledge, llm_store)
+     - ✅ Restored from 18.0-migration branch
+     - ✅ Fixed Odoo 18 compatibility (SENTINEL pattern, pre_init_hook signature)
+     - ✅ PostgreSQL extension working
+     - ⚠️ **BLOCKER**: Vector search functionality pending (llm_knowledge issue)
+     - External deps: pgvector, numpy
+   - **llm_chroma** - ChromaDB integration (depends on: llm, llm_knowledge, llm_store)
+     - External deps: chromadb-client, numpy
+   - **llm_qdrant** - Qdrant vector database (depends on: llm_knowledge, llm_store)
+     - External deps: qdrant-client
+
+4. **Knowledge Extensions** (can be restored in parallel):
+
+   - **llm_knowledge_automation** - Automated knowledge collection (depends on: llm_knowledge, base_automation)
+   - **llm_knowledge_llama** - Llama Index integration (depends on: llm_knowledge)
+     - External deps: llama_index, nltk
+   - **llm_knowledge_mistral** - Mistral embeddings (depends on: llm_knowledge, llm_mistral ✅)
+
+5. **llm_tool_knowledge** - Tool-knowledge integration (depends on: llm_knowledge, llm_tool ✅, llm_assistant ✅)
+   - Provides RAG tools for assistants
+
+#### Low Priority (Other Extensions)
+
 - **llm_document_page** - Document page integration
-- **llm_store** - LLM marketplace functionality
-- **llm_anthropic** - Anthropic Claude integration (needs to be re-added)
-- **llm_litellm** - LiteLLM proxy integration (needs to be re-added)
+- **llm_anthropic** - Anthropic Claude integration
+- **llm_litellm** - LiteLLM proxy integration
+- **llm_mcp** - Model Context Protocol (different from llm_mcp_server which is completed)
 
 ## Future Architecture Improvements
 

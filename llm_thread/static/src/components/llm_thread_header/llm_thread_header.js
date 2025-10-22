@@ -1,9 +1,9 @@
 /** @odoo-module **/
 
 import { Component, useRef, useState } from "@odoo/owl";
-import { useService } from "@web/core/utils/hooks";
 import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
+import { useService } from "@web/core/utils/hooks";
 
 /**
  * Thread Header Component
@@ -202,6 +202,7 @@ export class LLMThreadHeader extends Component {
 
   /**
    * Handle keydown in name input
+   * @param {KeyboardEvent} ev - Keyboard event
    */
   onNameInputKeydown(ev) {
     if (ev.key === "Enter") {
@@ -217,6 +218,7 @@ export class LLMThreadHeader extends Component {
 
   /**
    * Select a provider
+   * @param {Object} provider - Provider object to select
    */
   async selectProvider(provider) {
     if (provider.id === this.currentProvider?.id) return;
@@ -257,6 +259,7 @@ export class LLMThreadHeader extends Component {
 
   /**
    * Select a model
+   * @param {Object} model - Model object to select
    */
   async selectModel(model) {
     if (model.id === this.currentModel?.id) return;
@@ -286,6 +289,7 @@ export class LLMThreadHeader extends Component {
 
   /**
    * Handle model search input
+   * @param {Event} ev - Input event
    */
   onModelSearchInput(ev) {
     this.state.modelSearchQuery = ev.target.value;
@@ -302,14 +306,15 @@ export class LLMThreadHeader extends Component {
 
   /**
    * Toggle tool selection
+   * @param {Object} tool - Tool object to toggle
    */
   async toggleTool(tool) {
     try {
       this.state.isLoadingUpdate = true;
 
       // Get current tool IDs from the active thread
-      const currentToolIds = (this.activeThread.tool_ids || []).map((tool) =>
-        typeof tool === "object" ? tool.id : tool
+      const currentToolIds = (this.activeThread.tool_ids || []).map((t) =>
+        typeof t === "object" ? t.id : t
       );
 
       const newToolIds = currentToolIds.includes(tool.id)
@@ -338,6 +343,8 @@ export class LLMThreadHeader extends Component {
 
   /**
    * Check if a tool is selected
+   * @param {Object} tool - Tool object to check
+   * @returns {Boolean} True if tool is selected
    */
   isToolSelected(tool) {
     if (!this.hasActiveThread) return false;

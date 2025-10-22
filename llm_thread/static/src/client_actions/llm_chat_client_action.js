@@ -1,9 +1,9 @@
 /** @odoo-module **/
 
 import { Component, onWillDestroy, onWillStart, useState } from "@odoo/owl";
+import { LLMChatContainer } from "@llm_thread/components/llm_chat_container/llm_chat_container";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
-import { LLMChatContainer } from "@llm_thread/components/llm_chat_container/llm_chat_container";
 
 /**
  * LLM Chat Client Action - Main entry point for LLM chat functionality
@@ -32,6 +32,7 @@ export class LLMChatClientAction extends Component {
   /**
    * Initialize LLM chat based on action context
    * Similar to how DiscussClientAction handles thread restoration
+   * @param {Object} props - Component props
    */
   async initializeLLMChat(props) {
     try {
@@ -42,47 +43,17 @@ export class LLMChatClientAction extends Component {
 
       const activeId = this.getActiveId(props);
 
-      if (activeId) {
-        if (activeId.startsWith("llm.thread_")) {
-          // Direct LLM thread reference
-          const threadId = parseInt(activeId.split("_")[1]);
-
-          // Check if thread exists in loaded threads, if not load user threads first
-          const existingThread = this.mailStore.Thread.get({
-            model: "llm.thread",
-            id: threadId,
-          });
-          if (!existingThread) {
-            // Thread not loaded in init_messaging, might be from another user or not accessible
-            // Load user threads first, then try to select the specific one
-            await this.loadUserThreads();
-
-            // Try again after loading
-            const threadAfterLoad = this.mailStore.Thread.get({
-              model: "llm.thread",
-              id: threadId,
-            });
-            if (threadAfterLoad) {
-              await this.selectLLMThread(threadId);
-            } else {
-              // Thread not found, fall back to first available thread
-              this.notification.add(
-                "Requested thread not found, showing recent threads",
-                { type: "warning" }
-              );
-              await this.loadUserThreads();
-            }
-          } else {
-            // Thread exists, select it
-            await this.selectLLMThread(threadId);
-          }
-        } else {
-          // Open form to create new LLM thread for the referenced record
-          await this.openCreateThreadForm(props);
-        }
-      } else {
+      if (!activeId) {
         // No specific context, load user's recent threads
         await this.loadUserThreads();
+        return;
+      }
+
+      if (activeId.startsWith("llm.thread_")) {
+        await this.handleThreadSelection(activeId);
+      } else {
+        // Open form to create new LLM thread for the referenced record
+        await this.openCreateThreadForm(props);
       }
     } catch (error) {
       console.error("Error initializing LLM chat:", error);
@@ -92,6 +63,8 @@ export class LLMChatClientAction extends Component {
 
   /**
    * Get active ID from action context, similar to DiscussClientAction
+   * @param {Object} props - Component props
+   * @returns {String|null} Active ID or null
    */
   getActiveId(props) {
     return (
@@ -102,7 +75,37 @@ export class LLMChatClientAction extends Component {
   }
 
   /**
+   * Handle thread selection from activeId
+   * @param {String} activeId - Active ID string in format "llm.thread_123"
+   */
+  async handleThreadSelection(activeId) {
+    const threadId = parseInt(activeId.split("_")[1], 10);
+    const existingThread = this.mailStore.Thread.get({
+      model: "llm.thread",
+      id: threadId,
+    });
+
+    if (!existingThread) {
+      await this.loadUserThreads();
+      const threadAfterLoad = this.mailStore.Thread.get({
+        model: "llm.thread",
+        id: threadId,
+      });
+      if (!threadAfterLoad) {
+        this.notification.add(
+          "Requested thread not found, showing recent threads",
+          { type: "warning" }
+        );
+        return;
+      }
+    }
+
+    await this.selectLLMThread(threadId);
+  }
+
+  /**
    * Select an existing LLM thread - delegates to service
+   * @param {Number} threadId - Thread ID to select
    */
   async selectLLMThread(threadId) {
     // Use the consolidated service method
@@ -111,6 +114,7 @@ export class LLMChatClientAction extends Component {
 
   /**
    * Open llm.thread form to create new thread for a specific record
+   * @param {Object} props - Component props
    */
   async openCreateThreadForm(props) {
     try {

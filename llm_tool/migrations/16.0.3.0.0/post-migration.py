@@ -4,7 +4,7 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
-def migrate(cr, version):
+def migrate(cr, version):  # noqa: C901
     """
     Migration script to convert existing tool messages directly to body_json format.
 

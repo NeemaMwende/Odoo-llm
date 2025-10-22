@@ -1,10 +1,10 @@
 /** @odoo-module **/
 
 import { Component, useRef, useState } from "@odoo/owl";
-import { useService } from "@web/core/utils/hooks";
-import { Thread } from "@mail/core/common/thread";
 import { Composer } from "@mail/core/common/composer";
 import { LLMThreadHeader } from "../llm_thread_header/llm_thread_header";
+import { Thread } from "@mail/core/common/thread";
+import { useService } from "@web/core/utils/hooks";
 
 /**
  * LLM Chat Container - Main container for LLM chat UI
@@ -56,6 +56,7 @@ export class LLMChatContainer extends Component {
 
   /**
    * Select thread - delegates to LLM store service
+   * @param {Number} threadId - Thread ID to select
    */
   async selectThread(threadId) {
     await this.llmStore.selectThread(threadId);
@@ -63,6 +64,8 @@ export class LLMChatContainer extends Component {
 
   /**
    * Check if a thread is currently streaming
+   * @param {Number} threadId - Thread ID to check
+   * @returns {Boolean} True if thread is streaming
    */
   isStreamingThread(threadId) {
     return this.llmStore.isStreamingThread(threadId);
@@ -70,6 +73,8 @@ export class LLMChatContainer extends Component {
 
   /**
    * Format date for display
+   * @param {String} dateString - Date string to format
+   * @returns {String} Formatted date string
    */
   formatDate(dateString) {
     if (!dateString) return "";
@@ -86,8 +91,7 @@ export class LLMChatContainer extends Component {
     } else if (diffDays < 7) {
       return `${diffDays}d ago`;
     }
-      return date.toLocaleDateString();
-
+    return date.toLocaleDateString();
   }
 
   /**
@@ -98,6 +102,7 @@ export class LLMChatContainer extends Component {
   }
 }
 
+// Accept any props (like updateActionState)
 LLMChatContainer.props = {
-  "*": true, // Accept any props (like updateActionState)
+  "*": true,
 };

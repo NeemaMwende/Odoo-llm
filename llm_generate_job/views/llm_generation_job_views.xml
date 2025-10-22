@@ -150,6 +150,7 @@
                             </page>
                         </notebook>
                     </sheet>
+                    <chatter />
                 </form>
             </field>
         </record>
@@ -282,16 +283,18 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-12">
-                                            <i class="fa fa-cube" /> <field
-                      name="model_id"
-                    />
+                                            <i
+                      class="fa fa-cube"
+                      title="Model"
+                    /> <field name="model_id" />
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-12">
-                                            <i class="fa fa-user" /> <field
-                      name="user_id"
-                    />
+                                            <i
+                      class="fa fa-user"
+                      title="User"
+                    /> <field name="user_id" />
                                         </div>
                                     </div>
                                     <div
@@ -299,10 +302,10 @@
                   t-if="record.duration.raw_value > 0"
                 >
                                         <div class="col-12">
-                                            <i class="fa fa-clock-o" /> <field
-                      name="duration"
-                      widget="float_time"
-                    />
+                                            <i
+                      class="fa fa-clock-o"
+                      title="Duration"
+                    /> <field name="duration" widget="float_time" />
                                         </div>
                                     </div>
                                     <div

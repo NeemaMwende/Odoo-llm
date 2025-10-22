@@ -1,8 +1,8 @@
 /** @odoo-module **/
 
-import { patch } from "@web/core/utils/patch";
 import { LLMChatContainer } from "@llm_thread/components/llm_chat_container/llm_chat_container";
 import { LLMMediaForm } from "../components/llm_media_form/llm_media_form";
+import { patch } from "@web/core/utils/patch";
 
 /**
  * Patch LLMChatContainer to check for media generation models

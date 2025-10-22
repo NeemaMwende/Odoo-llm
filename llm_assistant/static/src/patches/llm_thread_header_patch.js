@@ -32,6 +32,7 @@ patch(LLMThreadHeader.prototype, {
 
   /**
    * Select assistant following existing update pattern
+   * @param {Object} assistant - Assistant object to select
    */
   async selectAssistant(assistant) {
     if (!this.assistantStore) return;

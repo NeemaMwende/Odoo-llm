@@ -27,12 +27,13 @@ patch(Message.prototype, {
    */
   get isLLMAssistantGenerationMessage() {
     const message = this.props.message;
+    // Exclude tool calls from generation output display
     return (
       message?.model === "llm.thread" &&
       message?.llm_role === "assistant" &&
       message?.body_json &&
       Object.keys(message.body_json).length > 0 &&
-      !message?.body_json?.tool_calls // Exclude tool calls
+      !message?.body_json?.tool_calls
     );
   },
 
