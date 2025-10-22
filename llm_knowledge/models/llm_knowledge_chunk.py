@@ -45,11 +45,12 @@ class LLMKnowledgeChunk(models.Model):
         related="resource_id.collection_ids",
         store=False,
     )
-    # TODO: Is this only for searching?
+    # Virtual field for vector search input
+    # This field is handled by the search() method override
     embedding = fields.Char(
         string="Embedding",
-        compute=None,
         store=False,
+        search="_search_embedding",
     )
 
     # Virtual field to store similarity score in search results
@@ -57,6 +58,21 @@ class LLMKnowledgeChunk(models.Model):
         string="Similarity Score", store=False, compute="_compute_similarity"
     )
 
+    def _search_embedding(self, operator, value):
+        """Search method for the embedding field.
+
+        This is called by Odoo's domain parser when it encounters an embedding field in the domain.
+        We store the search term in context and return an always-true domain.
+        The actual vector search is handled by the search() method override.
+        """
+        _logger.info(f"[Vector Search] _search_embedding called with operator='{operator}', value='{value}'")
+
+        # Store search term in context for search() to pick up
+        # Note: This modifies self's environment, which will be used in subsequent calls
+        self.env.context = dict(self.env.context, _embedding_search_term=value)
+
+        # Return always-true domain (search() will handle the actual filtering)
+        return [('id', '>', 0)]
     @api.depends("resource_id.name", "sequence")
     def _compute_name(self):
         for chunk in self:
@@ -124,10 +140,13 @@ class LLMKnowledgeChunk(models.Model):
 
     @api.model
     def search(self, args, offset=0, limit=None, order=None, **kwargs):
+        _logger.info(f"[Vector Search] search() called with args={args}, kwargs={kwargs}, context={self.env.context.get('_embedding_search_term')}")
         count = kwargs.pop('count', False)
-        vector_search_term = None
-        original_args = list(args)  # Keep original args for potential fallback
-        search_args = []  # Args to pass to vector store filter or fallback search
+
+        # Check for vector_search_term from kwargs OR context (set by _search_embedding)
+        vector_search_term = kwargs.get('vector_search_term') or self.env.context.get('_embedding_search_term')
+
+        search_args = []  # Args without embedding field, for vector store filter or fallback
         for arg in args:
             if (
                 isinstance(arg, (list, tuple))
@@ -151,10 +170,11 @@ class LLMKnowledgeChunk(models.Model):
 
         can_vector_search = bool(query_vector or vector_search_term)
         if not can_vector_search:
+            _logger.info(f"[Vector Search] No vector search term/vector, falling back to standard search with args={search_args}")
             if count:
-                return super().search_count(original_args)
+                return super().search_count(search_args)
             return super().search(
-                original_args,
+                search_args,
                 offset=offset,
                 limit=limit,
                 order=order,
@@ -173,10 +193,11 @@ class LLMKnowledgeChunk(models.Model):
             ):
                 collections |= collection
             else:
+                _logger.info(f"[Vector Search] Specific collection {specific_collection_id} not valid, falling back to standard search")
                 if count:
-                    return super().search_count(original_args)
+                    return super().search_count(search_args)
                 return super().search(
-                    original_args,
+                    search_args,
                     offset=offset,
                     limit=limit,
                     order=order,
@@ -192,18 +213,21 @@ class LLMKnowledgeChunk(models.Model):
             collections = self.env["llm.knowledge.collection"].search(domain)
 
         if not collections:
+            _logger.info("[Vector Search] No collections found, returning empty")
             return 0 if count else self.browse([])
 
         model_vector_map = {}
         if vector_search_term and not query_vector:
             embedding_models = collections.mapped("embedding_model_id")
             if not embedding_models:
+                _logger.info("[Vector Search] No embedding models found, falling back to standard search")
+                if count:
+                    return super().search_count(search_args)
                 return super().search(
-                    original_args,
+                    search_args,
                     offset=offset,
                     limit=limit,
                     order=order,
-                    count=count,
                     **kwargs,
                 )
 
@@ -219,16 +243,18 @@ class LLMKnowledgeChunk(models.Model):
                     )
 
         if not collections:
+            _logger.info("[Vector Search] No valid collections after embedding generation, falling back to standard search")
             if count:
-                return super().search_count(original_args)
+                return super().search_count(search_args)
             return super().search(
-                original_args,
+                search_args,
                 offset=offset,
                 limit=limit,
                 order=order,
                 **kwargs,
             )
 
+        _logger.info(f"[Vector Search] Proceeding with vector search across {len(collections)} collections")
         return self._vector_search_aggregate(
             collections=collections,
             query_vector=query_vector,
