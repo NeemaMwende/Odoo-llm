@@ -1,3 +1,5 @@
+from markupsafe import Markup
+
 from odoo import models
 
 
@@ -22,6 +24,6 @@ class MailThread(models.AbstractModel):
             body = f"<p><strong>Info:</strong> {message}</p>"
 
         return self.message_post(
-            body=body,
+            body=Markup(body),
             message_type="comment",
         )
