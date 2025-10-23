@@ -351,20 +351,24 @@ Level 5: llm_tool_knowledge (integration)
    - ✅ Odoo 18 compatible
    - External deps: None
 
-2. ⚠️ **llm_knowledge** - Core knowledge base with chunking and RAG (depends on: llm, llm_store)
+2. ✅ **llm_knowledge** - Core knowledge base with chunking and RAG (depends on: llm, llm_store)
 
    - ✅ Restored from 18.0-migration branch
-   - ✅ Fixed view migrations (tree→list, attrs, states)
-   - ⚠️ **BLOCKER**: Vector search not functional - see [VECTOR_SEARCH_STATUS.md](./VECTOR_SEARCH_STATUS.md)
+   - ✅ Fixed view migrations (tree→list, attrs, states, view_mode)
+   - ✅ Vector search fully functional with proper similarity ordering
+   - ✅ Implemented `search_fetch()` override for UI compatibility
+   - ✅ Refactored search logic with DRY helper methods
+   - ✅ Odoo 18 compatible
    - External deps: requests, markdownify, PyMuPDF, numpy
 
 3. **Vector Stores** (can be restored in parallel, all depend on llm_knowledge):
 
-   - ⚠️ **llm_pgvector** - PostgreSQL pgvector integration (depends on: llm, llm_knowledge, llm_store)
+   - ✅ **llm_pgvector** - PostgreSQL pgvector integration (depends on: llm, llm_knowledge, llm_store)
      - ✅ Restored from 18.0-migration branch
      - ✅ Fixed Odoo 18 compatibility (SENTINEL pattern, pre_init_hook signature)
      - ✅ PostgreSQL extension working
-     - ⚠️ **BLOCKER**: Vector search functionality pending (llm_knowledge issue)
+     - ✅ Vector search fully functional
+     - ✅ Odoo 18 compatible
      - External deps: pgvector, numpy
    - **llm_chroma** - ChromaDB integration (depends on: llm, llm_knowledge, llm_store)
      - External deps: chromadb-client, numpy

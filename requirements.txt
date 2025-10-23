@@ -1,5 +1,6 @@
 # generated from manifests external_dependencies
 PyMuPDF
+chromadb-client
 emoji
 fal_client
 jinja2
@@ -16,5 +17,6 @@ openai
 pgvector
 pydantic>=2.0.0
 pyyaml
+qdrant-client
 replicate
 requests
