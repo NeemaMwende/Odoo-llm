@@ -36,9 +36,7 @@
             />
                     </group>
 
-                    <div
-            invisible="not automated_sync"
-          >
+                    <div invisible="not automated_sync">
                         <!-- Display automated actions -->
                         <field name="automation_ids" readonly="1">
                             <list>
