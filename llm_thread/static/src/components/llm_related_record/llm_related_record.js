@@ -185,12 +185,11 @@ export class LLMRelatedRecord extends Component {
                 }
             );
 
-            // Refresh thread data from store to get updated model/res_id
-            await this.mailStore.fetchData({
-                "mail.thread": {
-                    thread_ids: [this.props.thread.id],
-                    model: "llm.thread",
-                },
+            // Update the thread object directly to trigger reactivity
+            // Use the same pattern as thread header for immediate UI updates
+            Object.assign(this.props.thread, {
+                res_model: model,
+                res_id: recordId,
             });
 
             // Reload display name
@@ -242,12 +241,10 @@ export class LLMRelatedRecord extends Component {
                         }
                     );
 
-                    // Refresh thread data from store to get updated model/res_id
-                    await this.mailStore.fetchData({
-                        "mail.thread": {
-                            thread_ids: [this.props.thread.id],
-                            model: "llm.thread",
-                        },
+                    // Update the thread object directly to trigger reactivity
+                    Object.assign(this.props.thread, {
+                        res_model: false,
+                        res_id: false,
                     });
 
                     // Clear display name
