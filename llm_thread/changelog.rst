@@ -1,5 +1,12 @@
+18.0.1.4.0 (2025-10-23)
+~~~~~~~~~~~~~~~~~~~~~~~
 
-16.0.1.3.0 (2025-01-04)
+* [ADD] Related Record component - Link chat threads to any Odoo record
+* [IMP] Service layer architecture for record linking/unlinking
+* [FIX] Field naming collision in store serialization (model vs res_model)
+* [MIGRATION] Replace name_get() with searchRead() for Odoo 18.0 compatibility
+
+18.0.1.3.0 (2025-01-04)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 * [BREAKING] Refactored to use stored llm_role field for maximum efficiency

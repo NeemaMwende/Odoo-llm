@@ -48,6 +48,11 @@
                 </t>
             </div>
 
+            <!-- Related Record Component -->
+            <div class="me-2 flex-shrink-0">
+                <LLMRelatedRecord thread="activeThread" />
+            </div>
+
             <!-- Dropdowns Section -->
             <div class="d-flex align-items-center gap-2">
                 <!-- Loading Indicator -->

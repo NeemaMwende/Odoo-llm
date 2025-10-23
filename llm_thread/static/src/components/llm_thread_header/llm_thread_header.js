@@ -4,6 +4,7 @@ import { Component, useRef, useState } from "@odoo/owl";
 import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
 import { useService } from "@web/core/utils/hooks";
+import { LLMRelatedRecord } from "../llm_related_record/llm_related_record";
 
 /**
  * Thread Header Component
@@ -11,7 +12,7 @@ import { useService } from "@web/core/utils/hooks";
  */
 export class LLMThreadHeader extends Component {
   static template = "llm_thread.LLMThreadHeader";
-  static components = { Dropdown, DropdownItem };
+  static components = { Dropdown, DropdownItem, LLMRelatedRecord };
 
   setup() {
     this.llmStore = useState(useService("llm.store"));

@@ -314,6 +314,70 @@ export const llmStoreService = {
         await this.selectThread(threadId);
       },
 
+      // Link a record to a thread
+      async linkRecordToThread(threadId, model, recordId) {
+        try {
+          // Update database
+          await orm.write("llm.thread", [threadId], {
+            model: model,
+            res_id: recordId,
+          });
+
+          // Update the thread object in mailStore for immediate reactivity
+          const thread = mailStore.Thread.get({
+            model: "llm.thread",
+            id: threadId,
+          });
+
+          if (thread) {
+            Object.assign(thread, {
+              res_model: model,
+              res_id: recordId,
+            });
+          }
+
+          notification.add("Record linked successfully", { type: "success" });
+          return true;
+        } catch (error) {
+          console.error("Error linking record:", error);
+          notification.add("Failed to link record", { type: "danger" });
+          return false;
+        }
+      },
+
+      // Unlink record from a thread
+      async unlinkRecordFromThread(threadId) {
+        try {
+          // Update database
+          await orm.write("llm.thread", [threadId], {
+            model: false,
+            res_id: false,
+          });
+
+          // Update the thread object in mailStore for immediate reactivity
+          const thread = mailStore.Thread.get({
+            model: "llm.thread",
+            id: threadId,
+          });
+
+          if (thread) {
+            Object.assign(thread, {
+              res_model: false,
+              res_id: false,
+            });
+          }
+
+          notification.add("Record unlinked successfully", {
+            type: "success",
+          });
+          return true;
+        } catch (error) {
+          console.error("Error unlinking record:", error);
+          notification.add("Failed to unlink record", { type: "danger" });
+          return false;
+        }
+      },
+
       // Helper methods for components
       isStreamingThread(threadId) {
         return this.streamingThreads.has(threadId);
