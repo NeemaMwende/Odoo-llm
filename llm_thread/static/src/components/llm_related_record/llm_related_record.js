@@ -76,14 +76,15 @@ export class LLMRelatedRecord extends Component {
 
         try {
             this.state.isLoading = true;
-            const result = await this.orm.call(
+            // Use searchRead instead of name_get (removed in Odoo 18.0)
+            const result = await this.orm.searchRead(
                 this.props.thread.res_model,
-                "name_get",
-                [[this.props.thread.res_id]]
+                [["id", "=", this.props.thread.res_id]],
+                ["display_name"]
             );
 
             if (result && result.length > 0) {
-                this.state.relatedRecordDisplayName = result[0][1];
+                this.state.relatedRecordDisplayName = result[0].display_name;
             }
         } catch (error) {
             console.error("Error loading related record display name:", error);
