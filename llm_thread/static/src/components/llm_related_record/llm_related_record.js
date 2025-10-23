@@ -1,10 +1,10 @@
 /** @odoo-module **/
 
 import { Component, onMounted, useState } from "@odoo/owl";
-import { useService } from "@web/core/utils/hooks";
 import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { RecordPickerDialog } from "./llm_record_picker_dialog";
 import { _t } from "@web/core/l10n/translation";
+import { useService } from "@web/core/utils/hooks";
 
 /**
  * Component for linking Odoo records to LLM chat threads
@@ -220,7 +220,6 @@ export class LLMRelatedRecord extends Component {
           this.state.relatedRecordDisplayName = "";
         }
       },
-      cancel: () => {},
     });
   }
 }

@@ -3,8 +3,8 @@
 import { Component, useRef, useState } from "@odoo/owl";
 import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
-import { useService } from "@web/core/utils/hooks";
 import { LLMRelatedRecord } from "../llm_related_record/llm_related_record";
+import { useService } from "@web/core/utils/hooks";
 
 /**
  * Thread Header Component
