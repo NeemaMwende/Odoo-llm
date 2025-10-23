@@ -68,7 +68,7 @@ class LLMProvider(models.Model):
             return self._create_openai_tool_from_schema(schema, tool)
 
         except Exception as e:
-            _logger.error(f"Error formatting tool {tool.name}: {str(e)}")
+            _logger.error(f"Error formatting tool {tool.name}: {str(e)}", exc_info=True)
             schema = {
                 "title": tool.name,
                 "description": tool.description,
