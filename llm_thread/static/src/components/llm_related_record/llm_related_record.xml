@@ -9,7 +9,7 @@
                     <button
             class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 px-2 py-1"
             t-on-click="openRelatedRecord"
-            t-att-title="'Open ' + props.thread.model + ' #' + props.thread.res_id"
+            t-att-title="'Open ' + props.thread.res_model + ' #' + props.thread.res_id"
             style="height: 32px;"
             t-att-disabled="state.isLoading"
           >
@@ -35,7 +35,7 @@
                                 Loading...
                             </t>
                             <t t-else="">
-                                <t t-esc="props.thread.model" /> #<t
+                                <t t-esc="props.thread.res_model" /> #<t
                   t-esc="props.thread.res_id"
                 />
                             </t>

@@ -35,6 +35,7 @@ export class LLMRelatedRecord extends Component {
         this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.ui = useService("ui");
+        this.mailStore = useService("mail.store");
 
         // Load display name on mount
         onMounted(() => this.loadRelatedRecordDisplayName());
@@ -49,7 +50,7 @@ export class LLMRelatedRecord extends Component {
      * @returns {boolean}
      */
     get hasRelatedRecord() {
-        return Boolean(this.props.thread.model && this.props.thread.res_id);
+        return Boolean(this.props.thread.res_model && this.props.thread.res_id);
     }
 
     /**
@@ -76,7 +77,7 @@ export class LLMRelatedRecord extends Component {
         try {
             this.state.isLoading = true;
             const result = await this.orm.call(
-                this.props.thread.model,
+                this.props.thread.res_model,
                 "name_get",
                 [[this.props.thread.res_id]]
             );
@@ -97,7 +98,7 @@ export class LLMRelatedRecord extends Component {
      * @returns {string} Font Awesome icon class
      */
     getRecordIcon() {
-        if (!this.props.thread.model) {
+        if (!this.props.thread.res_model) {
             return "fa-file-o";
         }
 
@@ -120,7 +121,7 @@ export class LLMRelatedRecord extends Component {
             "maintenance.request": "fa-wrench",
         };
 
-        return iconMap[this.props.thread.model] || "fa-file-o";
+        return iconMap[this.props.thread.res_model] || "fa-file-o";
     }
 
     // -------------------------------------------------------------------------
@@ -138,7 +139,7 @@ export class LLMRelatedRecord extends Component {
         try {
             await this.action.doAction({
                 type: "ir.actions.act_window",
-                res_model: this.props.thread.model,
+                res_model: this.props.thread.res_model,
                 res_id: this.props.thread.res_id,
                 views: [[false, "form"]],
                 target: "current",
@@ -183,9 +184,13 @@ export class LLMRelatedRecord extends Component {
                 }
             );
 
-            // Update thread object for immediate UI update
-            this.props.thread.model = model;
-            this.props.thread.res_id = recordId;
+            // Refresh thread data from store to get updated model/res_id
+            await this.mailStore.fetchData({
+                "mail.thread": {
+                    thread_ids: [this.props.thread.id],
+                    model: "llm.thread",
+                },
+            });
 
             // Reload display name
             await this.loadRelatedRecordDisplayName();
@@ -216,7 +221,7 @@ export class LLMRelatedRecord extends Component {
         }
 
         const recordName = this.state.relatedRecordDisplayName ||
-            `${this.props.thread.model} #${this.props.thread.res_id}`;
+            `${this.props.thread.res_model} #${this.props.thread.res_id}`;
 
         this.dialog.add(ConfirmationDialog, {
             title: _t("Unlink Record"),
@@ -236,9 +241,13 @@ export class LLMRelatedRecord extends Component {
                         }
                     );
 
-                    // Update thread object for immediate UI update
-                    this.props.thread.model = false;
-                    this.props.thread.res_id = false;
+                    // Refresh thread data from store to get updated model/res_id
+                    await this.mailStore.fetchData({
+                        "mail.thread": {
+                            thread_ids: [this.props.thread.id],
+                            model: "llm.thread",
+                        },
+                    });
 
                     // Clear display name
                     this.state.relatedRecordDisplayName = "";
