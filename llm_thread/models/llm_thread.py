@@ -442,6 +442,13 @@ class LLMThread(models.Model):
                 "channel_type": "llm_chat",  # Custom type for LLM threads
             }
 
+            # Related record fields (for linking threads to Odoo records)
+            # Use res_model to avoid conflict with "model": "llm.thread"
+            if thread.model:
+                thread_data["res_model"] = thread.model
+            if thread.res_id:
+                thread_data["res_id"] = thread.res_id
+
             # Add LLM-specific fields using proper Store.one/Store.many format
             if thread.provider_id:
                 thread_data["provider_id"] = {

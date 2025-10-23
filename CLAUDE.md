@@ -67,7 +67,9 @@ This is a comprehensive suite of Odoo modules for integrating Large Language Mod
 1. **tree → list**: All `<tree>` tags must be renamed to `<list>`
 2. **attrs → direct attributes**: Convert domain syntax to Python expressions
 3. **states → invisible**: Button states attribute replaced with invisible
-4. **name_get() → \_compute_display_name()**: Display name computation changed
+4. **name_get() REMOVED**: Use `searchRead()` with `display_name` field instead
+   - Backend: `name_get()` method completely removed, use `_compute_display_name()`
+   - Frontend: Replace `orm.call(model, 'name_get', [[id]])` with `orm.searchRead(model, [['id', '=', id]], ['display_name'])`
 5. **message_format() removed**: Use Store system with `_to_store()` method instead
 6. **Registry import**: Use `from odoo.modules.registry import Registry` not `from odoo import registry`
 
