@@ -33,9 +33,8 @@ export class LLMRelatedRecord extends Component {
         this.orm = useService("orm");
         this.action = useService("action");
         this.dialog = useService("dialog");
-        this.notification = useService("notification");
         this.ui = useService("ui");
-        this.mailStore = useService("mail.store");
+        this.llmStore = useState(useService("llm.store"));
 
         // Load display name on mount
         onMounted(() => this.loadRelatedRecordDisplayName());
@@ -175,36 +174,16 @@ export class LLMRelatedRecord extends Component {
      * @param {number} recordId - Record ID
      */
     async linkRecord(model, recordId) {
-        try {
-            await this.orm.write(
-                "llm.thread",
-                [this.props.thread.id],
-                {
-                    model: model,
-                    res_id: recordId,
-                }
-            );
+        // Delegate to llm.store service for business logic
+        const success = await this.llmStore.linkRecordToThread(
+            this.props.thread.id,
+            model,
+            recordId
+        );
 
-            // Update the thread object directly to trigger reactivity
-            // Use the same pattern as thread header for immediate UI updates
-            Object.assign(this.props.thread, {
-                res_model: model,
-                res_id: recordId,
-            });
-
-            // Reload display name
+        if (success) {
+            // Reload display name after successful link
             await this.loadRelatedRecordDisplayName();
-
-            this.notification.add(
-                _t("Record linked successfully"),
-                { type: "success" }
-            );
-        } catch (error) {
-            console.error("Error linking record:", error);
-            this.notification.add(
-                _t("Failed to link record"),
-                { type: "danger" }
-            );
         }
     }
 
@@ -231,35 +210,14 @@ export class LLMRelatedRecord extends Component {
                 recordName
             ),
             confirm: async () => {
-                try {
-                    await this.orm.write(
-                        "llm.thread",
-                        [this.props.thread.id],
-                        {
-                            model: false,
-                            res_id: false,
-                        }
-                    );
+                // Delegate to llm.store service for business logic
+                const success = await this.llmStore.unlinkRecordFromThread(
+                    this.props.thread.id
+                );
 
-                    // Update the thread object directly to trigger reactivity
-                    Object.assign(this.props.thread, {
-                        res_model: false,
-                        res_id: false,
-                    });
-
-                    // Clear display name
+                if (success) {
+                    // Clear display name after successful unlink
                     this.state.relatedRecordDisplayName = "";
-
-                    this.notification.add(
-                        _t("Record unlinked successfully"),
-                        { type: "success" }
-                    );
-                } catch (error) {
-                    console.error("Error unlinking record:", error);
-                    this.notification.add(
-                        _t("Failed to unlink record"),
-                        { type: "danger" }
-                    );
                 }
             },
             cancel: () => {},
