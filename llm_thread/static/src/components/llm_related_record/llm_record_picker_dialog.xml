@@ -27,7 +27,10 @@
                 t-as="model"
                 t-key="model.id"
               >
-                                <option t-att-value="model.model" t-esc="model.name" />
+                                <option
+                  t-att-value="model.model"
+                  t-esc="model.name"
+                />
                             </t>
                         </select>
                     </t>
@@ -60,11 +63,16 @@
                     </div>
 
                     <!-- Search Results -->
-                    <div class="record-results border rounded" style="max-height: 300px; overflow-y: auto;">
+                    <div
+            class="record-results border rounded"
+            style="max-height: 300px; overflow-y: auto;"
+          >
                         <!-- Loading State -->
                         <t t-if="state.isSearching">
                             <div class="text-center p-3 text-muted">
-                                <div class="spinner-border spinner-border-sm me-2" />
+                                <div
+                  class="spinner-border spinner-border-sm me-2"
+                />
                                 Searching...
                             </div>
                         </t>
@@ -83,7 +91,9 @@
                             <div class="text-muted text-center p-3">
                                 <i class="fa fa-search fa-2x mb-2" />
                                 <p class="mb-0">
-                                    No records found for "<t t-esc="state.searchQuery" />"
+                                    No records found for "<t
+                    t-esc="state.searchQuery"
+                  />"
                                 </p>
                             </div>
                         </t>
@@ -103,12 +113,19 @@
                     t-on-click.prevent="() => this.selectRecord(record)"
                   >
                                         <div>
-                                            <div class="fw-medium" t-esc="record.name" />
+                                            <div
+                        class="fw-medium"
+                        t-esc="record.name"
+                      />
                                             <small class="text-muted">
-                                                <t t-esc="record.model" /> #<t t-esc="record.id" />
+                                                <t t-esc="record.model" /> #<t
+                          t-esc="record.id"
+                        />
                                             </small>
                                         </div>
-                                        <i class="fa fa-chevron-right text-muted" />
+                                        <i
+                      class="fa fa-chevron-right text-muted"
+                    />
                                     </a>
                                 </t>
                             </div>
@@ -124,7 +141,10 @@
                     <i class="fa fa-check-circle fa-2x me-3 mt-1" />
                     <div>
                         <h6 class="alert-heading mb-1">Selected Record</h6>
-                        <div class="fw-medium" t-esc="state.selectedRecord.name" />
+                        <div
+              class="fw-medium"
+              t-esc="state.selectedRecord.name"
+            />
                         <small class="text-muted">
                             <t t-esc="state.selectedRecord.model" /> #<t
                 t-esc="state.selectedRecord.id"

@@ -26,6 +26,7 @@ These references check if a thread is an LLM thread and should use `thread.model
 These references access the linked Odoo record and now correctly use `res_model` and `res_id`:
 
 **llm_related_record.js:**
+
 - Line 53: `return Boolean(this.props.thread.res_model && this.props.thread.res_id);`
 - Line 80: `this.props.thread.res_model` (name_get call)
 - Line 82: `[[this.props.thread.res_id]]` (name_get parameter)
@@ -36,13 +37,15 @@ These references access the linked Odoo record and now correctly use `res_model`
 - Line 224: `` `${this.props.thread.res_model} #${this.props.thread.res_id}` `` (display name)
 
 **llm_related_record.xml:**
+
 - Line 12: `'Open ' + props.thread.res_model + ' #' + props.thread.res_id` (button title)
 - Line 38: `t-esc="props.thread.res_model"` (fallback display)
 - Line 39: `t-esc="props.thread.res_id"` (fallback display)
 
 ## Backend Serialization
 
-**llm_thread.py (_thread_to_store method):**
+**llm_thread.py (\_thread_to_store method):**
+
 ```python
 thread_data = {
     "id": thread.id,
@@ -64,13 +67,14 @@ if thread.res_id:
 
 The confusion came from Odoo's naming convention:
 
-| Backend Field | Frontend Key | Purpose |
-|--------------|-------------|---------|
-| `_name` (model's technical name) | `model` | Record type identifier (e.g., "llm.thread") |
-| `model` (Char field) | `res_model` | Related record's model name (e.g., "res.partner") |
-| `res_id` (Many2oneReference) | `res_id` | Related record's ID |
+| Backend Field                    | Frontend Key | Purpose                                           |
+| -------------------------------- | ------------ | ------------------------------------------------- |
+| `_name` (model's technical name) | `model`      | Record type identifier (e.g., "llm.thread")       |
+| `model` (Char field)             | `res_model`  | Related record's model name (e.g., "res.partner") |
+| `res_id` (Many2oneReference)     | `res_id`     | Related record's ID                               |
 
 This matches Odoo's standard pattern in the mail system where:
+
 - `model` = the type of the current record
 - `res_model` + `res_id` = reference to another record
 

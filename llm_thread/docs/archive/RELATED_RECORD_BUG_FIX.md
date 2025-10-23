@@ -3,10 +3,13 @@
 ## Problems Discovered
 
 ### 1. Field Name Collision
+
 After implementing the Related Record component, we discovered that linked record data was not appearing in the frontend, and thread metadata (provider, model, write_date) was not displaying correctly.
 
 ### 2. name_get() Method Removed in Odoo 18.0
+
 When testing the component, we encountered:
+
 ```
 AttributeError: The method 'res.partner.name_get' does not exist
 ```
@@ -31,6 +34,7 @@ if thread.model:
 ```
 
 This caused `"model": "llm.thread"` to be overwritten with the related record model name, breaking:
+
 - Thread list rendering (expects `model: "llm.thread"`)
 - Store lookups (can't find threads by type)
 - All metadata display (provider, model, write_date)
@@ -38,12 +42,11 @@ This caused `"model": "llm.thread"` to be overwritten with the related record mo
 ### Problem 2: name_get() removed in Odoo 18.0
 
 The `name_get()` method was deprecated and removed in Odoo 18.0. The component was calling:
+
 ```javascript
-const result = await this.orm.call(
-    this.props.thread.res_model,
-    "name_get",
-    [[this.props.thread.res_id]]
-);
+const result = await this.orm.call(this.props.thread.res_model, "name_get", [
+  [this.props.thread.res_id],
+]);
 ```
 
 This fails on all models in Odoo 18.0.
@@ -96,29 +99,29 @@ get hasRelatedRecord() {
 Changed the display name loading to use `searchRead()` with `display_name` field:
 
 **Before (Odoo 16.0 pattern):**
+
 ```javascript
-const result = await this.orm.call(
-    this.props.thread.res_model,
-    "name_get",
-    [[this.props.thread.res_id]]
-);
+const result = await this.orm.call(this.props.thread.res_model, "name_get", [
+  [this.props.thread.res_id],
+]);
 
 if (result && result.length > 0) {
-    this.state.relatedRecordDisplayName = result[0][1]; // name_get returns [id, name] tuples
+  this.state.relatedRecordDisplayName = result[0][1]; // name_get returns [id, name] tuples
 }
 ```
 
 **After (Odoo 18.0 pattern):**
+
 ```javascript
 // Use searchRead instead of name_get (removed in Odoo 18.0)
 const result = await this.orm.searchRead(
-    this.props.thread.res_model,
-    [["id", "=", this.props.thread.res_id]],
-    ["display_name"]
+  this.props.thread.res_model,
+  [["id", "=", this.props.thread.res_id]],
+  ["display_name"]
 );
 
 if (result && result.length > 0) {
-    this.state.relatedRecordDisplayName = result[0].display_name;
+  this.state.relatedRecordDisplayName = result[0].display_name;
 }
 ```
 
@@ -131,6 +134,7 @@ if (result && result.length > 0) {
 ## Why res_model?
 
 This follows Odoo's standard pattern in the mail system:
+
 - `model` = the record type identifier (e.g., "llm.thread", "mail.message")
 - `res_model` = the model of a related/linked record
 - `res_id` = the ID of the related/linked record
@@ -142,6 +146,7 @@ See: `odoo/addons/mail/models/mail_thread.py` for examples of this pattern.
 Following proper architectural patterns, we moved the link/unlink logic to `llm_store_service.js`:
 
 **Service Layer (llm_store_service.js):**
+
 ```javascript
 // Link a record to a thread
 async linkRecordToThread(threadId, model, recordId) {
@@ -176,6 +181,7 @@ async linkRecordToThread(threadId, model, recordId) {
 ```
 
 **Component Layer (llm_related_record.js):**
+
 ```javascript
 async linkRecord(model, recordId) {
   // Delegate to llm.store service for business logic
@@ -193,6 +199,7 @@ async linkRecord(model, recordId) {
 ```
 
 **Why this architecture is better:**
+
 - ✅ **Separation of concerns** - Business logic in service, UI logic in component
 - ✅ **Reusability** - Other components can link/unlink records using the same service methods
 - ✅ **Testability** - Service methods can be tested independently
