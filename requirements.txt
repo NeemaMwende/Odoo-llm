@@ -7,10 +7,12 @@ jinja2
 jsonref
 jsonschema
 letta-client
+llama_index
 markdown2
 markdownify
 mcp
 mistralai
+nltk
 numpy
 ollama
 openai
