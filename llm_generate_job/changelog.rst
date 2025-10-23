@@ -1,3 +1,10 @@
+18.0.1.0.0 (2025-10-23)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [MIGRATION] Migrated to Odoo 18.0
+* [FIX] Removed deprecated numbercall field from cron jobs
+* [IMP] Updated views (tree→list, attrs→direct attributes)
+
 16.0.1.0.0 (2025-01-07)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

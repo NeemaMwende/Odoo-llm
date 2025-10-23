@@ -1,3 +1,9 @@
+18.0.3.0.0 (2025-10-23)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [MIGRATION] Migrated to Odoo 18.0
+* [IMP] Updated views and manifest for compatibility
+
 16.0.3.0.0 (2025-07-04)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -1,3 +1,9 @@
+18.0.1.5.0 (2025-10-23)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [MIGRATION] Migrated to Odoo 18.0
+* [IMP] Updated views and OWL components for compatibility
+
 16.0.1.5.0 (2025-07-13)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
