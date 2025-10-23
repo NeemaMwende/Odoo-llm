@@ -37,7 +37,9 @@ class LLMToolKnowledgeRetriever(models.Model):
             )
             # Add or append to collection_id description
             if "properties" in schema and "collection_id" in schema["properties"]:
-                existing_desc = schema["properties"]["collection_id"].get("description", "")
+                existing_desc = schema["properties"]["collection_id"].get(
+                    "description", ""
+                )
                 if existing_desc:
                     schema["properties"]["collection_id"]["description"] = (
                         f"{existing_desc}. Available collections: {collections_description}"
