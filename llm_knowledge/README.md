@@ -4,7 +4,7 @@ Comprehensive knowledge base and RAG (Retrieval Augmented Generation) system wit
 
 ## Overview
 
-The LLM Knowledge module provides a complete solution for building knowledge-driven AI applications in Odoo. **Version 16.0.1.1.0** consolidates functionality from the former `llm_resource` module, combining document resource management with advanced RAG capabilities in a single, cohesive system.
+The LLM Knowledge module provides a complete solution for building knowledge-driven AI applications in Odoo. **Version 18.0.1.1.0** consolidates functionality from the former `llm_resource` module, combining document resource management with advanced RAG capabilities in a single, cohesive system.
 
 ### Core Capabilities
 
@@ -17,7 +17,7 @@ The LLM Knowledge module provides a complete solution for building knowledge-dri
 
 ## Key Features
 
-### Consolidated Architecture (Version 16.0.1.1.0)
+### Consolidated Architecture (Version 18.0.1.1.0)
 
 **Major Consolidation Benefits:**
 
@@ -697,7 +697,7 @@ rag_assistant = env['llm.assistant'].create({
 
 ### From llm_resource Module
 
-**Automatic Migration (Version 16.0.1.1.0):**
+**Automatic Migration (Version 18.0.1.1.0):**
 
 - All `llm_resource` data automatically migrated to `llm_knowledge`
 - Resource processing states preserved
@@ -721,7 +721,7 @@ None - this is a consolidation update with full backward compatibility.
 ### Module Information
 
 - **Name**: LLM Knowledge
-- **Version**: 16.0.1.1.0
+- **Version**: 18.0.1.1.0
 - **Category**: Knowledge Management
 - **License**: LGPL-3
 - **Dependencies**: `llm`, `llm_store`, `mail`

@@ -11,7 +11,7 @@ A Chroma vector store integration for Odoo that enables storing and querying emb
 
 ## Requirements
 
-- Odoo 16.0
+- Odoo 18.0
 - Python dependencies:
   - `chromadb-client`
   - `numpy`
