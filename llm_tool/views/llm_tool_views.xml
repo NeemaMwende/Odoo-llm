@@ -99,6 +99,32 @@
                 >Use this field when you want to override the automatic schema generation or provide a more detailed schema with examples, enums, or other constraints.</p>
                             </div>
                         </page>
+                        <page
+              string="Technical Info"
+              invisible="implementation != 'function'"
+            >
+                            <group>
+                                <field name="decorator_model" readonly="1" />
+                                <field name="decorator_method" readonly="1" />
+                            </group>
+                            <div class="alert alert-info" role="alert">
+                                <p><strong>Function Tool Information:</strong></p>
+                                <p
+                >This tool is automatically linked to a Python method decorated with @llm_tool.</p>
+                                <p
+                >Model: <strong><field
+                    name="decorator_model"
+                    readonly="1"
+                  /></strong></p>
+                                <p
+                >Method: <strong><field
+                    name="decorator_method"
+                    readonly="1"
+                  /></strong></p>
+                                <p
+                >These fields are set during auto-registration and cannot be edited manually.</p>
+                            </div>
+                        </page>
                     </notebook>
                 </sheet>
                 <chatter />
