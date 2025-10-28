@@ -6,7 +6,6 @@ from typing import Any, get_type_hints
 from pydantic import create_model
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -147,14 +146,15 @@ class LLMTool(models.Model):
 
         # Get the model (let KeyError propagate if model doesn't exist)
         model_obj = self.env[self.decorator_model]
+        model_class = type(model_obj)
 
-        # Get the method
-        if not hasattr(model_obj, self.decorator_method):
+        # Get the method from the class (not instance, to avoid recordset issues)
+        if not hasattr(model_class, self.decorator_method):
             raise AttributeError(
                 f"Method {self.decorator_method} not found on model {self.decorator_model}"
             )
 
-        return getattr(model_obj, self.decorator_method)
+        return getattr(model_class, self.decorator_method)
 
     def get_input_schema(self):
         """Get input schema - from stored field or generate from method signature
@@ -170,9 +170,6 @@ class LLMTool(models.Model):
             return json.loads(self.input_schema)
 
         # Generate schema from method signature
-        if not self.implementation:
-            raise ValueError(f"Tool {self.name} has no implementation configured")
-
         method_func = self._get_implementation_method()
 
         # Use MCP SDK's func_metadata to generate proper schema
@@ -186,9 +183,6 @@ class LLMTool(models.Model):
 
     def execute(self, parameters):
         """Execute this tool with validated parameters"""
-        if not self.implementation:
-            raise UserError(_("Tool implementation not configured"))
-
         # Get the actual method to execute
         method = self._get_implementation_method()
 
@@ -416,9 +410,20 @@ class LLMTool(models.Model):
     def action_reset_input_schema(self):
         """Reset the input schema to the implementation schema"""
         for record in self:
-            schema = record.get_input_schema()
-            if schema:
-                record.input_schema = json.dumps(schema, indent=2)
+            # Temporarily clear input_schema to force regeneration
+            old_schema = record.input_schema
+            record.input_schema = False
+            try:
+                schema = record.get_input_schema()
+                if schema:
+                    record.input_schema = json.dumps(schema, indent=2)
+                else:
+                    # If no schema generated, restore old one
+                    record.input_schema = old_schema
+            except Exception:
+                # If regeneration fails, restore old schema and propagate error
+                record.input_schema = old_schema
+                raise
         # Return an action to reload the view
         return {
             "type": "ir.actions.client",
