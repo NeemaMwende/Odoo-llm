@@ -72,11 +72,15 @@ class LLMTool(models.Model):
     # Function implementation fields
     decorator_model = fields.Char(
         string="Decorator Model",
-        help="Model name where the decorated method lives (e.g., 'sale.order')",
+        readonly=True,
+        help="Model name where the decorated method lives (e.g., 'sale.order'). "
+        "Set automatically during registration.",
     )
     decorator_method = fields.Char(
         string="Decorator Method",
-        help="Method name of the decorated tool (e.g., 'create_sales_quote')",
+        readonly=True,
+        help="Method name of the decorated tool (e.g., 'create_sales_quote'). "
+        "Set automatically during registration.",
     )
 
     # User consent
@@ -242,7 +246,7 @@ class LLMTool(models.Model):
                 model = self.env[model_name]
             except Exception as e:
                 # Skip models that can't be accessed (expected for abstract models, etc.)
-                _logger.debug("Skipping inaccessible model '%s': %s", model_name, e)
+                _logger.info("Skipping inaccessible model '%s': %s", model_name, e)
                 continue
 
             # Scan class methods directly to avoid triggering property/descriptor access
@@ -263,7 +267,7 @@ class LLMTool(models.Model):
                         found_tools.add((model_name, attr_name))
                 except Exception as e:
                     # Some attributes may still fail - log and continue
-                    _logger.debug(
+                    _logger.info(
                         "Skipping attribute '%s' on model '%s': %s",
                         attr_name,
                         model_name,
@@ -277,8 +281,8 @@ class LLMTool(models.Model):
     def _register_function_tool(self, model_name, method_name, method):
         """Create or update tool record for decorated method"""
         try:
-            # Search for existing tool record
-            existing = self.search(
+            # Search for existing tool record (including inactive ones)
+            existing = self.with_context(active_test=False).search(
                 [
                     ("decorator_model", "=", model_name),
                     ("decorator_method", "=", method_name),
@@ -292,6 +296,7 @@ class LLMTool(models.Model):
                 "decorator_model": model_name,
                 "decorator_method": method_name,
                 "description": getattr(method, "_llm_tool_description", ""),
+                "active": True,  # Ensure tool is active (reactivate if previously deactivated)
             }
 
             # Add metadata if present
@@ -311,16 +316,27 @@ class LLMTool(models.Model):
 
             if existing:
                 # Only update if auto_update is enabled
-                if existing.auto_update:
+                # Use getattr with default True for upgrade compatibility
+                auto_update = getattr(existing, 'auto_update', True)
+                if auto_update:
+                    was_inactive = not existing.active
                     existing.write(values)
-                    _logger.info(
-                        "Updated function tool '%s' from %s.%s",
-                        values["name"],
-                        model_name,
-                        method_name,
-                    )
+                    if was_inactive:
+                        _logger.info(
+                            "Reactivated function tool '%s' from %s.%s",
+                            values["name"],
+                            model_name,
+                            method_name,
+                        )
+                    else:
+                        _logger.info(
+                            "Updated function tool '%s' from %s.%s",
+                            values["name"],
+                            model_name,
+                            method_name,
+                        )
                 else:
-                    _logger.debug(
+                    _logger.info(
                         "Skipped update for function tool '%s' (auto_update=False)",
                         existing.name,
                     )
@@ -348,10 +364,15 @@ class LLMTool(models.Model):
         Args:
             found_tools: Set of (model_name, method_name) tuples for tools found during scan
         """
-        # Get all active function tools
-        all_function_tools = self.search(
-            [("implementation", "=", "function"), ("active", "=", True)]
-        )
+        try:
+            # Get all active function tools
+            all_function_tools = self.search(
+                [("implementation", "=", "function"), ("active", "=", True)]
+            )
+        except Exception as e:
+            # During module upgrade, database might not be ready yet
+            _logger.info("Skipping tool deactivation during upgrade: %s", e)
+            return
 
         for tool in all_function_tools:
             key = (tool.decorator_model, tool.decorator_method)
