@@ -148,13 +148,14 @@ class LLMTool(models.Model):
         model_obj = self.env[self.decorator_model]
         model_class = type(model_obj)
 
-        # Get the method from the class (not instance, to avoid recordset issues)
+        # Check the method exists on the class
         if not hasattr(model_class, self.decorator_method):
             raise AttributeError(
                 f"Method {self.decorator_method} not found on model {self.decorator_model}"
             )
 
-        return getattr(model_class, self.decorator_method)
+        # Return bound method from the instance (not unbound from class)
+        return getattr(model_obj, self.decorator_method)
 
     def get_input_schema(self):
         """Get input schema - from stored field or generate from method signature
