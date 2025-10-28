@@ -14,14 +14,14 @@ npm install -g mcp-remote
 **2. Get API key from Odoo:**
 - User avatar (top right) → Preferences → Account Security → API Keys → New
 
-**3. Add to Claude config:**
+**3. Add to Claude Desktop config:**
 
 Location: `~/.config/claude_desktop/claude_desktop_config.json` (Linux/macOS) or `%APPDATA%/Claude/claude_desktop_config.json` (Windows)
 
 ```json
 {
   "mcpServers": {
-    "odoo": {
+    "odoo-llm-mcp-server": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
@@ -32,7 +32,29 @@ Location: `~/.config/claude_desktop/claude_desktop_config.json` (Linux/macOS) or
 }
 ```
 
-**4. Restart Claude Desktop** → Ask "What tools do you have?"
+**For Claude Code users:**
+```bash
+claude mcp add-json odoo-llm-mcp-server '{
+  "type": "stdio",
+  "command": "npx",
+  "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
+           "--header", "Authorization: Bearer YOUR_API_KEY"],
+  "env": {"MCP_TRANSPORT": "streamable-http"}
+}'
+```
+
+**For Codex CLI users:**
+
+Add to `~/.codex/config.toml`:
+```toml
+experimental_use_rmcp_client = true
+
+[mcp_servers.odoo-llm-mcp-server]
+url = "http://localhost:8069/mcp"
+http_headers.Authorization = "Bearer YOUR_API_KEY"
+```
+
+**4. Restart Claude Desktop / Codex** → Ask "What tools do you have?"
 
 **That's it!** All your active Odoo tools are now available to Claude.
 
