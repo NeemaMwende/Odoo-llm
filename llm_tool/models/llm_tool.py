@@ -70,7 +70,7 @@ class LLMTool(models.Model):
         help="The specific server action this tool will execute",
     )
 
-    # Decorator implementation fields
+    # Function implementation fields
     decorator_model = fields.Char(
         string="Decorator Model",
         help="Model name where the decorated method lives (e.g., 'sale.order')",
@@ -313,14 +313,11 @@ class LLMTool(models.Model):
         # For function tools, use docstring if no description in DB
         description = self.description
         if self.implementation == "function" and not description:
-            if self.decorator_model and self.decorator_method:
-                try:
-                    model_obj = self.env[self.decorator_model]
-                    if hasattr(model_obj, self.decorator_method):
-                        method = getattr(model_obj, self.decorator_method)
-                        description = inspect.getdoc(method) or ""
-                except KeyError:
-                    pass  # Model not found, use empty description
+            try:
+                method = self._get_decorated_method()
+                description = inspect.getdoc(method) or ""
+            except (ValueError, AttributeError, KeyError):
+                pass  # Could not get method, use empty description
 
         # Get the input schema - either from input_schema field or compute it
         if self.input_schema:
