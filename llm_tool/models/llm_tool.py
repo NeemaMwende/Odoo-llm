@@ -123,44 +123,37 @@ class LLMTool(models.Model):
 
         return create_model("DynamicModel", **fields)
 
-    def get_input_schema(self, method="execute"):
-        """Generate MCP-compatible input schema using MCP SDK"""
+    def _get_decorated_method(self):
+        """Get the actual decorated method for function tools"""
+        self.ensure_one()
+
+        if not self.decorator_model or not self.decorator_method:
+            raise ValueError(
+                f"Function tool {self.name} missing decorator_model or decorator_method"
+            )
+
+        # Get the model (let KeyError propagate if model doesn't exist)
+        model_obj = self.env[self.decorator_model]
+
+        # Get the method
+        if not hasattr(model_obj, self.decorator_method):
+            raise AttributeError(
+                f"Method {self.decorator_method} not found on model {self.decorator_model}"
+            )
+
+        return getattr(model_obj, self.decorator_method)
+
+    def get_input_schema(self):
+        """Generate MCP-compatible input schema using MCP SDK
+
+        This always generates schema from the method signature.
+        Manual schemas from decorators are stored in self.input_schema during registration.
+        """
         if not self.implementation:
             raise ValueError(f"Tool {self.name} has no implementation configured")
 
-        # Special handling for function tools - get schema from actual decorated method
-        if self.implementation == "function":
-            if not self.decorator_model or not self.decorator_method:
-                raise ValueError(
-                    f"Function tool {self.name} missing decorator_model or decorator_method"
-                )
-
-            try:
-                model_obj = self.env[self.decorator_model]
-                if not hasattr(model_obj, self.decorator_method):
-                    raise AttributeError(
-                        f"Method {self.decorator_method} not found on model {self.decorator_model}"
-                    )
-
-                method_func = getattr(model_obj, self.decorator_method)
-
-                # Check if manual schema provided via decorator
-                if hasattr(method_func, "_llm_tool_schema"):
-                    return method_func._llm_tool_schema
-
-            except KeyError as e:
-                raise ValueError(
-                    f"Model {self.decorator_model} not found for function tool {self.name}"
-                ) from e
-        else:
-            # Standard implementations - use {implementation}_execute method
-            impl_method_name = f"{self.implementation}_{method}"
-            if not hasattr(self, impl_method_name):
-                raise AttributeError(
-                    f"Method {impl_method_name} not found for tool {self.name}"
-                )
-
-            method_func = getattr(self, impl_method_name)
+        # Get the actual method to generate schema from
+        method_func = self._get_implementation_method()
 
         # Use MCP SDK's func_metadata to generate proper schema
         from mcp.server.fastmcp.utilities.func_metadata import func_metadata
@@ -191,38 +184,8 @@ class LLMTool(models.Model):
         self.ensure_one()
 
         if self.implementation == "function":
-            # For decorated tools, look up the method on the decorated model
-            if not self.decorator_model or not self.decorator_method:
-                raise UserError(
-                    _(
-                        "Function tool '%(name)s' is missing decorator_model or decorator_method configuration"
-                    )
-                    % {"name": self.name}
-                )
-
-            # Get the model
-            try:
-                model_obj = self.env[self.decorator_model]
-            except KeyError as e:
-                raise UserError(
-                    _("Model '%(model)s' not found for tool '%(name)s'")
-                    % {"model": self.decorator_model, "name": self.name}
-                ) from e
-
-            # Get the method
-            if not hasattr(model_obj, self.decorator_method):
-                raise UserError(
-                    _(
-                        "Method '%(method)s' not found on model '%(model)s' for tool '%(name)s'"
-                    )
-                    % {
-                        "method": self.decorator_method,
-                        "model": self.decorator_model,
-                        "name": self.name,
-                    }
-                )
-
-            method = getattr(model_obj, self.decorator_method)
+            # For decorated tools, get the actual decorated method
+            method = self._get_decorated_method()
 
             # Validate it's actually decorated (optional safety check)
             if not getattr(method, "_is_llm_tool", False):
@@ -311,6 +274,10 @@ class LLMTool(models.Model):
                 values["destructive_hint"] = metadata["destructive_hint"]
             if "open_world_hint" in metadata:
                 values["open_world_hint"] = metadata["open_world_hint"]
+
+            # Store manual schema if provided via decorator
+            if hasattr(method, "_llm_tool_schema"):
+                values["input_schema"] = json.dumps(method._llm_tool_schema, indent=2)
 
             if existing:
                 existing.write(values)
