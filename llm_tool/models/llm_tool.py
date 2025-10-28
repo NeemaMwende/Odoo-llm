@@ -92,6 +92,19 @@ class LLMTool(models.Model):
         help="Set to true if this is a default tool to be included in all LLM requests",
     )
 
+    _sql_constraints = [
+        (
+            "unique_function_tool",
+            "UNIQUE(decorator_model, decorator_method)",
+            "A tool for this model and method combination already exists!",
+        ),
+        (
+            "unique_tool_name",
+            "UNIQUE(name)",
+            "A tool with this name already exists! Tool names must be unique.",
+        ),
+    ]
+
     @api.model
     def _selection_implementation(self):
         """Get all available implementations from tool implementations"""
