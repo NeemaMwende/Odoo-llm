@@ -1,5 +1,7 @@
 """Integration tests for @llm_tool decorator and auto-registration"""
 
+from pydantic import ValidationError
+
 from odoo.tests import TransactionCase, tagged
 
 
@@ -169,7 +171,7 @@ class TestDecoratorRegistration(TransactionCase):
         )
 
         # Missing required parameter should raise validation error
-        with self.assertRaises(Exception):  # Pydantic ValidationError
+        with self.assertRaises(ValidationError):
             tool.execute({"start_date": "2024-01-01"})  # Missing end_date
 
     def test_destructive_hint_metadata(self):

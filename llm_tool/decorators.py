@@ -3,7 +3,6 @@
 import inspect
 import logging
 from functools import wraps
-from typing import get_type_hints
 
 _logger = logging.getLogger(__name__)
 
@@ -131,7 +130,6 @@ def _validate_type_hints(func, tool_name):
         ValueError: If any parameter (except 'self') is missing a type hint
     """
     sig = inspect.signature(func)
-    type_hints = get_type_hints(func)
 
     # Check parameters
     for param_name, param in sig.parameters.items():
