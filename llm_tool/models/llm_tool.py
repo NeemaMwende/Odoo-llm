@@ -218,6 +218,9 @@ class LLMTool(models.Model):
         """Scan for @llm_tool decorated methods and auto-register them"""
         super()._register_hook()
 
+        # Track found tools to deactivate missing ones later
+        found_tools = set()
+
         # Scan all models in registry for decorated methods
         for model_name in self.env.registry:
             try:
@@ -241,6 +244,8 @@ class LLMTool(models.Model):
                     if callable(attr) and getattr(attr, "_is_llm_tool", False):
                         # Found a decorated tool - register it (handles its own errors)
                         self._register_function_tool(model_name, attr_name, attr)
+                        # Track that we found this tool
+                        found_tools.add((model_name, attr_name))
                 except Exception as e:
                     # Some attributes may still fail - log and continue
                     _logger.debug(
@@ -250,6 +255,9 @@ class LLMTool(models.Model):
                         e,
                     )
                     continue
+
+        # Deactivate function tools that no longer exist in code
+        self._deactivate_missing_tools(found_tools)
 
     def _register_function_tool(self, model_name, method_name, method):
         """Create or update tool record for decorated method"""
@@ -311,6 +319,29 @@ class LLMTool(models.Model):
                 e,
                 exc_info=True,
             )
+
+    def _deactivate_missing_tools(self, found_tools):
+        """Deactivate function tools that no longer exist in code
+
+        Args:
+            found_tools: Set of (model_name, method_name) tuples for tools found during scan
+        """
+        # Get all active function tools
+        all_function_tools = self.search(
+            [("implementation", "=", "function"), ("active", "=", True)]
+        )
+
+        for tool in all_function_tools:
+            key = (tool.decorator_model, tool.decorator_method)
+            if key not in found_tools:
+                # Tool no longer exists in code - deactivate it
+                tool.active = False
+                _logger.info(
+                    "Deactivated missing function tool '%s' from %s.%s",
+                    tool.name,
+                    tool.decorator_model,
+                    tool.decorator_method,
+                )
 
     # API methods for the Tool schema
     def get_tool_definition(self):
