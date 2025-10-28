@@ -7,6 +7,7 @@
 * [ADD] Manual Schema Support - Optional manual schema override for methods without type hints
 * [ADD] Tool Metadata - Support for read_only_hint, idempotent_hint, destructive_hint, and open_world_hint annotations
 * [ADD] SQL Constraints - Added unique constraints for tool names and function tool (model, method) combinations
+* [ADD] Auto-update Control - Added auto_update field to control whether decorator changes overwrite manual edits
 * [ADD] Comprehensive Tests - Added 16 unit tests covering decorator functionality, schema generation, and constraints
 * [IMP] Tool Cleanup - Automatic deactivation of stale tools when decorated methods are removed from code
 * [IMP] Schema Reset - Enhanced action_reset_input_schema() to force regeneration from method signatures

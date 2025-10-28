@@ -99,8 +99,15 @@ def get_data(self, id: int) -> dict:
        # Plus any metadata: read_only_hint, idempotent_hint, etc.
    }
    ```
-3. Updates existing records if metadata changed
-4. Logs registration success for debugging
+3. If manual schema provided via `schema=` parameter, stores it in `input_schema` field
+4. Updates existing records if metadata changed (only if `auto_update=True`)
+5. Logs registration success for debugging
+
+**Note on `auto_update` field:**
+- New tools default to `auto_update=True` - decorator changes automatically applied
+- Set to `False` in UI to manually manage a tool's metadata
+- Useful when testing: change decorator → restart → see changes (with `auto_update=True`)
+- Useful for customization: set `auto_update=False` → edit in UI → changes persist
 
 ## Why Use This?
 
