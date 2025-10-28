@@ -176,70 +176,72 @@ class LLMTool(models.Model):
         if not self.implementation:
             raise UserError(_("Tool implementation not configured"))
 
-        impl_method_name = f"{self.implementation}_execute"
-        if not hasattr(self, impl_method_name):
-            raise NotImplementedError(
-                _("Method execute not implemented for implementation %s")
-                % self.implementation
-            )
+        # Get the actual method to execute
+        method = self._get_implementation_method()
 
-        method = getattr(self, impl_method_name)
-
+        # Validate parameters against method signature
         model = self.get_pydantic_model_from_signature(method)
         validated = model(**parameters)
-        validated_dict = validated.model_dump()
-        return method(**validated_dict)
 
-    def function_execute(self, **kwargs):
-        """Execute a function tool by looking up model + method"""
+        # Execute the method
+        return method(**validated.model_dump())
+
+    def _get_implementation_method(self):
+        """Get the actual method for this tool's implementation"""
         self.ensure_one()
 
-        if not self.decorator_model or not self.decorator_method:
-            raise UserError(
-                _(
-                    "Function tool '%(name)s' is missing decorator_model or decorator_method configuration"
+        if self.implementation == "function":
+            # For decorated tools, look up the method on the decorated model
+            if not self.decorator_model or not self.decorator_method:
+                raise UserError(
+                    _(
+                        "Function tool '%(name)s' is missing decorator_model or decorator_method configuration"
+                    )
+                    % {"name": self.name}
                 )
-                % {"name": self.name}
-            )
 
-        # Step 1: Get the model
-        try:
-            model_obj = self.env[self.decorator_model]
-        except KeyError as e:
-            raise UserError(
-                _("Model '%(model)s' not found for tool '%(name)s'")
-                % {"model": self.decorator_model, "name": self.name}
-            ) from e
+            # Get the model
+            try:
+                model_obj = self.env[self.decorator_model]
+            except KeyError as e:
+                raise UserError(
+                    _("Model '%(model)s' not found for tool '%(name)s'")
+                    % {"model": self.decorator_model, "name": self.name}
+                ) from e
 
-        # Step 2: Get the method
-        if not hasattr(model_obj, self.decorator_method):
-            raise UserError(
-                _(
-                    "Method '%(method)s' not found on model '%(model)s' for tool '%(name)s'"
+            # Get the method
+            if not hasattr(model_obj, self.decorator_method):
+                raise UserError(
+                    _(
+                        "Method '%(method)s' not found on model '%(model)s' for tool '%(name)s'"
+                    )
+                    % {
+                        "method": self.decorator_method,
+                        "model": self.decorator_model,
+                        "name": self.name,
+                    }
                 )
-                % {
-                    "method": self.decorator_method,
-                    "model": self.decorator_model,
-                    "name": self.name,
-                }
-            )
 
-        method = getattr(model_obj, self.decorator_method)
+            method = getattr(model_obj, self.decorator_method)
 
-        # Step 3: Validate it's actually decorated (optional safety check)
-        if not getattr(method, "_is_llm_tool", False):
-            _logger.warning(
-                "Method '%s' on model '%s' is not decorated with @llm_tool",
-                self.decorator_method,
-                self.decorator_model,
-            )
+            # Validate it's actually decorated (optional safety check)
+            if not getattr(method, "_is_llm_tool", False):
+                _logger.warning(
+                    "Method '%s' on model '%s' is not decorated with @llm_tool",
+                    self.decorator_method,
+                    self.decorator_model,
+                )
 
-        # Step 4: Validate parameters using Pydantic
-        pydantic_model = self.get_pydantic_model_from_signature(method)
-        validated = pydantic_model(**kwargs)
-
-        # Step 5: Execute the method
-        return method(**validated.model_dump())
+            return method
+        else:
+            # For other future implementations, use {implementation}_execute pattern
+            impl_method_name = f"{self.implementation}_execute"
+            if not hasattr(self, impl_method_name):
+                raise NotImplementedError(
+                    _("Implementation method %(method)s not found")
+                    % {"method": impl_method_name}
+                )
+            return getattr(self, impl_method_name)
 
     @api.model
     def _register_hook(self):
