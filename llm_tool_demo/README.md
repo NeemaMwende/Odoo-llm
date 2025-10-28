@@ -368,8 +368,8 @@ return {
 
 ```python
 # In odoo shell
-tool_model = env['llm.tool.demo']
-result = tool_model.get_system_info()
+users_model = env['res.users']
+result = users_model.get_system_info()
 print(result)
 ```
 
