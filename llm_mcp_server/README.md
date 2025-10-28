@@ -34,7 +34,7 @@ Location: `~/.config/claude_desktop/claude_desktop_config.json` (Linux/macOS) or
 
 **4. Restart Claude Desktop** → Ask "What tools do you have?"
 
-**That's it!** All your llm.tools are now available to Claude.
+**That's it!** All your active Odoo tools are now available to Claude.
 
 **✅ Works with:** Claude Desktop • Letta Agents • Any MCP client
 
