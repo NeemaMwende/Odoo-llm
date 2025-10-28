@@ -39,6 +39,10 @@
                             <field name="active" />
                             <field name="requires_user_consent" />
                             <field
+                name="auto_update"
+                invisible="implementation != 'function'"
+              />
+                            <field
                 name="server_action_id"
                 invisible="implementation != 'server_action'"
                 required="implementation == 'server_action'"

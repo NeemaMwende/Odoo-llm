@@ -91,6 +91,13 @@ class LLMTool(models.Model):
         help="Set to true if this is a default tool to be included in all LLM requests",
     )
 
+    # Auto-update flag for function tools
+    auto_update = fields.Boolean(
+        default=True,
+        help="If true, tool metadata will be automatically updated from decorator on Odoo restart. "
+        "Set to false to manually manage this tool's configuration.",
+    )
+
     _sql_constraints = [
         (
             "unique_function_tool",
@@ -303,13 +310,20 @@ class LLMTool(models.Model):
                 values["input_schema"] = json.dumps(method._llm_tool_schema, indent=2)
 
             if existing:
-                existing.write(values)
-                _logger.info(
-                    "Updated function tool '%s' from %s.%s",
-                    values["name"],
-                    model_name,
-                    method_name,
-                )
+                # Only update if auto_update is enabled
+                if existing.auto_update:
+                    existing.write(values)
+                    _logger.info(
+                        "Updated function tool '%s' from %s.%s",
+                        values["name"],
+                        model_name,
+                        method_name,
+                    )
+                else:
+                    _logger.debug(
+                        "Skipped update for function tool '%s' (auto_update=False)",
+                        existing.name,
+                    )
             else:
                 self.create(values)
                 _logger.info(
