@@ -144,15 +144,22 @@ class LLMTool(models.Model):
         return getattr(model_obj, self.decorator_method)
 
     def get_input_schema(self):
-        """Generate MCP-compatible input schema using MCP SDK
+        """Get input schema - from stored field or generate from method signature
 
-        This always generates schema from the method signature.
-        Manual schemas from decorators are stored in self.input_schema during registration.
+        Returns the tool's input schema. Priority:
+        1. Use self.input_schema if set (manual override or stored from decorator)
+        2. Generate from method signature using MCP SDK
         """
+        self.ensure_one()
+
+        # If schema is stored in DB, use it
+        if self.input_schema:
+            return json.loads(self.input_schema)
+
+        # Generate schema from method signature
         if not self.implementation:
             raise ValueError(f"Tool {self.name} has no implementation configured")
 
-        # Get the actual method to generate schema from
         method_func = self._get_implementation_method()
 
         # Use MCP SDK's func_metadata to generate proper schema
@@ -319,16 +326,8 @@ class LLMTool(models.Model):
             except (ValueError, AttributeError, KeyError):
                 pass  # Could not get method, use empty description
 
-        # Get the input schema - either from input_schema field or compute it
-        if self.input_schema:
-            try:
-                input_schema_data = json.loads(self.input_schema)
-            except (json.JSONDecodeError, TypeError):
-                # If we can't parse the stored schema, generate it from method signature
-                input_schema_data = self.get_input_schema()
-        else:
-            # Generate schema from method signature using MCP SDK
-            input_schema_data = self.get_input_schema()
+        # Get the input schema (respects stored field or generates)
+        input_schema_data = self.get_input_schema()
 
         # Create MCP ToolAnnotations (only with non-None values)
         from mcp.types import Tool, ToolAnnotations
