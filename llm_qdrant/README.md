@@ -19,6 +19,7 @@ Qdrant vector database integration for high-performance semantic search.
 ## Configuration
 
 Set up Qdrant server connection in knowledge base settings:
+
 - Host
 - Port
 - API key (if required)

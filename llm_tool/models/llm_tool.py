@@ -6,7 +6,6 @@ from typing import Any, get_type_hints
 from pydantic import create_model
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -70,6 +69,20 @@ class LLMTool(models.Model):
         help="The specific server action this tool will execute",
     )
 
+    # Function implementation fields
+    decorator_model = fields.Char(
+        string="Decorator Model",
+        readonly=True,
+        help="Model name where the decorated method lives (e.g., 'sale.order'). "
+        "Set automatically during registration.",
+    )
+    decorator_method = fields.Char(
+        string="Decorator Method",
+        readonly=True,
+        help="Method name of the decorated tool (e.g., 'create_sales_quote'). "
+        "Set automatically during registration.",
+    )
+
     # User consent
     requires_user_consent = fields.Boolean(
         default=False,
@@ -82,6 +95,26 @@ class LLMTool(models.Model):
         help="Set to true if this is a default tool to be included in all LLM requests",
     )
 
+    # Auto-update flag for function tools
+    auto_update = fields.Boolean(
+        default=True,
+        help="If true, tool metadata will be automatically updated from decorator on Odoo restart. "
+        "Set to false to manually manage this tool's configuration.",
+    )
+
+    _sql_constraints = [
+        (
+            "unique_function_tool",
+            "UNIQUE(decorator_model, decorator_method)",
+            "A tool for this model and method combination already exists!",
+        ),
+        (
+            "unique_tool_name",
+            "UNIQUE(name)",
+            "A tool with this name already exists! Tool names must be unique.",
+        ),
+    ]
+
     @api.model
     def _selection_implementation(self):
         """Get all available implementations from tool implementations"""
@@ -93,7 +126,9 @@ class LLMTool(models.Model):
     @api.model
     def _get_available_implementations(self):
         """Hook method for registering tool services"""
-        return []
+        return [
+            ("function", "Function"),
+        ]
 
     def get_pydantic_model_from_signature(self, method):
         """Create a Pydantic model from a method signature"""
@@ -111,18 +146,43 @@ class LLMTool(models.Model):
 
         return create_model("DynamicModel", **fields)
 
-    def get_input_schema(self, method="execute"):
-        """Generate MCP-compatible input schema using MCP SDK"""
-        if not self.implementation:
-            raise ValueError(f"Tool {self.name} has no implementation configured")
+    def _get_decorated_method(self):
+        """Get the actual decorated method for function tools"""
+        self.ensure_one()
 
-        impl_method_name = f"{self.implementation}_{method}"
-        if not hasattr(self, impl_method_name):
-            raise AttributeError(
-                f"Method {impl_method_name} not found for tool {self.name}"
+        if not self.decorator_model or not self.decorator_method:
+            raise ValueError(
+                f"Function tool {self.name} missing decorator_model or decorator_method"
             )
 
-        method_func = getattr(self, impl_method_name)
+        # Get the model (let KeyError propagate if model doesn't exist)
+        model_obj = self.env[self.decorator_model]
+        model_class = type(model_obj)
+
+        # Check the method exists on the class
+        if not hasattr(model_class, self.decorator_method):
+            raise AttributeError(
+                f"Method {self.decorator_method} not found on model {self.decorator_model}"
+            )
+
+        # Return bound method from the instance (not unbound from class)
+        return getattr(model_obj, self.decorator_method)
+
+    def get_input_schema(self):
+        """Get input schema - from stored field or generate from method signature
+
+        Returns the tool's input schema. Priority:
+        1. Use self.input_schema if set (manual override or stored from decorator)
+        2. Generate from method signature using MCP SDK
+        """
+        self.ensure_one()
+
+        # If schema is stored in DB, use it
+        if self.input_schema:
+            return json.loads(self.input_schema)
+
+        # Generate schema from method signature
+        method_func = self._get_implementation_method()
 
         # Use MCP SDK's func_metadata to generate proper schema
         from mcp.server.fastmcp.utilities.func_metadata import func_metadata
@@ -135,38 +195,213 @@ class LLMTool(models.Model):
 
     def execute(self, parameters):
         """Execute this tool with validated parameters"""
-        if not self.implementation:
-            raise UserError(_("Tool implementation not configured"))
+        # Get the actual method to execute
+        method = self._get_implementation_method()
 
-        impl_method_name = f"{self.implementation}_execute"
-        if not hasattr(self, impl_method_name):
-            raise NotImplementedError(
-                _("Method execute not implemented for implementation %s")
-                % self.implementation
-            )
-
-        method = getattr(self, impl_method_name)
-
+        # Validate parameters against method signature
         model = self.get_pydantic_model_from_signature(method)
         validated = model(**parameters)
-        validated_dict = validated.model_dump()
-        return method(**validated_dict)
+
+        # Execute the method
+        return method(**validated.model_dump())
+
+    def _get_implementation_method(self):
+        """Get the actual method for this tool's implementation"""
+        self.ensure_one()
+
+        if self.implementation == "function":
+            # For decorated tools, get the actual decorated method
+            method = self._get_decorated_method()
+
+            # Validate it's actually decorated (optional safety check)
+            if not getattr(method, "_is_llm_tool", False):
+                _logger.warning(
+                    "Method '%s' on model '%s' is not decorated with @llm_tool",
+                    self.decorator_method,
+                    self.decorator_model,
+                )
+
+            return method
+        else:
+            # For other future implementations, use {implementation}_execute pattern
+            impl_method_name = f"{self.implementation}_execute"
+            if not hasattr(self, impl_method_name):
+                raise NotImplementedError(
+                    _("Implementation method %(method)s not found")
+                    % {"method": impl_method_name}
+                )
+            return getattr(self, impl_method_name)
+
+    @api.model
+    def _register_hook(self):
+        """Scan for @llm_tool decorated methods and auto-register them"""
+        super()._register_hook()
+
+        # Track found tools to deactivate missing ones later
+        found_tools = set()
+
+        # Scan all models in registry for decorated methods
+        for model_name in self.env.registry:
+            try:
+                model = self.env[model_name]
+            except Exception as e:
+                # Skip models that can't be accessed (expected for abstract models, etc.)
+                _logger.info("Skipping inaccessible model '%s': %s", model_name, e)
+                continue
+
+            # Scan class methods directly to avoid triggering property/descriptor access
+            # Using type(model) gets the class, avoiding recordset-specific attributes
+            model_class = type(model)
+            for attr_name in dir(model_class):
+                # Skip private attributes and known problematic ones
+                if attr_name.startswith("_"):
+                    continue
+
+                try:
+                    # Get attribute from class, not instance
+                    attr = getattr(model_class, attr_name, None)
+                    if callable(attr) and getattr(attr, "_is_llm_tool", False):
+                        # Found a decorated tool - register it (handles its own errors)
+                        self._register_function_tool(model_name, attr_name, attr)
+                        # Track that we found this tool
+                        found_tools.add((model_name, attr_name))
+                except Exception as e:
+                    # Some attributes may still fail - log and continue
+                    _logger.info(
+                        "Skipping attribute '%s' on model '%s': %s",
+                        attr_name,
+                        model_name,
+                        e,
+                    )
+                    continue
+
+        # Deactivate function tools that no longer exist in code
+        self._deactivate_missing_tools(found_tools)
+
+    def _register_function_tool(self, model_name, method_name, method):
+        """Create or update tool record for decorated method"""
+        try:
+            # Search for existing tool record (including inactive ones)
+            existing = self.with_context(active_test=False).search(
+                [
+                    ("decorator_model", "=", model_name),
+                    ("decorator_method", "=", method_name),
+                ]
+            )
+
+            # Prepare values from decorator metadata
+            values = {
+                "name": getattr(method, "_llm_tool_name", method_name),
+                "implementation": "function",
+                "decorator_model": model_name,
+                "decorator_method": method_name,
+                "description": getattr(method, "_llm_tool_description", ""),
+                "active": True,  # Ensure tool is active (reactivate if previously deactivated)
+            }
+
+            # Add metadata if present
+            metadata = getattr(method, "_llm_tool_metadata", {})
+            if "read_only_hint" in metadata:
+                values["read_only_hint"] = metadata["read_only_hint"]
+            if "idempotent_hint" in metadata:
+                values["idempotent_hint"] = metadata["idempotent_hint"]
+            if "destructive_hint" in metadata:
+                values["destructive_hint"] = metadata["destructive_hint"]
+            if "open_world_hint" in metadata:
+                values["open_world_hint"] = metadata["open_world_hint"]
+
+            # Store manual schema if provided via decorator
+            if hasattr(method, "_llm_tool_schema"):
+                values["input_schema"] = json.dumps(method._llm_tool_schema, indent=2)
+
+            if existing:
+                # Only update if auto_update is enabled
+                # Use getattr with default True for upgrade compatibility
+                auto_update = getattr(existing, "auto_update", True)
+                if auto_update:
+                    was_inactive = not existing.active
+                    existing.write(values)
+                    if was_inactive:
+                        _logger.info(
+                            "Reactivated function tool '%s' from %s.%s",
+                            values["name"],
+                            model_name,
+                            method_name,
+                        )
+                    else:
+                        _logger.info(
+                            "Updated function tool '%s' from %s.%s",
+                            values["name"],
+                            model_name,
+                            method_name,
+                        )
+                else:
+                    _logger.info(
+                        "Skipped update for function tool '%s' (auto_update=False)",
+                        existing.name,
+                    )
+            else:
+                self.create(values)
+                _logger.info(
+                    "Registered function tool '%s' from %s.%s",
+                    values["name"],
+                    model_name,
+                    method_name,
+                )
+        except Exception as e:
+            # Log error but don't break batch registration
+            _logger.error(
+                "Failed to register function tool %s.%s: %s",
+                model_name,
+                method_name,
+                e,
+                exc_info=True,
+            )
+
+    def _deactivate_missing_tools(self, found_tools):
+        """Deactivate function tools that no longer exist in code
+
+        Args:
+            found_tools: Set of (model_name, method_name) tuples for tools found during scan
+        """
+        try:
+            # Get all active function tools
+            all_function_tools = self.search(
+                [("implementation", "=", "function"), ("active", "=", True)]
+            )
+        except Exception as e:
+            # During module upgrade, database might not be ready yet
+            _logger.info("Skipping tool deactivation during upgrade: %s", e)
+            return
+
+        for tool in all_function_tools:
+            key = (tool.decorator_model, tool.decorator_method)
+            if key not in found_tools:
+                # Tool no longer exists in code - deactivate it
+                tool.active = False
+                _logger.info(
+                    "Deactivated missing function tool '%s' from %s.%s",
+                    tool.name,
+                    tool.decorator_model,
+                    tool.decorator_method,
+                )
 
     # API methods for the Tool schema
     def get_tool_definition(self):
         """Returns MCP-compatible tool definition"""
         self.ensure_one()
 
-        # Get the input schema - either from input_schema field or compute it
-        if self.input_schema:
+        # For function tools, use docstring if no description in DB
+        description = self.description
+        if self.implementation == "function" and not description:
             try:
-                input_schema_data = json.loads(self.input_schema)
-            except (json.JSONDecodeError, TypeError):
-                # If we can't parse the stored schema, generate it from method signature
-                input_schema_data = self.get_input_schema()
-        else:
-            # Generate schema from method signature using MCP SDK
-            input_schema_data = self.get_input_schema()
+                method = self._get_decorated_method()
+                description = inspect.getdoc(method) or ""
+            except (ValueError, AttributeError, KeyError):
+                pass  # Could not get method, use empty description
+
+        # Get the input schema (respects stored field or generates)
+        input_schema_data = self.get_input_schema()
 
         # Create MCP ToolAnnotations (only with non-None values)
         from mcp.types import Tool, ToolAnnotations
@@ -211,9 +446,20 @@ class LLMTool(models.Model):
     def action_reset_input_schema(self):
         """Reset the input schema to the implementation schema"""
         for record in self:
-            schema = record.get_input_schema()
-            if schema:
-                record.input_schema = json.dumps(schema, indent=2)
+            # Temporarily clear input_schema to force regeneration
+            old_schema = record.input_schema
+            record.input_schema = False
+            try:
+                schema = record.get_input_schema()
+                if schema:
+                    record.input_schema = json.dumps(schema, indent=2)
+                else:
+                    # If no schema generated, restore old one
+                    record.input_schema = old_schema
+            except Exception:
+                # If regeneration fails, restore old schema and propagate error
+                record.input_schema = old_schema
+                raise
         # Return an action to reload the view
         return {
             "type": "ir.actions.client",

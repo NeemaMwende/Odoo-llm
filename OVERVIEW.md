@@ -406,11 +406,13 @@ def get_tool_definition(self):
 Odoo 18.0 completely replaced the frontend model system with a new Record-based architecture:
 
 **Removed in 18.0:**
+
 - `registerModel()` - Model registration pattern
 - `registerPatch()` - Model patching pattern
 - Frontend model definition system
 
 **New in 18.0:**
+
 - ES6 classes extending `Record` from `@mail/core/common/record`
 - OWL's `patch()` utility for component extensions
 - Built-in reactivity via `@odoo/owl`
