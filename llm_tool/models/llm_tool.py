@@ -254,7 +254,7 @@ class LLMTool(models.Model):
             model_class = type(model)
             for attr_name in dir(model_class):
                 # Skip private attributes and known problematic ones
-                if attr_name.startswith('_'):
+                if attr_name.startswith("_"):
                     continue
 
                 try:
@@ -317,7 +317,7 @@ class LLMTool(models.Model):
             if existing:
                 # Only update if auto_update is enabled
                 # Use getattr with default True for upgrade compatibility
-                auto_update = getattr(existing, 'auto_update', True)
+                auto_update = getattr(existing, "auto_update", True)
                 if auto_update:
                     was_inactive = not existing.active
                     existing.write(values)

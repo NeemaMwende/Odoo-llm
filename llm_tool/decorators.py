@@ -74,6 +74,7 @@ def llm_tool(func=None, *, schema=None, **metadata):
     Raises:
         ValueError: If method signature is missing type hints AND no manual schema provided
     """
+
     def decorator(f):
         # Extract metadata from function itself
         tool_name = f.__name__
@@ -108,7 +109,7 @@ def llm_tool(func=None, *, schema=None, **metadata):
         wrapper._llm_tool_name = f._llm_tool_name
         wrapper._llm_tool_description = f._llm_tool_description
         wrapper._llm_tool_metadata = f._llm_tool_metadata
-        if hasattr(f, '_llm_tool_schema'):
+        if hasattr(f, "_llm_tool_schema"):
             wrapper._llm_tool_schema = f._llm_tool_schema
 
         return wrapper
@@ -134,7 +135,7 @@ def _validate_type_hints(func, tool_name):
 
     # Check parameters
     for param_name, param in sig.parameters.items():
-        if param_name == 'self':
+        if param_name == "self":
             continue
 
         if param.annotation == inspect.Parameter.empty:
@@ -168,7 +169,7 @@ def is_llm_tool(func):
     Returns:
         bool: True if function is decorated with @llm_tool
     """
-    return getattr(func, '_is_llm_tool', False)
+    return getattr(func, "_is_llm_tool", False)
 
 
 def get_tool_metadata(func):
@@ -185,8 +186,8 @@ def get_tool_metadata(func):
         return None
 
     return {
-        'name': getattr(func, '_llm_tool_name', None),
-        'description': getattr(func, '_llm_tool_description', None),
-        'metadata': getattr(func, '_llm_tool_metadata', {}),
-        'schema': getattr(func, '_llm_tool_schema', None),
+        "name": getattr(func, "_llm_tool_name", None),
+        "description": getattr(func, "_llm_tool_description", None),
+        "metadata": getattr(func, "_llm_tool_metadata", {}),
+        "schema": getattr(func, "_llm_tool_schema", None),
     }

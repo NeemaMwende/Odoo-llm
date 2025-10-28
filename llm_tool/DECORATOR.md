@@ -23,6 +23,7 @@ class SaleOrder(models.Model):
 **That's it!** The tool is automatically registered in the database when Odoo loads.
 
 **How it works:**
+
 1. Decorator marks the method at import time
 2. `_register_hook()` scans all models for marked methods
 3. Automatically creates/updates `llm.tool` records
@@ -31,6 +32,7 @@ class SaleOrder(models.Model):
 ## What the Decorator Does
 
 **At decoration time (import):**
+
 ```python
 @llm_tool
 def my_tool(x: int) -> str:
@@ -44,12 +46,14 @@ def my_tool(x: int) -> str:
 ```
 
 **At registry load (`_register_hook()`):**
+
 - Scans all models for methods with `_is_llm_tool = True`
 - Creates database records for auto-registered functions
 
 ## Usage Patterns
 
 ### With Type Hints (Recommended)
+
 ```python
 @llm_tool
 def my_tool(self, name: str, count: int = 10) -> dict:
@@ -58,6 +62,7 @@ def my_tool(self, name: str, count: int = 10) -> dict:
 ```
 
 ### Without Type Hints (Legacy)
+
 ```python
 @llm_tool(schema={
     "type": "object",
@@ -72,6 +77,7 @@ def my_tool(self, name, count):
 ```
 
 ### With Metadata
+
 ```python
 @llm_tool(read_only_hint=True)
 def get_data(self, id: int) -> dict:
@@ -82,11 +88,13 @@ def get_data(self, id: int) -> dict:
 ## Auto-Registration Details
 
 **When a function is decorated:**
+
 1. Decorator marks it with `_is_llm_tool = True`
 2. Stores name, description from function itself
 3. No database access yet
 
 **When Odoo loads (`_register_hook()`):**
+
 1. Scans all models for `_is_llm_tool` marked methods
 2. Creates/updates database record:
    ```python
@@ -104,6 +112,7 @@ def get_data(self, id: int) -> dict:
 5. Logs registration success for debugging
 
 **Note on `auto_update` field:**
+
 - New tools default to `auto_update=True` - decorator changes automatically applied
 - Set to `False` in UI to manually manage a tool's metadata
 - Useful when testing: change decorator → restart → see changes (with `auto_update=True`)
@@ -123,6 +132,7 @@ def get_data(self, id: int) -> dict:
 ### Scanning Approach
 
 **Current Implementation (Simple):**
+
 ```python
 # In _register_hook()
 for model_name in self.env.registry:  # ~100 models
@@ -134,12 +144,14 @@ for model_name in self.env.registry:  # ~100 models
 ```
 
 **Performance:**
+
 - Scans ~5,000-10,000 methods once at startup
 - Takes milliseconds (attribute checks are very fast)
 - Happens once when registry loads, not on every request
 - Negligible compared to normal Odoo startup operations
 
 **Alternative: Registry Pattern (Faster)**
+
 ```python
 # In decorators.py - maintain a global registry
 _DECORATED_TOOLS = []
@@ -156,6 +168,7 @@ for func in _DECORATED_TOOLS:
 ```
 
 **Trade-off:**
+
 - Current: Simpler code, no global state, slightly slower (still fast)
 - Registry: Faster scan, but requires global state management
 

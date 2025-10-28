@@ -25,6 +25,7 @@ llm_tool_demo/
 ```
 
 **Why this structure?**
+
 - ✅ **Realistic**: Mirrors real-world Odoo development patterns
 - ✅ **Organized**: Each file extends the model it works with
 - ✅ **Maintainable**: Easy to find and update tools
@@ -51,11 +52,13 @@ The tools will be **automatically registered** in the `llm.tool` model when the 
 **Purpose**: Get basic Odoo system information
 
 **Features**:
+
 - ✅ Read-only operation
 - ✅ Idempotent (can be called multiple times safely)
 - ✅ No parameters required
 
 **Example Usage**:
+
 ```python
 users_model = env['res.users']
 result = users_model.get_system_info()
@@ -68,6 +71,7 @@ result = users_model.get_system_info()
 ```
 
 **Decorator**:
+
 ```python
 @llm_tool(read_only_hint=True, idempotent_hint=True)
 def get_system_info(self) -> dict:
@@ -83,12 +87,14 @@ def get_system_info(self) -> dict:
 **Purpose**: Calculate business days between two dates
 
 **Features**:
+
 - ✅ Type hints for automatic schema generation
 - ✅ Optional parameters with defaults
 - ✅ Input validation and error handling
 - ✅ Uses TransientModel for stateless utility functions
 
 **Example Usage**:
+
 ```python
 utility_tools = env['llm.utility.tools']
 result = utility_tools.calculate_business_days(
@@ -105,6 +111,7 @@ result = utility_tools.calculate_business_days(
 ```
 
 **Decorator**:
+
 ```python
 @llm_tool(read_only_hint=True, idempotent_hint=True)
 def calculate_business_days(
@@ -122,12 +129,14 @@ def calculate_business_days(
 **Purpose**: Create CRM leads from natural language descriptions
 
 **Features**:
+
 - ⚠️ Destructive operation (creates records)
 - ✅ Integrates with Odoo CRM module
 - ✅ AI-friendly (designed for LLM input)
 - ✅ Extends the model it works with (best practice)
 
 **Example Usage**:
+
 ```python
 lead_model = env['crm.lead']
 result = lead_model.create_lead_from_description(
@@ -145,6 +154,7 @@ result = lead_model.create_lead_from_description(
 ```
 
 **Decorator**:
+
 ```python
 @llm_tool(destructive_hint=True)
 def create_lead_from_description(
@@ -162,12 +172,14 @@ def create_lead_from_description(
 **Purpose**: Generate sales statistics for a date range
 
 **Features**:
+
 - ✅ Read-only operation
 - ✅ Complex data aggregation
 - ✅ Top N results (configurable limit)
 - ✅ Extends sale.order for sales-specific logic
 
 **Example Usage**:
+
 ```python
 sale_model = env['sale.order']
 result = sale_model.generate_sales_report(
@@ -187,6 +199,7 @@ result = sale_model.generate_sales_report(
 ```
 
 **Decorator**:
+
 ```python
 @llm_tool(read_only_hint=True)
 def generate_sales_report(
@@ -204,12 +217,14 @@ def generate_sales_report(
 **Purpose**: Demonstrate manual schema for code without type hints
 
 **Features**:
+
 - ✅ Manual JSON schema definition
 - ✅ Works with existing untyped code
 - ✅ Backward compatibility pattern
 - ✅ Shows how to add tools to system models
 
 **Example Usage**:
+
 ```python
 model_model = env['ir.model']
 result = model_model.get_record_info(
@@ -226,6 +241,7 @@ result = model_model.get_record_info(
 ```
 
 **Decorator**:
+
 ```python
 @llm_tool(
     schema={
@@ -257,12 +273,14 @@ def get_record_info(self, model_name, record_id):
 **Purpose**: Send in-app notifications to users
 
 **Features**:
+
 - ⚠️ Non-destructive but not idempotent (creates each time)
 - ✅ User communication
 - ✅ Notification type validation
 - ✅ Logical placement in res.users model
 
 **Example Usage**:
+
 ```python
 users_model = env['res.users']
 result = users_model.send_notification_to_user(
@@ -280,6 +298,7 @@ result = users_model.send_notification_to_user(
 ```
 
 **Decorator**:
+
 ```python
 @llm_tool(destructive_hint=False, idempotent_hint=False)
 def send_notification_to_user(
@@ -293,37 +312,48 @@ def send_notification_to_user(
 ## Key Concepts Demonstrated
 
 ### 1. **Automatic Registration**
+
 All tools are automatically registered in the database via `_register_hook()`. No XML records needed!
 
 ### 2. **Type Hints for Schema Generation**
+
 Tools with proper type hints automatically generate JSON schemas:
+
 ```python
 def my_tool(self, name: str, count: int = 10) -> dict:
 ```
 
 ### 3. **Manual Schema for Legacy Code**
+
 Use `schema=` parameter for existing code without type hints:
+
 ```python
 @llm_tool(schema={...})
 def legacy_method(self, param1, param2):
 ```
 
 ### 4. **Metadata Hints**
+
 Help LLMs understand tool characteristics:
+
 - `read_only_hint=True` - Tool doesn't modify data
 - `idempotent_hint=True` - Safe to call multiple times
 - `destructive_hint=True` - Modifies/creates/deletes data
 - `open_world_hint=True` - Interacts with external entities
 
 ### 5. **Error Handling**
+
 Proper validation and error messages:
+
 ```python
 if not valid:
     raise UserError(_("Clear error message"))
 ```
 
 ### 6. **Return Values**
+
 Always return dictionaries with meaningful keys:
+
 ```python
 return {
     "success": True,
@@ -335,6 +365,7 @@ return {
 ## Testing Your Tools
 
 ### Via Python/ORM
+
 ```python
 # In odoo shell
 tool_model = env['llm.tool.demo']
@@ -343,6 +374,7 @@ print(result)
 ```
 
 ### Via LLM Tool Interface
+
 ```python
 # Get the registered tool
 tool = env['llm.tool'].search([('name', '=', 'get_system_info')])
@@ -353,9 +385,11 @@ print(result)
 ```
 
 ### Via MCP Server
+
 If you have `llm_mcp_server` installed, the tools are automatically available to Claude Desktop, Cursor, and other MCP clients.
 
 ### Via Letta Agents
+
 If you have `llm_letta` installed, the tools can be assigned to Letta agents for use in conversations.
 
 ## File Organization - Best Practices
@@ -364,18 +398,19 @@ If you have `llm_letta` installed, the tools can be assigned to Letta agents for
 
 **Rule of Thumb**: Add tools to the model they work with!
 
-| Tool Purpose | Model to Inherit | Example |
-|--------------|-----------------|---------|
-| CRM operations | `crm.lead` | `models/crm_lead.py` |
-| Sales reporting | `sale.order` | `models/sale_order.py` |
-| User operations | `res.users` | `models/res_users.py` |
-| Partner operations | `res.partner` | `models/res_partner.py` |
-| Generic utilities | TransientModel | `models/utility_tools.py` |
-| System operations | `ir.model` or similar | `models/ir_model.py` |
+| Tool Purpose       | Model to Inherit      | Example                   |
+| ------------------ | --------------------- | ------------------------- |
+| CRM operations     | `crm.lead`            | `models/crm_lead.py`      |
+| Sales reporting    | `sale.order`          | `models/sale_order.py`    |
+| User operations    | `res.users`           | `models/res_users.py`     |
+| Partner operations | `res.partner`         | `models/res_partner.py`   |
+| Generic utilities  | TransientModel        | `models/utility_tools.py` |
+| System operations  | `ir.model` or similar | `models/ir_model.py`      |
 
 ### Why This Matters
 
 **✅ Good** (Realistic - this module):
+
 ```python
 # models/crm_lead.py
 class CrmLead(models.Model):
@@ -388,6 +423,7 @@ class CrmLead(models.Model):
 ```
 
 **❌ Bad** (Monolithic):
+
 ```python
 # models/all_tools.py
 class AllTools(models.Model):
@@ -452,6 +488,7 @@ That's it! The tool will be automatically registered when Odoo loads.
 ### Tool Not Appearing in Database
 
 Check the logs for registration errors:
+
 ```bash
 grep "llm.tool" odoo.log
 ```
@@ -459,6 +496,7 @@ grep "llm.tool" odoo.log
 ### Schema Generation Issues
 
 If using type hints fails, provide manual schema:
+
 ```python
 @llm_tool(schema={...})
 def my_tool(self, param):
@@ -468,6 +506,7 @@ def my_tool(self, param):
 ### Method Not Found
 
 Ensure:
+
 1. Module is properly installed
 2. Model is inherited correctly
 3. Method is not private (doesn't start with `_`)

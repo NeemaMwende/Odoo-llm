@@ -28,6 +28,7 @@ class ResUsers(models.Model):
 ```
 
 **That's it!** The tool is automatically:
+
 - ✅ Registered in the database when Odoo starts
 - ✅ Available to all LLM providers (Claude, ChatGPT, etc.)
 - ✅ Description extracted from docstring
@@ -52,6 +53,7 @@ def your_tool_method(self, param1: str, param2: int = 10) -> dict:
 #### More Examples
 
 **With Parameters:**
+
 ```python
 @llm_tool(destructive_hint=True)
 def create_lead_from_description(
@@ -71,6 +73,7 @@ def create_lead_from_description(
 ```
 
 **Manual Schema (for methods without type hints):**
+
 ```python
 @llm_tool(
     schema={
@@ -129,11 +132,13 @@ Then create tool records in XML:
 ```
 
 **Benefits of this approach:**
+
 - Tools defined in XML data files (traditional Odoo pattern)
 - Tool descriptions and schemas managed in XML
 - Better for tools that don't map to a single model method
 
 **Built-in implementations:**
+
 - `odoo_record_retriever` - Search and retrieve Odoo records
 - `odoo_record_creator` - Create new records
 - `odoo_record_updater` - Update existing records
@@ -155,11 +160,13 @@ See `llm_tool/data/llm_tool_data.xml` for complete examples.
 ## Tool Registration
 
 **Decorated tools** are automatically registered when Odoo starts via `_register_hook()`. If you:
+
 - Add a new `@llm_tool` decorated method → Automatically registered on next restart
 - Remove a decorated method → Automatically deactivated
 - Change method signature → Schema automatically regenerated
 
 **Auto-update behavior:**
+
 - By default, decorated tools are auto-updated on every Odoo restart
 - To manually manage a tool's metadata, set `auto_update=False` in the UI
 - When `auto_update=False`, decorator changes won't overwrite your manual edits
@@ -186,6 +193,7 @@ print(result)
 ```
 
 Or use the demo module's tests as examples:
+
 - `llm_tool/tests/` - Core functionality tests
 - `llm_tool_demo/tests/` - Decorator and execution tests
 

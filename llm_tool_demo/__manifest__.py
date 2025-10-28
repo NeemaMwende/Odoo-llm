@@ -29,7 +29,7 @@ Examples Included:
 Use this module as a reference when creating your own LLM tools.
     """,
     "author": "Apexive",
-    "website": "https://apexive.com",
+    "website": "https://github.com/apexive/odoo-llm",
     "license": "LGPL-3",
     "depends": [
         "llm_tool",

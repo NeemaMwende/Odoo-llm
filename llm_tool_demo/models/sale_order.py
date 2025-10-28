@@ -37,9 +37,7 @@ class SaleOrder(models.Model):
             start = datetime.strptime(start_date, "%Y-%m-%d").date()
             end = datetime.strptime(end_date, "%Y-%m-%d").date()
         except ValueError as e:
-            raise UserError(
-                _("Invalid date format. Use YYYY-MM-DD format.")
-            ) from e
+            raise UserError(_("Invalid date format. Use YYYY-MM-DD format.")) from e
 
         # Search for confirmed sales orders in date range
         orders = self.search(

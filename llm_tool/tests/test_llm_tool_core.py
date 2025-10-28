@@ -73,6 +73,7 @@ class TestLLMToolCore(LLMToolCase):
 
     def test_execute_unimplemented_implementation_raises_error(self):
         """Test execute() raises NotImplementedError for missing {implementation}_execute method"""
+
         # Patch _get_available_implementations to allow a dummy implementation
         def patched_implementations():
             return [
@@ -80,13 +81,19 @@ class TestLLMToolCore(LLMToolCase):
                 ("dummy_implementation", "Dummy"),
             ]
 
-        with patch.object(type(self.LLMTool), "_get_available_implementations", patched_implementations):
+        with patch.object(
+            type(self.LLMTool),
+            "_get_available_implementations",
+            patched_implementations,
+        ):
             # Create tool with dummy implementation
-            tool = self.LLMTool.create({
-                "name": "test_dummy_tool",
-                "description": "Test tool with unimplemented implementation",
-                "implementation": "dummy_implementation",
-            })
+            tool = self.LLMTool.create(
+                {
+                    "name": "test_dummy_tool",
+                    "description": "Test tool with unimplemented implementation",
+                    "implementation": "dummy_implementation",
+                }
+            )
 
             # Attempting to execute should raise NotImplementedError
             with self.assertRaises(NotImplementedError) as ctx:

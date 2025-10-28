@@ -108,19 +108,18 @@
                                 <field name="decorator_method" readonly="1" />
                             </group>
                             <div class="alert alert-info" role="alert">
-                                <p><strong>Function Tool Information:</strong></p>
+                                <p><strong
+                  >Function Tool Information:</strong></p>
                                 <p
                 >This tool is automatically linked to a Python method decorated with @llm_tool.</p>
-                                <p
-                >Model: <strong><field
-                    name="decorator_model"
-                    readonly="1"
-                  /></strong></p>
-                                <p
-                >Method: <strong><field
-                    name="decorator_method"
-                    readonly="1"
-                  /></strong></p>
+                                <p>Model: <strong><field
+                      name="decorator_model"
+                      readonly="1"
+                    /></strong></p>
+                                <p>Method: <strong><field
+                      name="decorator_method"
+                      readonly="1"
+                    /></strong></p>
                                 <p
                 >These fields are set during auto-registration and cannot be edited manually.</p>
                             </div>

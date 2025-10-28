@@ -34,6 +34,7 @@ class TestLLMToolSchema(LLMToolCase):
 
     def test_get_input_schema_unimplemented_implementation_raises_error(self):
         """Test get_input_schema() raises NotImplementedError for missing {implementation}_execute method"""
+
         # Patch _get_available_implementations to allow a dummy implementation
         def patched_implementations():
             return [
@@ -41,13 +42,19 @@ class TestLLMToolSchema(LLMToolCase):
                 ("dummy_implementation", "Dummy"),
             ]
 
-        with patch.object(type(self.LLMTool), "_get_available_implementations", patched_implementations):
+        with patch.object(
+            type(self.LLMTool),
+            "_get_available_implementations",
+            patched_implementations,
+        ):
             # Create tool with dummy implementation (no stored schema)
-            tool = self.LLMTool.create({
-                "name": "test_dummy_schema_tool",
-                "description": "Test tool with unimplemented implementation",
-                "implementation": "dummy_implementation",
-            })
+            tool = self.LLMTool.create(
+                {
+                    "name": "test_dummy_schema_tool",
+                    "description": "Test tool with unimplemented implementation",
+                    "implementation": "dummy_implementation",
+                }
+            )
 
             # Attempting to get schema should raise NotImplementedError
             with self.assertRaises(NotImplementedError) as ctx:
