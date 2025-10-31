@@ -1,4 +1,4 @@
-# Note: Using forked letta-client until streaming issue is fixed
+# Note: Using forked letta-client until listembeddingmodels() bug is fixed
 # See: https://github.com/letta-ai/letta-python/issues/25
 from letta_client import Letta
 from letta_client.types import MessageCreate, StreamableHttpServerConfig
