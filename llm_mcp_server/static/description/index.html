@@ -552,68 +552,110 @@ class SaleOrder(models.Model):
 
     <!-- Compatible With -->
     <section class="mb-5">
-        <h2 class="text-center mb-4" style="font-size: 2.5rem; font-weight: 700; color: #6f42c1;">Works With Your Odoo Ecosystem</h2>
-        <p class="text-center mb-5" style="font-size: 1.1rem; color: #6c757d;">Integrates seamlessly with other Odoo AI modules</p>
+        <h2 class="text-center mb-4" style="font-size: 2.5rem; font-weight: 700; color: #6f42c1;">Part of Apexive's Odoo LLM Ecosystem</h2>
+        <p class="text-center mb-5" style="font-size: 1.1rem; color: #6c757d;">Seamlessly integrates with Apexive's complete AI toolkit for Odoo</p>
 
         <div class="row g-4">
-            <div class="col-md-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-start">
-                            <i class="bi bi-robot" style="font-size: 32px; color: #6f42c1; margin-right: 1rem;"></i>
-                            <div>
-                                <h3 style="font-size: 1.25rem; font-weight: 700; color: #6f42c1;">LLM Letta Integration</h3>
-                                <p style="color: #495057; margin-bottom: 0.5rem;">Use with Letta agents for stateful AI conversations with persistent memory across sessions.</p>
-                                <span class="badge bg-success">Compatible</span>
+            <div class="col-md-4">
+                <a href="https://github.com/apexive/odoo-llm/tree/18.0/llm_thread" target="_blank" style="text-decoration: none; color: inherit; display: block; height: 100%;">
+                    <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; transition: transform 0.2s; position: relative;">
+                        <div style="position: absolute; top: 16px; right: 16px;">
+                            <i class="fa fa-external-link" style="font-size: 16px; color: #6c757d; opacity: 0.5;"></i>
+                        </div>
+                        <div class="card-body p-4">
+                            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                                <i class="fa fa-comments" style="font-size: 24px; color: #ffffff;"></i>
                             </div>
+                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.75rem;">LLM Thread</h4>
+                            <p style="color: #495057; font-size: 0.9rem; margin-bottom: 0;">Have persistent AI conversations directly in Odoo with full context and history</p>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
 
-            <div class="col-md-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-start">
-                            <i class="bi bi-chat" style="font-size: 32px; color: #6f42c1; margin-right: 1rem;"></i>
-                            <div>
-                                <h3 style="font-size: 1.25rem; font-weight: 700; color: #6f42c1;">LLM Thread</h3>
-                                <p style="color: #495057; margin-bottom: 0.5rem;">Create AI chat threads within Odoo that external clients can access via MCP protocol.</p>
-                                <span class="badge bg-info">Available</span>
+            <div class="col-md-4">
+                <a href="https://github.com/apexive/odoo-llm/tree/18.0/llm_assistant" target="_blank" style="text-decoration: none; color: inherit; display: block; height: 100%;">
+                    <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; transition: transform 0.2s; position: relative;">
+                        <div style="position: absolute; top: 16px; right: 16px;">
+                            <i class="fa fa-external-link" style="font-size: 16px; color: #6c757d; opacity: 0.5;"></i>
+                        </div>
+                        <div class="card-body p-4">
+                            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                                <i class="fa fa-user-circle-o" style="font-size: 24px; color: #ffffff;"></i>
                             </div>
+                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.75rem;">LLM Assistant</h4>
+                            <p style="color: #495057; font-size: 0.9rem; margin-bottom: 0;">Create specialized AI assistants for specific roles like sales, support, or accounting</p>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
 
-            <div class="col-md-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-start">
-                            <i class="bi bi-book" style="font-size: 32px; color: #6f42c1; margin-right: 1rem;"></i>
-                            <div>
-                                <h3 style="font-size: 1.25rem; font-weight: 700; color: #6f42c1;">LLM Knowledge (RAG)</h3>
-                                <p style="color: #495057; margin-bottom: 0.5rem;">Combine with knowledge base tools for AI-powered document Q&A and semantic search.</p>
-                                <span class="badge bg-info">Available</span>
+            <div class="col-md-4">
+                <a href="https://github.com/apexive/odoo-llm/tree/18.0/llm_knowledge" target="_blank" style="text-decoration: none; color: inherit; display: block; height: 100%;">
+                    <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; transition: transform 0.2s; position: relative;">
+                        <div style="position: absolute; top: 16px; right: 16px;">
+                            <i class="fa fa-external-link" style="font-size: 16px; color: #6c757d; opacity: 0.5;"></i>
+                        </div>
+                        <div class="card-body p-4">
+                            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                                <i class="fa fa-book" style="font-size: 24px; color: #ffffff;"></i>
                             </div>
+                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.75rem;">LLM Knowledge</h4>
+                            <p style="color: #495057; font-size: 0.9rem; margin-bottom: 0;">Turn PDFs, images, webpages, and documents into AI-searchable knowledge base</p>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
 
-            <div class="col-md-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-start">
-                            <i class="bi bi-tools" style="font-size: 32px; color: #6f42c1; margin-right: 1rem;"></i>
-                            <div>
-                                <h3 style="font-size: 1.25rem; font-weight: 700; color: #6f42c1;">Custom AI Tools</h3>
-                                <p style="color: #495057; margin-bottom: 0.5rem;">Build your own AI tools that automatically appear in MCP clients through decorator pattern.</p>
-                                <span class="badge bg-warning text-dark">Extensible</span>
+            <div class="col-md-4">
+                <a href="https://github.com/apexive/odoo-llm/tree/18.0/llm_letta" target="_blank" style="text-decoration: none; color: inherit; display: block; height: 100%;">
+                    <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; transition: transform 0.2s; position: relative;">
+                        <div style="position: absolute; top: 16px; right: 16px;">
+                            <i class="fa fa-external-link" style="font-size: 16px; color: #6c757d; opacity: 0.5;"></i>
+                        </div>
+                        <div class="card-body p-4">
+                            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                                <i class="fa fa-android" style="font-size: 24px; color: #ffffff;"></i>
                             </div>
+                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.75rem;">LLM Letta</h4>
+                            <p style="color: #495057; font-size: 0.9rem; margin-bottom: 0;">AI agents that remember past conversations and learn from your interactions</p>
                         </div>
                     </div>
-                </div>
+                </a>
+            </div>
+
+            <div class="col-md-4">
+                <a href="https://github.com/apexive/odoo-llm/tree/18.0/llm_generate" target="_blank" style="text-decoration: none; color: inherit; display: block; height: 100%;">
+                    <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; transition: transform 0.2s; position: relative;">
+                        <div style="position: absolute; top: 16px; right: 16px;">
+                            <i class="fa fa-external-link" style="font-size: 16px; color: #6c757d; opacity: 0.5;"></i>
+                        </div>
+                        <div class="card-body p-4">
+                            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                                <i class="fa fa-picture-o" style="font-size: 24px; color: #ffffff;"></i>
+                            </div>
+                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.75rem;">LLM Generate</h4>
+                            <p style="color: #495057; font-size: 0.9rem; margin-bottom: 0;">Generate marketing content, product descriptions, and images with AI</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-4">
+                <a href="https://github.com/apexive/odoo-llm/tree/18.0/llm_tool" target="_blank" style="text-decoration: none; color: inherit; display: block; height: 100%;">
+                    <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; transition: transform 0.2s; position: relative;">
+                        <div style="position: absolute; top: 16px; right: 16px;">
+                            <i class="fa fa-external-link" style="font-size: 16px; color: #6c757d; opacity: 0.5;"></i>
+                        </div>
+                        <div class="card-body p-4">
+                            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                                <i class="fa fa-wrench" style="font-size: 24px; color: #ffffff;"></i>
+                            </div>
+                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.75rem;">LLM Tool</h4>
+                            <p style="color: #495057; font-size: 0.9rem; margin-bottom: 0;">Extend AI capabilities with custom business logic in just a few lines of code</p>
+                        </div>
+                    </div>
+                </a>
             </div>
         </div>
     </section>
@@ -622,32 +664,56 @@ class SaleOrder(models.Model):
 
     <!-- Support Section -->
     <section class="mb-5">
-        <h2 class="text-center mb-5" style="font-size: 2.5rem; font-weight: 700; color: #6f42c1;">Documentation & Support</h2>
+        <h2 class="text-center mb-4" style="font-size: 2.5rem; font-weight: 700; color: #6f42c1;">Documentation & Support</h2>
+        <p class="text-center mb-5" style="font-size: 1.1rem; color: #6c757d;">Everything you need to get started and succeed</p>
+
         <div class="row g-4">
             <div class="col-md-6">
-                <div class="card h-100 border-0 shadow-sm">
+                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px;">
                     <div class="card-body p-4">
-                        <i class="bi bi-book" style="font-size: 48px; color: #6f42c1;"></i>
-                        <h3 class="mt-3" style="font-size: 1.5rem; font-weight: 700; color: #6f42c1;">Complete Documentation</h3>
-                        <p class="mt-2">Step-by-step guides, troubleshooting tips, and API reference included.</p>
-                        <ul class="mt-3">
-                            <li><a href="https://github.com/apexive/odoo-llm/blob/18.0/llm_mcp_server/README.md" target="_blank">Setup Guide</a></li>
-                            <li><a href="https://modelcontextprotocol.io/" target="_blank">MCP Protocol Documentation</a></li>
-                            <li><a href="https://www.odoo.com/documentation/18.0/developer/reference/external_api.html#api-keys" target="_blank">Odoo API Keys Guide</a></li>
-                        </ul>
+                        <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+                            <i class="fa fa-book" style="font-size: 32px; color: #ffffff;"></i>
+                        </div>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem;">Complete Documentation</h3>
+                        <p style="color: #495057; margin-bottom: 1.5rem;">Step-by-step guides, troubleshooting tips, and API reference included.</p>
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <a href="https://github.com/apexive/odoo-llm/blob/18.0/llm_mcp_server/README.md" target="_blank" style="display: flex; align-items: center; padding: 0.75rem 1rem; background: #ffffff; border-radius: 8px; text-decoration: none; color: #495057; transition: all 0.2s;">
+                                <i class="fa fa-file-text-o" style="font-size: 20px; color: #6f42c1; margin-right: 0.75rem;"></i>
+                                <span style="font-weight: 600;">Setup Guide</span>
+                            </a>
+                            <a href="https://modelcontextprotocol.io/" target="_blank" style="display: flex; align-items: center; padding: 0.75rem 1rem; background: #ffffff; border-radius: 8px; text-decoration: none; color: #495057; transition: all 0.2s;">
+                                <i class="fa fa-globe" style="font-size: 20px; color: #6f42c1; margin-right: 0.75rem;"></i>
+                                <span style="font-weight: 600;">MCP Protocol Documentation</span>
+                            </a>
+                            <a href="https://www.odoo.com/documentation/18.0/developer/reference/external_api.html#api-keys" target="_blank" style="display: flex; align-items: center; padding: 0.75rem 1rem; background: #ffffff; border-radius: 8px; text-decoration: none; color: #495057; transition: all 0.2s;">
+                                <i class="fa fa-key" style="font-size: 20px; color: #6f42c1; margin-right: 0.75rem;"></i>
+                                <span style="font-weight: 600;">Odoo API Keys Guide</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="col-md-6">
-                <div class="card h-100 border-0 shadow-sm">
+                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px;">
                     <div class="card-body p-4">
-                        <i class="bi bi-github" style="font-size: 48px; color: #6f42c1;"></i>
-                        <h3 class="mt-3" style="font-size: 1.5rem; font-weight: 700; color: #6f42c1;">Open Source</h3>
-                        <p class="mt-2">Full source code available on GitHub. Contribute, customize, or learn from the implementation.</p>
-                        <div class="mt-4">
-                            <a href="https://github.com/apexive/odoo-llm" class="btn btn-outline-primary" target="_blank">
-                                <i class="bi bi-github me-2"></i>View on GitHub
+                        <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+                            <i class="fa fa-github" style="font-size: 32px; color: #ffffff;"></i>
+                        </div>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem;">Open Source</h3>
+                        <p style="color: #495057; margin-bottom: 1.5rem;">Full source code available on GitHub. Contribute, customize, or learn from the implementation.</p>
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <a href="https://github.com/apexive/odoo-llm" target="_blank" style="display: inline-flex; align-items: center; justify-content: center; padding: 0.875rem 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border-radius: 8px; text-decoration: none; font-weight: 700; transition: all 0.2s;">
+                                <i class="fa fa-github" style="font-size: 20px; margin-right: 0.5rem;"></i>
+                                View on GitHub
+                            </a>
+                            <a href="https://github.com/apexive/odoo-llm/issues" target="_blank" style="display: inline-flex; align-items: center; justify-content: center; padding: 0.875rem 1.5rem; background: #ffffff; color: #6f42c1; border: 2px solid #6f42c1; border-radius: 8px; text-decoration: none; font-weight: 700; transition: all 0.2s;">
+                                <i class="fa fa-bug" style="font-size: 20px; margin-right: 0.5rem;"></i>
+                                Report an Issue
+                            </a>
+                            <a href="https://github.com/apexive/odoo-llm/discussions" target="_blank" style="display: inline-flex; align-items: center; justify-content: center; padding: 0.875rem 1.5rem; background: #ffffff; color: #6f42c1; border: 2px solid #6f42c1; border-radius: 8px; text-decoration: none; font-weight: 700; transition: all 0.2s;">
+                                <i class="fa fa-comments-o" style="font-size: 20px; margin-right: 0.5rem;"></i>
+                                Join Discussions
                             </a>
                         </div>
                     </div>
@@ -658,26 +724,23 @@ class SaleOrder(models.Model):
 </div>
 
 <!-- Footer -->
-<footer style="background: #2c3e50; color: white; padding: 3rem 0 1rem;">
+<footer style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 3rem 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(111, 66, 193, 0.3); margin: 2rem 1rem;">
     <div class="container">
-        <div class="row">
-            <div class="col-md-6">
-                <h4 style="font-weight: 700;">LLM MCP Server for Odoo</h4>
-                <p class="mt-3">Connect Claude AI to your Odoo data</p>
-                <p class="mt-2">Developed by <strong>Apexive Solutions LLC</strong></p>
-                <p>Licensed under <a href="https://www.gnu.org/licenses/lgpl-3.0.html" target="_blank" style="color: #3498db;">LGPL-3</a></p>
+        <div style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 12px; padding: 2.5rem;">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4 style="font-weight: 700; color: #ffffff; font-size: 1.5rem; margin-bottom: 0.75rem;">LLM MCP Server for Odoo</h4>
+                    <p style="color: rgba(255, 255, 255, 0.9); font-size: 1rem; margin-bottom: 1rem;">Connect AI to your Odoo data</p>
+                    <p style="color: rgba(255, 255, 255, 0.85); margin-bottom: 0.25rem;">Developed by <strong style="color: #ffffff;">Apexive Solutions LLC</strong></p>
+                    <p style="color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; margin-bottom: 0;">Licensed under <a href="https://www.gnu.org/licenses/lgpl-3.0.html" target="_blank" style="color: #ffffff; text-decoration: underline;">LGPL-3</a> &bull; &copy; 2025 All rights reserved.</p>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <a href="mailto:hello@apexive.com" style="display: inline-flex; align-items: center; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); padding: 0.875rem 1.5rem; border-radius: 8px; text-decoration: none; color: #ffffff; font-weight: 600; transition: all 0.2s;">
+                        <i class="fa fa-envelope" style="font-size: 18px; margin-right: 0.5rem;"></i>
+                        hello@apexive.com
+                    </a>
+                </div>
             </div>
-            <div class="col-md-6 text-md-end">
-                <h4 style="font-weight: 700;">Resources</h4>
-                <ul class="list-unstyled mt-3">
-                    <li class="mb-2"><a href="https://github.com/apexive/odoo-llm" target="_blank" style="color: #3498db; text-decoration: none;">GitHub Repository</a></li>
-                    <li class="mb-2"><a href="https://github.com/apexive/odoo-llm/issues" target="_blank" style="color: #3498db; text-decoration: none;">Report Issues</a></li>
-                    <li class="mb-2"><a href="https://modelcontextprotocol.io/" target="_blank" style="color: #3498db; text-decoration: none;">MCP Documentation</a></li>
-                </ul>
-            </div>
-        </div>
-        <div class="text-center mt-4 pt-3" style="border-top: 1px solid #34495e;">
-            <p class="mb-0">&copy; 2025 Apexive Solutions LLC. All rights reserved.</p>
         </div>
     </div>
 </footer>
