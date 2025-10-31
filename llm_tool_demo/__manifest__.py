@@ -39,6 +39,7 @@ Use this module as a reference when creating your own LLM tools.
     ],
     "data": [],
     "demo": [],
+    "images": ["static/description/banner.jpeg"],
     "installable": True,
     "application": False,
     "auto_install": False,

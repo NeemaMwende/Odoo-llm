@@ -18,6 +18,7 @@
     "external_dependencies": {
         "python": ["chromadb-client", "numpy"],
     },
+    "images": ["static/description/banner.jpeg"],
     "installable": True,
     "application": False,
     "auto_install": False,

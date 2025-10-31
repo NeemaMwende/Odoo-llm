@@ -24,6 +24,7 @@
         "views/llm_store_views.xml",
         "views/menu_views.xml",
     ],
+    "images": ["static/description/banner.jpeg"],
     "pre_init_hook": "pre_init_hook",
     "installable": True,
     "application": False,

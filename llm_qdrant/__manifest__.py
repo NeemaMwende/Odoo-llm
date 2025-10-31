@@ -10,11 +10,12 @@ Requires the qdrant-client Python package.
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "depends": ["llm_knowledge", "llm_store"],
-    "installable": True,
-    "application": False,
-    "auto_install": False,
     "external_dependencies": {
         "python": ["qdrant-client"],
     },
+    "images": ["static/description/banner.jpeg"],
+    "installable": True,
+    "application": False,
+    "auto_install": False,
     "license": "LGPL-3",
 }
