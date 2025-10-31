@@ -408,57 +408,78 @@
 
         <div class="row g-4 mb-5">
             <div class="col-lg-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);">
+                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px;">
                     <div class="card-body p-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <i class="bi bi-code-square" style="font-size: 48px; color: #856404; margin-right: 1rem;"></i>
-                            <h3 style="font-size: 1.5rem; font-weight: 700; color: #856404; margin: 0;">Dead Simple Decorator</h3>
+                        <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+                            <i class="fa fa-code" style="font-size: 32px; color: #ffffff;"></i>
                         </div>
-                        <p style="color: #856404; margin-bottom: 1rem;">Just add <code style="background: #fff; padding: 0.2rem 0.4rem; border-radius: 4px;">@llm_tool</code> to any Python method. That's it!</p>
-                        <div class="bg-dark text-light p-3 rounded" style="font-size: 0.85rem; overflow-x: auto;">
-                            <code style="color: #f8f8f2; display: block; white-space: pre; font-family: monospace;">from odoo.addons.llm_tool.decorators import llm_tool
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem;">Dead Simple Decorator</h3>
+                        <p style="color: #495057; margin-bottom: 1rem;">Just add <code style="background: #ffffff; padding: 0.2rem 0.4rem; border-radius: 4px; color: #6f42c1; font-weight: 600;">@llm_tool</code> to any Python method. That's it!</p>
+                        <div style="background: #1a1a2e; padding: 1.25rem; border-radius: 12px; overflow-x: auto;">
+                            <code style="color: #f8f8f2; display: block; white-space: pre; font-family: monospace; font-size: 0.85rem; line-height: 1.6;">from odoo.addons.llm_tool.decorators import llm_tool
 
 class SaleOrder(models.Model):
     _inherit = "sale.order"
 
     @llm_tool(read_only_hint=True)
-    def get_pending_orders(self, customer_id: int) -&gt; list:
-        """Get all pending orders for a customer"""
+    def get_pending_orders(self, customer_id: int):
+        """Get all pending orders"""
         orders = self.search([
             ('partner_id', '=', customer_id),
             ('state', 'in', ['draft', 'sent'])
         ])
-        return [{
-            'id': o.id,
-            'name': o.name,
-            'amount_total': o.amount_total
-        } for o in orders]</code>
+        return [{'id': o.id, 'name': o.name}
+                for o in orders]</code>
                         </div>
-                        <div class="alert alert-warning mt-3 mb-0" style="background: #fff3cd; border-left: 3px solid #856404;">
-                            <strong>Auto-registered!</strong> Tool appears in AI clients instantly on next Odoo restart.
+                        <div style="background: linear-gradient(135deg, #e0d4f7 0%, #d4c5f9 100%); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                            <p style="color: #4a2c7d; margin: 0; font-weight: 600;"><i class="fa fa-magic" style="margin-right: 0.5rem;"></i>Auto-registered! Tool appears instantly on next Odoo restart.</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #e7f3ff 0%, #d1ecf1 100%);">
+                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px;">
                     <div class="card-body p-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <i class="bi bi-box-seam" style="font-size: 48px; color: #0c5460; margin-right: 1rem;"></i>
-                            <h3 style="font-size: 1.5rem; font-weight: 700; color: #0c5460; margin: 0;">Built-in Tools Included</h3>
+                        <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+                            <i class="fa fa-battery-full" style="font-size: 32px; color: #ffffff;"></i>
                         </div>
-                        <p style="color: #0c5460; margin-bottom: 1rem;">Start using these powerful tools immediately:</p>
-                        <ul style="color: #0c5460;">
-                            <li class="mb-2"><strong>odoo_record_retriever</strong> - Search and retrieve any Odoo records</li>
-                            <li class="mb-2"><strong>odoo_record_creator</strong> - Create new records in any model</li>
-                            <li class="mb-2"><strong>odoo_record_updater</strong> - Update existing records</li>
-                            <li class="mb-2"><strong>odoo_record_unlinker</strong> - Delete records safely</li>
-                            <li class="mb-2"><strong>odoo_model_method_executor</strong> - Call any model method</li>
-                            <li class="mb-2"><strong>odoo_model_inspector</strong> - Explore model structure and fields</li>
-                        </ul>
-                        <div class="alert alert-info mt-3 mb-0" style="background: #d1ecf1; border-left: 3px solid #0c5460;">
-                            <strong>See examples:</strong> Check out <code>llm_tool_demo</code> module for more tool examples!
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem;">Batteries Included</h3>
+                        <p style="color: #495057; margin-bottom: 1.5rem;">Complete CRUD operations through conversational AI - no coding required for end users</p>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <div style="background: #ffffff; padding: 1rem; border-radius: 8px; text-align: center;">
+                                    <i class="fa fa-search" style="font-size: 28px; color: #6f42c1; margin-bottom: 0.5rem;"></i>
+                                    <h5 style="font-size: 0.9rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.25rem;">Search & Find</h5>
+                                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">Query any record</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div style="background: #ffffff; padding: 1rem; border-radius: 8px; text-align: center;">
+                                    <i class="fa fa-plus-circle" style="font-size: 28px; color: #6f42c1; margin-bottom: 0.5rem;"></i>
+                                    <h5 style="font-size: 0.9rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.25rem;">Create Records</h5>
+                                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">Add new data</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div style="background: #ffffff; padding: 1rem; border-radius: 8px; text-align: center;">
+                                    <i class="fa fa-edit" style="font-size: 28px; color: #6f42c1; margin-bottom: 0.5rem;"></i>
+                                    <h5 style="font-size: 0.9rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.25rem;">Update Data</h5>
+                                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">Modify records</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div style="background: #ffffff; padding: 1rem; border-radius: 8px; text-align: center;">
+                                    <i class="fa fa-info-circle" style="font-size: 28px; color: #6f42c1; margin-bottom: 0.5rem;"></i>
+                                    <h5 style="font-size: 0.9rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.25rem;">Get Insights</h5>
+                                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">Explore structure</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="background: linear-gradient(135deg, #e0d4f7 0%, #d4c5f9 100%); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                            <p style="color: #4a2c7d; margin: 0; font-weight: 600;"><i class="fa fa-lightbulb-o" style="margin-right: 0.5rem;"></i>See examples in <a href="https://github.com/apexive/odoo-llm/tree/18.0/llm_tool_demo" target="_blank" style="color: #6f42c1; text-decoration: underline;">llm_tool_demo</a></p>
                         </div>
                     </div>
                 </div>
@@ -466,56 +487,9 @@ class SaleOrder(models.Model):
         </div>
 
         <div class="text-center">
-            <a href="https://github.com/apexive/odoo-llm/blob/18.0/llm_tool/README.md" target="_blank" class="btn btn-lg" style="background: #6f42c1; color: white; font-weight: 600; border-radius: 50px; padding: 1rem 3rem; text-decoration: none;">
-                <i class="bi bi-book me-2"></i>Read Developer Guide
+            <a href="https://github.com/apexive/odoo-llm" target="_blank" class="btn btn-lg" style="background: #6f42c1; color: white; font-weight: 600; border-radius: 50px; padding: 1rem 3rem; text-decoration: none;">
+                <i class="fa fa-github" style="margin-right: 0.5rem;"></i>Visit Our GitHub
             </a>
-        </div>
-    </section>
-
-    <hr class="my-5" style="height: 2px; background: linear-gradient(90deg, #6f42c1, transparent); border: none;">
-
-    <!-- What's Included -->
-    <section class="mb-5">
-        <h2 class="text-center mb-4" style="font-size: 2.5rem; font-weight: 700; color: #6f42c1;">Full Odoo Access Out of the Box</h2>
-        <p class="text-center mb-5" style="font-size: 1.1rem; color: #6c757d;">Complete CRUD operations through conversational AI - no coding required for end users</p>
-
-        <div class="row g-4">
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <div class="card-body text-center p-4">
-                        <i class="bi bi-search" style="font-size: 40px; color: #6f42c1;"></i>
-                        <h4 class="mt-3" style="font-weight: 700; color: #6f42c1;">Search & Find</h4>
-                        <p class="text-muted small mb-0">Ask for any record, filter by any criteria</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <div class="card-body text-center p-4">
-                        <i class="bi bi-plus-circle" style="font-size: 40px; color: #6f42c1;"></i>
-                        <h4 class="mt-3" style="font-weight: 700; color: #6f42c1;">Create Records</h4>
-                        <p class="text-muted small mb-0">Add customers, orders, products by talking</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <div class="card-body text-center p-4">
-                        <i class="bi bi-pencil-square" style="font-size: 40px; color: #6f42c1;"></i>
-                        <h4 class="mt-3" style="font-weight: 700; color: #6f42c1;">Update Data</h4>
-                        <p class="text-muted small mb-0">Modify records with simple instructions</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <div class="card-body text-center p-4">
-                        <i class="bi bi-info-circle" style="font-size: 40px; color: #6f42c1;"></i>
-                        <h4 class="mt-3" style="font-weight: 700; color: #6f42c1;">Get Insights</h4>
-                        <p class="text-muted small mb-0">Ask about data structure and fields</p>
-                    </div>
-                </div>
-            </div>
         </div>
     </section>
 
@@ -523,41 +497,51 @@ class SaleOrder(models.Model):
 
     <!-- Enterprise Features -->
     <section class="mb-5">
-        <h2 class="text-center mb-5" style="font-size: 2.5rem; font-weight: 700; color: #6f42c1;">Enterprise-Grade Security & Reliability</h2>
+        <h2 class="text-center mb-4" style="font-size: 2.5rem; font-weight: 700; color: #6f42c1;">Enterprise-Grade Security</h2>
+        <p class="text-center mb-5" style="font-size: 1.1rem; color: #6c757d;">Built with security and compliance in mind from day one</p>
+
         <div class="row g-4">
             <div class="col-md-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px;">
                     <div class="card-body p-4">
-                        <i class="bi bi-shield-lock" style="font-size: 36px; color: #28a745;"></i>
-                        <h3 class="mt-3" style="font-size: 1.25rem; font-weight: 700; color: #28a745;">Permission-Based Access</h3>
-                        <p class="mt-2" style="color: #155724;">Every AI request respects Odoo's user permissions and access control lists. Users only interact with data they're authorized to see.</p>
+                        <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+                            <i class="fa fa-user-circle" style="font-size: 28px; color: #ffffff;"></i>
+                        </div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem;">User-Scoped API Keys</h3>
+                        <p style="color: #495057; margin-bottom: 0;">Each user brings their own API key with their exact Odoo permissions. No shared credentials, no data leaks - every request runs in the user's security context.</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);">
+                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px;">
                     <div class="card-body p-4">
-                        <i class="bi bi-key" style="font-size: 36px; color: #17a2b8;"></i>
-                        <h3 class="mt-3" style="font-size: 1.25rem; font-weight: 700; color: #17a2b8;">Secure API Keys</h3>
-                        <p class="mt-2" style="color: #0c5460;">Industry-standard bearer token authentication. API keys can be revoked instantly and have configurable expiration.</p>
+                        <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+                            <i class="fa fa-shield" style="font-size: 28px; color: #ffffff;"></i>
+                        </div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem;">Permission-Based Access</h3>
+                        <p style="color: #495057; margin-bottom: 0;">Every AI request respects Odoo's access control lists and record rules. Users only see and modify data they're authorized to access.</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #e0d4f7 0%, #d4c5f9 100%);">
+                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px;">
                     <div class="card-body p-4">
-                        <i class="bi bi-globe" style="font-size: 36px; color: #6f42c1;"></i>
-                        <h3 class="mt-3" style="font-size: 1.25rem; font-weight: 700; color: #6f42c1;">Standards-Compliant</h3>
-                        <p class="mt-2" style="color: #4a2c7d;">Built on the official Model Context Protocol (MCP) standard by Anthropic. Future-proof and vendor-neutral.</p>
+                        <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #17a2b8 0%, #20c9e5 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+                            <i class="fa fa-key" style="font-size: 28px; color: #ffffff;"></i>
+                        </div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem;">Revocable Tokens</h3>
+                        <p style="color: #495057; margin-bottom: 0;">Industry-standard bearer token authentication. API keys can be revoked instantly and have configurable expiration for enhanced security.</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card h-100 border-0 shadow" style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);">
+                <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px;">
                     <div class="card-body p-4">
-                        <i class="bi bi-server" style="font-size: 36px; color: #856404;"></i>
-                        <h3 class="mt-3" style="font-size: 1.25rem; font-weight: 700; color: #856404;">Production Ready</h3>
-                        <p class="mt-2" style="color: #856404;">Native Odoo implementation with no external dependencies. Battle-tested concurrency handling and session management.</p>
+                        <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #6f42c1 0%, #9b59b6 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+                            <i class="fa fa-globe" style="font-size: 28px; color: #ffffff;"></i>
+                        </div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem;">Standards-Compliant</h3>
+                        <p style="color: #495057; margin-bottom: 0;">Built on the official Model Context Protocol (MCP) by Anthropic. Future-proof, vendor-neutral, and production-ready.</p>
                     </div>
                 </div>
             </div>
