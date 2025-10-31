@@ -289,7 +289,7 @@ Contributions and feature requests are welcome!
 - [Letta GitHub Repository](https://github.com/letta-ai/letta)
 - [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
 - [Forked Letta Python Client](https://github.com/apexive/letta-python)
-- [Streaming Bug Issue](https://github.com/letta-ai/letta-python/issues/25)
+- [Model Fetching Bug Issue](https://github.com/letta-ai/letta-python/issues/25)
 
 ## Support
 
