@@ -45,6 +45,7 @@
             "llm_generate/static/src/components/message/message.scss",
         ],
     },
+    "images": ["static/description/banner.jpeg"],
     "installable": True,
     "application": False,
     "auto_install": False,

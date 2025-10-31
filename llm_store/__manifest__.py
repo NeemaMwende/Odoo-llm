@@ -20,6 +20,7 @@
         "views/llm_store_views.xml",
         "views/llm_store_menu_views.xml",
     ],
+    "images": ["static/description/banner.jpeg"],
     "license": "LGPL-3",
     "installable": True,
 }

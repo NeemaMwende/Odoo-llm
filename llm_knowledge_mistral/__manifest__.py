@@ -17,6 +17,7 @@
     "data": [
         "views/llm_resource_views.xml",
     ],
+    "images": ["static/description/banner.jpeg"],
     "license": "LGPL-3",
     "installable": True,
     "application": False,
