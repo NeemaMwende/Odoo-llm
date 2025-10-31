@@ -1,8 +1,12 @@
 <section class="oe_container">
 
 <!-- Hero Section -->
-<section style="background: #ffffff; padding: 4rem 0 3rem;">
-    <div class="container">
+<section style="background: linear-gradient(180deg, #faf9ff 0%, #ffffff 100%); padding: 4rem 0 3rem; position: relative; overflow: hidden;">
+    <!-- Subtle decorative elements -->
+    <div style="position: absolute; top: -50px; right: -50px; width: 300px; height: 300px; background: radial-gradient(circle, rgba(111, 66, 193, 0.05) 0%, transparent 70%); border-radius: 50%;"></div>
+    <div style="position: absolute; bottom: -100px; left: -100px; width: 400px; height: 400px; background: radial-gradient(circle, rgba(102, 126, 234, 0.05) 0%, transparent 70%); border-radius: 50%;"></div>
+
+    <div class="container" style="position: relative; z-index: 1;">
         <div class="text-center" style="max-width: 800px; margin: 0 auto;">
             <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: linear-gradient(135deg, #f0ebff 0%, #e8e0ff 100%); padding: 0.5rem 1.25rem; border-radius: 50px; margin-bottom: 2rem;">
                 <i class="bi bi-stars" style="color: #6f42c1; font-size: 1.25rem;"></i>
@@ -14,34 +18,27 @@
                 <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">with AI</span>
             </h1>
 
-            <p style="font-size: 1.25rem; color: #6c757d; margin-bottom: 2rem; line-height: 1.6;">
+            <p style="font-size: 1.25rem; color: #6c757d; margin-bottom: 1rem; line-height: 1.6;">
                 Connect any MCP client to Odoo and manage your business using natural language. Zero configuration required.
             </p>
 
-            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2.5rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="bi bi-check-circle-fill" style="color: #28a745; font-size: 1.25rem;"></i>
-                    <span style="color: #495057; font-weight: 500;">Zero Setup</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="bi bi-check-circle-fill" style="color: #28a745; font-size: 1.25rem;"></i>
-                    <span style="color: #495057; font-weight: 500;">Open Source</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="bi bi-check-circle-fill" style="color: #28a745; font-size: 1.25rem;"></i>
-                    <span style="color: #495057; font-weight: 500;">Enterprise Ready</span>
-                </div>
-            </div>
+            <p style="font-size: 1rem; color: #868e96; margin-bottom: 2rem;">
+                Works with <strong style="color: #495057;">Claude Desktop</strong>, <strong style="color: #495057;">Claude Code</strong>, <strong style="color: #495057;">Codex CLI</strong>, and any MCP-compatible client
+            </p>
 
             <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                <a href="#setup" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; border-radius: 12px; padding: 1rem 2.5rem; text-decoration: none; font-size: 1.1rem; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 15px rgba(111, 66, 193, 0.3);">
-                    <span>Get Started</span>
-                    <i class="bi bi-arrow-right"></i>
-                </a>
-                <a href="https://github.com/apexive/odoo-llm" target="_blank" style="background: white; color: #6f42c1; font-weight: 600; border-radius: 12px; padding: 1rem 2.5rem; text-decoration: none; font-size: 1.1rem; display: inline-flex; align-items: center; gap: 0.5rem; border: 2px solid #e9ecef;">
-                    <i class="bi bi-github"></i>
-                    <span>View on GitHub</span>
-                </a>
+                <div style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); padding: 0.75rem 1.5rem; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.15);">
+                    <i class="bi bi-lightning-charge-fill" style="color: #28a745; font-size: 1.25rem;"></i>
+                    <span style="color: #155724; font-weight: 600;">Zero Setup</span>
+                </div>
+                <div style="background: linear-gradient(135deg, #e0d4f7 0%, #d4c5f9 100%); padding: 0.75rem 1.5rem; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 8px rgba(111, 66, 193, 0.15);">
+                    <i class="bi bi-github" style="color: #6f42c1; font-size: 1.25rem;"></i>
+                    <span style="color: #4a2c7d; font-weight: 600;">Open Source</span>
+                </div>
+                <div style="background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%); padding: 0.75rem 1.5rem; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 8px rgba(23, 162, 184, 0.15);">
+                    <i class="bi bi-shield-check" style="color: #17a2b8; font-size: 1.25rem;"></i>
+                    <span style="color: #0c5460; font-weight: 600;">Enterprise Ready</span>
+                </div>
             </div>
         </div>
     </div>
