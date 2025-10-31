@@ -78,6 +78,7 @@ To test your MCP server and available tools, use the official **MCP Inspector**:
 [https://modelcontextprotocol.io/docs/tools/inspector](https://modelcontextprotocol.io/docs/tools/inspector)
 
 The inspector allows you to:
+
 - Verify your server is running correctly
 - Browse available tools and their schemas
 - Test tool execution with sample inputs

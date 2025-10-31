@@ -18,6 +18,7 @@ odoo-bin -d your_db -i llm_letta,llm_mcp_server
 ```
 
 **Usage:**
+
 1. Go to **LLM → Threads** → Create new thread
 2. Select **Provider**: "Letta (Local)", **Model**: any available model
 3. Start chatting - agent is auto-created with full tool access
@@ -47,8 +48,8 @@ services:
   letta:
     image: letta/letta:latest
     ports:
-      - "8083:8083"  # Web UI
-      - "8283:8283"  # API server
+      - "8083:8083" # Web UI
+      - "8283:8283" # API server
     env_file:
       - .env.letta
 ```
@@ -66,6 +67,7 @@ psql -U POSTGRES_USER letta -c "CREATE EXTENSION vector"
 ```
 
 **3. Configure MCP Server in Odoo:**
+
 - Go to: LLM → Configuration → MCP Server
 - Set External URL: `http://host.docker.internal:8069`
 - (Allows Letta in Docker to access Odoo running on host)
@@ -100,6 +102,7 @@ See [Letta docs](https://docs.letta.com/guides/selfhosting) for more.
 **Local**: Default "Letta (Local)" provider connects to `localhost:8283` (no API key needed)
 
 **Cloud**:
+
 1. Get API token from [Letta Cloud](https://app.letta.com)
 2. In Odoo: LLM → Providers → "Letta (Cloud)"
 3. Set API Key and project name (default: "default-project")
@@ -108,11 +111,13 @@ See [Letta docs](https://docs.letta.com/guides/selfhosting) for more.
 ## Tool Integration
 
 **Zero-config MCP setup:**
+
 - Letta agents auto-connect to Odoo's MCP server
 - API keys generated automatically per user (no manual setup!)
 - All active `llm.tool` records instantly available
 
 **Available operations:**
+
 - Record CRUD operations
 - Model method execution
 - Model inspection
