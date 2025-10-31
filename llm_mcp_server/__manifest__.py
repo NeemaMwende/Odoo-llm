@@ -39,6 +39,7 @@
     ],
     "images": [
         "static/description/banner.jpeg",
+        "static/description/llm_mcp_server_demo.gif"
     ],
     "auto_install": False,
     "application": False,
