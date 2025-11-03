@@ -31,7 +31,7 @@ Odoo → User Avatar → Preferences → Account Security → API Keys → New
 ```json
 {
   "mcpServers": {
-    "odoo": {
+    "odoo-llm-mcp-server": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
@@ -45,7 +45,7 @@ Odoo → User Avatar → Preferences → Account Security → API Keys → New
 **Claude Code**:
 
 ```bash
-claude mcp add-json odoo '{
+claude mcp add-json odoo-llm-mcp-server '{
   "type": "stdio",
   "command": "npx",
   "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
@@ -59,7 +59,7 @@ claude mcp add-json odoo '{
 ```toml
 experimental_use_rmcp_client = true
 
-[mcp_servers.odoo]
+[mcp_servers.odoo-llm-mcp-server]
 url = "http://localhost:8069/mcp"
 http_headers.Authorization = "Bearer YOUR_API_KEY"
 ```
