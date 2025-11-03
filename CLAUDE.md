@@ -117,6 +117,32 @@ Provider modules with minimal UI:
 - Pre-commit hooks configured
 - Type hints where applicable
 
+## Documentation
+
+### Odoo App Store HTML Guidelines
+
+**IMPORTANT**: When creating or updating module descriptions for the Odoo App Store (`static/description/index.html`), always refer to:
+
+**[ODOO_APP_STORE_HTML_GUIDE.md](./ODOO_APP_STORE_HTML_GUIDE.md)**
+
+This guide documents:
+- ✅ Safe CSS patterns proven to work in Odoo App Store
+- ❌ Patterns to avoid (stripped by sanitizer)
+- 🎨 Recommended HTML/CSS patterns and templates
+- 🎯 Safe color palette (hex colors only)
+- 📱 Responsive design guidelines
+- ⚠️ Common mistakes and validation checklist
+
+**Key Rules**:
+1. No DOCTYPE, html, head, body tags (use HTML fragments only)
+2. No rgba() colors - use hex colors only
+3. No CSS transitions, transforms, or animations
+4. No inline JavaScript (onclick, onmouseover, etc.)
+5. No linear-gradients
+6. Use Bootstrap 5 grid system (container, row, col-*)
+7. Use inline styles for colors/typography
+8. Use Bootstrap utility classes for layout/spacing
+
 ## Development Commands
 
 ### Testing
