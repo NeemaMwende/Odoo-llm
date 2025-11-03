@@ -442,7 +442,7 @@
                         <div style="background: #1a1a2e; color: #f8f8f2; padding: 1rem; border-radius: 8px; font-size: 0.875rem; overflow-x: auto;">
                             <pre style="margin: 0;">{
   "mcpServers": {
-    "odoo": {
+    "odoo-llm-mcp-server": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
@@ -469,7 +469,7 @@
 
                         <p style="margin-bottom: 1rem; color: #495057;">Run this command:</p>
                         <div style="background: #1a1a2e; color: #f8f8f2; padding: 1rem; border-radius: 8px; font-size: 0.875rem; overflow-x: auto;">
-                            <pre style="margin: 0;">claude mcp add-json odoo '{
+                            <pre style="margin: 0;">claude mcp add-json odoo-llm-mcp-server '{
   "type": "stdio",
   "command": "npx",
   "args": ["-y", "mcp-remote",
@@ -498,7 +498,7 @@
                         <div style="background: #1a1a2e; color: #f8f8f2; padding: 1rem; border-radius: 8px; font-size: 0.875rem; overflow-x: auto;">
                             <pre style="margin: 0;">experimental_use_rmcp_client = true
 
-[mcp_servers.odoo]
+[mcp_servers.odoo-llm-mcp-server]
 url = "http://localhost:8069/mcp"
 http_headers.Authorization = "Bearer YOUR_API_KEY"</pre>
                         </div>
@@ -850,9 +850,9 @@ class SaleOrder(models.Model):
                     <p style="color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; margin-bottom: 0;">Licensed under <a href="https://www.gnu.org/licenses/lgpl-3.0.html" target="_blank" style="color: #ffffff; text-decoration: underline;">LGPL-3</a> &bull; &copy; 2025 All rights reserved.</p>
                 </div>
                 <div class="col-md-4 mt-3 mt-md-0" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                    <a href="https://apexive.com" target="_blank" style="display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); padding: 0.875rem 1.5rem; border-radius: 8px; text-decoration: none; color: #ffffff; font-weight: 600; transition: all 0.2s; width: 100%;">
+                    <a href="https://www.apexive.com" target="_blank" style="display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); padding: 0.875rem 1.5rem; border-radius: 8px; text-decoration: none; color: #ffffff; font-weight: 600; transition: all 0.2s; width: 100%;">
                         <i class="fa fa-globe" style="font-size: 18px; margin-right: 0.5rem;"></i>
-                        apexive.com
+                        Apexive.com
                     </a>
                     <a href="mailto:hello@apexive.com" style="display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); padding: 0.875rem 1.5rem; border-radius: 8px; text-decoration: none; color: #ffffff; font-weight: 600; transition: all 0.2s; width: 100%;">
                         <i class="fa fa-envelope" style="font-size: 18px; margin-right: 0.5rem;"></i>
