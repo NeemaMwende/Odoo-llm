@@ -128,7 +128,7 @@ The new `llm_role` field provides dramatic performance improvements:
 ### Module Information
 
 - **Name**: LLM Integration Base
-- **Version**: 16.0.1.3.0
+- **Version**: 18.0.1.4.0
 - **Category**: Technical
 - **License**: LGPL-3
 - **Dependencies**: `mail`, `web`
@@ -273,30 +273,6 @@ class CustomThread(models.Model):
 
         return super().message_post(**kwargs)
 ```
-
-## Migration Notes
-
-### From Previous Versions
-
-**Message Subtype Migration:**
-
-- Message subtypes moved from separate module to base module
-- Automatic migration preserves existing data
-- Performance improvements applied to existing messages
-
-**Role Field Migration:**
-
-- Automatic computation of `llm_role` for existing messages
-- Database migration creates indexes for performance
-- Backward compatibility maintained
-
-### Breaking Changes
-
-**Version 16.0.1.3.0:**
-
-- Moved message subtypes to base module
-- Added required `llm_role` field computation
-- Enhanced provider dispatch mechanism
 
 ## Related Modules
 
