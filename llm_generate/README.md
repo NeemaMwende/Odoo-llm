@@ -83,7 +83,7 @@ get formFields() {
 }
 ```
 
-### Race Condition Fixes (Version 16.0.2.0.0)
+### Race Condition Fixes
 
 **Comprehensive Async Handling:**
 
@@ -574,32 +574,12 @@ def _get_cached_schema(self, model_id, prompt_id, assistant_id):
 - **Memory Management**: Efficient handling of large content streams
 - **Connection Pooling**: Reuse connections for better performance
 
-## Migration Notes
-
-### Version 16.0.2.0.0 Changes
-
-**Race Condition Fixes:**
-
-- Fixed async loading issues in media form components
-- Improved schema computation consistency
-- Enhanced loading state management
-- Better error handling and recovery
-
-**New Features:**
-
-- Schema source transparency and indicators
-- Enhanced form validation
-- Improved streaming generation
-- Better queue management
-
-**Breaking Changes:** None - fully backward compatible
-
 ## Technical Specifications
 
 ### Module Information
 
 - **Name**: LLM Generate
-- **Version**: 16.0.2.0.0
+- **Version**: 18.0.2.0.0
 - **Category**: Productivity
 - **License**: LGPL-3
 - **Dependencies**: `llm`, `llm_assistant`, `mail`

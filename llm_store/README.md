@@ -400,7 +400,7 @@ def insert_vectors_batch(self, collection, vectors, metadata=None, ids=None, bat
 ### Module Information
 
 - **Name**: LLM Vector Store Base
-- **Version**: 16.0.1.0.0
+- **Version**: 18.0.1.0.0
 - **Category**: Technical
 - **License**: LGPL-3
 - **Dependencies**: `llm`, `mail`

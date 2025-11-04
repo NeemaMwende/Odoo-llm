@@ -19,7 +19,7 @@ The LLM Assistant module provides sophisticated AI assistant management that goe
 
 ### Consolidated Architecture
 
-**Version 16.0.1.4.0** consolidates functionality from the former `llm_prompt` module:
+The module consolidates functionality from the former `llm_prompt` module:
 
 - ✅ **Prompt templates integrated** into assistant management
 - ✅ **Enhanced testing wizard** with context simulation
@@ -377,34 +377,12 @@ class ProjectTask(models.Model):
         return response
 ```
 
-## Migration Notes
-
-### From llm_prompt Module
-
-**Automatic Migration** (Version 16.0.1.4.0):
-
-- All existing prompts automatically migrated to assistant module
-- Template functionality seamlessly integrated
-- Enhanced testing capabilities added
-- No data loss or configuration changes required
-
-**New Features Added**:
-
-- Auto-argument detection for existing templates
-- Enhanced testing wizard with context simulation
-- Improved UI with unified assistant/prompt management
-- Better error handling and validation
-
-### Breaking Changes
-
-None - this is a consolidation update with full backward compatibility.
-
 ## Technical Specifications
 
 ### Module Information
 
 - **Name**: LLM Assistant
-- **Version**: 16.0.1.4.0
+- **Version**: 18.0.1.5.0
 - **Category**: Productivity
 - **License**: LGPL-3
 - **Dependencies**: `llm`, `mail`

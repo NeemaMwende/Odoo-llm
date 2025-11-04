@@ -25,8 +25,8 @@ This Odoo module provides functionality for managing and interacting with thread
 
 ## Dependencies
 
-- Odoo 16.0 or later
-- Python 3.8 or later
+- Odoo 18.0 or later
+- Python 3.10 or later
 
 ## Contributing
 
