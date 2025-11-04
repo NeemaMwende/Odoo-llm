@@ -49,6 +49,47 @@ This guide documents the CSS patterns, HTML structure, and best practices for cr
 
 ## ❌ AVOID THESE (Will Be Stripped or Cause Issues)
 
+### 0. **CRITICAL: Inline Flexbox Alignment Properties** ⚠️
+
+**These flexbox properties are STRIPPED from inline styles:**
+
+```html
+<!-- ❌ DON'T USE - Will be stripped -->
+<div style="display:flex; align-items:center; justify-content:center">
+    <i class="fa fa-icon"></i>
+</div>
+```
+
+**Stripped properties:**
+- `align-items:center` ❌
+- `align-items:*` ❌
+- `justify-content:center` ❌
+- `justify-content:*` ❌
+- `flex-wrap:wrap` ❌
+- `flex-direction:column` ❌
+- `gap:*` ❌
+
+**✅ USE INSTEAD - Text/Line-Height Centering:**
+
+```html
+<!-- For icon centering in a square/circle -->
+<div class="text-center" style="width:64px; height:64px; line-height:64px; border-radius:50%; background-color:#875A7B">
+    <i class="fa fa-icon" style="color:#fff; font-size:32px; vertical-align:middle"></i>
+</div>
+
+<!-- For vertical centering with padding -->
+<div class="text-center" style="padding:20px; background-color:#f5efff">
+    <i class="fa fa-icon" style="font-size:32px"></i>
+</div>
+
+<!-- For flexbox via Bootstrap classes ONLY -->
+<div class="d-flex align-items-center justify-content-center" style="width:64px; height:64px">
+    <i class="fa fa-icon"></i>
+</div>
+```
+
+**Why**: Odoo's sanitizer strips flexbox alignment properties from inline styles, but allows them as Bootstrap utility classes.
+
 ### 1. CSS Transitions and Transforms
 ```html
 <!-- ❌ DON'T USE -->
@@ -111,6 +152,58 @@ This guide documents the CSS patterns, HTML structure, and best practices for cr
 </section>
 ```
 **Why**: Odoo injects your HTML as a fragment into its own template. The wrapper will be ignored or cause issues.
+
+### 7. **External Links (`<a>` tags)** ⚠️
+
+**Most `<a>` tags are converted to `<span>` (non-clickable):**
+
+```html
+<!-- ❌ STRIPPED - Becomes <span> -->
+<a href="https://github.com/yourorg/repo">GitHub</a>
+
+<!-- ❌ STRIPPED - Becomes <span> -->
+<a href="https://example.com">External Link</a>
+
+<!-- ✅ ALLOWED - Odoo official docs -->
+<a href="https://www.odoo.com/documentation/18.0/">Odoo Docs</a>
+```
+
+**Why**: Odoo sanitizer converts most external links to `<span>` tags to prevent phishing. Only whitelisted domains (like odoo.com official docs) remain as links.
+
+**Solution**: Use `mailto:` links (these work) or display URLs as plain text.
+
+```html
+<!-- ✅ Email links work -->
+<a href="mailto:support@example.com">Contact Support</a>
+
+<!-- ✅ Display URL as text -->
+<p>Visit: <code>https://github.com/yourorg/repo</code></p>
+```
+
+### 8. **Special Characters** ⚠️
+
+**Unicode arrows and special characters get mangled:**
+
+```html
+<!-- ❌ DON'T USE -->
+Preferences → API Keys → New
+
+<!-- ❌ RENDERED AS -->
+Preferences â API Keys â New
+
+<!-- ✅ USE INSTEAD - HTML entities -->
+Preferences &rarr; API Keys &rarr; New
+<!-- OR -->
+Preferences &#8594; API Keys &#8594; New
+```
+
+**Common HTML entities:**
+- `&rarr;` or `&#8594;` → (right arrow)
+- `&larr;` or `&#8592;` ← (left arrow)
+- `&mdash;` or `&#8212;` — (em dash)
+- `&ndash;` or `&#8211;` – (en dash)
+- `&bull;` or `&#8226;` • (bullet)
+- `&copy;` or `&#169;` © (copyright)
 
 ---
 
@@ -377,13 +470,55 @@ Before submitting to Odoo App Store:
 - [ ] All colors are hex format (#xxxxxx), no rgba()
 - [ ] No CSS transitions, transforms, or animations
 - [ ] No inline JavaScript handlers (onclick, onmouseover, etc.)
+- [ ] ⚠️ **NO inline flexbox alignment** (`align-items`, `justify-content`, `flex-wrap`, `gap`) - use Bootstrap classes instead
 - [ ] Using Bootstrap 5 grid classes (container, row, col-*)
 - [ ] All sections have responsive column patterns
 - [ ] Bootstrap utility classes used for spacing (p-*, m-*, mb-*)
 - [ ] Card components use `h-100` for equal heights
 - [ ] Text uses inline styles for colors and typography
 - [ ] Icons use FontAwesome classes (fa, fa-*)
+- [ ] ⚠️ **Icon centering** uses `text-center` + `line-height` OR Bootstrap flex classes
+- [ ] ⚠️ **Special characters** use HTML entities (`&rarr;` not `→`)
+- [ ] ⚠️ **External links** are `mailto:` or displayed as plain text (will be stripped)
 - [ ] All sections tested for mobile responsiveness
+
+---
+
+## 🔬 REAL-WORLD SANITIZER ANALYSIS (llm_mcp_server)
+
+Based on comparison of `index.html` (source) vs `odoo_store_rendered.html` (actual output):
+
+### What Gets Stripped
+
+| CSS Property | Source | Rendered | Impact |
+|-------------|--------|----------|---------|
+| `align-items:center` | ✅ Present | ❌ STRIPPED | Icons not vertically centered |
+| `justify-content:center` | ✅ Present | ❌ STRIPPED | Icons not horizontally centered |
+| `flex-wrap:wrap` | ✅ Present | ❌ STRIPPED | No wrapping on mobile |
+| `flex-direction:column` | ✅ Present | ❌ STRIPPED | Layout horizontal instead of vertical |
+| `gap:1rem` | ✅ Present | ❌ STRIPPED | No spacing between flex children |
+| `<a href="external">` | ✅ `<a>` tag | ❌ `<span>` tag | Links not clickable |
+| `→` (unicode arrow) | ✅ `→` | ❌ `â` | Character encoding broken |
+
+### What Survives
+
+✅ **These properties work correctly:**
+- `display:flex` (but without alignment properties)
+- `width`, `height`, `padding`, `margin`
+- `border-radius`, `border`, `background-color` (hex only)
+- `color`, `font-size`, `font-weight`, `line-height`
+- `text-align`, `text-decoration`
+- Bootstrap utility classes (including `d-flex`, `align-items-center`, `justify-content-center`)
+- `mailto:` links remain functional
+- HTML entities (`&rarr;`, `&copy;`, etc.)
+
+### Critical Lessons Learned
+
+1. **Never use inline flex alignment** - Always use Bootstrap classes (`d-flex align-items-center justify-content-center`)
+2. **Icon centering requires alternative methods** - Use `text-center` + `line-height` for vertical centering
+3. **External links will be stripped** - Only `mailto:` links work
+4. **Use HTML entities for special characters** - Never use unicode directly
+5. **Bootstrap classes > Inline styles** for flexbox - The sanitizer respects Bootstrap but strips inline flex properties
 
 ---
 
@@ -395,3 +530,4 @@ Before submitting to Odoo App Store:
 - **Fragment Injection**: Your HTML is injected into Odoo's template as a fragment
 - **No Custom CSS Files**: Can't link external stylesheets, use inline styles
 - **No Custom JavaScript**: No way to add custom JS, must work with static HTML
+- **Bootstrap Classes are Safer**: The sanitizer is more permissive with Bootstrap utility classes than inline styles
