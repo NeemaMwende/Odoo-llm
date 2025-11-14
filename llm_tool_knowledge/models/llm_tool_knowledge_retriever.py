@@ -25,8 +25,8 @@ class LLMToolKnowledgeRetriever(models.Model):
         collections = Collection.search([("active", "=", True)])
         return [(str(collection.id), collection.name) for collection in collections]
 
-    def get_input_schema(self, method="execute"):
-        schema = super().get_input_schema(method=method)
+    def get_input_schema(self):
+        schema = super().get_input_schema()
         if self.implementation == "knowledge_retriever":
             available_collections = self._get_available_collections()
             collections_description = ", ".join(
