@@ -1,5 +1,5 @@
 {
-    "name": "LLM Knowledge Mistral",
+    "name": "LLM RAG Mistral",
     "summary": "OCR vision AI: extract text from images, receipts, handwriting, and scanned documents using Mistral vision models",
     "description": """
         Turn images into searchable knowledge with Mistral AI's vision models. Extract text from
