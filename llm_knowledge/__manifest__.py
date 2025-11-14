@@ -1,21 +1,11 @@
 {
     "name": "LLM Knowledge",
-    "summary": "Retrieval Augmented Generation for LLM with Document Resource Management",
+    "summary": "RAG vector search: AI knowledge base with semantic document retrieval, embeddings, PDF parsing, and multi-store support (Qdrant, pgvector, Chroma)",
     "description": """
-        Implements Retrieval Augmented Generation (chunking and embedding) for the LLM module.
-
-        This module consolidates the functionality of both llm_resource and llm_knowledge modules,
-        providing a comprehensive solution for document resource management and RAG processing.
-
-        Features:
-        - Base document resource model
-        - Resource retrieval interfaces (HTTP, etc.)
-        - Resource parsing interfaces (PDF, HTML, etc.)
-        - Document collections for RAG
-        - Document chunking pipeline
-        - Document embedding integration
-        - Vector search using various stores (pgvector, chroma, qdrant)
-        - PDF processing and text extraction
+        Complete RAG (Retrieval-Augmented Generation) system for Odoo with document processing,
+        vector search, and semantic knowledge base capabilities. Turn your documents into AI-searchable
+        knowledge with support for PDFs, web pages, and text files. Compatible with Qdrant, pgvector,
+        and Chroma vector stores.
     """,
     "category": "Technical",
     "version": "18.0.1.1.0",
