@@ -1,14 +1,10 @@
 {
     "name": "LLM RAG LlamaIndex",
-    "summary": "Extend LLM RAG with LlamaIndex markdown chunking capabilities",
+    "summary": "Advanced RAG chunking: LlamaIndex markdown parsing, semantic chunking, structured document splitting for better AI retrieval accuracy",
     "description": """
-        Extends the LLM RAG module with LlamaIndex markdown-optimized chunking strategies.
-
-        Features:
-        - Integration with LlamaIndex for resource chunking
-        - Markdown-optimized node parsing
-        - Improved semantic chunking for better retrieval
-        - Support for LlamaIndex's advanced chunking strategies
+        Supercharge your RAG pipeline with LlamaIndex's advanced chunking strategies. Parse markdown
+        while preserving structure (headers, lists, code blocks). Semantic chunking creates better
+        document segments for more accurate AI retrieval. Turn structured documents into AI-friendly chunks.
     """,
     "category": "Technical",
     "version": "18.0.1.0.0",
