@@ -425,11 +425,16 @@
             <div class="card-body p-4">
                 <div class="mb-4">
                     <h4 style="font-size:1.1rem; font-weight:600; color:#212529; margin-bottom:1rem">
-                        <i class="fa fa-cube text-primary"></i> Install Module: <code>llm_qdrant</code>
+                        <i class="fa fa-cube text-primary"></i> Install Vector Store Module
                     </h4>
-                    <p style="color:#6c757d; margin-bottom:1.5rem">
-                        First, install the Qdrant vector store module to enable vector similarity search capabilities.
+                    <p style="color:#6c757d; margin-bottom:1rem">
+                        Choose a vector store to enable semantic search capabilities. This example uses <code>llm_qdrant</code>, but you can also use:
                     </p>
+                    <ul style="color:#6c757d; font-size:0.95rem; margin-bottom:1.5rem">
+                        <li><strong>llm_qdrant</strong> - High-performance vector database (shown in this guide)</li>
+                        <li><strong>llm_pgvector</strong> - PostgreSQL extension (if you prefer SQL)</li>
+                        <li><strong>llm_chroma</strong> - Lightweight embedded database</li>
+                    </ul>
 
                     <div class="text-center mb-3">
                         <img src="screenshots/vector_store_list.png" alt="Vector Store List" class="img-fluid shadow-sm" style="border-radius:8px; max-width:100%">
@@ -627,9 +632,14 @@
                     <h4 style="font-size:1.1rem; font-weight:600; color:#212529; margin-bottom:1rem">
                         <i class="fa fa-upload text-warning"></i> Step 4a: Upload Documents
                     </h4>
-                    <p style="color:#6c757d; margin-bottom:1.5rem">
-                        Upload PDFs, text files, markdown, or even images with text. The system supports multiple formats.
+                    <p style="color:#6c757d; margin-bottom:1rem">
+                        Add documents to your collection in multiple ways:
                     </p>
+                    <ul style="color:#6c757d; font-size:0.95rem; margin-bottom:1.5rem">
+                        <li><strong>Upload Files:</strong> PDFs, text files, markdown, images with text</li>
+                        <li><strong>External URLs:</strong> Provide links to download files from external sources</li>
+                        <li><strong>Website Links:</strong> Fetch and parse content directly from web pages</li>
+                    </ul>
 
                     <div class="text-center mb-4">
                         <img src="screenshots/upload_wizard.png" alt="Upload Wizard" class="img-fluid shadow-sm" style="border-radius:8px; max-width:100%">
