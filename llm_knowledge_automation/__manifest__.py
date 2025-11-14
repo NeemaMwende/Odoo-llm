@@ -1,15 +1,10 @@
 {
     "name": "LLM Knowledge Automation",
-    "summary": "Automates RAG resource creation and synchronization with collections",
+    "summary": "Auto-sync knowledge base: keeps AI current with real-time data updates, domain filters, and automated RAG pipeline processing",
     "description": """
-        Extends the LLM Knowledge module to automatically keep collections synchronized
-        with updated records through automated actions.
-
-        Features:
-        - Automatically create/update RAG resources when records change
-        - Synchronize collections with their domain filters via automated actions
-        - Remove resources from collections when they no longer match filters
-        - Trigger resource processing pipeline automatically
+        Set it and forget it - your AI's knowledge stays automatically updated as your data changes.
+        No manual sync required. Domain filters automatically create, update, and remove documents
+        from knowledge collections when records change. RAG pipeline runs automatically.
     """,
     "category": "Technical",
     "version": "18.0.1.0.0",

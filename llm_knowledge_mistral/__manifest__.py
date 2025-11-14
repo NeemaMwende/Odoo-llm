@@ -1,13 +1,10 @@
 {
-    "name": "LLM RAG Mistral",
-    "summary": "Extend LLM RAG with Mistral document/image parsing capabilities",
+    "name": "LLM Knowledge Mistral",
+    "summary": "OCR vision AI: extract text from images, receipts, handwriting, and scanned documents using Mistral vision models",
     "description": """
-        Extends the LLM RAG module with Mistral markdown-optimized parsing strategies.
-
-        Features:
-        - Integration with Mistral for resource parsing
-        - Markdown-optimized parsing
-        - Improved semantic parsing for better retrieval
+        Turn images into searchable knowledge with Mistral AI's vision models. Extract text from
+        handwritten notes, receipts, scanned documents, screenshots, and product labels. Make every
+        image searchable in your knowledge base with automatic OCR processing.
     """,
     "category": "Technical",
     "version": "18.0.1.0.0",
