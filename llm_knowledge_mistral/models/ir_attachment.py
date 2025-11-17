@@ -1,5 +1,6 @@
 import base64
 import logging
+from typing import List
 
 from odoo import models
 from odoo.addons.llm_tool.decorators import llm_tool
@@ -13,45 +14,81 @@ class IrAttachment(models.Model):
 
     @llm_tool(
         name="llm_mistral_attachment_parser",
-        description="Extract text and structured data from a PDF or image attachment using Mistral OCR vision model",
+        description="Extract text and structured data from PDF or image attachments using Mistral OCR vision model",
     )
-    def llm_mistral_attachment_parser(self, attachment_id):
+    def llm_mistral_attachment_parser(self, attachment_ids: List[int]) -> List[dict]:
         """
-        Parse a document attachment using Mistral OCR.
+        Parse document attachment(s) using Mistral OCR.
 
-        This tool extracts text content from PDF files and images using Mistral's
-        OCR (Optical Character Recognition) vision models. The result is formatted
-        as markdown text with page headers.
+        Extracts text content from PDF files and images using Mistral's OCR
+        (Optical Character Recognition) vision models.
 
         Args:
-            attachment_id (int): ID of the attachment to parse
+            attachment_ids: List of attachment IDs to parse
 
         Returns:
-            dict: {
-                "extracted_text": str,  # Markdown-formatted text content
-                "pages": int,           # Number of pages processed
-                "attachment_name": str, # Original filename
-                "mimetype": str,        # File type
-            }
+            List of dicts, one per attachment: [{
+                "attachment_id": int,
+                "extracted_text": str,      # Markdown with "## Page N" headers
+                "pages": int,
+                "attachment_name": str,
+                "mimetype": str,
+                "error": str                # Only present if parsing failed
+            }]
 
         Raises:
-            ValidationError: If attachment not found or has no content
             UserError: If Mistral provider or OCR model not configured
 
-        Example:
-            >>> self.env['ir.attachment'].llm_mistral_attachment_parser(attachment_id=123)
-            {
+        Examples:
+            >>> # Single attachment
+            >>> self.env['ir.attachment'].llm_mistral_attachment_parser([123])
+            [{
+                "attachment_id": 123,
                 "extracted_text": "## Page 1\n\nInvoice #12345...",
                 "pages": 2,
                 "attachment_name": "invoice.pdf",
                 "mimetype": "application/pdf"
-            }
-        """
-        # Get the attachment
-        attachment = self.browse(attachment_id)
-        if not attachment.exists():
-            raise ValidationError(f"Attachment with ID {attachment_id} not found")
+            }]
 
+            >>> # Multiple attachments
+            >>> self.env['ir.attachment'].llm_mistral_attachment_parser([123, 124, 125])
+            [
+                {"attachment_id": 123, "extracted_text": "...", "pages": 2, ...},
+                {"attachment_id": 124, "extracted_text": "...", "pages": 1, ...},
+                {"attachment_id": 125, "error": "No content", "pages": 0, ...}
+            ]
+        """
+        # Get provider and model ONCE (not in loop!)
+        provider, ocr_model = self._get_mistral_ocr_config()
+
+        # Process all attachments
+        results = []
+        for att_id in attachment_ids:
+            try:
+                result = self._parse_attachment(att_id, provider, ocr_model)
+                results.append(result)
+            except Exception as e:
+                # Include error in results, continue processing
+                _logger.warning(f"Failed to parse attachment {att_id}: {e}")
+                results.append(
+                    {
+                        "attachment_id": att_id,
+                        "error": str(e),
+                        "extracted_text": "",
+                        "pages": 0,
+                    }
+                )
+
+        return results
+
+    def _get_mistral_ocr_config(self):
+        """
+        Get Mistral provider and OCR model configuration.
+        Called once per tool invocation, not per attachment.
+
+        Returns:
+            tuple: (provider, ocr_model)
+        """
         # Get provider
         provider = self.env["llm.provider"].search(
             [("service", "=", "mistral")], limit=1
@@ -62,9 +99,8 @@ class IrAttachment(models.Model):
             )
 
         # Find OCR model with priority:
-        # 1. mistral-ocr-latest with model_use = ocr
-        # 2. Any model named mistral-ocr-latest
-        # 3. Any model with model_use = ocr
+        # 1. Prefer mistral-ocr-latest
+        # 2. Fallback to any OCR model
         ocr_model = self.env["llm.model"].search(
             [
                 ("provider_id", "=", provider.id),
@@ -73,16 +109,6 @@ class IrAttachment(models.Model):
             ],
             limit=1,
         )
-
-        if not ocr_model:
-            # Fallback: Any model named mistral-ocr-latest
-            ocr_model = self.env["llm.model"].search(
-                [
-                    ("provider_id", "=", provider.id),
-                    ("name", "=", "mistral-ocr-latest"),
-                ],
-                limit=1,
-            )
 
         if not ocr_model:
             # Fallback: Any OCR model
@@ -98,6 +124,25 @@ class IrAttachment(models.Model):
             raise UserError(
                 "No OCR model found. Please sync models from Mistral provider settings."
             )
+
+        return provider, ocr_model
+
+    def _parse_attachment(self, attachment_id, provider, ocr_model):
+        """
+        Parse a single attachment with already-configured provider and model.
+
+        Args:
+            attachment_id (int): Attachment ID to parse
+            provider: Mistral provider record
+            ocr_model: OCR model record
+
+        Returns:
+            dict: Parsed document data
+        """
+        # Get the attachment
+        attachment = self.browse(attachment_id)
+        if not attachment.exists():
+            raise ValidationError(f"Attachment with ID {attachment_id} not found")
 
         # Get attachment data
         mimetype = attachment.mimetype or "application/pdf"
@@ -120,6 +165,7 @@ class IrAttachment(models.Model):
         extracted_text = self._format_ocr_response(ocr_response)
 
         return {
+            "attachment_id": attachment_id,
             "extracted_text": extracted_text,
             "pages": len(ocr_response.pages) if hasattr(ocr_response, "pages") else 1,
             "attachment_name": attachment.name,
