@@ -77,13 +77,4 @@
         </field>
     </record>
 
-    <!-- Wizard Action -->
-    <record id="action_fetch_models_wizard" model="ir.actions.act_window">
-        <field name="name">Import Models</field>
-        <field name="res_model">llm.fetch.models.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-        <field name="binding_model_id" ref="model_llm_provider" />
-        <field name="binding_view_types">form</field>
-    </record>
 </odoo>
