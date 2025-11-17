@@ -1,3 +1,8 @@
+18.0.1.1.4 (2025-11-17)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Updated batch job processing to use provider's _determine_model_use() method instead of wizard
+
 18.0.1.1.3 (2025-10-23)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

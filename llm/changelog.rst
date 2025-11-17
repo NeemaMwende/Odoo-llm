@@ -1,3 +1,13 @@
+18.0.1.4.1 (2025-11-17)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Fixed wizard_id not being set on llm.fetch.models.line records
+* [IMP] Refactored model fetching: moved logic from wizard default_get() to provider action_fetch_models()
+* [IMP] Moved _determine_model_use() from wizard to provider for better extensibility
+* [REM] Removed wizard write() override workaround
+* [ADD] Comprehensive docstrings with extension pattern examples
+* [ADD] Documented standard capability names and priority order
+
 18.0.1.4.0 (2025-10-23)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
