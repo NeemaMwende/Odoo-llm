@@ -12,6 +12,7 @@
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "data": [
+        "data/llm_tool_data.xml",
         "views/llm_resource_views.xml",
     ],
     "images": ["static/description/banner.jpeg"],
