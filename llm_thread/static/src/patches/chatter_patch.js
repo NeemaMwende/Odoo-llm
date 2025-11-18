@@ -157,7 +157,7 @@ patch(Chatter.prototype, {
 
     // Create new thread with provider and model
     const name = `AI Chat - ${this.props.threadModel} #${this.props.threadId}`;
-    const threadId = await this.orm.create("llm.thread", [
+    const threadIds = await this.orm.create("llm.thread", [
       {
         name: name,
         model: this.props.threadModel,
@@ -167,6 +167,7 @@ patch(Chatter.prototype, {
       },
     ]);
 
-    return threadId;
+    // orm.create returns array of IDs, extract first one
+    return Array.isArray(threadIds) ? threadIds[0] : threadIds;
   },
 });
