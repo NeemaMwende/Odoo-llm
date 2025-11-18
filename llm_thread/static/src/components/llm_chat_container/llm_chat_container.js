@@ -13,6 +13,9 @@ import { useService } from "@web/core/utils/hooks";
 export class LLMChatContainer extends Component {
   static components = { Thread, Composer, LLMThreadHeader };
   static template = "llm_thread.LLMChatContainer";
+  static props = {
+    hideConversationList: { type: Boolean, optional: true },
+  };
 
   setup() {
     this.llmStore = useState(useService("llm.store"));

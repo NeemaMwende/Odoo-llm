@@ -32,8 +32,8 @@
         <xpath expr="//div[hasclass('o-mail-Chatter-content')]" position="replace">
             <div class="o-mail-Chatter-content d-flex flex-column flex-grow-1">
                 <t t-if="state.isChattingWithLLM">
-                    <!-- AI Chat Mode: Show LLM chat interface -->
-                    <LLMChatContainer />
+                    <!-- AI Chat Mode: Show LLM chat interface without conversation list -->
+                    <LLMChatContainer hideConversationList="true" />
                 </t>
                 <t t-else="">
                     <!-- Normal Mode: Show original chatter content -->

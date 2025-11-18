@@ -2,8 +2,9 @@
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMChatContainer">
         <div class="o_LLMChatContainer h-100 d-flex flex-row overflow-hidden">
-            <!-- Thread List Sidebar -->
+            <!-- Thread List Sidebar (hidden when embedded in chatter) -->
             <div
+        t-if="!props.hideConversationList"
         class="o-llm-sidebar d-flex flex-column"
         style="width: 280px; border-right: 1px solid #dee2e6;"
       >
