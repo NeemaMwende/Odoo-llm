@@ -10,7 +10,7 @@
     "depends": [
         "account",  # Invoice model (account.move)
         "llm_assistant",  # Includes llm, llm_thread, llm_tool
-        "llm_tool_mistral_ocr",  # OCR tool
+        "llm_tool_ocr_mistral",  # OCR tool
     ],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",

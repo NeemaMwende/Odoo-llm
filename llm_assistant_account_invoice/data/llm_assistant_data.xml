@@ -17,7 +17,7 @@
         }]]></field>
         <field name="active" eval="True" />
         <field name="tool_ids" eval="[(6, 0, [
-            ref('llm_tool_mistral_ocr.llm_tool_ocr_mistral'),
+            ref('llm_tool_ocr_mistral.llm_tool_ocr_mistral'),
             ref('llm_tool.llm_tool_odoo_record_retriever'),
             ref('llm_tool.llm_tool_odoo_record_creator'),
             ref('llm_tool.llm_tool_odoo_record_updater'),
