@@ -10,7 +10,7 @@
     "depends": [
         "account",  # Invoice model (account.move)
         "llm_assistant",  # Includes llm, llm_thread, llm_tool
-        "llm_knowledge_mistral",  # OCR tool
+        "llm_mistral_ocr",  # OCR tool
     ],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
@@ -20,7 +20,7 @@
     ],
     "assets": {
         "web.assets_backend": [
-            "llm_invoice_assistant/static/src/js/assistant_button_helper.js",
+            "llm_assistant_account_invoice/static/src/js/assistant_button_helper.js",
         ],
     },
     "license": "LGPL-3",

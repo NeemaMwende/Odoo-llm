@@ -1,15 +1,4 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <record id="llm_tool_llm_mistral_attachment_parser" model="llm.tool">
-        <field name="name">llm_mistral_attachment_parser</field>
-        <field name="implementation">function</field>
-        <field name="decorator_model">ir.attachment</field>
-        <field name="decorator_method">llm_mistral_attachment_parser</field>
-        <field
-      name="description"
-    >Extract text and structured data from PDF or image attachments using Mistral OCR vision model</field>
-        <field name="active" eval="True" />
-        <field name="requires_user_consent" eval="False" />
-        <field name="read_only_hint" eval="True" />
-    </record>
+    <!-- OCR tool registration moved to llm_tool_ocr_mistral module -->
 </odoo>

@@ -13,10 +13,10 @@ class IrAttachment(models.Model):
     _inherit = "ir.attachment"
 
     @llm_tool(
-        name="llm_mistral_attachment_parser",
+        name="llm_tool_ocr_mistral",
         description="Extract text and structured data from PDF or image attachments using Mistral OCR vision model",
     )
-    def llm_mistral_attachment_parser(self, attachment_ids: List[int]) -> List[dict]:
+    def llm_tool_ocr_mistral(self, attachment_ids: List[int]) -> List[dict]:
         """
         Parse document attachment(s) using Mistral OCR.
 
@@ -41,7 +41,7 @@ class IrAttachment(models.Model):
 
         Examples:
             >>> # Single attachment
-            >>> self.env['ir.attachment'].llm_mistral_attachment_parser([123])
+            >>> self.env['ir.attachment'].llm_tool_ocr_mistral([123])
             [{
                 "attachment_id": 123,
                 "extracted_text": "## Page 1\n\nInvoice #12345...",
@@ -51,7 +51,7 @@ class IrAttachment(models.Model):
             }]
 
             >>> # Multiple attachments
-            >>> self.env['ir.attachment'].llm_mistral_attachment_parser([123, 124, 125])
+            >>> self.env['ir.attachment'].llm_tool_ocr_mistral([123, 124, 125])
             [
                 {"attachment_id": 123, "extracted_text": "...", "pages": 2, ...},
                 {"attachment_id": 124, "extracted_text": "...", "pages": 1, ...},
