@@ -84,12 +84,14 @@ export const llmStoreService = {
         this.streamingThreads.add(threadId);
 
         try {
-          // Include message parameter for user message creation
-          const eventSource = new EventSource(
-            `/llm/thread/generate?thread_id=${threadId}&message=${encodeURIComponent(
-              message
-            )}`
-          );
+          // Include message parameter only if provided (for user message creation)
+          // If message is null/empty, backend will use latest message in thread
+          const url = message
+            ? `/llm/thread/generate?thread_id=${threadId}&message=${encodeURIComponent(
+                message
+              )}`
+            : `/llm/thread/generate?thread_id=${threadId}`;
+          const eventSource = new EventSource(url);
 
           this.eventSources.set(threadId, eventSource);
 

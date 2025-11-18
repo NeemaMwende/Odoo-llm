@@ -82,6 +82,16 @@ patch(Chatter.prototype, {
     // Trigger the existing AI button click handler
     // useEffect will handle focusing when state changes
     await this.onAIChatClick();
+
+    
+    const llmStore = this.env.services["llm.store"];
+    if (llmStore && this.state.llmThreadId) {
+      console.log("[Chatter] Auto-triggering generation on prepended message");
+      // Trigger streaming without message parameter
+      // Backend will use prepended messages from prompt
+      await llmStore.startLLMStreaming(this.state.llmThreadId, null);
+    }
+    
   },
 
   /**

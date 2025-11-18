@@ -5,14 +5,14 @@
         <field name="name">Invoice Parser Multi-Message Prompt</field>
         <field
       name="description"
-    >Multi-message JSON prompt for invoice parsing assistant that auto-triggers parsing when chat opens</field>
+    >Multi-message YAML prompt with system instructions and user message to auto-trigger invoice parsing on chat open.</field>
         <field name="format">json</field>
         <field
       name="template"
     ><![CDATA[[
   {
     "type": "system",
-    "content": "You are a {{ role }}.\n\nYour goal is to {{ goal }}\n\nBackground: {{ background }}\n\nInstructions: {{ instructions }}\n\n{{ footer }}"
+    "content": {{ ('You are a ' + role + '.\n\nYour goal is to ' + goal + '\n\nBackground: ' + background + '\n\nInstructions: ' + instructions + '\n\n' + footer) | tojson }}
   },
   {
     "type": "user",
