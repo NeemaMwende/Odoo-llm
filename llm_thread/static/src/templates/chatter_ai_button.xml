@@ -14,7 +14,7 @@
             <!-- Toggle AI Chat button -->
             <button
         t-if="shouldShowAIButton"
-        class="o-mail-Chatter-aiChat btn text-nowrap me-1"
+        class="o-mail-Chatter-aiChat btn text-nowrap ms-1 me-1"
         t-att-class="{
             'btn-primary': state.isChattingWithLLM,
             'my-2': !props.compactHeight
