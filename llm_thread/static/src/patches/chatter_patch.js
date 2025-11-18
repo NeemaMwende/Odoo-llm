@@ -4,6 +4,7 @@ import { Chatter } from "@mail/chatter/web_portal/chatter";
 import { LLMChatContainer } from "@llm_thread/components/llm_chat_container/llm_chat_container";
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
+import { onWillDestroy } from "@odoo/owl";
 
 // Register LLMChatContainer component with Chatter
 Object.assign(Chatter.components, { LLMChatContainer });
@@ -26,10 +27,19 @@ patch(Chatter.prototype, {
     });
 
     // Subscribe to bus notification for opening AI chat
-    // Odoo 18 uses busService.subscribe() not addEventListener()
-    this.busService.subscribe("llm.thread/open_in_chatter", (payload) => {
+    // Store callback reference for cleanup
+    this.busNotificationCallback = (payload) => {
       console.log("[Chatter] Bus notification received!", payload);
       this.handleOpenAIChatNotification(payload);
+    };
+
+    // Odoo 18 uses busService.subscribe() not addEventListener()
+    this.busService.subscribe("llm.thread/open_in_chatter", this.busNotificationCallback);
+
+    // Clean up subscription when component is destroyed
+    onWillDestroy(() => {
+      this.busService.unsubscribe("llm.thread/open_in_chatter", this.busNotificationCallback);
+      console.log("[Chatter] Unsubscribed from llm.thread/open_in_chatter");
     });
 
     console.log("[Chatter] Subscribed to llm.thread/open_in_chatter");
