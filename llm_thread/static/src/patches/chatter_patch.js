@@ -4,7 +4,7 @@ import { Chatter } from "@mail/chatter/web_portal/chatter";
 import { LLMChatContainer } from "@llm_thread/components/llm_chat_container/llm_chat_container";
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
-import { onWillDestroy } from "@odoo/owl";
+import { onWillDestroy, useEffect } from "@odoo/owl";
 
 // Register LLMChatContainer component with Chatter
 Object.assign(Chatter.components, { LLMChatContainer });
@@ -42,6 +42,17 @@ patch(Chatter.prototype, {
       console.log("[Chatter] Unsubscribed from llm.thread/open_in_chatter");
     });
 
+    // React to AI chat state changes - the "Odoo way" using OWL
+    useEffect(
+      () => {
+        if (this.state.isChattingWithLLM) {
+          // AI chat just opened, focus the composer
+          this.focusComposerWhenReady();
+        }
+      },
+      () => [this.state.isChattingWithLLM]
+    );
+
     console.log("[Chatter] Subscribed to llm.thread/open_in_chatter");
   },
 
@@ -68,9 +79,48 @@ patch(Chatter.prototype, {
       return;
     }
 
-    // Simply trigger the existing AI button click handler
-    // This reuses all the existing logic for opening AI chat
+    // Trigger the existing AI button click handler
+    // useEffect will handle focusing when state changes
     await this.onAIChatClick();
+  },
+
+  /**
+   * Focus the composer when it's ready
+   * Called by useEffect when AI chat state changes to true
+   */
+  focusComposerWhenReady() {
+    // Wait for OWL rendering to complete (Odoo pattern)
+    requestAnimationFrame(() => {
+      // Step 1: Scroll the chatter into view (form view scroll)
+      const chatterEl = this.rootRef?.el;
+      if (chatterEl) {
+        console.log("[Chatter] Scrolling chatter into view");
+        chatterEl.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest", // Don't unnecessarily scroll if already visible
+        });
+      }
+
+      // Step 2: Find and focus the composer (chatter internal scroll)
+      const composerSelectors = [".o-mail-Composer-input", ".o-llm-composer-area textarea"];
+      const composer = composerSelectors
+        .map((sel) => document.querySelector(sel))
+        .find((el) => el !== null);
+
+      if (composer) {
+        console.log("[Chatter] Scrolling to and focusing composer");
+        // Wait a bit for chatter scroll to settle, then scroll composer
+        setTimeout(() => {
+          composer.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          composer.focus();
+        }, 300);
+      } else {
+        console.warn("[Chatter] Composer not found in DOM after state change");
+      }
+    });
   },
 
   /**
