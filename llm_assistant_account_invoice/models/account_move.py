@@ -11,4 +11,6 @@ class AccountMove(models.Model):
         Creates a fresh thread every time (no context carryover).
         Frontend opens AI chat for OCR parsing and follow-up questions.
         """
-        return self.action_open_llm_assistant("invoice_analyzer", force_new_thread=True)
+        return self.action_open_llm_assistant(
+            "odoo_invoice_data_entry_assistant", force_new_thread=True
+        )

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <record id="llm_assistant_invoice_analyzer" model="llm.assistant">
-        <field name="name">Invoice Analysis Assistant</field>
-        <field name="code">invoice_analyzer</field>
+        <field name="name">Odoo Invoice Data Entry Assistant</field>
+        <field name="code">odoo_invoice_data_entry_assistant</field>
         <field name="res_model">account.move</field>
         <field name="is_default" eval="True" />
         <field name="is_public" eval="True" />
