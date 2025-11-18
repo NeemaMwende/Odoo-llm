@@ -196,9 +196,11 @@ class LLMAssistantMixin(models.AbstractModel):
         if assistant:
             _logger.info("Found assistant: %s (ID: %s)", assistant.name, assistant.id)
             if not thread.assistant_id:
-                _logger.info("Setting assistant on thread...")
-                thread.assistant_id = assistant.id
-                _logger.info("Assistant set successfully")
+                _logger.info("Setting assistant on thread (with tools, provider, model)...")
+                thread.set_assistant(assistant.id)
+                _logger.info(
+                    "Assistant set successfully. Tools: %s", thread.tool_ids.mapped("name")
+                )
             else:
                 _logger.info(
                     "Thread already has assistant: %s", thread.assistant_id.name
