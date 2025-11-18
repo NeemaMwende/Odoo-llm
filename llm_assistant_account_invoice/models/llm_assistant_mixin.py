@@ -90,6 +90,24 @@ class LLMAssistantMixin(models.AbstractModel):
             thread.assistant_id.name if thread.assistant_id else "None",
         )
 
+        # Send bus notification to open AI chat in chatter
+        self.env["bus.bus"]._sendone(
+            self.env.user.partner_id,
+            "llm.thread/open_in_chatter",
+            {
+                "thread_id": thread.id,
+                "model": self._name,
+                "res_id": self.id,
+            },
+        )
+
+        _logger.info(
+            "Sent bus notification to open AI chat. Thread: %s, Record: %s/%s",
+            thread.id,
+            self._name,
+            self.id,
+        )
+
         return True
 
     def _find_or_create_llm_thread(self, force_new=False):

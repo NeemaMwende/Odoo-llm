@@ -12,7 +12,6 @@
           type="object"
           string="Process with AI"
           class="btn-primary"
-          onclick="window.openAIAssistantChat()"
         />
             </xpath>
         </field>

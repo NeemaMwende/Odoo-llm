@@ -17,12 +17,50 @@ patch(Chatter.prototype, {
     super.setup();
     this.orm = useService("orm");
     this.notification = useService("notification");
+    this.busService = useService("bus_service");
 
     // Add LLM chat state
     Object.assign(this.state, {
       isChattingWithLLM: false,
       llmThreadId: null,
     });
+
+    // Subscribe to bus notification for opening AI chat
+    // Odoo 18 uses busService.subscribe() not addEventListener()
+    this.busService.subscribe("llm.thread/open_in_chatter", (payload) => {
+      console.log("[Chatter] Bus notification received!", payload);
+      this.handleOpenAIChatNotification(payload);
+    });
+
+    console.log("[Chatter] Subscribed to llm.thread/open_in_chatter");
+  },
+
+  /**
+   * Handle notification to open AI chat in chatter
+   *
+   * @param {Object} data - Notification payload
+   */
+  async handleOpenAIChatNotification(data) {
+    const { thread_id, model, res_id } = data;
+
+    // Only handle if notification is for THIS chatter's record
+    if (this.props.threadModel !== model || this.props.threadId !== res_id) {
+      return;
+    }
+
+    console.log(
+      `[Chatter] Bus notification received to open AI chat for thread ${thread_id} on ${model}/${res_id}`
+    );
+
+    // If AI chat is already open, don't do anything
+    if (this.state.isChattingWithLLM) {
+      console.log("[Chatter] AI chat already open, ignoring notification");
+      return;
+    }
+
+    // Simply trigger the existing AI button click handler
+    // This reuses all the existing logic for opening AI chat
+    await this.onAIChatClick();
   },
 
   /**

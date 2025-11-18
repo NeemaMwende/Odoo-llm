@@ -18,11 +18,6 @@
         "data/llm_assistant_data.xml",
         "views/account_move_views.xml",
     ],
-    "assets": {
-        "web.assets_backend": [
-            "llm_assistant_account_invoice/static/src/js/assistant_button_helper.js",
-        ],
-    },
     "license": "LGPL-3",
     "installable": True,
     "application": False,
