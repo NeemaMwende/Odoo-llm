@@ -16,6 +16,7 @@
     "website": "https://github.com/apexive/odoo-llm",
     "data": [
         "data/llm_assistant_data.xml",
+        "views/account_move_views.xml",
     ],
     "license": "LGPL-3",
     "installable": True,
