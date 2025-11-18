@@ -22,7 +22,7 @@ class LLMAssistantMixin(models.AbstractModel):
     _name = "llm.invoice.assistant.mixin"
     _description = "LLM Invoice Assistant Mixin"
 
-    def action_open_llm_assistant(self, assistant_code=None, **kwargs):
+    def action_open_llm_assistant(self, assistant_code=None, force_new_thread=False, **kwargs):
         """
         Generic method to open AI assistant for current record.
         Creates/finds thread, sets assistant, and prepares for frontend to open AI chat.
@@ -30,6 +30,7 @@ class LLMAssistantMixin(models.AbstractModel):
         Args:
             assistant_code: Code of the assistant to use (e.g., 'invoice_analyzer').
                            If not provided, tries to get from context.
+            force_new_thread: If True, always create new thread (ignore existing).
             **kwargs:
                 - pre_action: Method name to call before opening (e.g., '_validate_state')
                 - post_action: Method name to call after opening (e.g., '_log_interaction')
@@ -52,10 +53,11 @@ class LLMAssistantMixin(models.AbstractModel):
             )
 
         _logger.info(
-            "=== Opening AI assistant '%s' for %s ID: %s ===",
+            "=== Opening AI assistant '%s' for %s ID: %s (force_new=%s) ===",
             assistant_code,
             self._name,
             self.id,
+            force_new_thread,
         )
 
         # Call pre-action hook if provided
@@ -68,7 +70,7 @@ class LLMAssistantMixin(models.AbstractModel):
                 _logger.warning("Pre-action method '%s' not found", pre_action)
 
         # Find existing thread or create new one
-        thread = self._find_or_create_llm_thread()
+        thread = self._find_or_create_llm_thread(force_new=force_new_thread)
 
         # Find and set assistant
         self._set_assistant_on_thread(thread, assistant_code)
@@ -90,23 +92,27 @@ class LLMAssistantMixin(models.AbstractModel):
 
         return True
 
-    def _find_or_create_llm_thread(self):
+    def _find_or_create_llm_thread(self, force_new=False):
         """
         Find existing thread for this record or create a new one.
+
+        Args:
+            force_new: If True, always create new thread (ignore existing)
 
         Returns:
             llm.thread: The thread record
         """
-        _logger.info("Step 1: Looking for existing thread...")
-        thread = self.env["llm.thread"].search(
-            [("model", "=", self._name), ("res_id", "=", self.id)], limit=1
-        )
+        if not force_new:
+            _logger.info("Step 1: Looking for existing thread...")
+            thread = self.env["llm.thread"].search(
+                [("model", "=", self._name), ("res_id", "=", self.id)], limit=1
+            )
 
-        if thread:
-            _logger.info("Found existing thread ID: %s", thread.id)
-            return thread
+            if thread:
+                _logger.info("Found existing thread ID: %s", thread.id)
+                return thread
 
-        _logger.info("No existing thread found, creating new one...")
+        _logger.info("Creating new thread...")
 
         # Find default chat model or fallback to first available
         _logger.info("Looking for default chat model...")

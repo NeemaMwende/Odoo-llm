@@ -7,8 +7,8 @@ class AccountMove(models.Model):
 
     def action_process_with_ai(self):
         """
-        Prepare LLM thread with Invoice Analysis Assistant.
-        Uses the generic mixin to create/find thread and set assistant.
-        Frontend will then click the AI button to open the chat.
+        Parse invoice with AI assistant.
+        Creates a fresh thread every time (no context carryover).
+        Frontend opens AI chat for OCR parsing and follow-up questions.
         """
-        return self.action_open_llm_assistant("invoice_analyzer")
+        return self.action_open_llm_assistant("invoice_analyzer", force_new_thread=True)
