@@ -6,21 +6,21 @@ from odoo.exceptions import UserError
 _logger = logging.getLogger(__name__)
 
 
-class LLMAssistantMixin(models.AbstractModel):
+class LLMAssistantActionMixin(models.AbstractModel):
     """
-    Mixin to add AI assistant functionality to any model.
-    Provides a generic method to open LLM threads with specific assistants.
+    Mixin to add AI assistant action functionality to any model.
+    Provides generic methods to open LLM chat with specific assistants.
 
     Usage:
         class MyModel(models.Model):
-            _inherit = ['my.model', 'llm.invoice.assistant.mixin']
+            _inherit = ['my.model', 'llm.assistant.action.mixin']
 
             def action_my_ai_button(self):
                 return self.action_open_llm_assistant('my_assistant_code')
     """
 
-    _name = "llm.invoice.assistant.mixin"
-    _description = "LLM Invoice Assistant Mixin"
+    _name = "llm.assistant.action.mixin"
+    _description = "LLM Assistant Action Mixin"
 
     def action_open_llm_assistant(self, assistant_code=None, force_new_thread=False, **kwargs):
         """
