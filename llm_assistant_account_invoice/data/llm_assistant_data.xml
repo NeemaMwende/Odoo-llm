@@ -6,7 +6,7 @@
         <field name="res_model">account.move</field>
         <field name="is_default" eval="True" />
         <field name="is_public" eval="True" />
-        <field name="prompt_id" ref="llm_assistant.llm_prompt_assistant" />
+        <field name="prompt_id" ref="llm_assistant_account_invoice.llm_prompt_invoice_parser" />
         <field name="has_dynamic_defaults" eval="True" />
         <field name="default_values"><![CDATA[{
             "role": "Invoice Analysis Assistant",
