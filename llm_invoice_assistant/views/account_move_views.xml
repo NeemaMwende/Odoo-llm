@@ -13,7 +13,7 @@
           string="Process with AI"
           class="btn-primary"
           icon="fa-robot"
-          onclick="setTimeout(() => { const aiButton = document.querySelector('.o-mail-Chatter-aiChat'); if (aiButton) { aiButton.click(); setTimeout(() => { const composer = document.querySelector('.o-llm-composer-area textarea, .o-mail-Composer-input'); if (composer) { composer.scrollIntoView({ behavior: 'smooth', block: 'center' }); composer.focus(); } }, 300); } }, 100);"
+          onclick="window.openAIAssistantChat()"
         />
             </xpath>
         </field>
