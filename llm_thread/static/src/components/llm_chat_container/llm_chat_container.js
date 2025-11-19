@@ -2,6 +2,7 @@
 
 import { Component, useRef, useState } from "@odoo/owl";
 import { Composer } from "@mail/core/common/composer";
+import { Dropdown } from "@web/core/dropdown/dropdown";
 import { LLMThreadHeader } from "../llm_thread_header/llm_thread_header";
 import { Thread } from "@mail/core/common/thread";
 import { useService } from "@web/core/utils/hooks";
@@ -11,7 +12,7 @@ import { useService } from "@web/core/utils/hooks";
  * Uses existing mail Thread and Composer components with LLM patches
  */
 export class LLMChatContainer extends Component {
-  static components = { Thread, Composer, LLMThreadHeader };
+  static components = { Thread, Composer, LLMThreadHeader, Dropdown };
   static template = "llm_thread.LLMChatContainer";
   static props = {
     recordModel: { type: String, optional: true },
@@ -26,9 +27,8 @@ export class LLMChatContainer extends Component {
     // Reference to the scrollable thread container for proper jump-to-present behavior
     this.threadScrollableRef = useRef("threadScrollable");
 
-    // Sidebar collapse state - default based on context
-    // Collapsed in chatter mode (when recordModel/recordId provided)
-    // Expanded in standalone mode
+    // Sidebar collapse state (for desktop only - mobile uses hamburger menu)
+    // Default: Collapsed in chatter mode, expanded in standalone mode
     this.state = useState({
       isSidebarCollapsed: !!(this.props.recordModel && this.props.recordId),
     });

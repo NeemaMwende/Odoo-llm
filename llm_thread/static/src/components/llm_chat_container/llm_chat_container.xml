@@ -2,34 +2,88 @@
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMChatContainer">
         <div class="o_LLMChatContainer h-100 d-flex flex-row overflow-hidden">
-            <!-- Thread List Sidebar (filtered by record context in chatter mode) -->
+            <!-- Mobile Sidebar (< 768px): Just hamburger button -->
+            <div class="o-llm-sidebar d-flex d-md-none flex-column border-end" style="width: 48px;">
+                <div class="o-llm-sidebar-header d-flex align-items-center justify-content-center border-bottom px-2 py-3">
+                    <Dropdown>
+                        <button class="btn btn-secondary btn-sm px-2 py-1" title="Conversations">
+                            <i class="fa fa-bars" />
+                        </button>
+                        <t t-set-slot="content">
+                            <div class="o-llm-mobile-sidebar-menu" style="min-width: 280px; max-height: 80vh; overflow-y: auto;">
+                                <!-- Header with title and new thread button -->
+                                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
+                                    <h6 class="mb-0 text-muted">Conversations</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="createNewThread" title="New Thread">
+                                        <i class="fa fa-plus" />
+                                    </button>
+                                </div>
+
+                                <!-- Empty State -->
+                                <div t-if="filteredThreadList.length === 0" class="p-3 text-center text-muted">
+                                    <i class="fa fa-comments-o fa-2x mb-2" />
+                                    <div>No conversations yet</div>
+                                    <small>Start your first AI chat</small>
+                                </div>
+
+                                <!-- Thread List -->
+                                <t t-foreach="filteredThreadList" t-as="thread" t-key="thread.id">
+                                    <div
+                                        class="o-llm-thread-item p-3 border-bottom cursor-pointer"
+                                        t-att-class="{ 'o-llm-thread-active': thread.id === activeThread?.id }"
+                                        t-on-click="() => this.selectThread(thread.id)"
+                                        t-att-title="thread.name"
+                                    >
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1 min-width-0">
+                                                <div class="text-truncate fw-medium" t-esc="thread.name" />
+                                                <div class="text-muted small mt-1">
+                                                    <span t-if="thread.write_date" t-esc="formatDate(thread.write_date)" />
+                                                </div>
+                                            </div>
+                                            <div class="ms-2 flex-shrink-0">
+                                                <i
+                                                    t-if="isStreamingThread(thread.id)"
+                                                    class="fa fa-circle-o-notch fa-spin text-primary"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </Dropdown>
+                </div>
+            </div>
+
+            <!-- Desktop Sidebar (≥ 768px): Expand/collapse pattern -->
             <div
-        class="o-llm-sidebar d-flex flex-column border-end"
-        t-att-style="state.isSidebarCollapsed ? 'width: 48px;' : 'width: 280px;'"
-      >
+                class="o-llm-sidebar d-none d-md-flex flex-column border-end"
+                t-att-style="state.isSidebarCollapsed ? 'width: 48px;' : 'width: 280px;'"
+            >
                 <!-- Sidebar Header - matches height of chat header -->
                 <div
-          class="o-llm-sidebar-header d-flex align-items-center border-bottom"
-          t-att-class="state.isSidebarCollapsed ? 'justify-content-center px-2 py-3' : 'justify-content-between p-3'"
-        >
+                    class="o-llm-sidebar-header d-flex align-items-center border-bottom"
+                    t-att-class="state.isSidebarCollapsed ? 'justify-content-center px-2 py-3' : 'justify-content-between p-3'"
+                >
                     <!-- Expanded state: Header content + collapse button on right -->
                     <t t-if="!state.isSidebarCollapsed">
                         <div class="d-flex align-items-center gap-2">
                             <h6 class="mb-0 text-muted">Conversations</h6>
                             <button
-                class="btn btn-sm btn-primary"
-                t-on-click="createNewThread"
-                title="New Thread"
-              >
+                                class="btn btn-sm btn-primary"
+                                t-on-click="createNewThread"
+                                title="New Thread"
+                            >
                                 <i class="fa fa-plus" />
                             </button>
                         </div>
                         <!-- Collapse button (Odoo Apps style classes) -->
                         <button
-              class="btn btn-secondary btn-sm px-2 py-1"
-              t-on-click="toggleSidebar"
-              title="Collapse sidebar"
-            >
+                            class="btn btn-secondary btn-sm px-2 py-1"
+                            t-on-click="toggleSidebar"
+                            title="Collapse sidebar"
+                        >
                             <i class="fa fa-fw fa-angle-double-left" />
                         </button>
                     </t>
@@ -37,10 +91,10 @@
                     <!-- Collapsed state: Centered expand button -->
                     <t t-else="">
                         <button
-              class="btn btn-secondary btn-sm px-2 py-1"
-              t-on-click="toggleSidebar"
-              title="Expand sidebar"
-            >
+                            class="btn btn-secondary btn-sm px-2 py-1"
+                            t-on-click="toggleSidebar"
+                            title="Expand sidebar"
+                        >
                             <i class="fa fa-fw fa-angle-double-right" />
                         </button>
                     </t>
@@ -49,45 +103,45 @@
                 <!-- Thread List (only when expanded) -->
                 <div t-if="!state.isSidebarCollapsed" class="flex-grow-1 overflow-auto">
                     <div
-            t-if="filteredThreadList.length === 0"
-            class="p-3 text-center text-muted"
-          >
+                        t-if="filteredThreadList.length === 0"
+                        class="p-3 text-center text-muted"
+                    >
                         <i class="fa fa-comments-o fa-2x mb-2" />
                         <div>No conversations yet</div>
                         <small>Start your first AI chat</small>
                     </div>
 
                     <t
-            t-foreach="filteredThreadList"
-            t-as="thread"
-            t-key="thread.id"
-          >
+                        t-foreach="filteredThreadList"
+                        t-as="thread"
+                        t-key="thread.id"
+                    >
                         <div
-              class="o-llm-thread-item p-3 border-bottom cursor-pointer"
-              t-att-class="{ 'o-llm-thread-active': thread.id === activeThread?.id }"
-              t-on-click="() => this.selectThread(thread.id)"
-              t-att-title="thread.name"
-            >
+                            class="o-llm-thread-item p-3 border-bottom cursor-pointer"
+                            t-att-class="{ 'o-llm-thread-active': thread.id === activeThread?.id }"
+                            t-on-click="() => this.selectThread(thread.id)"
+                            t-att-title="thread.name"
+                        >
                             <div
-                class="d-flex justify-content-between align-items-start"
-              >
+                                class="d-flex justify-content-between align-items-start"
+                            >
                                 <div class="flex-grow-1 min-width-0">
                                     <div
-                    class="text-truncate fw-medium"
-                    t-esc="thread.name"
-                  />
+                                        class="text-truncate fw-medium"
+                                        t-esc="thread.name"
+                                    />
                                     <div class="text-muted small mt-1">
                                         <span
-                      t-if="thread.write_date"
-                      t-esc="formatDate(thread.write_date)"
-                    />
+                                            t-if="thread.write_date"
+                                            t-esc="formatDate(thread.write_date)"
+                                        />
                                     </div>
                                 </div>
                                 <div class="ms-2 flex-shrink-0">
                                     <i
-                    t-if="isStreamingThread(thread.id)"
-                    class="fa fa-circle-o-notch fa-spin text-primary"
-                  />
+                                        t-if="isStreamingThread(thread.id)"
+                                        class="fa fa-circle-o-notch fa-spin text-primary"
+                                    />
                                 </div>
                             </div>
                         </div>

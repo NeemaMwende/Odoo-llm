@@ -54,6 +54,7 @@ Contact: support@apexive.com
             # Thread Header component with provider/model/tool selections
             "llm_thread/static/src/components/llm_thread_header/llm_thread_header.js",
             "llm_thread/static/src/components/llm_thread_header/llm_thread_header.xml",
+            "llm_thread/static/src/components/llm_thread_header/llm_thread_header.scss",
             # Related Record component for linking threads to Odoo records
             "llm_thread/static/src/components/llm_related_record/llm_related_record.js",
             "llm_thread/static/src/components/llm_related_record/llm_related_record.xml",

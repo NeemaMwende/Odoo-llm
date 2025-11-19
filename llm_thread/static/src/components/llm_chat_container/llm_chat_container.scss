@@ -20,12 +20,49 @@
         }
       }
     }
+
+    // Mobile: Force collapsed sidebar
+    @media (max-width: 767px) {
+      width: 48px !important; // Override inline styles
+
+      .o-llm-sidebar-header {
+        min-height: 48px;
+        justify-content: center !important;
+      }
+    }
   }
 
   // Match sidebar header height with chat header
   .o-llm-sidebar-header,
   .o-llm-thread-header {
     min-height: 60px; // Ensure both headers have the same height
+
+    // Mobile: Reduce header height
+    @media (max-width: 767px) {
+      min-height: 48px;
+    }
+  }
+
+  // Thread area mobile padding
+  .o-llm-thread-area {
+    @media (max-width: 767px) {
+      padding: 0.5rem !important;
+    }
+  }
+
+  // Composer area mobile padding
+  .o-llm-composer-area {
+    @media (max-width: 767px) {
+      padding: 0.5rem !important;
+    }
+  }
+
+  // Thread list mobile optimization - larger touch targets
+  .o-llm-thread-item {
+    @media (max-width: 767px) {
+      padding: 0.75rem !important;
+      min-height: 60px; // Touch-friendly
+    }
   }
 }
 
@@ -50,6 +87,16 @@
     height: auto;
     display: block;
     margin: 0.5rem 0;
+
+    // Mobile: Full width images
+    @media (max-width: 767px) {
+      max-width: 100%;
+    }
+  }
+
+  // Mobile: Smaller font size
+  @media (max-width: 767px) {
+    font-size: 0.875rem;
   }
 }
 
