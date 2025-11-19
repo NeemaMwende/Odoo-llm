@@ -24,8 +24,6 @@ export class LLMChatContainer extends Component {
     this.action = useService("action");
     this.ui = useState(useService("ui")); // Wrap with useState to make it reactive
 
-    console.log("[LLMChatContainer] Setup - ui.isSmall:", this.ui.isSmall);
-
     // Set environment flag to hide composer avatar (prevents o-hasSelfAvatar class)
     useChildSubEnv({
       inChatWindow: true,
@@ -42,8 +40,6 @@ export class LLMChatContainer extends Component {
       isMobileSidebarVisible: false,
     });
 
-    console.log("[LLMChatContainer] Initial state:", this.state);
-
     // No need for local thread tracking - use mail.store.discuss.thread
   }
 
@@ -58,11 +54,6 @@ export class LLMChatContainer extends Component {
     const isActuallySmall = this.ui.isSmall;
     const isChatterAside = this.env.inChatter?.aside ?? false;
     const shouldUseMobileLayout = isActuallySmall || isChatterAside;
-    console.log("[LLMChatContainer] isSmall getter:", {
-      isActuallySmall,
-      isChatterAside,
-      shouldUseMobileLayout,
-    });
     return shouldUseMobileLayout;
   }
 
@@ -123,11 +114,9 @@ export class LLMChatContainer extends Component {
    * @param {Number} threadId - Thread ID to select
    */
   async selectThread(threadId) {
-    console.log("[LLMChatContainer] Selecting thread:", threadId, "isSmall:", this.ui.isSmall);
     await this.llmStore.selectThread(threadId);
     // Close mobile sidebar after selecting thread
     if (this.ui.isSmall) {
-      console.log("[LLMChatContainer] Mobile detected, closing sidebar");
       this.closeMobileSidebar();
     }
   }
@@ -186,25 +175,20 @@ export class LLMChatContainer extends Component {
    * Open mobile sidebar (slide in from left)
    */
   openMobileSidebar() {
-    console.log("[LLMChatContainer] Opening mobile sidebar");
     this.state.isMobileSidebarVisible = true;
-    console.log("[LLMChatContainer] State after open:", this.state.isMobileSidebarVisible);
   }
 
   /**
    * Close mobile sidebar (slide out to left)
    */
   closeMobileSidebar() {
-    console.log("[LLMChatContainer] Closing mobile sidebar");
     this.state.isMobileSidebarVisible = false;
-    console.log("[LLMChatContainer] State after close:", this.state.isMobileSidebarVisible);
   }
 
   /**
    * Handle backdrop click - closes mobile sidebar
    */
   onBackdropClick() {
-    console.log("[LLMChatContainer] Backdrop clicked");
     this.closeMobileSidebar();
   }
 
@@ -218,8 +202,6 @@ export class LLMChatContainer extends Component {
       return;
     }
 
-    console.log("[LLMChatContainer] Opening thread settings for:", this.activeThread.id);
-
     await this.action.doAction(
       {
         type: "ir.actions.act_window",
@@ -231,7 +213,6 @@ export class LLMChatContainer extends Component {
       },
       {
         onClose: async () => {
-          console.log("[LLMChatContainer] Thread settings closed, refreshing data");
           // Refresh thread data after closing form
           await this.activeThread.fetchData([
             "name",

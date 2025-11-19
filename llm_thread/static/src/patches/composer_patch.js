@@ -123,16 +123,12 @@ patch(Composer.prototype, {
    * This removes the empty 42px column on the left
    */
   get showComposerAvatar() {
-    const isLLM = this.isLLMThread;
-    const showAvatar = isLLM ? false : super.showComposerAvatar;
+    if (this.isLLMThread) {
+      return false;
+    }
 
-    console.log("[Composer] showComposerAvatar getter:", {
-      isLLMThread: isLLM,
-      showAvatar: showAvatar,
-      threadModel: this.props.composer?.thread?.model,
-    });
-
-    return showAvatar;
+    // Use original logic for regular mail
+    return super.showComposerAvatar;
   },
 
   /**
