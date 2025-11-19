@@ -43,12 +43,22 @@ export class LLMChatContainer extends Component {
   }
 
   /**
-   * Check if currently on mobile (reactive)
+   * Check if should use mobile layout:
+   * - On actual mobile devices (window < 768px)
+   * - In chatter positioned on the side (narrow panel)
+   *
+   * Note: Chatter below form is full-width, so uses desktop layout
    */
   get isSmall() {
-    const isSmall = this.ui.isSmall;
-    console.log("[LLMChatContainer] isSmall getter called:", isSmall);
-    return isSmall;
+    const isActuallySmall = this.ui.isSmall;
+    const isChatterAside = this.env.inChatter?.aside ?? false;
+    const shouldUseMobileLayout = isActuallySmall || isChatterAside;
+    console.log("[LLMChatContainer] isSmall getter:", {
+      isActuallySmall,
+      isChatterAside,
+      shouldUseMobileLayout,
+    });
+    return shouldUseMobileLayout;
   }
 
   /**
