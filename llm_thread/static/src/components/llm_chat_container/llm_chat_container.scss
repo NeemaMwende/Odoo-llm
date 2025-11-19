@@ -1,4 +1,13 @@
 .o_LLMChatContainer {
+  // Force single column grid for composer (no avatar sidebar)
+  .o-llm-composer-area .o-mail-Composer {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "core-header"
+      "core-main"
+      "core-footer" !important;
+  }
+
   .o-llm-sidebar {
     flex-shrink: 0; // Prevent shrinking
     min-width: 48px; // Minimum width when collapsed

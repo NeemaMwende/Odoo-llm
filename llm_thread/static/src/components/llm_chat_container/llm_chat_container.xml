@@ -216,6 +216,7 @@
               t-if="threadComposer"
               composer="threadComposer"
               mode="'compact'"
+              sidebar="false"
             />
                     </div>
                 </div>
