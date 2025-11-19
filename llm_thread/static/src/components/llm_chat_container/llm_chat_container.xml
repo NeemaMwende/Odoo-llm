@@ -12,27 +12,36 @@
           class="o-llm-sidebar-header d-flex align-items-center border-bottom"
           t-att-class="state.isSidebarCollapsed ? 'justify-content-center px-2 py-3' : 'justify-content-between p-3'"
         >
-                    <!-- Toggle button (always visible) -->
-                    <button
-            class="btn btn-sm btn-link p-0 text-decoration-none"
-            t-att-class="state.isSidebarCollapsed ? '' : 'me-2'"
-            t-on-click="toggleSidebar"
-            t-att-title="state.isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-          >
-                        <i
-              t-att-class="state.isSidebarCollapsed ? 'fa fa-chevron-right' : 'fa fa-chevron-left'"
-            />
-                    </button>
-
-                    <!-- Header content (only when expanded) -->
+                    <!-- Expanded state: Header content + collapse button on right -->
                     <t t-if="!state.isSidebarCollapsed">
-                        <h6 class="mb-0 text-muted flex-grow-1">Conversations</h6>
+                        <div class="d-flex align-items-center gap-2">
+                            <h6 class="mb-0 text-muted">Conversations</h6>
+                            <button
+                class="btn btn-sm btn-primary"
+                t-on-click="createNewThread"
+                title="New Thread"
+              >
+                                <i class="fa fa-plus" />
+                            </button>
+                        </div>
+                        <!-- Collapse button (Odoo Apps style classes) -->
                         <button
-              class="btn btn-sm btn-primary"
-              t-on-click="createNewThread"
-              title="New Thread"
+              class="btn btn-secondary btn-sm px-2 py-1"
+              t-on-click="toggleSidebar"
+              title="Collapse sidebar"
             >
-                            <i class="fa fa-plus" />
+                            <i class="fa fa-fw fa-angle-double-left" />
+                        </button>
+                    </t>
+
+                    <!-- Collapsed state: Centered expand button -->
+                    <t t-else="">
+                        <button
+              class="btn btn-secondary btn-sm px-2 py-1"
+              t-on-click="toggleSidebar"
+              title="Expand sidebar"
+            >
+                            <i class="fa fa-fw fa-angle-double-right" />
                         </button>
                     </t>
                 </div>
