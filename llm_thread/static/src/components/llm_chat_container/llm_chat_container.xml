@@ -2,9 +2,8 @@
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMChatContainer">
         <div class="o_LLMChatContainer h-100 d-flex flex-row overflow-hidden">
-            <!-- Thread List Sidebar (hidden when embedded in chatter) -->
+            <!-- Thread List Sidebar (filtered by record context in chatter mode) -->
             <div
-        t-if="!props.hideConversationList"
         class="o-llm-sidebar d-flex flex-column"
         style="width: 280px; border-right: 1px solid #dee2e6;"
       >
@@ -25,7 +24,7 @@
                 <!-- Thread List -->
                 <div class="flex-grow-1 overflow-auto">
                     <div
-            t-if="llmStore.llmThreadList.length === 0"
+            t-if="filteredThreadList.length === 0"
             class="p-3 text-center text-muted"
           >
                         <i class="fa fa-comments-o fa-2x mb-2" />
@@ -34,7 +33,7 @@
                     </div>
 
                     <t
-            t-foreach="llmStore.llmThreadList"
+            t-foreach="filteredThreadList"
             t-as="thread"
             t-key="thread.id"
           >

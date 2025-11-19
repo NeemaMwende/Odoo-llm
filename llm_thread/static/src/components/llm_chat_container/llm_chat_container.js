@@ -14,7 +14,8 @@ export class LLMChatContainer extends Component {
   static components = { Thread, Composer, LLMThreadHeader };
   static template = "llm_thread.LLMChatContainer";
   static props = {
-    hideConversationList: { type: Boolean, optional: true },
+    recordModel: { type: String, optional: true },
+    recordId: { type: Number, optional: true },
   };
 
   setup() {
@@ -55,6 +56,28 @@ export class LLMChatContainer extends Component {
    */
   get isStreaming() {
     return this.llmStore.getStreamingStatus();
+  }
+
+  /**
+   * Get filtered thread list based on context
+   * - In chatter mode (recordModel + recordId provided): show only threads for current record
+   * - In standalone mode: show all user's threads
+   * @returns {Array} Filtered thread list
+   */
+  get filteredThreadList() {
+    const allThreads = this.llmStore.llmThreadList;
+
+    // If in chatter mode (record context provided), filter by record
+    if (this.props.recordModel && this.props.recordId) {
+      return allThreads.filter(
+        (thread) =>
+          thread.res_model === this.props.recordModel &&
+          thread.res_id === this.props.recordId
+      );
+    }
+
+    // Standalone mode - show all threads
+    return allThreads;
   }
 
   /**
@@ -99,9 +122,13 @@ export class LLMChatContainer extends Component {
 
   /**
    * Create new thread - delegates to llm store service
+   * Passes record context if available (e.g., from chatter)
    */
   async createNewThread() {
-    await this.llmStore.createNewThread();
+    await this.llmStore.createNewThread({
+      recordModel: this.props.recordModel,
+      recordId: this.props.recordId,
+    });
   }
 }
 

@@ -32,8 +32,11 @@
         <xpath expr="//div[hasclass('o-mail-Chatter-content')]" position="replace">
             <div class="o-mail-Chatter-content d-flex flex-column flex-grow-1">
                 <t t-if="state.isChattingWithLLM">
-                    <!-- AI Chat Mode: Show LLM chat interface without conversation list -->
-                    <LLMChatContainer hideConversationList="true" />
+                    <!-- AI Chat Mode: Show LLM chat interface with filtered conversation list -->
+                    <LLMChatContainer
+            recordModel="props.threadModel"
+            recordId="props.threadId"
+          />
                 </t>
                 <t t-else="">
                     <!-- Normal Mode: Show original chatter content -->
