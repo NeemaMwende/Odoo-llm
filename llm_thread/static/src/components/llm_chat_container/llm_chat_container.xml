@@ -97,7 +97,7 @@
                             t-on-click="toggleSidebar"
                             title="Collapse sidebar"
                         >
-                            <i class="fa fa-fw fa-angle-double-left" />
+                            <i class="oi oi-panel-right" />
                         </button>
                     </t>
 
@@ -108,7 +108,7 @@
                             t-on-click="toggleSidebar"
                             title="Expand sidebar"
                         >
-                            <i class="fa fa-fw fa-angle-double-right" />
+                            <i class="oi oi-panel-right" style="transform: rotate(180deg);" />
                         </button>
                     </t>
                 </div>

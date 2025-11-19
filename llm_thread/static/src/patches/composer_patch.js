@@ -119,6 +119,23 @@ patch(Composer.prototype, {
   },
 
   /**
+   * Hide composer avatar/sidebar for LLM threads
+   * This removes the empty 42px column on the left
+   */
+  get showComposerAvatar() {
+    const isLLM = this.isLLMThread;
+    const showAvatar = isLLM ? false : super.showComposerAvatar;
+
+    console.log("[Composer] showComposerAvatar getter:", {
+      isLLMThread: isLLM,
+      showAvatar: showAvatar,
+      threadModel: this.props.composer?.thread?.model,
+    });
+
+    return showAvatar;
+  },
+
+  /**
    * Disable composer while streaming (LLM only)
    */
   get isDisabled() {

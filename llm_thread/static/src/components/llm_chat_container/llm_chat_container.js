@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useRef, useState } from "@odoo/owl";
+import { Component, useRef, useState, useChildSubEnv } from "@odoo/owl";
 import { Composer } from "@mail/core/common/composer";
 import { LLMThreadHeader } from "../llm_thread_header/llm_thread_header";
 import { Thread } from "@mail/core/common/thread";
@@ -25,6 +25,11 @@ export class LLMChatContainer extends Component {
     this.ui = useState(useService("ui")); // Wrap with useState to make it reactive
 
     console.log("[LLMChatContainer] Setup - ui.isSmall:", this.ui.isSmall);
+
+    // Set environment flag to hide composer avatar (prevents o-hasSelfAvatar class)
+    useChildSubEnv({
+      inChatWindow: true,
+    });
 
     // Reference to the scrollable thread container for proper jump-to-present behavior
     this.threadScrollableRef = useRef("threadScrollable");

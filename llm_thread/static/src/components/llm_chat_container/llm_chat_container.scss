@@ -41,6 +41,12 @@
       .o-llm-sidebar-header {
         min-height: 60px;
       }
+
+      // Very small screens: Make sidebar take 80% of screen width
+      @media (max-width: 575px) {
+        max-width: 80%; // More reasonable width for very small screens
+        min-width: 250px; // But not too small
+      }
     }
   }
 
@@ -74,6 +80,30 @@
     // Mobile: Reduce header height
     @media (max-width: 767px) {
       min-height: 48px;
+    }
+  }
+
+  // Fix horizontal overflow on very small screens (< 576px)
+  @media (max-width: 575px) {
+    // Ensure flex items can shrink below content size
+    & > * {
+      min-width: 0;
+    }
+
+    // Mobile header: Reduce padding and ensure buttons don't overflow
+    .d-flex.align-items-center.p-2.border-bottom {
+      padding: 0.25rem !important; // Reduce padding from p-2
+      flex-wrap: nowrap; // Prevent wrapping
+
+      .btn-sm {
+        padding: 0.25rem 0.5rem; // Smaller button padding
+        min-width: auto; // Remove any min-width
+      }
+
+      h6 {
+        font-size: 0.875rem; // Smaller font size
+        margin-bottom: 0;
+      }
     }
   }
 
