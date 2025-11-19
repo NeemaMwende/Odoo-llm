@@ -192,6 +192,43 @@ export class LLMChatContainer extends Component {
     console.log("[LLMChatContainer] Backdrop clicked");
     this.closeMobileSidebar();
   }
+
+  /**
+   * Open thread settings form view (following 16.0 pattern)
+   * Opens llm.thread form in dialog for editing all settings
+   */
+  async openThreadSettings() {
+    if (!this.activeThread) {
+      console.warn("[LLMChatContainer] No active thread to open settings for");
+      return;
+    }
+
+    console.log("[LLMChatContainer] Opening thread settings for:", this.activeThread.id);
+
+    await this.action.doAction(
+      {
+        type: "ir.actions.act_window",
+        res_model: "llm.thread",
+        res_id: this.activeThread.id,
+        views: [[false, "form"]],
+        target: "new",
+        context: { form_view_initial_mode: "edit" },
+      },
+      {
+        onClose: async () => {
+          console.log("[LLMChatContainer] Thread settings closed, refreshing data");
+          // Refresh thread data after closing form
+          await this.activeThread.fetchData([
+            "name",
+            "provider_id",
+            "model_id",
+            "tool_ids",
+            "assistant_id",
+          ]);
+        },
+      }
+    );
+  }
 }
 
 // Accept any props (like updateActionState)

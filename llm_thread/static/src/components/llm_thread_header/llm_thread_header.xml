@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMThreadHeader">
-        <!-- Mobile Header (< 768px): Thread name + Hamburger menu -->
+        <!-- Mobile Header (< 768px): Hidden - container provides mobile header -->
         <div
       t-if="hasActiveThread"
-      class="o-llm-thread-header d-flex d-md-none align-items-center justify-content-between p-2 border-bottom"
+      class="o-llm-thread-header d-none align-items-center justify-content-between p-2 border-bottom"
     >
             <!-- Thread Name (truncated) -->
             <h6 class="mb-0 text-truncate flex-grow-1 me-2" t-esc="activeThread.name" />

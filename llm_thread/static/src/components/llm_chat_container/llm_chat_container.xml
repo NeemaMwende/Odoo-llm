@@ -45,7 +45,7 @@
                         <div
                             class="o-llm-thread-item p-3 border-bottom cursor-pointer"
                             t-att-class="{ 'o-llm-thread-active': thread.id === activeThread?.id }"
-                            t-on-click="() => this.selectThread(thread.id)"
+                            t-on-click.stop.prevent="() => this.selectThread(thread.id)"
                             t-att-title="thread.name"
                         >
                             <div class="d-flex justify-content-between align-items-start">
@@ -130,7 +130,7 @@
                         <div
                             class="o-llm-thread-item p-3 border-bottom cursor-pointer"
                             t-att-class="{ 'o-llm-thread-active': thread.id === activeThread?.id }"
-                            t-on-click="() => this.selectThread(thread.id)"
+                            t-on-click.stop.prevent="() => this.selectThread(thread.id)"
                             t-att-title="thread.name"
                         >
                             <div
@@ -162,7 +162,7 @@
 
             <!-- Main Chat Area -->
             <div class="flex-grow-1 d-flex flex-column h-100">
-                <!-- Mobile: Hamburger button to open sidebar -->
+                <!-- Mobile: Hamburger button to open sidebar + Cog for settings -->
                 <div t-if="isSmall and hasActiveThread" class="d-flex d-md-none align-items-center p-2 border-bottom">
                     <button
                         class="btn btn-sm btn-secondary me-2"
@@ -171,7 +171,14 @@
                     >
                         <i class="fa fa-bars" />
                     </button>
-                    <h6 class="mb-0 text-truncate flex-grow-1" t-esc="activeThread.name" />
+                    <h6 class="mb-0 text-truncate flex-grow-1 me-2" t-esc="activeThread.name" />
+                    <button
+                        class="btn btn-sm btn-secondary"
+                        t-on-click="openThreadSettings"
+                        title="Thread settings"
+                    >
+                        <i class="fa fa-cog" />
+                    </button>
                 </div>
 
                 <!-- Show thread and composer only if we have an active LLM thread -->
