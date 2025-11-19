@@ -2,57 +2,68 @@
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMChatContainer">
         <div class="o_LLMChatContainer h-100 d-flex flex-row overflow-hidden">
-            <!-- Mobile Sidebar (< 768px): Just hamburger button -->
-            <div class="o-llm-sidebar d-flex d-md-none flex-column border-end" style="width: 48px;">
-                <div class="o-llm-sidebar-header d-flex align-items-center justify-content-center border-bottom px-2 py-3">
-                    <Dropdown>
-                        <button class="btn btn-secondary btn-sm px-2 py-1" title="Conversations">
-                            <i class="fa fa-bars" />
-                        </button>
-                        <t t-set-slot="content">
-                            <div class="o-llm-mobile-sidebar-menu" style="min-width: 280px; max-height: 80vh; overflow-y: auto;">
-                                <!-- Header with title and new thread button -->
-                                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
-                                    <h6 class="mb-0 text-muted">Conversations</h6>
-                                    <button class="btn btn-sm btn-primary" t-on-click="createNewThread" title="New Thread">
-                                        <i class="fa fa-plus" />
-                                    </button>
-                                </div>
+            <!-- Mobile: Backdrop overlay -->
+            <t t-if="isSmall">
+                <div
+                    class="o-llm-sidebar-backdrop"
+                    t-att-class="{ 'o-visible': state.isMobileSidebarVisible }"
+                    t-on-click="onBackdropClick"
+                />
+            </t>
 
-                                <!-- Empty State -->
-                                <div t-if="filteredThreadList.length === 0" class="p-3 text-center text-muted">
-                                    <i class="fa fa-comments-o fa-2x mb-2" />
-                                    <div>No conversations yet</div>
-                                    <small>Start your first AI chat</small>
-                                </div>
+            <!-- Mobile Sidebar (< 768px): Slide-in from left -->
+            <div
+                class="o-llm-sidebar d-flex d-md-none flex-column border-end"
+                t-att-class="{
+                    'o-mobile': isSmall,
+                    'o-visible': state.isMobileSidebarVisible
+                }"
+            >
+                <!-- Sidebar Header -->
+                <div class="o-llm-sidebar-header d-flex align-items-center justify-content-between border-bottom p-3">
+                    <h6 class="mb-0 text-muted">Conversations</h6>
+                    <button
+                        class="btn btn-sm btn-primary"
+                        t-on-click="createNewThread"
+                        title="New Thread"
+                    >
+                        <i class="fa fa-plus" />
+                    </button>
+                </div>
 
-                                <!-- Thread List -->
-                                <t t-foreach="filteredThreadList" t-as="thread" t-key="thread.id">
-                                    <div
-                                        class="o-llm-thread-item p-3 border-bottom cursor-pointer"
-                                        t-att-class="{ 'o-llm-thread-active': thread.id === activeThread?.id }"
-                                        t-on-click="() => this.selectThread(thread.id)"
-                                        t-att-title="thread.name"
-                                    >
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1 min-width-0">
-                                                <div class="text-truncate fw-medium" t-esc="thread.name" />
-                                                <div class="text-muted small mt-1">
-                                                    <span t-if="thread.write_date" t-esc="formatDate(thread.write_date)" />
-                                                </div>
-                                            </div>
-                                            <div class="ms-2 flex-shrink-0">
-                                                <i
-                                                    t-if="isStreamingThread(thread.id)"
-                                                    class="fa fa-circle-o-notch fa-spin text-primary"
-                                                />
-                                            </div>
-                                        </div>
+                <!-- Thread List -->
+                <div class="flex-grow-1 overflow-auto">
+                    <!-- Empty State -->
+                    <div t-if="filteredThreadList.length === 0" class="p-3 text-center text-muted">
+                        <i class="fa fa-comments-o fa-2x mb-2" />
+                        <div>No conversations yet</div>
+                        <small>Start your first AI chat</small>
+                    </div>
+
+                    <!-- Thread Items -->
+                    <t t-foreach="filteredThreadList" t-as="thread" t-key="thread.id">
+                        <div
+                            class="o-llm-thread-item p-3 border-bottom cursor-pointer"
+                            t-att-class="{ 'o-llm-thread-active': thread.id === activeThread?.id }"
+                            t-on-click="() => this.selectThread(thread.id)"
+                            t-att-title="thread.name"
+                        >
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1 min-width-0">
+                                    <div class="text-truncate fw-medium" t-esc="thread.name" />
+                                    <div class="text-muted small mt-1">
+                                        <span t-if="thread.write_date" t-esc="formatDate(thread.write_date)" />
                                     </div>
-                                </t>
+                                </div>
+                                <div class="ms-2 flex-shrink-0">
+                                    <i
+                                        t-if="isStreamingThread(thread.id)"
+                                        class="fa fa-circle-o-notch fa-spin text-primary"
+                                    />
+                                </div>
                             </div>
-                        </t>
-                    </Dropdown>
+                        </div>
+                    </t>
                 </div>
             </div>
 
@@ -151,6 +162,18 @@
 
             <!-- Main Chat Area -->
             <div class="flex-grow-1 d-flex flex-column h-100">
+                <!-- Mobile: Hamburger button to open sidebar -->
+                <div t-if="isSmall and hasActiveThread" class="d-flex d-md-none align-items-center p-2 border-bottom">
+                    <button
+                        class="btn btn-sm btn-secondary me-2"
+                        t-on-click="openMobileSidebar"
+                        title="Show conversations"
+                    >
+                        <i class="fa fa-bars" />
+                    </button>
+                    <h6 class="mb-0 text-truncate flex-grow-1" t-esc="activeThread.name" />
+                </div>
+
                 <!-- Show thread and composer only if we have an active LLM thread -->
                 <div t-if="hasActiveThread" class="d-flex flex-column h-100">
                     <!-- Thread Header with dropdowns -->

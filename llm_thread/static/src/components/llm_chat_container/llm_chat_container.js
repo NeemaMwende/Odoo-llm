@@ -2,7 +2,6 @@
 
 import { Component, useRef, useState } from "@odoo/owl";
 import { Composer } from "@mail/core/common/composer";
-import { Dropdown } from "@web/core/dropdown/dropdown";
 import { LLMThreadHeader } from "../llm_thread_header/llm_thread_header";
 import { Thread } from "@mail/core/common/thread";
 import { useService } from "@web/core/utils/hooks";
@@ -12,7 +11,7 @@ import { useService } from "@web/core/utils/hooks";
  * Uses existing mail Thread and Composer components with LLM patches
  */
 export class LLMChatContainer extends Component {
-  static components = { Thread, Composer, LLMThreadHeader, Dropdown };
+  static components = { Thread, Composer, LLMThreadHeader };
   static template = "llm_thread.LLMChatContainer";
   static props = {
     recordModel: { type: String, optional: true },
@@ -23,17 +22,33 @@ export class LLMChatContainer extends Component {
     this.llmStore = useState(useService("llm.store"));
     this.mailStore = useState(useService("mail.store"));
     this.action = useService("action");
+    this.ui = useState(useService("ui")); // Wrap with useState to make it reactive
+
+    console.log("[LLMChatContainer] Setup - ui.isSmall:", this.ui.isSmall);
 
     // Reference to the scrollable thread container for proper jump-to-present behavior
     this.threadScrollableRef = useRef("threadScrollable");
 
-    // Sidebar collapse state (for desktop only - mobile uses hamburger menu)
-    // Default: Collapsed in chatter mode, expanded in standalone mode
+    // Sidebar state
     this.state = useState({
+      // Desktop: collapse/expand state (default collapsed in chatter mode)
       isSidebarCollapsed: !!(this.props.recordModel && this.props.recordId),
+      // Mobile: slide-in modal visibility
+      isMobileSidebarVisible: false,
     });
 
+    console.log("[LLMChatContainer] Initial state:", this.state);
+
     // No need for local thread tracking - use mail.store.discuss.thread
+  }
+
+  /**
+   * Check if currently on mobile (reactive)
+   */
+  get isSmall() {
+    const isSmall = this.ui.isSmall;
+    console.log("[LLMChatContainer] isSmall getter called:", isSmall);
+    return isSmall;
   }
 
   /**
@@ -89,10 +104,17 @@ export class LLMChatContainer extends Component {
 
   /**
    * Select thread - delegates to LLM store service
+   * On mobile, closes the sidebar after selection
    * @param {Number} threadId - Thread ID to select
    */
   async selectThread(threadId) {
+    console.log("[LLMChatContainer] Selecting thread:", threadId, "isSmall:", this.ui.isSmall);
     await this.llmStore.selectThread(threadId);
+    // Close mobile sidebar after selecting thread
+    if (this.ui.isSmall) {
+      console.log("[LLMChatContainer] Mobile detected, closing sidebar");
+      this.closeMobileSidebar();
+    }
   }
 
   /**
@@ -139,10 +161,36 @@ export class LLMChatContainer extends Component {
   }
 
   /**
-   * Toggle sidebar collapse/expand state
+   * Toggle sidebar collapse/expand state (desktop only)
    */
   toggleSidebar() {
     this.state.isSidebarCollapsed = !this.state.isSidebarCollapsed;
+  }
+
+  /**
+   * Open mobile sidebar (slide in from left)
+   */
+  openMobileSidebar() {
+    console.log("[LLMChatContainer] Opening mobile sidebar");
+    this.state.isMobileSidebarVisible = true;
+    console.log("[LLMChatContainer] State after open:", this.state.isMobileSidebarVisible);
+  }
+
+  /**
+   * Close mobile sidebar (slide out to left)
+   */
+  closeMobileSidebar() {
+    console.log("[LLMChatContainer] Closing mobile sidebar");
+    this.state.isMobileSidebarVisible = false;
+    console.log("[LLMChatContainer] State after close:", this.state.isMobileSidebarVisible);
+  }
+
+  /**
+   * Handle backdrop click - closes mobile sidebar
+   */
+  onBackdropClick() {
+    console.log("[LLMChatContainer] Backdrop clicked");
+    this.closeMobileSidebar();
   }
 }
 
