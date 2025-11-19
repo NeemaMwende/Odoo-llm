@@ -165,7 +165,7 @@
             <!-- Main Chat Area -->
             <div class="flex-grow-1 d-flex flex-column h-100">
                 <!-- Mobile: Hamburger button to open sidebar + Cog for settings -->
-                <div t-if="isSmall and hasActiveThread" class="d-flex align-items-center p-2 border-bottom">
+                <div t-if="isSmall and hasActiveThread" class="d-flex align-items-center p-2 border-bottom flex-shrink-0">
                     <button
                         class="btn btn-sm btn-secondary me-2"
                         t-on-click="openMobileSidebar"
@@ -184,7 +184,7 @@
                 </div>
 
                 <!-- Show thread and composer only if we have an active LLM thread -->
-                <div t-if="hasActiveThread" class="d-flex flex-column h-100">
+                <div t-if="hasActiveThread" class="d-flex flex-column flex-grow-1 overflow-hidden">
                     <!-- Thread Header with dropdowns (desktop only) -->
                     <LLMThreadHeader t-if="!isSmall" thread="activeThread" />
 
@@ -192,6 +192,7 @@
                     <div
             t-ref="threadScrollable"
             class="o-llm-thread-area flex-grow-1 overflow-auto p-3"
+            style="min-height: 0;"
           >
                         <Thread
               thread="activeThread"
@@ -203,7 +204,7 @@
                     <!-- Streaming indicator -->
                     <div
             t-if="isStreaming"
-            class="o-llm-streaming-indicator p-2 text-center text-muted"
+            class="o-llm-streaming-indicator p-2 text-center text-muted flex-shrink-0"
           >
                         <i
               class="fa fa-circle-o-notch fa-spin"
@@ -211,7 +212,7 @@
                     </div>
 
                     <!-- Composer area - reuse mail's Composer component -->
-                    <div class="o-llm-composer-area border-top p-3">
+                    <div class="o-llm-composer-area border-top p-3 flex-shrink-0">
                         <Composer
               t-if="threadComposer"
               composer="threadComposer"
