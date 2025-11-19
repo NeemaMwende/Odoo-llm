@@ -4,25 +4,41 @@
         <div class="o_LLMChatContainer h-100 d-flex flex-row overflow-hidden">
             <!-- Thread List Sidebar (filtered by record context in chatter mode) -->
             <div
-        class="o-llm-sidebar d-flex flex-column"
-        style="width: 280px; border-right: 1px solid #dee2e6;"
+        class="o-llm-sidebar d-flex flex-column border-end"
+        t-att-style="state.isSidebarCollapsed ? 'width: 48px;' : 'width: 280px;'"
       >
-                <!-- Sidebar Header -->
+                <!-- Sidebar Header - matches height of chat header -->
                 <div
-          class="d-flex justify-content-between align-items-center p-3 border-bottom"
+          class="o-llm-sidebar-header d-flex align-items-center border-bottom"
+          t-att-class="state.isSidebarCollapsed ? 'justify-content-center px-2 py-3' : 'justify-content-between p-3'"
         >
-                    <h6 class="mb-0 text-muted">Conversations</h6>
+                    <!-- Toggle button (always visible) -->
                     <button
-            class="btn btn-sm btn-primary"
-            t-on-click="createNewThread"
-            title="New Thread"
+            class="btn btn-sm btn-link p-0 text-decoration-none"
+            t-att-class="state.isSidebarCollapsed ? '' : 'me-2'"
+            t-on-click="toggleSidebar"
+            t-att-title="state.isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
           >
-                        <i class="fa fa-plus" />
+                        <i
+              t-att-class="state.isSidebarCollapsed ? 'fa fa-chevron-right' : 'fa fa-chevron-left'"
+            />
                     </button>
+
+                    <!-- Header content (only when expanded) -->
+                    <t t-if="!state.isSidebarCollapsed">
+                        <h6 class="mb-0 text-muted flex-grow-1">Conversations</h6>
+                        <button
+              class="btn btn-sm btn-primary"
+              t-on-click="createNewThread"
+              title="New Thread"
+            >
+                            <i class="fa fa-plus" />
+                        </button>
+                    </t>
                 </div>
 
-                <!-- Thread List -->
-                <div class="flex-grow-1 overflow-auto">
+                <!-- Thread List (only when expanded) -->
+                <div t-if="!state.isSidebarCollapsed" class="flex-grow-1 overflow-auto">
                     <div
             t-if="filteredThreadList.length === 0"
             class="p-3 text-center text-muted"

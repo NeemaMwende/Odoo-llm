@@ -26,6 +26,13 @@ export class LLMChatContainer extends Component {
     // Reference to the scrollable thread container for proper jump-to-present behavior
     this.threadScrollableRef = useRef("threadScrollable");
 
+    // Sidebar collapse state - default based on context
+    // Collapsed in chatter mode (when recordModel/recordId provided)
+    // Expanded in standalone mode
+    this.state = useState({
+      isSidebarCollapsed: !!(this.props.recordModel && this.props.recordId),
+    });
+
     // No need for local thread tracking - use mail.store.discuss.thread
   }
 
@@ -129,6 +136,13 @@ export class LLMChatContainer extends Component {
       recordModel: this.props.recordModel,
       recordId: this.props.recordId,
     });
+  }
+
+  /**
+   * Toggle sidebar collapse/expand state
+   */
+  toggleSidebar() {
+    this.state.isSidebarCollapsed = !this.state.isSidebarCollapsed;
   }
 }
 

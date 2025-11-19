@@ -1,8 +1,12 @@
 .o_LLMChatContainer {
   .o-llm-sidebar {
     flex-shrink: 0; // Prevent shrinking
-    min-width: 280px; // Ensure minimum width
-    width: 280px !important; // Force width to stay consistent
+    min-width: 48px; // Minimum width when collapsed
+    transition: width 0.2s ease-in-out; // Smooth collapse/expand animation
+
+    .o-llm-sidebar-header {
+      min-height: 60px; // Match chat header height
+    }
 
     .o-llm-thread-item {
       transition: background-color 0.2s ease;
@@ -16,6 +20,12 @@
         }
       }
     }
+  }
+
+  // Match sidebar header height with chat header
+  .o-llm-sidebar-header,
+  .o-llm-thread-header {
+    min-height: 60px; // Ensure both headers have the same height
   }
 }
 
