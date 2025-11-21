@@ -6,6 +6,24 @@ import { router } from "@web/core/browser/router";
 
 /**
  * Patch Thread model to properly handle llm.thread URLs
+ *
+ * TODO: Fix mobile routing for llm.thread
+ * Issue: On mobile (ui.isSmall), clicking an llm.thread opens the form view instead of the chat UI
+ * Root cause: llmStore.selectThread() calls thread.setAsDiscussThread(), which doesn't know
+ *             how to handle llm.thread on mobile. It falls back to opening the form view.
+ *
+ * Attempted solutions that didn't work:
+ * - Overriding thread.open() → caused infinite recursion
+ * - Overriding thread.openChatWindow() → never called (different code path)
+ * - Overriding thread.setAsDiscussThread() → navigation throttling (infinite loop)
+ *
+ * Potential solutions to explore:
+ * 1. Modify llmStore.selectThread() to check ui.isSmall and navigate to client action directly
+ * 2. Add proper guards in setAsDiscussThread() override to prevent loops
+ * 3. Use a different approach for mobile navigation (e.g., custom modal/overlay)
+ * 4. Check how Odoo's discuss.channel handles this and replicate the pattern
+ *
+ * For now, mobile users can use the form view to access threads. Desktop works correctly.
  */
 patch(Thread.prototype, {
   /**

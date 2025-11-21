@@ -121,7 +121,6 @@ export class LLMChatClientAction extends Component {
       const context = props.action.context || {};
       const resModel = context.default_res_model;
       const resId = context.default_res_id;
-      const name = context.default_name || `AI Chat - ${resModel} #${resId}`;
 
       await this.action.doAction({
         name: "Create AI Chat",
@@ -131,7 +130,7 @@ export class LLMChatClientAction extends Component {
         views: [[false, "form"]],
         target: "new",
         context: {
-          default_name: name,
+          // No default_name - backend will generate it from record.display_name
           default_model: resModel,
           default_res_id: resId,
         },

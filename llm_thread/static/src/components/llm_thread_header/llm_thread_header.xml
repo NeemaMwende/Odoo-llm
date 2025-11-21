@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMThreadHeader">
+        <!-- Desktop Header: Only rendered when !isSmall in container -->
         <div
       t-if="hasActiveThread"
       class="o-llm-thread-header d-flex align-items-center p-3 border-bottom"

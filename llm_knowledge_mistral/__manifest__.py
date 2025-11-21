@@ -8,10 +8,11 @@
     """,
     "category": "Technical",
     "version": "18.0.1.0.0",
-    "depends": ["llm_knowledge", "llm_mistral"],
+    "depends": ["llm_knowledge", "llm_mistral", "llm_tool"],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "data": [
+        "data/llm_tool_data.xml",
         "views/llm_resource_views.xml",
     ],
     "images": ["static/description/banner.jpeg"],

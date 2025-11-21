@@ -84,12 +84,14 @@ export const llmStoreService = {
         this.streamingThreads.add(threadId);
 
         try {
-          // Include message parameter for user message creation
-          const eventSource = new EventSource(
-            `/llm/thread/generate?thread_id=${threadId}&message=${encodeURIComponent(
-              message
-            )}`
-          );
+          // Include message parameter only if provided (for user message creation)
+          // If message is null/empty, backend will use latest message in thread
+          const url = message
+            ? `/llm/thread/generate?thread_id=${threadId}&message=${encodeURIComponent(
+                message
+              )}`
+            : `/llm/thread/generate?thread_id=${threadId}`;
+          const eventSource = new EventSource(url);
 
           this.eventSources.set(threadId, eventSource);
 
@@ -250,7 +252,7 @@ export const llmStoreService = {
       },
 
       // Create new thread with default provider and model
-      async createNewThread() {
+      async createNewThread({ recordModel, recordId } = {}) {
         // Get first available provider and model
         const firstProvider = this.getFirstAvailableProvider();
         const firstModel = this.getFirstAvailableModel();
@@ -275,13 +277,19 @@ export const llmStoreService = {
         // Create thread with auto-generated name
         const threadName = `Chat ${new Date().toLocaleString()}`;
 
-        const threadId = await orm.call("llm.thread", "create", [
-          {
-            name: threadName,
-            provider_id: firstProvider.id,
-            model_id: firstModel.id,
-          },
-        ]);
+        const threadData = {
+          name: threadName,
+          provider_id: firstProvider.id,
+          model_id: firstModel.id,
+        };
+
+        // Auto-link to record if context provided (e.g., from chatter)
+        if (recordModel && recordId) {
+          threadData.model = recordModel;
+          threadData.res_id = recordId;
+        }
+
+        const threadId = await orm.call("llm.thread", "create", [threadData]);
 
         // Reload user threads and select the new one
         await this.refreshThreadsAndSelect(threadId);

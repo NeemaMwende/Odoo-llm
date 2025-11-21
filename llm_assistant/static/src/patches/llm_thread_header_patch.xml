@@ -6,9 +6,9 @@
     t-inherit="llm_thread.LLMThreadHeader"
     t-inherit-mode="extension"
   >
-        <!-- Add assistant dropdown after tools dropdown -->
+        <!-- Add assistant dropdown to DESKTOP header (after tools dropdown) -->
         <xpath
-      expr="//Dropdown[contains(@t-if, 'availableTools')]"
+      expr="//div[hasclass('o-llm-thread-header')]//Dropdown[contains(@t-if, 'availableTools')]"
       position="after"
     >
             <!-- Assistant Dropdown -->
@@ -65,5 +65,7 @@
                 </t>
             </Dropdown>
         </xpath>
+
+        <!-- Mobile: No assistant dropdown in header - use form view via cog button instead -->
     </t>
 </templates>

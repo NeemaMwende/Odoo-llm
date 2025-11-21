@@ -1,3 +1,12 @@
+18.0.1.4.1 (2025-11-21)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Fixed broken create() method using self.model_id in @api.model context
+* [IMP] Unified thread naming with backend-generated names using record display_name
+* [IMP] Added unique ID suffix to standalone thread names (e.g., "New Chat #123")
+* [IMP] Proper @api.model_create_multi decorator for batch creation support
+* [REMOVE] Removed hardcoded name generation from chatter patch and client action
+
 18.0.1.4.0 (2025-10-23)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
