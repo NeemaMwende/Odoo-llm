@@ -1,3 +1,10 @@
+18.0.1.5.1 (2025-11-21)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [IMP] Simplified action_open_llm_assistant by removing unused pre/post action hooks
+* [IMP] Enhanced thread naming in mixin - backend now generates names from record display_name
+* [FIX] Cleaned up unnecessary kwargs handling for better maintainability
+
 18.0.1.5.0 (2025-10-23)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
