@@ -24,6 +24,9 @@
     "data": [
         "data/llm_tool_data.xml",
     ],
+    "images": [
+        "static/description/banner.jpeg",
+    ],
     "license": "LGPL-3",
     "installable": True,
     "application": False,
