@@ -221,7 +221,9 @@ class LLMThread(models.Model):
             except UserError:
                 # No DB messages found - check if prepended messages have a user message
                 prepend_msgs = self.get_prepend_messages()
-                user_msg = next((msg for msg in prepend_msgs if msg.get("role") == "user"), None)
+                user_msg = next(
+                    (msg for msg in prepend_msgs if msg.get("role") == "user"), None
+                )
 
                 if user_msg:
                     # Extract content from prepended user message

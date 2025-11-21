@@ -13,11 +13,13 @@ AI-powered invoice analysis assistant with OCR document parsing for Odoo 18.
 ## Installation
 
 1. Install dependencies:
+
    - `account` (Odoo core)
    - `llm_assistant`
    - `llm_knowledge_mistral`
 
 2. Install the module:
+
    ```bash
    odoo-bin -d your_database -u llm_invoice_assistant
    ```
@@ -29,6 +31,7 @@ AI-powered invoice analysis assistant with OCR document parsing for Odoo 18.
 ### Create Invoice Analysis Thread
 
 1. **Manual Way**:
+
    - Go to **LLM → Threads → Create**
    - Link to your invoice using the record picker
    - Select "Invoice Analysis Assistant"
@@ -39,12 +42,14 @@ AI-powered invoice analysis assistant with OCR document parsing for Odoo 18.
 ### Example Conversations
 
 **Basic Analysis**:
+
 ```
 User: What is the vendor and total amount?
 Assistant: The vendor is Acme Corp and the total amount is $5,420.00
 ```
 
 **Document Parsing**:
+
 ```
 User: Parse attachment 123
 Assistant: [uses llm_mistral_attachment_parser]
@@ -56,6 +61,7 @@ Assistant: I extracted: Invoice #INV-2024-001 from Acme Corp
 ```
 
 **Data Retrieval**:
+
 ```
 User: Find other invoices from this vendor
 Assistant: [uses odoo_record_retriever]
@@ -66,6 +72,7 @@ Assistant: Found 3 other invoices from Acme Corp:
 ```
 
 **Validation**:
+
 ```
 User: Check if this invoice looks correct
 Assistant: I've reviewed the invoice and found:
@@ -80,6 +87,7 @@ Assistant: I've reviewed the invoice and found:
 The Invoice Analysis Assistant includes:
 
 ### Context Awareness
+
 - Automatically accesses invoice fields via `related_record` proxy
 - No need to specify invoice ID in every query
 
@@ -93,6 +101,7 @@ The Invoice Analysis Assistant includes:
 ### Intelligent Instructions
 
 The assistant knows how to:
+
 - Extract data from OCR results
 - Validate invoice consistency
 - Handle accounting workflows
@@ -133,6 +142,7 @@ llm_invoice_assistant/
 ### Transitive Dependencies
 
 These are pulled in automatically:
+
 - `llm`: Core LLM provider/model system
 - `llm_thread`: Thread management with record linking
 - `llm_tool`: Tool registration and consent
@@ -151,6 +161,7 @@ These are pulled in automatically:
 ### 2. Assistant Settings
 
 The assistant is pre-configured with sensible defaults:
+
 - **Name**: Invoice Analysis Assistant
 - **Code**: `invoice_analyzer`
 - **Model**: `account.move`
@@ -204,6 +215,7 @@ Reference additional tools in the `tool_ids` field:
 ### Create Multiple Assistants
 
 Duplicate the record with different configurations:
+
 - Invoice Validator (read-only, no updater tool)
 - Invoice Data Entry (focuses on OCR + updates)
 - Invoice Approver (workflow-focused)

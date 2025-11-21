@@ -1,6 +1,7 @@
 # 📋 Odoo Invoice Data Entry Agent Instructions
 
 ## 🎯 Agent Purpose
+
 Automated processing of both incoming (vendor bills) and outgoing (customer invoices) documents in Odoo 16.0, leveraging LLM parsing capabilities to extract data from PDFs and populate invoice records accurately.
 
 ## 🏗️ Core Workflow Architecture
@@ -8,10 +9,12 @@ Automated processing of both incoming (vendor bills) and outgoing (customer invo
 ### Step 1: Invoice Selection & Initial Assessment
 
 **Tools Required:**
+
 - `mcp__odoo-llm-mcp-server__odoo_record_retriever`
 - `mcp__odoo-llm-mcp-server__odoo_model_inspector`
 
 **Process:**
+
 ```python
 # 1. List draft invoices for user selection
 domain = [["state", "=", "draft"], ["move_type", "in", ["in_invoice", "out_invoice"]]]
@@ -29,9 +32,11 @@ move_types = {
 ### Step 2: Document Processing & LLM Resource Check
 
 **Tools Required:**
+
 - `mcp__odoo-llm-mcp-server__odoo_record_retriever`
 
 **Process:**
+
 ```python
 # 1. Check for attached documents
 attachment_domain = [["res_model", "=", "account.move"], ["res_id", "=", invoice_id]]
@@ -62,6 +67,7 @@ graph TD
 ```
 
 **Common Mistake Prevention:**
+
 ```python
 # WRONG: Using recipient as partner for vendor bills
 if move_type == 'in_invoice':
@@ -78,9 +84,11 @@ elif move_type == 'out_invoice':
 ### Step 4: Historical Pattern Analysis
 
 **Tools Required:**
+
 - `mcp__odoo-llm-mcp-server__odoo_record_retriever`
 
 **Best Practice Implementation:**
+
 ```python
 # 1. Check for duplicates
 duplicate_check = [
@@ -111,14 +119,15 @@ patterns = {
 
 **Decision Matrix:**
 
-| Invoice Type | Line Type | Priority Selection |
-|-------------|-----------|-------------------|
-| Vendor Bill | Service | Expense Account → Product (optional) |
-| Vendor Bill | Product | Product → Expense Account (from product) |
-| Customer Invoice | Service | Income Account → Product (recommended) |
-| Customer Invoice | Product | Product → Income Account (from product) |
+| Invoice Type     | Line Type | Priority Selection                       |
+| ---------------- | --------- | ---------------------------------------- |
+| Vendor Bill      | Service   | Expense Account → Product (optional)     |
+| Vendor Bill      | Product   | Product → Expense Account (from product) |
+| Customer Invoice | Service   | Income Account → Product (recommended)   |
+| Customer Invoice | Product   | Product → Income Account (from product)  |
 
 **Account Type Mapping:**
+
 ```python
 account_types = {
     'in_invoice': ['expense', 'expense_direct_cost', 'asset_current'],
@@ -131,6 +140,7 @@ account_types = {
 ### Step 6: Tax Configuration
 
 **Tax Intelligence System:**
+
 ```python
 def determine_tax_application(invoice_type, partner, historical_data):
     """
@@ -164,6 +174,7 @@ def determine_tax_application(invoice_type, partner, historical_data):
 ### Step 7: Invoice Line Creation
 
 **Odoo Model Structure:**
+
 ```python
 # account.move.line critical fields
 invoice_line_data = {
@@ -186,6 +197,7 @@ invoice_line_data = {
 ## 🛡️ Edge Cases & Error Handling
 
 ### 1. Multi-Currency Invoices
+
 ```python
 if invoice_currency != company_currency:
     # Check currency_id on invoice
@@ -194,6 +206,7 @@ if invoice_currency != company_currency:
 ```
 
 ### 2. Partial or Progressive Invoices
+
 ```python
 # Check for references to:
 - Purchase Orders (invoice_origin)
@@ -203,14 +216,15 @@ if invoice_currency != company_currency:
 
 ### 3. Tax Complexity Scenarios
 
-| Scenario | Detection | Action |
-|----------|-----------|---------|
-| Tax-inclusive prices | Check parsed amount format | Set tax `price_include=True` |
-| Multiple tax rates | Different items have different taxes | Apply per line |
-| Withholding taxes | Negative tax percentages | Usually for services |
-| Reverse charge | EU VAT scenarios | Special fiscal position |
+| Scenario             | Detection                            | Action                       |
+| -------------------- | ------------------------------------ | ---------------------------- |
+| Tax-inclusive prices | Check parsed amount format           | Set tax `price_include=True` |
+| Multiple tax rates   | Different items have different taxes | Apply per line               |
+| Withholding taxes    | Negative tax percentages             | Usually for services         |
+| Reverse charge       | EU VAT scenarios                     | Special fiscal position      |
 
 ### 4. Missing Information Handling
+
 ```python
 required_fields = {
     'partner': {
@@ -231,6 +245,7 @@ required_fields = {
 ## 🎯 Best Practices Implementation
 
 ### 1. Always Verify Before Committing
+
 ```python
 confirmation_checklist = {
     '1_duplicate_check': "No duplicate invoice exists",
@@ -243,6 +258,7 @@ confirmation_checklist = {
 ```
 
 ### 2. Maintain Audit Trail
+
 ```python
 # Always populate these fields:
 - ref: Original invoice number/reference
@@ -251,6 +267,7 @@ confirmation_checklist = {
 ```
 
 ### 3. State Management
+
 ```python
 # NEVER auto-post invoices
 # Keep in 'draft' state for review
@@ -314,7 +331,9 @@ async def process_invoice(invoice_id):
 ## 🔧 Odoo Model Reference
 
 ### account.move (Invoice Header)
+
 Key fields for invoice processing:
+
 - `id`: Invoice ID
 - `name`: Invoice number (auto-generated or manual)
 - `move_type`: Type of invoice (in_invoice, out_invoice, etc.)
@@ -332,7 +351,9 @@ Key fields for invoice processing:
 - `company_id`: Company
 
 ### account.move.line (Invoice Lines)
+
 Key fields for line items:
+
 - `move_id`: Link to parent invoice
 - `name`: Line description
 - `display_type`: product, tax, payment_term, line_section, line_note
@@ -348,7 +369,9 @@ Key fields for line items:
 - `debit`/`credit`: Accounting entries (computed)
 
 ### ir.attachment (Document Attachments)
+
 Key fields for document handling:
+
 - `id`: Attachment ID
 - `name`: File name
 - `res_model`: Related model (e.g., 'account.move')
@@ -358,7 +381,9 @@ Key fields for document handling:
 - `file_size`: Size in bytes
 
 ### llm.resource (LLM Processing)
+
 Key fields for AI processing:
+
 - `id`: Resource ID
 - `name`: Resource name
 - `res_model`: Related model (e.g., 'ir.attachment')
@@ -369,7 +394,9 @@ Key fields for AI processing:
 - `chunk_count`: Number of chunks for embeddings
 
 ### res.partner (Partners/Contacts)
+
 Key fields for partner management:
+
 - `id`: Partner ID
 - `name`: Partner name
 - `is_company`: Boolean for company vs individual
@@ -381,7 +408,9 @@ Key fields for partner management:
 - `property_payment_term_id`: Default payment terms
 
 ### account.tax (Taxes)
+
 Key fields for tax configuration:
+
 - `id`: Tax ID
 - `name`: Tax name
 - `type_tax_use`: sale, purchase, none
@@ -416,24 +445,28 @@ Key fields for tax configuration:
 ## 🔄 Error Recovery Procedures
 
 ### When LLM Parsing Fails
+
 1. Check llm.resource state
 2. Verify attachment exists and is readable
 3. Request manual re-parsing
 4. Fall back to manual data entry
 
 ### When Partner Cannot Be Identified
+
 1. Search with variations (partial names, acronyms)
 2. Check VAT/Tax ID if available
 3. Prompt user with closest matches
 4. Offer to create new partner with parsed data
 
 ### When Historical Pattern Conflicts
+
 1. Show user the discrepancy
 2. Display historical pattern
 3. Display current parsed data
 4. Request explicit confirmation for deviation
 
 ### When Tax Configuration Is Ambiguous
+
 1. Default to no tax (safer)
 2. Show historical tax patterns
 3. Display applicable tax options

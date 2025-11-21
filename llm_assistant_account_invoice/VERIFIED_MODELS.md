@@ -7,6 +7,7 @@
 ### Verified Fields
 
 **Invoice Type:**
+
 ```python
 move_type = fields.Selection([
     ('entry', 'Journal Entry'),
@@ -20,6 +21,7 @@ move_type = fields.Selection([
 ```
 
 **Key Fields (Verified):**
+
 - `partner_id` = Many2one → Vendor (for in_invoice) or Customer (for out_invoice)
 - `invoice_date` = Date → Invoice date
 - `invoice_date_due` = Date → Payment due date
@@ -36,6 +38,7 @@ move_type = fields.Selection([
 ### Verified Fields
 
 **Key Fields (Verified):**
+
 - `move_id` = Many2one('account.move') → Parent invoice
 - `name` = Char → Line description
 - `account_id` = Many2one('account.account') → Expense/Income account
@@ -46,6 +49,7 @@ move_type = fields.Selection([
 - `display_type` = Selection → 'product', 'line_section', 'line_note'
 
 **Computed Fields (Don't Set):**
+
 - `price_subtotal` → Auto-calculated
 - `price_total` → Auto-calculated with tax
 - `debit`/`credit` → Auto-calculated accounting entries
@@ -53,6 +57,7 @@ move_type = fields.Selection([
 ## ✅ Verified Domain Knowledge
 
 ### Invoice Types (CONFIRMED)
+
 ```
 in_invoice: Vendor Bill (money we owe)
 out_invoice: Customer Invoice (money owed to us)
@@ -61,12 +66,14 @@ out_refund: Customer Credit Note
 ```
 
 ### Partner Logic (CONFIRMED)
+
 ```
 in_invoice → partner_id = SENDER (vendor billing us)
 out_invoice → partner_id = RECIPIENT (customer we're billing)
 ```
 
 ### Account Types (Need to verify)
+
 ```
 in_invoice → expense accounts (expense, expense_direct_cost)
 out_invoice → income accounts (income, income_other)

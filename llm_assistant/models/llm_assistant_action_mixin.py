@@ -22,7 +22,9 @@ class LLMAssistantActionMixin(models.AbstractModel):
     _name = "llm.assistant.action.mixin"
     _description = "LLM Assistant Action Mixin"
 
-    def action_open_llm_assistant(self, assistant_code=None, force_new_thread=False, **kwargs):
+    def action_open_llm_assistant(
+        self, assistant_code=None, force_new_thread=False, **kwargs
+    ):
         """
         Generic method to open AI assistant for current record.
         Creates/finds thread, sets assistant, and prepares for frontend to open AI chat.
@@ -193,10 +195,13 @@ class LLMAssistantActionMixin(models.AbstractModel):
         if assistant:
             _logger.info("Found assistant: %s (ID: %s)", assistant.name, assistant.id)
             if not thread.assistant_id:
-                _logger.info("Setting assistant on thread (with tools, provider, model)...")
+                _logger.info(
+                    "Setting assistant on thread (with tools, provider, model)..."
+                )
                 thread.set_assistant(assistant.id)
                 _logger.info(
-                    "Assistant set successfully. Tools: %s", thread.tool_ids.mapped("name")
+                    "Assistant set successfully. Tools: %s",
+                    thread.tool_ids.mapped("name"),
                 )
             else:
                 _logger.info(

@@ -21,6 +21,7 @@ The `llm_invoice_assistant` module provides AI-powered invoice analysis capabili
 ```
 
 **Optional Enhancement Dependencies** (not required for basic functionality):
+
 - `llm_knowledge_mistral` - If generic OCR tool is available there
 
 ## Module Structure (MINIMAL)
@@ -50,6 +51,7 @@ llm_invoice_assistant/
 **Pattern**: Use llm_thread's existing record linking (model + res_id) via UI
 
 **User Workflow** (no code needed):
+
 1. User opens invoice form
 2. User clicks "Ask AI" button (optional enhancement)
 3. System opens llm.thread form in "create" mode
@@ -58,11 +60,12 @@ llm_invoice_assistant/
 6. Context is automatically injected via related_record proxy
 
 **Optional Button** (simple server action in XML):
+
 ```xml
 <record id="action_invoice_open_assistant" model="ir.actions.server">
     <field name="name">Ask AI Assistant</field>
-    <field name="model_id" ref="account.model_account_move"/>
-    <field name="binding_model_id" ref="account.model_account_move"/>
+    <field name="model_id" ref="account.model_account_move" />
+    <field name="binding_model_id" ref="account.model_account_move" />
     <field name="binding_view_types">form</field>
     <field name="state">code</field>
     <field name="code"><![CDATA[
@@ -89,6 +92,7 @@ That's it! No Python model code needed.
 **Pattern**: Use RelatedRecordProxy for safe field access in Jinja2 templates
 
 **Example Prompt Template**:
+
 ```xml
 <record id="llm_prompt_invoice_analyzer" model="llm.prompt">
     <field name="name">Invoice Analysis Assistant</field>
@@ -120,7 +124,10 @@ You are an Invoice Analysis Assistant specialized in reviewing vendor invoices.
 - Suggest corrections when appropriate
     ]]></field>
     <field name="format">text</field>
-    <field name="category_id" ref="llm_assistant.llm_prompt_category_business"/>
+    <field
+    name="category_id"
+    ref="llm_assistant.llm_prompt_category_business"
+  />
 </record>
 ```
 
@@ -129,6 +136,7 @@ You are an Invoice Analysis Assistant specialized in reviewing vendor invoices.
 #### Built-in Tools (Already Available)
 
 The assistant will use existing generic tools from `llm_tool`:
+
 - `odoo_record_retriever` - Query invoice data
 - `odoo_model_inspector` - Inspect account.move structure
 - `odoo_record_updater` - Update invoice fields (with consent)
@@ -142,6 +150,7 @@ The assistant will use existing generic tools from `llm_tool`:
 **Implementation**: Delegated to `mistral_tool_dev` agent to add to `llm_knowledge_mistral`
 
 **Expected Tool** (generic, reusable):
+
 ```python
 # In llm_knowledge_mistral/models/ir_attachment.py
 from odoo.addons.llm_tool.decorators import llm_tool
@@ -172,6 +181,7 @@ class IrAttachment(models.Model):
 ```
 
 **Usage in Invoice Context**:
+
 ```
 User: "Parse the uploaded invoice PDF attachment 123"
 Assistant: [calls parse_document_ocr(attachment_id=123)]
@@ -183,29 +193,34 @@ The assistant's prompt tells it how to interpret OCR results for invoices.
 ### 4. Assistant Configuration
 
 **Pre-built Assistant** (simple XML data file):
+
 ```xml
 <record id="llm_assistant_invoice_analyzer" model="llm.assistant">
     <field name="name">Invoice Analysis Assistant</field>
     <field name="code">invoice_analyzer</field>
     <field name="res_model">account.move</field>
-    <field name="is_default" eval="True"/>
-    <field name="is_public" eval="True"/>
+    <field name="is_default" eval="True" />
+    <field name="is_public" eval="True" />
 
     <!-- Link to prompt (context injection happens here) -->
-    <field name="prompt_id" ref="llm_prompt_invoice_analyzer"/>
+    <field name="prompt_id" ref="llm_prompt_invoice_analyzer" />
 
     <!-- Use existing generic tools -->
-    <field name="tool_ids" eval="[(6, 0, [
+    <field
+    name="tool_ids"
+    eval="[(6, 0, [
         ref('llm_tool.llm_tool_odoo_record_retriever'),
         ref('llm_tool.llm_tool_odoo_model_inspector'),
         ref('llm_tool.llm_tool_odoo_record_updater'),
-    ])]"/>
+    ])]"
+  />
 
     <field name="tool_calls_max">5</field>
 </record>
 ```
 
 **Note**:
+
 - No provider/model specified → User chooses at runtime
 - Tools are all generic → No invoice-specific code
 - OCR tool reference will be added once available in llm_knowledge_mistral
@@ -213,20 +228,23 @@ The assistant's prompt tells it how to interpret OCR results for invoices.
 ### 5. UI Integration (Optional)
 
 **Add Button to Invoice Form** (optional convenience feature):
+
 ```xml
 <!-- Button in buttonbox -->
 <record id="view_account_move_form_llm" model="ir.ui.view">
     <field name="name">account.move.form.llm</field>
     <field name="model">account.move</field>
-    <field name="inherit_id" ref="account.view_move_form"/>
+    <field name="inherit_id" ref="account.view_move_form" />
     <field name="arch" type="xml">
         <div name="button_box" position="inside">
-            <button name="%(action_invoice_open_assistant)d"
-                    type="action"
-                    class="oe_stat_button"
-                    icon="fa-comments"
-                    string="Ask AI"
-                    groups="account.group_account_user"/>
+            <button
+        name="%(action_invoice_open_assistant)d"
+        type="action"
+        class="oe_stat_button"
+        icon="fa-comments"
+        string="Ask AI"
+        groups="account.group_account_user"
+      />
         </div>
     </field>
 </record>
@@ -248,6 +266,7 @@ The assistant's prompt tells it how to interpret OCR results for invoices.
 ### Using Generic Tools
 
 **Example: Query invoice lines**
+
 ```
 User: "Show me all line items"
 Assistant: [calls odoo_record_retriever with model="account.move.line", domain=[('move_id', '=', invoice_id)]]
@@ -255,6 +274,7 @@ Assistant: "Here are the 3 line items: ..."
 ```
 
 **Example: OCR extraction** (once tool available)
+
 ```
 User: "Parse attachment 123"
 Assistant: [calls parse_document_ocr(attachment_id=123)]
@@ -294,6 +314,7 @@ Assistant: [calls odoo_record_updater to fill fields]
 ### Configuration
 
 1. **Provider Setup**: Settings → LLM → Providers → Mistral AI
+
    - Enter API key
    - Click "Sync Models"
    - Verify OCR models appear (e.g., "pixtral-12b-2409")
@@ -312,7 +333,7 @@ Assistant: [calls odoo_record_updater to fill fields]
     <field name="name">Invoice Approval Assistant</field>
     <field name="code">invoice_approver</field>
     <field name="res_model">account.move</field>
-    <field name="prompt_id" ref="llm_prompt_invoice_approver"/>
+    <field name="prompt_id" ref="llm_prompt_invoice_approver" />
     <!-- Different tools for approval workflow -->
 </record>
 ```
@@ -332,6 +353,7 @@ def llm_match_purchase_order(self):
 ### Multi-language Support
 
 Use prompt variables and translations:
+
 ```xml
 <field name="template"><![CDATA[
 {{ _("You are an Invoice Analysis Assistant") }}

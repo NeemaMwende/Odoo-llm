@@ -3,8 +3,9 @@ import logging
 from typing import List
 
 from odoo import models
-from odoo.addons.llm_tool.decorators import llm_tool
 from odoo.exceptions import UserError, ValidationError
+
+from odoo.addons.llm_tool.decorators import llm_tool
 
 _logger = logging.getLogger(__name__)
 
