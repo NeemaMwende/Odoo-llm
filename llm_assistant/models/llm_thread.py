@@ -160,10 +160,10 @@ class LLMThread(models.Model):
         return thread, assistant, None
 
     def _thread_to_store(self, store, **kwargs):
-        """Extend base _thread_to_store to include assistant_id."""
+        """Extend base _thread_to_store to include assistant_id and prompt_id."""
         super()._thread_to_store(store, **kwargs)
 
-        # Always add assistant_id to thread data (either value or False)
+        # Always add assistant_id and prompt_id to thread data (either value or False)
         for thread in self:
             thread_data = {
                 "id": thread.id,
@@ -174,6 +174,14 @@ class LLMThread(models.Model):
                     "model": "llm.assistant",
                 }
                 if thread.assistant_id
+                else False,
+                # prompt_id is defined in this module, so handle it here
+                "prompt_id": {
+                    "id": thread.prompt_id.id,
+                    "name": thread.prompt_id.name,
+                    "model": "llm.prompt",
+                }
+                if thread.prompt_id
                 else False,
             }
             store.add("mail.thread", thread_data)
