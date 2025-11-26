@@ -1,3 +1,9 @@
+18.0.1.5.2 (2025-11-26)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Moved prompt_id serialization to _thread_to_store() from llm_thread module
+* [IMP] prompt_id handling now properly resides in the module that defines the field
+
 18.0.1.5.1 (2025-11-21)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

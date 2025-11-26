@@ -1,3 +1,9 @@
+18.0.1.4.2 (2025-11-26)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Removed prompt_id reference from _thread_to_store() - field is defined in llm_assistant
+* [IMP] Module can now be installed standalone without llm_assistant dependency
+
 18.0.1.4.1 (2025-11-21)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
