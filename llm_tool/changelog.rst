@@ -1,3 +1,9 @@
+18.0.4.1.0 (2025-11-28)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [IMP] Refactored _inject_tool_consent() to use _extract_content_text() helper from base provider (DRY)
+* [IMP] Simplified content format handling using shared helper method
+
 18.0.4.0.0 (2025-10-28)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

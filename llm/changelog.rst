@@ -1,3 +1,10 @@
+18.0.1.5.0 (2025-11-28)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] Added _extract_content_text() helper for extracting text from message content (handles both string and OpenAI list formats)
+* [ADD] Added _dispatch("normalize_prepend_messages") call in chat() for provider-specific message normalization
+* [IMP] Improved dispatch pattern consistency for prepend_messages handling
+
 18.0.1.4.1 (2025-11-17)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
