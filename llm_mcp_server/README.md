@@ -34,8 +34,13 @@ Odoo → User Avatar → Preferences → Account Security → API Keys → New
     "odoo-llm-mcp-server": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
-               "--header", "Authorization: Bearer YOUR_API_KEY"],
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:8069/mcp",
+        "--header",
+        "Authorization: Bearer YOUR_API_KEY"
+      ],
       "env": { "MCP_TRANSPORT": "streamable-http" }
     }
   }
@@ -146,6 +151,7 @@ Tools are auto-discovered from the `llm.tool` model. See [llm_tool module](https
 **MCP Inspector**: [https://modelcontextprotocol.io/docs/tools/inspector](https://modelcontextprotocol.io/docs/tools/inspector)
 
 Test your server:
+
 - Verify connectivity
 - Browse available tools
 - Test tool execution
@@ -161,21 +167,25 @@ odoo-bin --log-level=debug
 ## Troubleshooting
 
 **No tools showing up?**
+
 - Check that tools are active in Odoo (LLM → Tools)
 - Verify API key has access to tools
 - Check user permissions
 
 **Authentication failed?**
+
 - Verify API key is correct
 - Check key hasn't expired
 - Ensure Bearer token format: `Authorization: Bearer YOUR_KEY`
 
 **Connection refused?**
+
 - Verify Odoo is running on specified port
 - Check firewall settings
 - For remote access, ensure Odoo is accessible from client
 
 **Tools failing to execute?**
+
 - Check Odoo logs for errors
 - Verify user has required permissions
 - Test tool manually in Odoo UI first
@@ -202,6 +212,7 @@ Contributions and feature requests welcome!
 ### 18.0.1.1.0 (2025-11-03)
 
 **Documentation**
+
 - Updated Odoo App Store description page (`static/description/index.html`)
 - Improved module presentation with modern Bootstrap 5 layout
 - Enhanced mobile responsiveness and visual design
@@ -211,6 +222,7 @@ Contributions and feature requests welcome!
 ### 18.0.1.0.0
 
 **Initial Release**
+
 - MCP 2025-06-18 protocol implementation
 - Bearer token authentication with Odoo API keys
 - Dynamic tool discovery from llm.tool registry

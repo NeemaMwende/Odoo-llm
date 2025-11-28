@@ -5,12 +5,14 @@
 The `llm_letta` module integrates Letta AI agents with Odoo's LLM framework. Letta provides stateful agents with persistent memory and MCP (Model Context Protocol) tool access.
 
 **Key Concepts:**
+
 - **One agent per thread**: Each Odoo thread gets a dedicated Letta agent
 - **Server-side memory**: Letta maintains conversation history (Odoo only sends latest message)
 - **MCP authentication**: Auto-generated per-user API keys for secure tool access
 - **Agent lifecycle**: Automatic creation, updates, and cleanup
 
 **Requirements:**
+
 - **Letta Server**: Version 0.11.7+ (earlier versions have MCP bugs)
 - **Letta Client**: Forked version required (fixes `listembeddingmodels()` bug)
   ```bash
@@ -23,6 +25,7 @@ The `llm_letta` module integrates Letta AI agents with Odoo's LLM framework. Let
 ### 1. Letta Provider (`letta_provider.py`)
 
 **Responsibilities:**
+
 - Agent creation and management
 - Model fetching (chat + embedding models)
 - Message streaming
@@ -30,6 +33,7 @@ The `llm_letta` module integrates Letta AI agents with Odoo's LLM framework. Let
 - Tool synchronization (attach/detach)
 
 **Key Methods:**
+
 - `letta_get_client()` - Initialize Letta client
 - `letta_models()` - Fetch available models
 - `letta_chat()` - Stream agent responses
@@ -39,18 +43,21 @@ The `llm_letta` module integrates Letta AI agents with Odoo's LLM framework. Let
 ### 2. Thread Integration (`llm_thread.py`)
 
 **Responsibilities:**
+
 - Agent lifecycle management (create, update, cleanup)
 - API key generation and storage
 - Memory block configuration
 - Tool synchronization triggers
 
 **Key Methods:**
+
 - `_create_letta_agent()` - Create agent with memory blocks
 - `_ensure_api_key_for_agent()` - Generate/retrieve API key
 - `_cleanup_letta_resources()` - Delete agent and API key
 - `_build_agent_config()` - Configure agent parameters
 
 **Additional Fields:**
+
 - `external_id` - Letta agent ID
 - `metadata` - Stores API key and key ID (JSON field)
 
@@ -59,6 +66,7 @@ The `llm_letta` module integrates Letta AI agents with Odoo's LLM framework. Let
 **Purpose:** Allows Letta agents to access Odoo tools securely
 
 **Configuration:**
+
 - External URL for Docker environments (`http://host.docker.internal:8069`)
 - Per-user API key authentication
 - Automatic server registration on first tool attachment
@@ -96,6 +104,7 @@ graph TB
 ### 1. Agent Lifecycle
 
 **Creation (on thread create or provider switch to Letta):**
+
 ```python
 thread.create() / thread.write({'provider_id': letta_provider})
   → _create_letta_agent()
@@ -108,6 +117,7 @@ thread.create() / thread.write({'provider_id': letta_provider})
 ```
 
 **Updates (on model/assistant change):**
+
 ```python
 thread.write({'model_id': new_model})
   → _update_or_create_agent()
@@ -115,6 +125,7 @@ thread.write({'model_id': new_model})
 ```
 
 **Cleanup (on thread delete or provider change):**
+
 ```python
 thread.unlink() / thread.write({'provider_id': other_provider})
   → _cleanup_letta_resources()
@@ -126,22 +137,26 @@ thread.unlink() / thread.write({'provider_id': other_provider})
 ### 2. API Key Management
 
 **Generation:**
+
 - Created per thread with scope `rpc`
 - Duration based on user's group settings (default: 90 days)
 - Name format: `"Letta Agent - Thread {id}"`
 
 **Storage:**
+
 - API key value stored in `thread.metadata['api_key']`
 - API key record ID stored in `thread.metadata['api_key_id']`
 - Passed to Letta agent via `tool_exec_environment_variables`
 
 **Usage:**
+
 - Letta agent includes API key in MCP requests: `Authorization: Bearer {{ ODOO_API_KEY }}`
 - Template variable replaced by Letta at runtime
 
 ### 3. MCP Server Registration
 
 **First tool attachment triggers registration:**
+
 ```python
 letta_attach_tool()
   → letta_ensure_mcp_server()
@@ -159,6 +174,7 @@ letta_attach_tool()
 ### 4. Tool Synchronization
 
 **Triggered on `thread.tool_ids` change:**
+
 ```python
 thread.write({'tool_ids': [(6, 0, [tool1, tool2])]})
   → letta_sync_agent_tools(agent_id, tool_records)
@@ -171,6 +187,7 @@ thread.write({'tool_ids': [(6, 0, [tool1, tool2])]})
 ### 5. Message Streaming
 
 **Flow:**
+
 ```python
 letta_chat(messages, stream=True)
   → Extract latest user message (Letta maintains history)
@@ -180,6 +197,7 @@ letta_chat(messages, stream=True)
 ```
 
 **Message Types:**
+
 - `assistant_message` - Streamed to user ✅
 - `reasoning_message` - Ignored (internal)
 - `tool_call_message` - Ignored (future: show in UI)
@@ -297,6 +315,7 @@ if thread.assistant_id and thread.assistant_id.prompt_id:
 ### Logging
 
 Minimal logging to reduce noise:
+
 - Agent deletion: `INFO` level
 - Failed cleanup: `DEBUG` level (non-critical)
 
@@ -305,6 +324,7 @@ Minimal logging to reduce noise:
 ### Docker Environment
 
 When Letta runs in Docker:
+
 - Set MCP `external_url` to `http://host.docker.internal:8069`
 - Ensure Odoo port (8069) is accessible from container
 - API key authentication handled automatically
@@ -312,6 +332,7 @@ When Letta runs in Docker:
 ### Adding New Tools
 
 Tools are auto-available to agents:
+
 1. Create/activate tool in `llm.tool`
 2. Add to thread via `tool_ids`
 3. Tool automatically synced to agent
@@ -338,12 +359,14 @@ thread.unlink()
 ## Limitations & Future Work
 
 **Current Limitations:**
+
 - Tool calls not visible in Odoo UI
 - Memory blocks not editable from Odoo
 - No shared memory across threads
 - Usage statistics not tracked
 
 **Planned Features:**
+
 - Tool call visualization in message thread
 - Memory block management UI
 - Shared memory pools

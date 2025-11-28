@@ -72,7 +72,15 @@ class LLMProvider(models.Model):
         """Hook method for registering provider services"""
         return []
 
-    def chat(self, messages, model=None, stream=False, tools=None, prepend_messages=None, **kwargs):
+    def chat(
+        self,
+        messages,
+        model=None,
+        stream=False,
+        tools=None,
+        prepend_messages=None,
+        **kwargs,
+    ):
         """Send chat messages using this provider.
 
         Args:
@@ -90,7 +98,9 @@ class LLMProvider(models.Model):
         prepend_messages = self._prepare_prepend_messages(prepend_messages, tools)
 
         # Normalize prepend_messages for the specific provider format
-        prepend_messages = self._dispatch("normalize_prepend_messages", prepend_messages)
+        prepend_messages = self._dispatch(
+            "normalize_prepend_messages", prepend_messages
+        )
 
         return self._dispatch(
             "chat",
@@ -170,9 +180,11 @@ class LLMProvider(models.Model):
         self.ensure_one()
 
         # Create wizard first so it has an ID
-        wizard = self.env["llm.fetch.models.wizard"].create({
-            "provider_id": self.id,
-        })
+        wizard = self.env["llm.fetch.models.wizard"].create(
+            {
+                "provider_id": self.id,
+            }
+        )
 
         # Get existing models for comparison
         existing_models = {
@@ -213,15 +225,17 @@ class LLMProvider(models.Model):
             if existing:
                 status = "modified" if existing.details != details else "existing"
 
-            lines_to_create.append({
-                "wizard_id": wizard.id,
-                "name": name,
-                "model_use": model_use,
-                "status": status,
-                "details": details,
-                "existing_model_id": existing.id if existing else False,
-                "selected": status in ["new", "modified"],
-            })
+            lines_to_create.append(
+                {
+                    "wizard_id": wizard.id,
+                    "name": name,
+                    "model_use": model_use,
+                    "status": status,
+                    "details": details,
+                    "existing_model_id": existing.id if existing else False,
+                    "selected": status in ["new", "modified"],
+                }
+            )
 
         # Create all lines
         if lines_to_create:

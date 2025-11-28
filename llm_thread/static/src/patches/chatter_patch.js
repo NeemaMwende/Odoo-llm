@@ -34,11 +34,17 @@ patch(Chatter.prototype, {
     };
 
     // Odoo 18 uses busService.subscribe() not addEventListener()
-    this.busService.subscribe("llm.thread/open_in_chatter", this.busNotificationCallback);
+    this.busService.subscribe(
+      "llm.thread/open_in_chatter",
+      this.busNotificationCallback
+    );
 
     // Clean up subscription when component is destroyed
     onWillDestroy(() => {
-      this.busService.unsubscribe("llm.thread/open_in_chatter", this.busNotificationCallback);
+      this.busService.unsubscribe(
+        "llm.thread/open_in_chatter",
+        this.busNotificationCallback
+      );
       console.log("[Chatter] Unsubscribed from llm.thread/open_in_chatter");
     });
 
@@ -83,7 +89,6 @@ patch(Chatter.prototype, {
     // useEffect will handle focusing when state changes
     await this.onAIChatClick();
 
-    
     const llmStore = this.env.services["llm.store"];
     if (llmStore && this.state.llmThreadId) {
       console.log("[Chatter] Auto-triggering generation on prepended message");
@@ -91,7 +96,6 @@ patch(Chatter.prototype, {
       // Backend will use prepended messages from prompt
       await llmStore.startLLMStreaming(this.state.llmThreadId, null);
     }
-    
   },
 
   /**
@@ -112,7 +116,10 @@ patch(Chatter.prototype, {
       }
 
       // Step 2: Find and focus the composer (chatter internal scroll)
-      const composerSelectors = [".o-mail-Composer-input", ".o-llm-composer-area textarea"];
+      const composerSelectors = [
+        ".o-mail-Composer-input",
+        ".o-llm-composer-area textarea",
+      ];
       const composer = composerSelectors
         .map((sel) => document.querySelector(sel))
         .find((el) => el !== null);
@@ -137,7 +144,7 @@ patch(Chatter.prototype, {
    * Check if current record supports LLM chat
    * Can be extended to support specific models or conditions
    *
-   * @returns {boolean}
+   * @returns {Boolean}
    */
   get shouldShowAIButton() {
     return this.props.threadModel && this.props.threadId;
@@ -183,10 +190,9 @@ patch(Chatter.prototype, {
         }
       } catch (error) {
         console.error("Failed to start AI chat:", error);
-        this.notification.add(
-          error.message || "Failed to start AI chat",
-          { type: "danger" }
-        );
+        this.notification.add(error.message || "Failed to start AI chat", {
+          type: "danger",
+        });
       }
     }
   },
@@ -194,7 +200,7 @@ patch(Chatter.prototype, {
   /**
    * Find existing LLM thread for current record or create new one
    *
-   * @returns {Promise<number|null>} Thread ID
+   * @returns {Promise<Number|null>} Thread ID
    */
   async ensureLLMThread() {
     // Search for existing thread linked to this record
@@ -240,7 +246,9 @@ patch(Chatter.prototype, {
       );
 
       if (providers.length === 0) {
-        throw new Error("No active LLM provider found. Please configure a provider first.");
+        throw new Error(
+          "No active LLM provider found. Please configure a provider first."
+        );
       }
 
       providerId = providers[0].id;
@@ -257,7 +265,9 @@ patch(Chatter.prototype, {
       );
 
       if (models.length === 0) {
-        throw new Error("No active chat model found. Please configure a model first.");
+        throw new Error(
+          "No active chat model found. Please configure a model first."
+        );
       }
 
       modelId = models[0].id;
@@ -273,7 +283,7 @@ patch(Chatter.prototype, {
       },
     ]);
 
-    // orm.create returns array of IDs, extract first one
+    // Orm.create returns array of IDs, extract first one
     return Array.isArray(threadIds) ? threadIds[0] : threadIds;
   },
 });

@@ -84,10 +84,16 @@ class LLMProvider(models.Model):
                 content = msg.get("content", "")
 
                 # Handle list format - modify in place (preserves format)
-                if isinstance(content, list) and content and isinstance(content[0], dict):
+                if (
+                    isinstance(content, list)
+                    and content
+                    and isinstance(content[0], dict)
+                ):
                     existing_text = self._extract_content_text(content)
                     separator = "\n\n" if existing_text else ""
-                    content[0]["text"] = f"{existing_text}{separator}{consent_instruction}"
+                    content[0]["text"] = (
+                        f"{existing_text}{separator}{consent_instruction}"
+                    )
                 else:
                     # String format
                     existing_text = self._extract_content_text(content)
