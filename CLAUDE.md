@@ -138,6 +138,64 @@ When editing `static/description/index.html` files:
 
 See [ODOO_APP_STORE_HTML_GUIDE.md](./ODOO_APP_STORE_HTML_GUIDE.md) for details.
 
+## Coding Principles
+
+### DRY (Don't Repeat Yourself)
+
+- Extract shared logic into base classes or mixins (e.g., `llm.provider` base for all providers)
+- Use `_dispatch()` pattern for extensible behavior instead of duplicating logic
+- Common UI components go in base modules, extended via `patch()` in feature modules
+- Shared utilities belong in `llm` base module, not duplicated across provider modules
+
+### Odoo Best Practices
+
+- **Inherit, don't copy**: Use `_inherit` to extend models, don't duplicate code
+- **Use computed fields**: Prefer `@api.depends` over manual updates
+- **Recordsets over IDs**: Pass recordsets between methods, not raw IDs
+- **Context for options**: Use `self.with_context()` for optional behavior, not extra parameters
+- **SQL only when necessary**: Use ORM unless performance requires raw SQL (then add `_flush()`)
+- **Security by design**: Define proper access rules, use `sudo()` sparingly and explicitly
+- **Transactional safety**: Use `cr.savepoint()` for operations that might fail partially
+
+### Provider-Agnostic Code
+
+Keep core logic independent of specific LLM providers:
+
+```python
+# ✅ Good - provider-agnostic interface
+class LlmThread(models.Model):
+    def generate_messages(self):
+        return self.model_id.provider_id.chat(messages)  # Provider handles specifics
+
+# ❌ Bad - provider-specific code in core
+class LlmThread(models.Model):
+    def generate_messages(self):
+        if self.provider_id.provider == 'openai':
+            client = OpenAI(api_key=...)  # Don't do this in core!
+```
+
+- All provider-specific logic lives in provider modules (`llm_openai`, `llm_ollama`, etc.)
+- Core modules define interfaces via abstract methods or dispatch hooks
+- Use `_dispatch(event_name, **kwargs)` for provider-specific transformations
+- External API clients are instantiated only in provider modules
+
+### Extension Patterns
+
+```python
+# Base module defines hook
+class LlmProvider(models.Model):
+    def chat(self, messages, **kwargs):
+        messages = self._dispatch("normalize_messages", messages=messages)
+        return self._chat(messages, **kwargs)  # Abstract, implemented by providers
+
+# Provider module implements
+class LlmProviderOpenAI(models.Model):
+    _inherit = "llm.provider"
+
+    def _chat(self, messages, **kwargs):
+        # OpenAI-specific implementation
+```
+
 ## External Dependencies by Module
 
 | Module | Python Dependencies |
