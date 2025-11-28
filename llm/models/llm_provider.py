@@ -72,9 +72,72 @@ class LLMProvider(models.Model):
         """Hook method for registering provider services"""
         return []
 
-    def chat(self, messages, model=None, stream=False, **kwargs):
-        """Send chat messages using this provider"""
-        return self._dispatch("chat", messages, model=model, stream=stream, **kwargs)
+    def chat(self, messages, model=None, stream=False, tools=None, prepend_messages=None, **kwargs):
+        """Send chat messages using this provider.
+
+        Args:
+            messages: mail.message recordset (Odoo records) to send
+            model: Optional specific model to use
+            stream: Whether to stream the response
+            tools: llm.tool recordset of available tools
+            prepend_messages: List of pre-formatted message dicts to prepend (e.g., system prompts)
+            **kwargs: Additional provider-specific parameters
+
+        Returns:
+            Generator yielding response chunks if streaming, else complete response
+        """
+        # Hook: allow extensions to modify prepend_messages (e.g., add tool consent)
+        prepend_messages = self._prepare_prepend_messages(prepend_messages, tools)
+
+        # Normalize prepend_messages for the specific provider format
+        prepend_messages = self._dispatch("normalize_prepend_messages", prepend_messages)
+
+        return self._dispatch(
+            "chat",
+            messages,
+            model=model,
+            stream=stream,
+            tools=tools,
+            prepend_messages=prepend_messages,
+            **kwargs,
+        )
+
+    def _prepare_prepend_messages(self, prepend_messages, tools):
+        """Hook for extensions to modify prepend messages before sending to provider.
+
+        Override in extension modules (e.g., llm_tool for consent injection).
+
+        Args:
+            prepend_messages: List of pre-formatted message dicts (e.g., system prompts)
+            tools: llm.tool recordset of available tools
+
+        Returns:
+            List of message dicts to prepend to the conversation
+        """
+        return prepend_messages or []
+
+    def _extract_content_text(self, content):
+        """Extract plain text from message content.
+
+        Handles both string and OpenAI list formats:
+        - String: "hello" → "hello"
+        - List: [{"type": "text", "text": "hello"}] → "hello"
+
+        Args:
+            content: Message content (string or list format)
+
+        Returns:
+            str: Plain text content
+        """
+        if isinstance(content, str):
+            return content
+        elif isinstance(content, list):
+            return "\n".join(
+                item.get("text", "")
+                for item in content
+                if isinstance(item, dict) and item.get("type") == "text"
+            )
+        return ""
 
     def embedding(self, texts, model=None):
         """Generate embeddings using this provider"""

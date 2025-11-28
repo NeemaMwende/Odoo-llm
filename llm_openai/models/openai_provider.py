@@ -35,6 +35,20 @@ class LLMProvider(models.Model):
         """Get OpenAI client instance"""
         return OpenAI(api_key=self.api_key, base_url=self.api_base or None)
 
+    def openai_normalize_prepend_messages(self, prepend_messages):
+        """Normalize prepend_messages for OpenAI format.
+
+        OpenAI accepts both string and list content formats,
+        so no transformation needed.
+
+        Args:
+            prepend_messages: List of message dicts to normalize
+
+        Returns:
+            List of message dicts (unchanged)
+        """
+        return prepend_messages or []
+
     # OpenAI specific implementation
     def openai_format_tools(self, tools):
         """Format tools for OpenAI"""
@@ -139,21 +153,45 @@ class LLMProvider(models.Model):
         model=None,
         stream=False,
         tools=None,
-        tool_choice="auto",
         prepend_messages=None,
+        **kwargs,
     ):
-        """Send chat messages using OpenAI with tools support"""
+        """Send chat messages using OpenAI with tools support.
+
+        Args:
+            messages: mail.message recordset to send
+            model: Optional specific model to use
+            stream: Whether to stream the response
+            tools: llm.tool recordset of available tools
+            prepend_messages: List of pre-formatted message dicts to prepend
+            **kwargs: Additional OpenAI-specific parameters (e.g., tool_choice)
+
+        Returns:
+            Generator yielding response chunks if streaming, else complete response
+        """
         model = self.get_model(model, "chat")
 
-        # Prepare request parameters
-        params = self._prepare_chat_params(
-            model,
-            messages,
-            stream,
-            tools=tools,
-            prepend_messages=prepend_messages,
-            tool_choice=tool_choice,
-        )
+        # Format mail.message records for OpenAI
+        formatted_messages = self.format_messages(messages)
+
+        # Prepend messages (system prompts, etc.) if provided
+        if prepend_messages:
+            formatted_messages = prepend_messages + formatted_messages
+
+        # Build params
+        params = {
+            "model": model.name,
+            "stream": stream,
+            "messages": formatted_messages,
+        }
+
+        # Add tools if provided (OpenAI-specific formatting)
+        if tools:
+            formatted_tools = self.format_tools(tools)
+            if formatted_tools:
+                params["tools"] = formatted_tools
+                # OpenAI-specific: tool_choice param (Ollama doesn't support this)
+                params["tool_choice"] = kwargs.get("tool_choice", "auto")
 
         # Make the API call
         response = self.client.chat.completions.create(**params)
