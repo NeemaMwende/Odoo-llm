@@ -5,6 +5,7 @@
 This is a **foundational module** that integrates [Letta](https://www.letta.com/) agents with Odoo. Letta is an advanced AI agent framework with built-in persistent memory, allowing agents to maintain context across conversations.
 
 **What makes Letta different from standard LLM providers?**
+
 - **Persistent Memory**: Letta agents maintain their own conversation history and memory state on the server side
 - **Stateful Agents**: Each Odoo thread gets its own dedicated Letta agent that persists across sessions
 - **Tool Access**: Agents can access Odoo data through Model Context Protocol (MCP)
@@ -100,6 +101,7 @@ docker compose up letta -d
 ```
 
 Server will be available at:
+
 - API: `http://localhost:8283`
 - Web UI: Access via https://app.letta.com/settings/organization/projects?view-mode=selfHosted
 
@@ -130,6 +132,7 @@ odoo-bin -d your_db -i llm_letta,llm_mcp_server
 3. Start chatting!
 
 **That's it!** The agent is automatically created with:
+
 - Access to all your active Odoo tools
 - Persistent memory across conversations
 - Context awareness
@@ -141,6 +144,7 @@ odoo-bin -d your_db -i llm_letta,llm_mcp_server
 The default "Letta (Local)" provider connects to `localhost:8283` - no API key needed.
 
 This is perfect for:
+
 - Development
 - Self-hosted deployments
 - Maximum privacy and control
@@ -215,11 +219,13 @@ Agent: [Uses create_record tool] Created customer with ID 123
 ### Letta server not connecting
 
 Check Docker logs:
+
 ```bash
 docker logs letta
 ```
 
 Verify server is running:
+
 ```bash
 curl http://localhost:8283/v1/health
 ```
@@ -294,6 +300,7 @@ Contributions and feature requests are welcome!
 ## Support
 
 For issues and questions:
+
 - Check `TECHNICAL_GUIDE.md` for detailed technical documentation
 - Review Letta server logs: `docker logs letta`
 - Check Odoo logs for integration errors

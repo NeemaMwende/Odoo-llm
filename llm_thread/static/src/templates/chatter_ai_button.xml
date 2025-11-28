@@ -10,7 +10,10 @@
     t-inherit-mode="extension"
   >
         <!-- Add AI button before the spacer in the left buttons section -->
-        <xpath expr="//span[hasclass('o-mail-Chatter-topbarGrow')]" position="before">
+        <xpath
+      expr="//span[hasclass('o-mail-Chatter-topbarGrow')]"
+      position="before"
+    >
             <!-- Toggle AI Chat button -->
             <button
         t-if="shouldShowAIButton"
@@ -24,12 +27,18 @@
         t-att-title="state.isChattingWithLLM ? 'Exit AI Chat' : 'Start AI Chat'"
       >
                 <i class="fa fa-robot me-1" role="img" aria-label="AI Chat" />
-                <span class="d-none d-sm-inline" t-esc="state.isChattingWithLLM ? 'Exit AI' : 'AI'" />
+                <span
+          class="d-none d-sm-inline"
+          t-esc="state.isChattingWithLLM ? 'Exit AI' : 'AI'"
+        />
             </button>
         </xpath>
 
         <!-- Replace chatter content with LLM chat when active -->
-        <xpath expr="//div[hasclass('o-mail-Chatter-content')]" position="replace">
+        <xpath
+      expr="//div[hasclass('o-mail-Chatter-content')]"
+      position="replace"
+    >
             <div class="o-mail-Chatter-content d-flex flex-column flex-grow-1">
                 <t t-if="state.isChattingWithLLM">
                     <!-- AI Chat Mode: Show LLM chat interface with filtered conversation list -->
@@ -40,7 +49,9 @@
                 </t>
                 <t t-else="">
                     <!-- Normal Mode: Show original chatter content -->
-                    <t t-if="props.has_activities and activities.length and !messageSearch.searching and !messageSearch.searched">
+                    <t
+            t-if="props.has_activities and activities.length and !messageSearch.searching and !messageSearch.searched"
+          >
                         <t t-call="mail.ActivityList" />
                     </t>
                     <t t-if="scheduledMessages.length">

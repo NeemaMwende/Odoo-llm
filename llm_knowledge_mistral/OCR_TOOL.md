@@ -26,6 +26,7 @@ A simple, generic LLM tool that extracts text from PDF and image attachments usi
 ### From LLM Assistant
 
 **Single Attachment:**
+
 ```
 User: "Parse attachment 123"
 Assistant: [calls llm_mistral_attachment_parser(attachment_id=123)]
@@ -33,6 +34,7 @@ Assistant: "I extracted the following text: ..."
 ```
 
 **Batch Processing:**
+
 ```
 User: "Parse attachments 123, 124, and 125"
 Assistant: [calls llm_mistral_attachment_parser(attachment_ids=[123, 124, 125])]
@@ -45,6 +47,7 @@ Assistant: "I parsed 3 documents:
 ### Programmatically
 
 **Single Attachment:**
+
 ```python
 result = env['ir.attachment'].llm_mistral_attachment_parser(attachment_id=123)
 
@@ -59,6 +62,7 @@ result = env['ir.attachment'].llm_mistral_attachment_parser(attachment_id=123)
 ```
 
 **Batch Processing:**
+
 ```python
 results = env['ir.attachment'].llm_mistral_attachment_parser(
     attachment_ids=[123, 124, 125]
@@ -90,6 +94,7 @@ results = env['ir.attachment'].llm_mistral_attachment_parser(
 ```
 
 **Error Handling:**
+
 ```python
 # Raises exceptions for single mode:
 # ValidationError: "Attachment with ID 123 not found"
@@ -102,6 +107,7 @@ results = env['ir.attachment'].llm_mistral_attachment_parser(
 ## Return Format
 
 **Single Attachment** (dict):
+
 ```python
 {
     "attachment_id": int,      # Attachment ID
@@ -113,6 +119,7 @@ results = env['ir.attachment'].llm_mistral_attachment_parser(
 ```
 
 **Batch Processing** (list of dicts):
+
 ```python
 [
     {
@@ -135,11 +142,13 @@ results = env['ir.attachment'].llm_mistral_attachment_parser(
 ## Error Handling
 
 **Single Mode**: Raises standard Odoo exceptions
+
 - **`ValidationError`**: No attachment specified, not found, or has no content
 - **`UserError`**: Mistral provider or OCR model not configured
 - Other exceptions propagate naturally (e.g., API errors, network issues)
 
 **Batch Mode**: Continues on error
+
 - Does NOT raise exceptions
 - Failed documents included in results with `"error"` field
 - Successful documents have full parsed data
@@ -152,10 +161,11 @@ results = env['ir.attachment'].llm_mistral_attachment_parser(
 ✅ **Efficiency**: Reduce round-trips for multi-document workflows
 ✅ **Error Reporting**: See which docs succeeded/failed in one response
 ✅ **Use Cases**:
-  - Parse all invoice attachments at once
-  - Process multiple receipts from expense report
-  - Extract data from multi-file submissions
-  - Batch document analysis workflows
+
+- Parse all invoice attachments at once
+- Process multiple receipts from expense report
+- Extract data from multi-file submissions
+- Batch document analysis workflows
 
 ## Requirements
 
@@ -176,6 +186,7 @@ results = env['ir.attachment'].llm_mistral_attachment_parser(
 The tool automatically selects the best available OCR model with this priority:
 
 **Priority 1**: `mistral-ocr-latest` with `model_use = "ocr"`
+
 ```python
 ocr_model = env["llm.model"].search([
     ("provider_id", "=", provider.id),
@@ -185,6 +196,7 @@ ocr_model = env["llm.model"].search([
 ```
 
 **Priority 2**: Any model named `mistral-ocr-latest` (regardless of model_use)
+
 ```python
 if not ocr_model:
     ocr_model = env["llm.model"].search([
@@ -194,6 +206,7 @@ if not ocr_model:
 ```
 
 **Priority 3**: Any model with `model_use = "ocr"`
+
 ```python
 if not ocr_model:
     ocr_model = env["llm.model"].search([
@@ -249,13 +262,13 @@ if not provider:
 
 ## Differences from llm.resource Parser
 
-| Feature | llm.resource (mistral_ocr) | This Tool (llm_mistral_attachment_parser) |
-|---------|---------------------------|--------------------------------|
-| Purpose | Parse resource content into knowledge base | Parse any attachment on-demand |
-| Creates attachments | Yes (for extracted images) | No |
-| Stores result | Yes (in self.content) | No (returns directly) |
-| Image handling | Re-encodes and stores images | Ignores images (text only) |
-| Use case | Knowledge base ingestion | LLM tool for assistants |
+| Feature             | llm.resource (mistral_ocr)                 | This Tool (llm_mistral_attachment_parser) |
+| ------------------- | ------------------------------------------ | ----------------------------------------- |
+| Purpose             | Parse resource content into knowledge base | Parse any attachment on-demand            |
+| Creates attachments | Yes (for extracted images)                 | No                                        |
+| Stores result       | Yes (in self.content)                      | No (returns directly)                     |
+| Image handling      | Re-encodes and stores images               | Ignores images (text only)                |
+| Use case            | Knowledge base ingestion                   | LLM tool for assistants                   |
 
 ## Integration with llm_invoice_assistant
 
@@ -263,11 +276,14 @@ Once this tool is registered, it can be used by the Invoice Analysis Assistant:
 
 ```xml
 <record id="llm_assistant_invoice_analyzer" model="llm.assistant">
-    <field name="tool_ids" eval="[(6, 0, [
+    <field
+    name="tool_ids"
+    eval="[(6, 0, [
         ref('llm_knowledge_mistral.llm_tool_llm_mistral_attachment_parser'),
         ref('llm_tool.llm_tool_odoo_record_retriever'),
         ...
-    ])]"/>
+    ])]"
+  />
 </record>
 ```
 
