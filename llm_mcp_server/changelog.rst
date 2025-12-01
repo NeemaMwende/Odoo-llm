@@ -1,3 +1,13 @@
+18.0.1.3.0 (2025-12-02)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] New MCP Key wizard - generates API key with ready-to-copy client configurations
+* [ADD] "New MCP Key" button in user preferences (Account Security section)
+* [ADD] "New MCP Key" button in MCP Server Config form for quick key generation
+* [IMP] Client configs now use Jinja2 templates for maintainable config generation
+* [IMP] Nested notebook tabs for client configurations with CopyClipboardButton widgets
+* [IMP] DRY refactoring - shared config generation between wizard and config form
+
 18.0.1.2.0 (2025-11-28)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

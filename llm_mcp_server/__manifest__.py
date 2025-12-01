@@ -1,6 +1,6 @@
 {
     "name": "LLM MCP Server",
-    "version": "18.0.1.2.0",
+    "version": "18.0.1.3.0",
     "category": "Technical",
     "summary": "MCP server exposing Odoo LLM tools to Claude Desktop and other MCP hosts",
     "description": """
@@ -36,6 +36,8 @@
         "data/llm_mcp_server_config.xml",
         "views/llm_mcp_server_config_views.xml",
         "views/llm_mcp_session_views.xml",
+        "views/res_users_views.xml",
+        "wizards/mcp_key_wizard_views.xml",
     ],
     "images": [
         "static/description/banner.jpeg",
