@@ -179,7 +179,7 @@ export const llmStoreService = {
           case "tool_called":
           case "tool_succeeded":
           case "tool_failed":
-            // no-op: handled via message_update
+            // No-op: handled via message_update
             console.log("[LLM] no-op event:", data.type);
             break;
 
