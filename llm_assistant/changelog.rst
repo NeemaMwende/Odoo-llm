@@ -1,3 +1,11 @@
+18.0.1.5.3 (2025-12-02)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Replaced bus notification with client action for "Process with AI" button reliability
+* [ADD] New client action llm_open_ai_chat_in_chatter for reliable AI chat opening
+* [IMP] action_open_llm_assistant() now returns ir.actions.client instead of bus notification
+* [IMP] Works reliably on cloud deployments with WebSocket/bus issues
+
 18.0.1.5.2 (2025-11-26)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -1,3 +1,11 @@
+18.0.1.4.3 (2025-12-02)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Replaced unreliable bus notification with client action pattern for AI chat opening
+* [IMP] Added pendingOpenInChatter state to llm.store service for cross-navigation state
+* [IMP] Added checkPendingAIChatOpen() method to chatter patch
+* [REMOVE] Removed redundant bus subscription code from chatter patch
+
 18.0.1.4.2 (2025-11-26)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
