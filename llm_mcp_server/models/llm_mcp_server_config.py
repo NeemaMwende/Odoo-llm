@@ -1,5 +1,4 @@
 from jinja2 import Template
-
 from mcp.types import (
     Implementation,
     InitializeResult,
@@ -225,9 +224,15 @@ class LLMMCPServerConfig(models.Model):
         mcp_url = self.get_mcp_server_url()
 
         # Render Claude server config (shared by Claude Desktop and Claude Code)
-        server_config = CLAUDE_SERVER_CONFIG_TEMPLATE.render(mcp_url=mcp_url, api_key=key)
+        server_config = CLAUDE_SERVER_CONFIG_TEMPLATE.render(
+            mcp_url=mcp_url, api_key=key
+        )
 
-        template_vars = {"mcp_url": mcp_url, "api_key": key, "server_config": server_config}
+        template_vars = {
+            "mcp_url": mcp_url,
+            "api_key": key,
+            "server_config": server_config,
+        }
 
         return {
             client: template.render(**template_vars)

@@ -1,6 +1,7 @@
 from odoo import _, fields, models
-from odoo.addons.base.models.res_users import check_identity
 from odoo.exceptions import ValidationError
+
+from odoo.addons.base.models.res_users import check_identity
 
 
 class APIKeyDescriptionMCP(models.TransientModel):
