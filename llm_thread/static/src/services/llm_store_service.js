@@ -176,6 +176,13 @@ export const llmStoreService = {
             this.stopStreaming(threadId);
             break;
 
+          case "tool_called":
+          case "tool_succeeded":
+          case "tool_failed":
+            // no-op: handled via message_update
+            console.log("[LLM] no-op event:", data.type);
+            break;
+
           default:
             console.warn("Unknown stream message type:", data.type);
             break;
