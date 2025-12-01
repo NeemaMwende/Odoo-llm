@@ -184,6 +184,20 @@ class LLMMCPServerConfig(models.Model):
             "version": self.version,
         }
 
+    def action_new_mcp_key(self):
+        """Open the MCP key creation wizard."""
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "res.users.apikeys.description",
+            "name": "New MCP Key",
+            "views": [(False, "form")],
+            "target": "new",
+            "context": {
+                "is_mcp_key": True,
+                "default_name": "MCP Key",
+            },
+        }
+
     # Client Configuration Fields (computed with placeholder)
     config_claude_desktop = fields.Text(
         string="Claude Desktop Config",

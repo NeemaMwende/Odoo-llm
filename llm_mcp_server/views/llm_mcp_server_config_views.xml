@@ -42,12 +42,23 @@
               string="Client Configuration"
               name="client_config"
             >
-                            <div class="alert alert-info mb-3" role="alert">
-                                <strong
-                >How to connect:</strong> Copy the configuration below for your MCP client. Replace <code
-                >YOUR_API_KEY</code> with your Odoo API key.
-                                <br /><small
-                >Get API key: User Avatar → Preferences → Account Security → New MCP Key</small>
+                            <div
+                class="alert alert-info mb-3 d-flex justify-content-between align-items-center"
+                role="alert"
+              >
+                                <div>
+                                    <strong
+                  >How to connect:</strong> Copy the configuration below for your MCP client.
+                                    Replace <code
+                  >YOUR_API_KEY</code> with your Odoo API key.
+                                </div>
+                                <button
+                  name="action_new_mcp_key"
+                  type="object"
+                  class="btn btn-primary"
+                >
+                                    New MCP Key
+                                </button>
                             </div>
 
                             <notebook>
