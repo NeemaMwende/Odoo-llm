@@ -77,6 +77,7 @@ Contact: support@apexive.com
             "llm_thread/static/src/templates/llm_chat_client_action.xml",
             # Client Actions - Following Odoo 18.0 patterns
             "llm_thread/static/src/client_actions/llm_chat_client_action.js",
+            "llm_thread/static/src/client_actions/open_chatter_action.js",
         ],
     },
     "images": [

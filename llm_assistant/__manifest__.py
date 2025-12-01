@@ -61,8 +61,6 @@ Use cases include creating specialized assistants for customer support, data ana
     ],
     "assets": {
         "web.assets_backend": [
-            # Client actions
-            "llm_assistant/static/src/client_actions/open_ai_chat_action.js",
             # Service patches
             "llm_assistant/static/src/services/llm_store_service_patch.js",
             # Component patches

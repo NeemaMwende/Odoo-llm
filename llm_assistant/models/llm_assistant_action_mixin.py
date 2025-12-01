@@ -77,7 +77,7 @@ class LLMAssistantActionMixin(models.AbstractModel):
         # deployments with WebSocket issues
         return {
             "type": "ir.actions.client",
-            "tag": "llm_open_ai_chat_in_chatter",
+            "tag": "llm_open_chatter",
             "params": {
                 "thread_id": thread.id,
                 "model": self._name,
