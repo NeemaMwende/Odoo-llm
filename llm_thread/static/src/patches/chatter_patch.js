@@ -4,7 +4,7 @@ import { Chatter } from "@mail/chatter/web_portal/chatter";
 import { LLMChatContainer } from "@llm_thread/components/llm_chat_container/llm_chat_container";
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
-import { onWillDestroy, useEffect } from "@odoo/owl";
+import { onMounted, onWillDestroy, useEffect } from "@odoo/owl";
 
 // Register LLMChatContainer component with Chatter
 Object.assign(Chatter.components, { LLMChatContainer });
@@ -60,6 +60,11 @@ patch(Chatter.prototype, {
     );
 
     console.log("[Chatter] Subscribed to llm.thread/open_in_chatter");
+
+    // Check for pending AI chat open from client action (more reliable than bus)
+    onMounted(() => {
+      this.checkPendingAIChatOpen();
+    });
   },
 
   /**
@@ -95,6 +100,65 @@ patch(Chatter.prototype, {
       // Trigger streaming without message parameter
       // Backend will use prepended messages from prompt
       await llmStore.startLLMStreaming(this.state.llmThreadId, null);
+    }
+  },
+
+  /**
+   * Check for pending AI chat open from client action.
+   * This is more reliable than bus notifications which can fail on cloud deployments.
+   * Called on component mount.
+   */
+  async checkPendingAIChatOpen() {
+    const llmStore = this.env.services["llm.store"];
+    if (!llmStore) {
+      return;
+    }
+
+    const pending = llmStore.consumePendingOpenInChatter(
+      this.props.threadModel,
+      this.props.threadId
+    );
+
+    if (!pending) {
+      return;
+    }
+
+    console.log(
+      "[Chatter] Found pending AI chat open from client action",
+      pending
+    );
+
+    // If AI chat is already open, don't do anything
+    if (this.state.isChattingWithLLM) {
+      console.log("[Chatter] AI chat already open, ignoring pending");
+      return;
+    }
+
+    // Set the thread ID directly (thread already created by backend)
+    this.state.llmThreadId = pending.threadId;
+
+    // Set the LLM thread as the active discuss thread
+    const llmThread = this.store.Thread.insert({
+      model: "llm.thread",
+      id: pending.threadId,
+    });
+
+    // Initialize discuss if needed and set thread
+    if (!this.store.discuss) {
+      this.store.discuss = {};
+    }
+    this.store.discuss.thread = llmThread;
+
+    // Fetch thread data
+    await llmThread.fetchData(["messages"]);
+
+    // Open AI chat mode
+    this.state.isChattingWithLLM = true;
+
+    // Auto-trigger generation if requested
+    if (pending.autoGenerate) {
+      console.log("[Chatter] Auto-triggering AI generation from client action");
+      await llmStore.startLLMStreaming(pending.threadId, null);
     }
   },
 

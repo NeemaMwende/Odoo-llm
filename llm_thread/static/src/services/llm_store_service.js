@@ -26,6 +26,9 @@ export const llmStoreService = {
       eventSources: new Map(),
       // Resolves when LLM data is loaded
       isReady: new Deferred(),
+      // Pending AI chat open from client action (bypasses unreliable bus)
+      // { threadId, model, resId, autoGenerate }
+      pendingOpenInChatter: null,
 
       // Computed properties - using mailStore as source of truth
       get activeLLMThread() {
@@ -397,6 +400,20 @@ export const llmStoreService = {
           return this.isStreamingThread(activeThread.id);
         }
         return false;
+      },
+
+      // Pending open methods - used by client action to bypass unreliable bus
+      setPendingOpenInChatter(data) {
+        this.pendingOpenInChatter = data;
+      },
+
+      consumePendingOpenInChatter(model, resId) {
+        const pending = this.pendingOpenInChatter;
+        if (pending && pending.model === model && pending.resId === resId) {
+          this.pendingOpenInChatter = null;
+          return pending;
+        }
+        return null;
       },
 
       // Get list of data loaders - can be extended by patches
