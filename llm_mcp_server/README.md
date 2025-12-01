@@ -22,7 +22,14 @@ odoo-bin -d your_db -i llm_mcp_server
 
 ### 2. Get API Key
 
-Odoo → User Avatar → Preferences → Account Security → API Keys → New
+**Option A (Recommended):** Use the "New MCP Key" button:
+- User Preferences → Account Security → **New MCP Key**, or
+- LLM → Configuration → MCP Server → **New MCP Key**
+
+This generates an API key with ready-to-copy client configurations.
+
+**Option B:** Create a standard API key:
+- User Preferences → Account Security → API Keys → New
 
 ### 3. Configure Client
 
@@ -206,29 +213,6 @@ Future enhancements planned:
 - **MCP Utilities** - Additional MCP features like sampling and logging support
 
 Contributions and feature requests welcome!
-
-## Changelog
-
-### 18.0.1.1.0 (2025-11-03)
-
-**Documentation**
-
-- Updated Odoo App Store description page (`static/description/index.html`)
-- Improved module presentation with modern Bootstrap 5 layout
-- Enhanced mobile responsiveness and visual design
-- Added comprehensive MCP feature descriptions and use cases
-- Optimized for Odoo App Store HTML sanitization requirements
-
-### 18.0.1.0.0
-
-**Initial Release**
-
-- MCP 2025-06-18 protocol implementation
-- Bearer token authentication with Odoo API keys
-- Dynamic tool discovery from llm.tool registry
-- Real-time tool execution with proper Odoo context
-- Health monitoring and session management
-- Support for Claude Desktop, Claude Code, Cursor, Windsurf, VS Code, and Codex
 
 ## Resources
 
