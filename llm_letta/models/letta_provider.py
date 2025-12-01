@@ -26,6 +26,14 @@ class LLMProvider(models.Model):
             token=self.api_key,  # Will be None for local, which is fine
         )
 
+    def letta_normalize_prepend_messages(self, prepend_messages):
+        """Normalize prepend_messages for Letta.
+
+        Letta agents maintain their own conversation history,
+        so we just pass through the messages unchanged.
+        """
+        return prepend_messages or []
+
     def letta_models(self, model_id=None):
         """List available models from Letta"""
         client = self.letta_get_client()
