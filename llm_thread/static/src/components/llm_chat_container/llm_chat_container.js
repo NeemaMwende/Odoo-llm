@@ -30,7 +30,9 @@ export class LLMChatContainer extends Component {
     // Sidebar state
     this.state = useState({
       // Desktop: collapse/expand state (default collapsed in chatter mode)
-      isSidebarCollapsed: Boolean(this.props.recordModel && this.props.recordId),
+      isSidebarCollapsed: Boolean(
+        this.props.recordModel && this.props.recordId
+      ),
       // Mobile: slide-in modal visibility
       isMobileSidebarVisible: false,
     });

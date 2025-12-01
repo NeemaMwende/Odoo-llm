@@ -36,7 +36,9 @@ registry
     // Store pending open in llm.store service
     const llmStore = env.services["llm.store"];
     if (!llmStore) {
-      console.error("[llm_open_ai_chat_in_chatter] llm.store service not found");
+      console.error(
+        "[llm_open_ai_chat_in_chatter] llm.store service not found"
+      );
       env.services.notification.add("AI chat service not available", {
         type: "danger",
       });
