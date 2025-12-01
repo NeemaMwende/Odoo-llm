@@ -36,7 +36,7 @@ class LLMAssistantActionMixin(models.AbstractModel):
             **kwargs: Reserved for future extensibility.
 
         Returns:
-            True (for frontend onclick to continue)
+            dict: Client action to open AI chat in chatter
 
         Raises:
             UserError: If no provider/model found
@@ -72,25 +72,18 @@ class LLMAssistantActionMixin(models.AbstractModel):
             thread.assistant_id.name if thread.assistant_id else "None",
         )
 
-        # Send bus notification to open AI chat in chatter
-        self.env["bus.bus"]._sendone(
-            self.env.user.partner_id,
-            "llm.thread/open_in_chatter",
-            {
+        # Return client action to open AI chat in chatter
+        # This is more reliable than bus notifications which can fail on cloud
+        # deployments with WebSocket issues
+        return {
+            "type": "ir.actions.client",
+            "tag": "llm_open_chatter",
+            "params": {
                 "thread_id": thread.id,
                 "model": self._name,
                 "res_id": self.id,
             },
-        )
-
-        _logger.info(
-            "Sent bus notification to open AI chat. Thread: %s, Record: %s/%s",
-            thread.id,
-            self._name,
-            self.id,
-        )
-
-        return True
+        }
 
     def _find_or_create_llm_thread(self, force_new=False):
         """

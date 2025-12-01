@@ -32,7 +32,7 @@ Use cases include customer support automation, data analysis, training assistanc
 Contact: support@apexive.com
     """,
     "category": "Productivity, Discuss",
-    "version": "18.0.1.4.2",
+    "version": "18.0.1.4.3",
     "depends": ["base", "mail", "web", "llm", "llm_tool"],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
@@ -77,6 +77,7 @@ Contact: support@apexive.com
             "llm_thread/static/src/templates/llm_chat_client_action.xml",
             # Client Actions - Following Odoo 18.0 patterns
             "llm_thread/static/src/client_actions/llm_chat_client_action.js",
+            "llm_thread/static/src/client_actions/open_chatter_action.js",
         ],
     },
     "images": [
