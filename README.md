@@ -4,6 +4,24 @@
 
 This repository provides a comprehensive framework for integrating Large Language Models (LLMs) into Odoo. It allows seamless interaction with various AI providers including OpenAI, Anthropic, Ollama, and Replicate, enabling chat completions, text embeddings, and more within your Odoo environment.
 
+## 🏗️ Module Ecosystem
+
+![Architecture Overview](llm/static/description/overview.jpg)
+
+The Odoo-LLM modules are organized in three layers:
+
+**Layer 1: User Space & Applications** - Business-specific implementations that configure AI assistants for particular workflows (e.g., `llm_assistant_account_invoice` provides an accountant assistant with invoice-specific tools and prompts).
+
+**Layer 2: Utility & Interface** - Core functionality accessible through two interfaces:
+- **Internal Interface** (`llm_assistant`): Chat with AI directly in Odoo's UI
+- **External Interface** (`llm_mcp_server`): Connect external tools (Claude Desktop, Cursor, IDEs) via Model Context Protocol
+
+Both interfaces share:
+- **`llm_knowledge`**: RAG engine for semantic search across Odoo documents
+- **`llm_tool`**: Function-calling framework for AI-Odoo interactions
+
+**Layer 3: Infrastructure** - Foundation modules including the `llm` core, AI provider drivers (`llm_openai`, `llm_ollama`, etc.), and vector store drivers (`llm_pgvector`, `llm_qdrant`, etc.).
+
 ## 🚀 Latest Updates (Version 18.0)
 
 ### **Major Architecture Improvements**
