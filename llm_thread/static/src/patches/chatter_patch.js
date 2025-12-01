@@ -4,7 +4,7 @@ import { Chatter } from "@mail/chatter/web_portal/chatter";
 import { LLMChatContainer } from "@llm_thread/components/llm_chat_container/llm_chat_container";
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
-import { onMounted, onWillDestroy, useEffect } from "@odoo/owl";
+import { onMounted, useEffect } from "@odoo/owl";
 
 // Register LLMChatContainer component with Chatter
 Object.assign(Chatter.components, { LLMChatContainer });
@@ -18,34 +18,11 @@ patch(Chatter.prototype, {
     super.setup();
     this.orm = useService("orm");
     this.notification = useService("notification");
-    this.busService = useService("bus_service");
 
     // Add LLM chat state
     Object.assign(this.state, {
       isChattingWithLLM: false,
       llmThreadId: null,
-    });
-
-    // Subscribe to bus notification for opening AI chat
-    // Store callback reference for cleanup
-    this.busNotificationCallback = (payload) => {
-      console.log("[Chatter] Bus notification received!", payload);
-      this.handleOpenAIChatNotification(payload);
-    };
-
-    // Odoo 18 uses busService.subscribe() not addEventListener()
-    this.busService.subscribe(
-      "llm.thread/open_in_chatter",
-      this.busNotificationCallback
-    );
-
-    // Clean up subscription when component is destroyed
-    onWillDestroy(() => {
-      this.busService.unsubscribe(
-        "llm.thread/open_in_chatter",
-        this.busNotificationCallback
-      );
-      console.log("[Chatter] Unsubscribed from llm.thread/open_in_chatter");
     });
 
     // React to AI chat state changes - the "Odoo way" using OWL
@@ -59,48 +36,10 @@ patch(Chatter.prototype, {
       () => [this.state.isChattingWithLLM]
     );
 
-    console.log("[Chatter] Subscribed to llm.thread/open_in_chatter");
-
-    // Check for pending AI chat open from client action (more reliable than bus)
+    // Check for pending AI chat open from client action
     onMounted(() => {
       this.checkPendingAIChatOpen();
     });
-  },
-
-  /**
-   * Handle notification to open AI chat in chatter
-   *
-   * @param {Object} data - Notification payload
-   */
-  async handleOpenAIChatNotification(data) {
-    const { thread_id, model, res_id } = data;
-
-    // Only handle if notification is for THIS chatter's record
-    if (this.props.threadModel !== model || this.props.threadId !== res_id) {
-      return;
-    }
-
-    console.log(
-      `[Chatter] Bus notification received to open AI chat for thread ${thread_id} on ${model}/${res_id}`
-    );
-
-    // If AI chat is already open, don't do anything
-    if (this.state.isChattingWithLLM) {
-      console.log("[Chatter] AI chat already open, ignoring notification");
-      return;
-    }
-
-    // Trigger the existing AI button click handler
-    // useEffect will handle focusing when state changes
-    await this.onAIChatClick();
-
-    const llmStore = this.env.services["llm.store"];
-    if (llmStore && this.state.llmThreadId) {
-      console.log("[Chatter] Auto-triggering generation on prepended message");
-      // Trigger streaming without message parameter
-      // Backend will use prepended messages from prompt
-      await llmStore.startLLMStreaming(this.state.llmThreadId, null);
-    }
   },
 
   /**
