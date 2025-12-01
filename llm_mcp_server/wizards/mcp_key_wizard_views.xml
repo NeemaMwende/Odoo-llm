@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- MCP Key Show Form - displays key and config snippets -->
+    <record id="view_llm_mcp_key_show_form" model="ir.ui.view">
+        <field name="name">llm.mcp.key.show.form</field>
+        <field name="model">llm.mcp.key.show</field>
+        <field name="arch" type="xml">
+            <form string="MCP Key Ready">
+                <sheet>
+                    <div class="alert alert-success" role="alert">
+                        <h4 class="alert-heading">Your MCP Key is ready!</h4>
+                        <p>Copy the configuration below for your preferred MCP client.</p>
+                    </div>
+
+                    <group>
+                        <group string="Your API Key">
+                            <field name="key" readonly="1" widget="CopyClipboardChar"/>
+                        </group>
+                        <group string="MCP Server URL">
+                            <field name="mcp_url" readonly="1" widget="CopyClipboardChar"/>
+                        </group>
+                    </group>
+
+                    <div class="alert alert-warning mt-3" role="alert">
+                        <strong>Important:</strong> This key cannot be retrieved later.
+                        Store it securely before closing this dialog.
+                    </div>
+
+                    <notebook>
+                        <page string="Claude Desktop" name="claude_desktop">
+                            <div class="mb-2">
+                                <p>Add this to your <code>claude_desktop_config.json</code>:</p>
+                                <ul>
+                                    <li>Linux: <code>~/.config/claude_desktop/claude_desktop_config.json</code></li>
+                                    <li>macOS: <code>~/Library/Application Support/Claude/claude_desktop_config.json</code></li>
+                                    <li>Windows: <code>%APPDATA%\Claude\claude_desktop_config.json</code></li>
+                                </ul>
+                            </div>
+                            <field name="config_claude_desktop" readonly="1" widget="CopyClipboardText"
+                                   class="o_field_text font-monospace bg-light p-2 border rounded d-block"
+                                   style="white-space: pre-wrap; font-size: 12px;"/>
+                        </page>
+                        <page string="Claude Code" name="claude_code">
+                            <div class="mb-2">
+                                <p>Run this command in your terminal:</p>
+                            </div>
+                            <field name="config_claude_code" readonly="1" widget="CopyClipboardText"
+                                   class="o_field_text font-monospace bg-light p-2 border rounded d-block"
+                                   style="white-space: pre-wrap; font-size: 12px;"/>
+                        </page>
+                        <page string="Cursor" name="cursor">
+                            <div class="mb-2">
+                                <p>Add this to your Cursor MCP configuration:</p>
+                                <ul>
+                                    <li>Settings: <code>~/.cursor/mcp.json</code></li>
+                                </ul>
+                            </div>
+                            <field name="config_cursor" readonly="1" widget="CopyClipboardText"
+                                   class="o_field_text font-monospace bg-light p-2 border rounded d-block"
+                                   style="white-space: pre-wrap; font-size: 12px;"/>
+                        </page>
+                        <page string="Codex (OpenAI)" name="codex">
+                            <div class="mb-2">
+                                <p>Add this to your Codex CLI configuration:</p>
+                                <ul>
+                                    <li>Config: <code>~/.codex/config.toml</code></li>
+                                </ul>
+                            </div>
+                            <field name="config_codex" readonly="1" widget="CopyClipboardText"
+                                   class="o_field_text font-monospace bg-light p-2 border rounded d-block"
+                                   style="white-space: pre-wrap; font-size: 12px;"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <footer>
+                    <button special="cancel" data-hotkey="x" string="Done" class="btn-primary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action for MCP Key Show -->
+    <record id="action_llm_mcp_key_show" model="ir.actions.act_window">
+        <field name="name">MCP Key Ready</field>
+        <field name="res_model">llm.mcp.key.show</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

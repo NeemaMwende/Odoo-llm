@@ -36,6 +36,8 @@
         "data/llm_mcp_server_config.xml",
         "views/llm_mcp_server_config_views.xml",
         "views/llm_mcp_session_views.xml",
+        "views/res_users_views.xml",
+        "wizards/mcp_key_wizard_views.xml",
     ],
     "images": [
         "static/description/banner.jpeg",
