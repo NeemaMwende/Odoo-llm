@@ -1,3 +1,9 @@
+18.0.1.5.4 (2025-12-02)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Removed invalid `unaccent` parameter from parent_path field (Odoo 18 compatibility)
+* [FIX] Added missing access rules for llm.thread.mock transient model
+
 18.0.1.5.3 (2025-12-02)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
