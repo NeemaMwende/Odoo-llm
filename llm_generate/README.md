@@ -2,6 +2,43 @@
 
 Unified content generation system with dynamic form generation, streaming responses, and race condition fixes. This module provides a clean, consistent API for generating all types of content (text, images, audio, etc.) across different AI providers.
 
+**Module Type:** 📦 Infrastructure
+
+![Architecture](static/description/llm_generate_architecture.png)
+
+## Installation
+
+### What to Install
+
+This module is typically **auto-installed** as a dependency of `llm_thread` or `llm_assistant`.
+
+**For content generation features:**
+```
+llm_assistant + llm_openai (or other provider)
+```
+
+### Auto-Installed Dependencies
+These are pulled in automatically:
+- `llm` (core infrastructure)
+- `llm_assistant` (assistant framework)
+- `mail` (Odoo messaging)
+
+### Optional Enhancements
+
+| Module | Adds |
+|--------|------|
+| `llm_generate_job` | Background job queue for long-running generations |
+| `llm_fal_ai` | Fast image generation |
+| `llm_replicate` | Model marketplace access |
+
+### Common Setups Using This Module
+
+| I want to... | Install |
+|--------------|---------|
+| Generate text with GPT | `llm_assistant` + `llm_openai` |
+| Generate images | `llm_assistant` + `llm_fal_ai` (or `llm_replicate`) |
+| Background generation | Above + `llm_generate_job` |
+
 ## Overview
 
 The LLM Generate module serves as the unified interface for all content generation operations in the Odoo LLM ecosystem. It provides a consistent API regardless of the underlying AI provider or content type, with advanced features like dynamic form generation, streaming responses, and comprehensive error handling.

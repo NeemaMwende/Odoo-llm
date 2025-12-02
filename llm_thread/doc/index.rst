@@ -4,6 +4,50 @@ LLM Thread - Easy AI Chat for Odoo
 
 Real-time AI chat interface for Odoo with streaming responses, tool execution, and seamless integration with Odoo's mail system.
 
+**Module Type:** 📦 Infrastructure
+
+.. image:: ../static/description/llm_thread_architecture.png
+   :alt: LLM Thread Architecture
+   :width: 100%
+
+Installation
+============
+
+What to Install
+---------------
+
+This module is typically **auto-installed** as a dependency of ``llm_assistant``.
+
+**For a complete AI chat experience:**
+
+.. code-block:: bash
+
+    odoo-bin -d your_db -i llm_assistant,llm_openai
+
+Auto-Installed Dependencies
+---------------------------
+
+These are pulled in automatically:
+
+- ``llm`` (core infrastructure)
+- ``llm_tool`` (function calling)
+- ``mail``, ``web`` (Odoo base)
+
+Common Setups
+-------------
+
++---------------------------+------------------------------------------------------+
+| I want to...              | Install                                              |
++===========================+======================================================+
+| Chat with AI in Odoo      | ``llm_assistant`` + ``llm_openai``                   |
++---------------------------+------------------------------------------------------+
+| Chat with local AI        | ``llm_assistant`` + ``llm_ollama``                   |
++---------------------------+------------------------------------------------------+
+| Add RAG to chat           | Above + ``llm_knowledge`` + ``llm_pgvector``         |
++---------------------------+------------------------------------------------------+
+| Connect external tools    | Above + ``llm_mcp_server``                           |
++---------------------------+------------------------------------------------------+
+
 What is LLM Thread?
 ===================
 

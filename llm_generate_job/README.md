@@ -2,6 +2,44 @@
 
 This module provides a comprehensive generation job management system for LLM providers, extending the base LLM functionality with advanced queue management and job tracking capabilities.
 
+**Module Type:** 🔌 Extension
+
+![Architecture](static/description/llm_generate_job_architecture.png)
+
+## Installation
+
+### What to Install
+
+Install this module when you need **background/async generation** for long-running tasks.
+
+```bash
+odoo-bin -d your_db -i llm_generate_job
+```
+
+### Auto-Installed Dependencies
+These are pulled in automatically:
+- `llm_generate` (generation API)
+- `llm_thread` (chat interface)
+- `llm_tool` (tool framework)
+- `llm` (core infrastructure)
+
+### When to Use This Module
+
+| Scenario | Recommendation |
+|----------|---------------|
+| Quick chat responses | Not needed - use direct generation |
+| Long document generation | **Install this** |
+| Batch image generation | **Install this** |
+| API rate limit management | **Install this** |
+
+### Common Setups Using This Module
+
+| I want to... | Install |
+|--------------|---------|
+| Background text generation | `llm_assistant` + `llm_openai` + `llm_generate_job` |
+| Batch image processing | `llm_assistant` + `llm_fal_ai` + `llm_generate_job` |
+| Queue management dashboard | `llm_generate_job` (adds admin views) |
+
 ## Features
 
 ### Generation Job Management
