@@ -1,5 +1,6 @@
 /** @odoo-module **/
 
+import { _t } from "@web/core/l10n/translation";
 import { Component, useRef, useState } from "@odoo/owl";
 import { Composer } from "@mail/core/common/composer";
 import { LLMThreadHeader } from "../llm_thread_header/llm_thread_header";
@@ -141,11 +142,11 @@ export class LLMChatContainer extends Component {
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffHours < 1) {
-      return "Just now";
+      return _t("Just now");
     } else if (diffHours < 24) {
-      return `${diffHours}h ago`;
+      return _t("%sh ago", diffHours);
     } else if (diffDays < 7) {
-      return `${diffDays}d ago`;
+      return _t("%sd ago", diffDays);
     }
     return date.toLocaleDateString();
   }

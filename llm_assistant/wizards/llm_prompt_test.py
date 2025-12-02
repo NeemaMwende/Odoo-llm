@@ -508,7 +508,7 @@ class LLMPromptTest(models.TransientModel):
         self.ensure_one()
 
         if not self.prompt_id:
-            raise ValidationError(_("No prompt selected"))
+            raise ValidationError(_("Please select a prompt template before testing."))
 
         try:
             # Parse test context
@@ -516,7 +516,9 @@ class LLMPromptTest(models.TransientModel):
                 user_context = json.loads(self.test_context or "{}")
             except json.JSONDecodeError as e:
                 raise ValidationError(
-                    _("Invalid JSON in test context: %s") % str(e)
+                    _("The test context contains invalid JSON. Please check the format "
+                      "and ensure all brackets and quotes are properly matched.\n\n"
+                      "Details: %s") % str(e)
                 ) from e
 
             # Use our test method - this uses mock thread's get_context

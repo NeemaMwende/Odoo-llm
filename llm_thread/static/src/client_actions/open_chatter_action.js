@@ -1,5 +1,6 @@
 /** @odoo-module **/
 
+import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
 
 /**
@@ -19,7 +20,7 @@ registry.category("actions").add("llm_open_chatter", async (env, action) => {
 
   if (!thread_id || !model || !res_id) {
     console.error("[llm_open_chatter] Missing required params:", action.params);
-    env.services.notification.add("Missing parameters for AI chat", {
+    env.services.notification.add(_t("Could not open AI chat. Required information is missing."), {
       type: "danger",
     });
     return;
@@ -29,7 +30,7 @@ registry.category("actions").add("llm_open_chatter", async (env, action) => {
   const llmStore = env.services["llm.store"];
   if (!llmStore) {
     console.error("[llm_open_chatter] llm.store service not found");
-    env.services.notification.add("AI chat service not available", {
+    env.services.notification.add(_t("AI chat is not available. Please refresh the page and try again."), {
       type: "danger",
     });
     return;

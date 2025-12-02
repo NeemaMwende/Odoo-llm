@@ -1,5 +1,6 @@
 /** @odoo-module **/
 
+import { _t } from "@web/core/l10n/translation";
 import { Component, onWillStart, useEffect, useRef, useState } from "@odoo/owl";
 import { JsonEditorComponent } from "@web_json_editor/components/json_editor/json_editor";
 import { LLMFormFieldsView } from "./llm_form_fields_view";
@@ -31,7 +32,7 @@ export class LLMMediaForm extends Component {
       },
       attachments: [],
       uploadingFiles: false,
-      schemaSource: { type: "loading", name: "Loading..." },
+      schemaSource: { type: "loading", name: _t("Loading...") },
     });
 
     onWillStart(async () => {
@@ -115,7 +116,7 @@ export class LLMMediaForm extends Component {
       }
     } catch (error) {
       console.error("Error loading thread configuration:", error);
-      this.state.error = "Failed to load thread configuration";
+      this.state.error = _t("Failed to load thread configuration");
     } finally {
       this.state.isLoading = false;
     }
@@ -297,7 +298,7 @@ export class LLMMediaForm extends Component {
    */
   _computeSchemaSource() {
     if (this.state.isLoading) {
-      this.state.schemaSource = { type: "loading", name: "Loading..." };
+      this.state.schemaSource = { type: "loading", name: _t("Loading...") };
       return;
     }
 
@@ -312,19 +313,19 @@ export class LLMMediaForm extends Component {
         // Schema exists AND prompt is set -> schema is from prompt
         this.state.schemaSource = {
           type: "prompt",
-          name: this.thread?.prompt_id?.name || "Selected Prompt",
+          name: this.thread?.prompt_id?.name || _t("Selected Prompt"),
         };
       } else {
         // Schema exists but NO prompt -> schema must be from model
         this.state.schemaSource = {
           type: "model",
-          name: this.llmModel?.name || "Model Default",
+          name: this.llmModel?.name || _t("Model Default"),
         };
       }
       return;
     }
 
-    this.state.schemaSource = { type: "none", name: "No Schema Available" };
+    this.state.schemaSource = { type: "none", name: _t("No Schema Available") };
   }
 
   /**
@@ -419,7 +420,7 @@ export class LLMMediaForm extends Component {
    * Get formatted template preview
    */
   get formattedTemplatePreview() {
-    return this.state.templatePreviewContent || "Loading preview...";
+    return this.state.templatePreviewContent || _t("Loading preview...");
   }
 
   /**
@@ -709,7 +710,7 @@ export class LLMMediaForm extends Component {
       }
     } catch (error) {
       console.error("Error uploading attachments:", error);
-      this.state.error = "Failed to upload one or more attachments.";
+      this.state.error = _t("Failed to upload one or more attachments.");
     } finally {
       this.state.uploadingFiles = false;
       // Clear the input to allow re-selecting the same files

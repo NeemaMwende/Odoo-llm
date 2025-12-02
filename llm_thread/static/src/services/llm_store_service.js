@@ -1,5 +1,6 @@
 /** @odoo-module **/
 
+import { _t } from "@web/core/l10n/translation";
 import { Deferred } from "@web/core/utils/concurrency";
 import { reactive } from "@odoo/owl";
 import { registry } from "@web/core/registry";
@@ -76,7 +77,7 @@ export const llmStoreService = {
           await this.startLLMStreaming(threadId, content);
         } catch (error) {
           console.error("Error sending LLM message:", error);
-          notification.add("Failed to send message", { type: "danger" });
+          notification.add(_t("Could not send your message. Please check your connection and try again."), { type: "danger" });
         }
       },
 
@@ -106,14 +107,14 @@ export const llmStoreService = {
           eventSource.onerror = (error) => {
             console.error("EventSource error:", error);
             this.stopStreaming(threadId);
-            notification.add("Connection error during AI response", {
+            notification.add(_t("Lost connection to AI service. Please try sending your message again."), {
               type: "danger",
             });
           };
         } catch (error) {
           console.error("Error starting stream:", error);
           this.stopStreaming(threadId);
-          notification.add("Failed to start AI response", { type: "danger" });
+          notification.add(_t("Could not start AI response. Please check your connection and try again."), { type: "danger" });
         }
       },
 
@@ -167,7 +168,7 @@ export const llmStoreService = {
           case "error":
             console.error("Stream error:", data.error);
             this.stopStreaming(threadId);
-            notification.add(data.error || "AI response error", {
+            notification.add(data.error || _t("AI response error"), {
               type: "danger",
             });
             break;
@@ -257,7 +258,7 @@ export const llmStoreService = {
           thread.setAsDiscussThread();
         } catch (error) {
           console.error("Error selecting thread:", error);
-          notification.add("Failed to load chat thread", { type: "danger" });
+          notification.add(_t("Could not load this conversation. It may have been deleted or you may not have access."), { type: "danger" });
         }
       },
 
@@ -270,7 +271,7 @@ export const llmStoreService = {
         // Check for null values and show notifications
         if (!firstProvider) {
           notification.add(
-            "No LLM providers available. Please configure at least one provider.",
+            _t("No AI providers are configured. Please contact your administrator to set up an AI provider."),
             { type: "danger" }
           );
           return;
@@ -278,7 +279,7 @@ export const llmStoreService = {
 
         if (!firstModel) {
           notification.add(
-            "No LLM models available. Please configure at least one model.",
+            _t("No AI models are available. Please contact your administrator to configure AI models."),
             { type: "danger" }
           );
           return;
@@ -354,11 +355,11 @@ export const llmStoreService = {
             });
           }
 
-          notification.add("Record linked successfully", { type: "success" });
+          notification.add(_t("Record linked to conversation successfully."), { type: "success" });
           return true;
         } catch (error) {
           console.error("Error linking record:", error);
-          notification.add("Failed to link record", { type: "danger" });
+          notification.add(_t("Could not link the record to this conversation. Please try again."), { type: "danger" });
           return false;
         }
       },
@@ -385,13 +386,13 @@ export const llmStoreService = {
             });
           }
 
-          notification.add("Record unlinked successfully", {
+          notification.add(_t("Record unlinked from conversation successfully."), {
             type: "success",
           });
           return true;
         } catch (error) {
           console.error("Error unlinking record:", error);
-          notification.add("Failed to unlink record", { type: "danger" });
+          notification.add(_t("Could not unlink the record from this conversation. Please try again."), { type: "danger" });
           return false;
         }
       },
