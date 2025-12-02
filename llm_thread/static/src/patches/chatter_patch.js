@@ -62,14 +62,8 @@ patch(Chatter.prototype, {
       return;
     }
 
-    console.log(
-      "[Chatter] Found pending AI chat open from client action",
-      pending
-    );
-
     // If AI chat is already open, don't do anything
     if (this.state.isChattingWithLLM) {
-      console.log("[Chatter] AI chat already open, ignoring pending");
       return;
     }
 
@@ -96,7 +90,6 @@ patch(Chatter.prototype, {
 
     // Auto-trigger generation if requested
     if (pending.autoGenerate) {
-      console.log("[Chatter] Auto-triggering AI generation from client action");
       await llmStore.startLLMStreaming(pending.threadId, null);
     }
   },
@@ -111,7 +104,6 @@ patch(Chatter.prototype, {
       // Step 1: Scroll the chatter into view (form view scroll)
       const chatterEl = this.rootRef?.el;
       if (chatterEl) {
-        console.log("[Chatter] Scrolling chatter into view");
         chatterEl.scrollIntoView({
           behavior: "smooth",
           block: "nearest", // Don't unnecessarily scroll if already visible
@@ -128,7 +120,6 @@ patch(Chatter.prototype, {
         .find((el) => el !== null);
 
       if (composer) {
-        console.log("[Chatter] Scrolling to and focusing composer");
         // Wait a bit for chatter scroll to settle, then scroll composer
         setTimeout(() => {
           composer.scrollIntoView({
@@ -137,8 +128,6 @@ patch(Chatter.prototype, {
           });
           composer.focus();
         }, 300);
-      } else {
-        console.warn("[Chatter] Composer not found in DOM after state change");
       }
     });
   },

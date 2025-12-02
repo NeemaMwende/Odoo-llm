@@ -1,6 +1,6 @@
 import logging
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -212,8 +212,11 @@ class LLMThread(models.Model):
                     str(e),
                 )
                 # Continue without prompt messages rather than failing completely
+                # Post a user-friendly warning to the thread
                 self.message_post(
-                    body=f"Warning: Could not load prompt messages from '{self.prompt_id.name}': {str(e)}"
+                    body=_("Note: The prompt '%s' could not be loaded. "
+                           "Continuing without it. (Error: %s)")
+                    % (self.prompt_id.name, str(e))
                 )
 
         return []
@@ -518,4 +521,10 @@ class LLMThread(models.Model):
                 return error_msg
             except Exception as e2:
                 _logger.error(f"Failed to create error message: {e2}")
-                return None
+                # Yield error event so frontend knows something went wrong
+                yield {
+                    "type": "error",
+                    "error": f"Tool execution failed: {str(e)}",
+                }
+                # Re-raise the original exception - don't silently return None
+                raise e from e2

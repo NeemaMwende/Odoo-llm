@@ -16,8 +16,6 @@ import { registry } from "@web/core/registry";
 registry.category("actions").add("llm_open_chatter", async (env, action) => {
   const { thread_id, model, res_id } = action.params || {};
 
-  console.log("[llm_open_chatter] Action received:", action.params);
-
   if (!thread_id || !model || !res_id) {
     console.error("[llm_open_chatter] Missing required params:", action.params);
     env.services.notification.add(_t("Could not open AI chat. Required information is missing."), {
@@ -42,8 +40,6 @@ registry.category("actions").add("llm_open_chatter", async (env, action) => {
     resId: res_id,
     autoGenerate: true, // Auto-trigger AI generation with prepended messages
   });
-
-  console.log("[llm_open_chatter] Pending state set, navigating to form view");
 
   // Navigate to the record's form view
   // Chatter will pick up the pending state on mount
