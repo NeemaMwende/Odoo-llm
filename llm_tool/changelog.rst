@@ -1,3 +1,8 @@
+18.0.4.1.1 (2025-12-03)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Fixed concurrency issue in _register_function_tool by using savepoint
+
 18.0.4.1.0 (2025-11-28)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
