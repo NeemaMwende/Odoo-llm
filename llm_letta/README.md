@@ -1,5 +1,68 @@
 # Letta LLM Integration
 
+**Module Type:** 🔌 Extension (Stateful AI Agents)
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                      Application Layer                        │
+│        ┌───────────────┐           ┌───────────────┐         │
+│        │ llm_assistant │           │  llm_thread   │         │
+│        └───────┬───────┘           └───────┬───────┘         │
+└────────────────┼───────────────────────────┼─────────────────┘
+                 └─────────────┬─────────────┘
+                               ▼
+              ┌───────────────────────────────────────────┐
+              │       ★ llm_letta (This Module) ★         │
+              │           Letta AI Integration            │
+              │  🧠 Memory │ MCP Tools │ Stateful Agents  │
+              └─────────────────────┬─────────────────────┘
+                        ┌───────────┴───────────┐
+                        ▼                       ▼
+    ┌───────────────────────────┐   ┌───────────────────────────┐
+    │           llm             │   │       Letta Server        │
+    │    (Core Base Module)     │   │ (localhost:8283 or Cloud) │
+    └───────────────────────────┘   │  🧠 Persistent memory     │
+                                    └───────────────────────────┘
+```
+
+## Installation
+
+### What to Install
+
+**For stateful AI agents:**
+```bash
+# Install Python client
+pip install git+https://github.com/apexive/letta-python.git@main
+
+# Start Letta server (Docker)
+docker compose up letta -d
+
+# Install the Odoo module
+odoo-bin -d your_db -i llm_letta,llm_mcp_server
+```
+
+### Auto-Installed Dependencies
+- `llm` (core infrastructure)
+- `llm_thread` (conversation management)
+
+### Why Choose Letta?
+
+| Feature | Letta |
+|---------|-------|
+| **Memory** | 🧠 Persistent across sessions |
+| **State** | 💾 Stateful agents per thread |
+| **Tools** | 🔧 MCP tool integration |
+| **Context** | 📚 Long-term context awareness |
+
+### Common Setups
+
+| I want to... | Install |
+|--------------|---------|
+| Stateful agents | `llm_letta` + `llm_mcp_server` |
+| Memory + tools | `llm_assistant` + `llm_letta` + `llm_mcp_server` |
+
 ## Overview
 
 This is a **foundational module** that integrates [Letta](https://www.letta.com/) agents with Odoo. Letta is an advanced AI agent framework with built-in persistent memory, allowing agents to maintain context across conversations.

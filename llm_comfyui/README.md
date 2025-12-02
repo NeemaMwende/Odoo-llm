@@ -2,6 +2,65 @@
 
 This module integrates Odoo with the ComfyUI API for AI image generation. It provides a new provider type that can be used with the LLM framework.
 
+**Module Type:** 🔧 Provider (Self-Hosted Image Generation)
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────┐
+│             Used By (Generation Modules)              │
+│     ┌─────────────┐           ┌───────────┐          │
+│     │llm_assistant│           │llm_generate│          │
+│     └──────┬──────┘           └─────┬─────┘          │
+└────────────┼────────────────────────┼────────────────┘
+             └────────────┬───────────┘
+                          ▼
+          ┌───────────────────────────────────────────┐
+          │        ★ llm_comfyui (This Module) ★      │
+          │           ComfyUI Provider                │
+          │  🖥️ Self-hosted │ Custom Workflows │ GPU  │
+          └─────────────────────┬─────────────────────┘
+                    ┌───────────┴───────────┐
+                    ▼                       ▼
+┌───────────────────────────┐   ┌───────────────────────────┐
+│           llm             │   │     ComfyUI Server        │
+│    (Core Base Module)     │   │   (localhost:8188)        │
+└───────────────────────────┘   │   🖥️ Your GPU hardware    │
+                                └───────────────────────────┘
+```
+
+## Installation
+
+### What to Install
+
+**For self-hosted image generation:**
+```bash
+# 1. Install ComfyUI on your server with GPU
+# See: https://github.com/comfyanonymous/ComfyUI
+
+# 2. Install the Odoo module
+odoo-bin -d your_db -i llm_comfyui
+```
+
+### Auto-Installed Dependencies
+- `llm` (core infrastructure)
+
+### Why Choose ComfyUI?
+
+| Feature | ComfyUI |
+|---------|---------|
+| **Control** | 🎛️ Custom workflows |
+| **Cost** | 💰 Your hardware (no API fees) |
+| **Privacy** | 🔒 Data stays local |
+| **Flexibility** | ✅ Any model/workflow |
+
+### Common Setups
+
+| I want to... | Install |
+|--------------|---------|
+| Self-hosted images | `llm_comfyui` (+ ComfyUI server) |
+| Chat + local images | `llm_assistant` + `llm_openai` + `llm_comfyui` |
+
 ## Features
 
 - Connect to any ComfyUI instance via its HTTP API

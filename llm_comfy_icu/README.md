@@ -2,6 +2,60 @@
 
 This module integrates Odoo with the ComfyICU API for media generation capabilities.
 
+**Module Type:** 🔧 Provider (Cloud ComfyUI)
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────┐
+│             Used By (Generation Modules)              │
+│     ┌─────────────┐           ┌───────────┐          │
+│     │llm_assistant│           │llm_generate│          │
+│     └──────┬──────┘           └─────┬─────┘          │
+└────────────┼────────────────────────┼────────────────┘
+             └────────────┬───────────┘
+                          ▼
+          ┌───────────────────────────────────────────┐
+          │       ★ llm_comfy_icu (This Module) ★     │
+          │          ComfyICU Cloud Provider          │
+          │  ☁️ Cloud │ No GPU Required │ Managed     │
+          └─────────────────────┬─────────────────────┘
+                                │
+                                ▼
+          ┌───────────────────────────────────────────┐
+          │                   llm                     │
+          │            (Core Base Module)             │
+          └───────────────────────────────────────────┘
+```
+
+## Installation
+
+### What to Install
+
+**For cloud-based ComfyUI:**
+```bash
+odoo-bin -d your_db -i llm_comfy_icu
+```
+
+### Auto-Installed Dependencies
+- `llm` (core infrastructure)
+
+### ComfyUI vs ComfyICU
+
+| Feature | llm_comfyui | llm_comfy_icu |
+|---------|-------------|---------------|
+| **Hosting** | 🖥️ Self-hosted | ☁️ Cloud |
+| **GPU** | Required | Not needed |
+| **Setup** | Complex | Easy |
+| **Cost** | Hardware | Pay-per-use |
+
+### Common Setups
+
+| I want to... | Install |
+|--------------|---------|
+| Cloud image generation | `llm_comfy_icu` |
+| Chat + cloud images | `llm_assistant` + `llm_openai` + `llm_comfy_icu` |
+
 ## Features
 
 - Adds ComfyICU as a provider option in the LLM framework
