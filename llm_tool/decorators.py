@@ -7,13 +7,13 @@ from functools import wraps
 _logger = logging.getLogger(__name__)
 
 
-def llm_tool(func=None, *, schema=None, **metadata):
+def llm_tool(func=None, *, name=None, description=None, xml_managed=False, schema=None, **metadata):
     """
     Decorator to mark a method as an LLM tool.
 
     Automatically extracts:
-    - name: from function name
-    - description: from docstring
+    - name: from function name (or override with name parameter)
+    - description: from docstring (or override with description parameter)
     - schema: from type hints (or accepts manual schema)
 
     This decorator:
@@ -21,9 +21,12 @@ def llm_tool(func=None, *, schema=None, **metadata):
     2. Marks the method so it can be linked to llm.tool records
     3. Stores metadata on the function for later retrieval
 
-    The decorator DOES NOT create database records - those must be created via XML:
+    Tool Registration Modes:
+    - xml_managed=False (default): Tool is auto-created by _register_hook()
+    - xml_managed=True: Tool must be defined in XML data file (Odoo standard pattern)
+                        _register_hook() completely skips this tool
 
-    Usage (simple):
+    Usage (simple - auto-registers, no external ID):
         class SaleOrder(models.Model):
             _inherit = 'sale.order'
 
@@ -36,6 +39,26 @@ def llm_tool(func=None, *, schema=None, **metadata):
                 \"\"\"Create a sales quotation for a customer with specified products\"\"\"
                 # Implementation
                 return {"quote_id": 123}
+
+    Usage (XML-managed - full control via XML data file):
+        # In Python:
+        @llm_tool(
+            name="my_tool",
+            xml_managed=True,  # Tool defined in XML, skip auto-registration
+            read_only_hint=True,
+        )
+        def my_tool_method(self, param: str) -> dict:
+            \"\"\"Tool implementation\"\"\"
+            return {"result": param}
+
+        # In XML (data/llm_tool_data.xml):
+        <record id="my_tool" model="llm.tool">
+            <field name="name">my_tool</field>
+            <field name="implementation">function</field>
+            <field name="decorator_model">my.model</field>
+            <field name="decorator_method">my_tool_method</field>
+            <field name="description">My tool description</field>
+        </record>
 
     Usage (with manual schema for legacy methods):
         @llm_tool(schema={
@@ -51,22 +74,13 @@ def llm_tool(func=None, *, schema=None, **metadata):
             # Existing Odoo method without type hints
             return {"invoice_id": 456}
 
-    Usage (with metadata):
-        @llm_tool(read_only_hint=True, idempotent_hint=True)
-        def get_customer_info(self, customer_id: int) -> dict:
-            \"\"\"Get detailed information about a customer\"\"\"
-            return {"id": customer_id, "name": "ACME Corp"}
-
-    Then create llm.tool record in XML:
-        <record id="tool_create_sales_quote" model="llm.tool">
-            <field name="name">create_sales_quote</field>
-            <field name="implementation">decorated</field>
-            <field name="decorator_model">sale.order</field>
-            <field name="decorator_method">create_sales_quote</field>
-        </record>
-
     Args:
         func: The function to decorate (when using @llm_tool without parentheses)
+        name: Optional tool name (defaults to function name)
+        description: Optional description (defaults to docstring)
+        xml_managed: If True, tool is defined in XML data file. _register_hook()
+                     will completely skip this tool (no insert, update, or deactivate).
+                     XML has full control. Default: False (auto-register)
         schema: Optional manual JSON schema (for methods without type hints)
         **metadata: Additional metadata (read_only_hint, destructive_hint, etc.)
 
@@ -75,9 +89,9 @@ def llm_tool(func=None, *, schema=None, **metadata):
     """
 
     def decorator(f):
-        # Extract metadata from function itself
-        tool_name = f.__name__
-        tool_description = inspect.getdoc(f) or ""
+        # Extract metadata from function itself, with parameter overrides
+        tool_name = name or f.__name__
+        tool_description = description or inspect.getdoc(f) or ""
 
         # Warn if no docstring
         if not tool_description:
@@ -98,6 +112,7 @@ def llm_tool(func=None, *, schema=None, **metadata):
         f._llm_tool_name = tool_name
         f._llm_tool_description = tool_description
         f._llm_tool_metadata = metadata
+        f._llm_tool_xml_managed = xml_managed  # If True, skip auto-registration
 
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -108,6 +123,7 @@ def llm_tool(func=None, *, schema=None, **metadata):
         wrapper._llm_tool_name = f._llm_tool_name
         wrapper._llm_tool_description = f._llm_tool_description
         wrapper._llm_tool_metadata = f._llm_tool_metadata
+        wrapper._llm_tool_xml_managed = f._llm_tool_xml_managed
         if hasattr(f, "_llm_tool_schema"):
             wrapper._llm_tool_schema = f._llm_tool_schema
 

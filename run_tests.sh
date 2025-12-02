@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ODOO_PATH="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 # Activate venv
-source "$ODOO_PATH/.venv/bin/activate"
+source "$ODOO_PATH/.venv310/bin/activate"
 
 # Default values
 MODULE="${1:-llm_replicate,llm_comfyui,llm_comfy_icu}"
