@@ -4,6 +4,88 @@ LLM Invoice Assistant
 
 AI-powered invoice analysis assistant with OCR document parsing for Odoo 18.
 
+**Module Type:** 🚀 Entry Point (Invoice Processing)
+
+Architecture
+============
+
+::
+
+    ┌───────────────────────────────────────────────────────────────┐
+    │                       Odoo Accounting                         │
+    │                    ┌───────────────┐                          │
+    │                    │ account.move  │                          │
+    │                    │(Vendor Bills) │                          │
+    │                    └───────┬───────┘                          │
+    └────────────────────────────┼──────────────────────────────────┘
+                                 │
+                                 ▼
+          ┌───────────────────────────────────────────────────────┐
+          │    ★ llm_assistant_account_invoice (This Module) ★    │
+          │              Invoice Analysis Assistant                │
+          │  📄 OCR Parsing │ Data Extraction │ Auto-Fill         │
+          └───────────────────────────┬───────────────────────────┘
+                                      │
+                      ┌───────────────┼───────────────┐
+                      ▼               ▼               ▼
+        ┌─────────────────┐  ┌───────────────┐  ┌─────────────────┐
+        │  llm_assistant  │  │llm_tool_ocr   │  │   llm_mistral   │
+        │  (AI Framework) │  │   _mistral    │  │   (Provider)    │
+        └────────┬────────┘  └───────────────┘  └─────────────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │       llm       │
+        │ (Core Module)   │
+        └─────────────────┘
+
+Installation
+============
+
+What to Install
+---------------
+
+**For AI-powered invoice processing:**
+
+.. code-block:: bash
+
+    odoo-bin -d your_db -i llm_assistant_account_invoice
+
+Auto-Installed Dependencies
+---------------------------
+
+- ``llm`` (core infrastructure)
+- ``llm_assistant`` (AI assistant framework)
+- ``llm_tool_ocr_mistral`` (OCR tool)
+- ``llm_mistral`` (Mistral AI provider)
+- ``account`` (Odoo accounting)
+
+Why Use This Module?
+--------------------
+
++----------------+----------------------------------+
+| Feature        | llm_assistant_account_invoice    |
++================+==================================+
+| **OCR**        | 📄 Extract text from PDFs/images |
++----------------+----------------------------------+
+| **Auto-Fill**  | ✅ Populate invoice fields       |
++----------------+----------------------------------+
+| **Validation** | 🔍 Check for errors              |
++----------------+----------------------------------+
+| **Zero Code**  | 📝 Pure XML configuration        |
++----------------+----------------------------------+
+
+Common Setups
+-------------
+
++---------------------------+----------------------------------+
+| I want to...              | Install                          |
++===========================+==================================+
+| Process invoices with AI  | ``llm_assistant_account_invoice``|
++---------------------------+----------------------------------+
+| Add chat provider         | Above + ``llm_openai`` (for GPT) |
++---------------------------+----------------------------------+
+
 Features
 ========
 

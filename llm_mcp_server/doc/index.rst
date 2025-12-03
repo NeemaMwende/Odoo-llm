@@ -3,6 +3,82 @@ LLM MCP Server for Odoo
 
 HTTP-based MCP server that exposes Odoo tools to any MCP-compatible AI client.
 
+**Module Type:** 📦 Infrastructure (External AI Integration)
+
+Ecosystem Architecture
+======================
+
+::
+
+    ┌───────────────────────────────────────────────────────────────┐
+    │                    External AI Clients                        │
+    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐   │
+    │  │Claude Desktop│  │ Claude Code │  │  Cursor / Codex     │   │
+    │  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘   │
+    └─────────┼────────────────┼────────────────────┼──────────────┘
+              └────────────────┼────────────────────┘
+                               │ MCP Protocol
+                               ▼
+                  ┌───────────────────────────────────────────┐
+                  │     ★ llm_mcp_server (This Module) ★      │
+                  │         MCP Server for Odoo               │
+                  │  🔌 HTTP API │ 🔐 Auth │ 🛠️ Tool Bridge   │
+                  └─────────────────────┬─────────────────────┘
+                                        │
+                            ┌───────────┴───────────┐
+                            ▼                       ▼
+        ┌───────────────────────────┐   ┌───────────────────────────┐
+        │         llm_tool          │   │           llm             │
+        │    (Tool Registry)        │   │    (Core Base Module)     │
+        └───────────────────────────┘   └───────────────────────────┘
+
+Installation
+============
+
+What to Install
+---------------
+
+**For external AI tool access:**
+
+.. code-block:: bash
+
+    odoo-bin -d your_db -i llm_mcp_server
+
+Auto-Installed Dependencies
+---------------------------
+
+- ``llm`` (core infrastructure)
+- ``llm_tool`` (tool framework)
+
+Why Use This Module?
+--------------------
+
++-----------------+---------------------------------+
+| Feature         | llm_mcp_server                  |
++=================+=================================+
+| **External AI** | 🤖 Claude Desktop, Cursor, etc. |
++-----------------+---------------------------------+
+| **Secure**      | 🔐 API key authentication       |
++-----------------+---------------------------------+
+| **Standard**    | 📡 MCP protocol (Anthropic)     |
++-----------------+---------------------------------+
+| **All Tools**   | 🛠️ Exposes all Odoo LLM tools   |
++-----------------+---------------------------------+
+
+Common Setups
+-------------
+
++-----------------------+----------------------------------------------------------+
+| I want to...          | Install                                                  |
++=======================+==========================================================+
+| Claude Desktop + Odoo | ``llm_mcp_server``                                       |
++-----------------------+----------------------------------------------------------+
+| External + knowledge  | ``llm_mcp_server`` + ``llm_tool_knowledge`` +            |
+|                       | ``llm_pgvector``                                         |
++-----------------------+----------------------------------------------------------+
+| External + Letta      | ``llm_mcp_server`` + ``llm_letta``                       |
++-----------------------+----------------------------------------------------------+
+
 What is MCP?
 ------------
 

@@ -4,6 +4,80 @@ LLM Knowledge Mistral
 
 **Turn images into searchable knowledge** with Mistral AI's vision models.
 
+**Module Type:** 🔌 Extension (OCR for Knowledge)
+
+Architecture
+============
+
+::
+
+    ┌───────────────────────────────────────────────────────────────┐
+    │                      Image Sources                            │
+    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐   │
+    │  │  Receipts   │  │ Handwritten │  │   Scanned Docs      │   │
+    │  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘   │
+    └─────────┼────────────────┼────────────────────┼──────────────┘
+              └────────────────┼────────────────────┘
+                               ▼
+                  ┌───────────────────────────────────────────┐
+                  │  ★ llm_knowledge_mistral (This Module) ★  │
+                  │         Mistral OCR Parser                │
+                  │  👁️ Vision │ 📝 Text Extract │ 🔍 Index   │
+                  └─────────────────────┬─────────────────────┘
+                                        │
+                            ┌───────────┴───────────┐
+                            ▼                       ▼
+        ┌───────────────────────────┐   ┌───────────────────────────┐
+        │       llm_knowledge       │   │        llm_mistral        │
+        │      (RAG Pipeline)       │   │    (Mistral Provider)     │
+        └───────────────────────────┘   └───────────────────────────┘
+
+Installation
+============
+
+What to Install
+---------------
+
+**For image OCR in knowledge base:**
+
+.. code-block:: bash
+
+    odoo-bin -d your_db -i llm_knowledge_mistral
+
+Auto-Installed Dependencies
+---------------------------
+
+- ``llm`` (core infrastructure)
+- ``llm_knowledge`` (RAG infrastructure)
+- ``llm_mistral`` (Mistral AI provider)
+
+Why Use This Module?
+--------------------
+
++------------------+-----------------------------+
+| Feature          | llm_knowledge_mistral       |
++==================+=============================+
+| **OCR**          | 👁️ Mistral vision models    |
++------------------+-----------------------------+
+| **Handwriting**  | ✍️ Handwritten text support |
++------------------+-----------------------------+
+| **Multi-format** | 📄 PDF, PNG, JPG, WEBP      |
++------------------+-----------------------------+
+| **Searchable**   | 🔍 Images become searchable |
++------------------+-----------------------------+
+
+Common Setups
+-------------
+
++------------------+-----------------------------------------------------------------------+
+| I want to...     | Install                                                               |
++==================+=======================================================================+
+| OCR + RAG        | ``llm_knowledge_mistral`` + ``llm_pgvector``                          |
++------------------+-----------------------------------------------------------------------+
+| Chat + OCR + RAG | ``llm_assistant`` + ``llm_openai`` + ``llm_knowledge_mistral`` +      |
+|                  | ``llm_pgvector``                                                      |
++------------------+-----------------------------------------------------------------------+
+
 Extract text from handwritten notes, receipts, scanned documents, screenshots, and product labels. Make every image searchable in your knowledge base with automatic OCR processing.
 
 Overview

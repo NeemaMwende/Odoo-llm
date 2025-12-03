@@ -4,6 +4,95 @@ LLM Knowledge
 
 RAG (Retrieval-Augmented Generation) system for Odoo. Document processing, vector storage, and semantic search with multiple vector store backends.
 
+**Module Type:** 📦 Infrastructure (RAG System)
+
+Architecture
+============
+
+::
+
+    ┌───────────────────────────────────────────────────────────────┐
+    │                    Application Layer                          │
+    │        ┌───────────────┐           ┌───────────────┐         │
+    │        │ llm_assistant │           │  Claude/MCP   │         │
+    │        │  (Chat + RAG) │           │   Clients     │         │
+    │        └───────┬───────┘           └───────┬───────┘         │
+    └────────────────┼───────────────────────────┼─────────────────┘
+                     └─────────────┬─────────────┘
+                                   ▼
+                  ┌───────────────────────────────────────────┐
+                  │      ★ llm_knowledge (This Module) ★      │
+                  │            RAG Infrastructure             │
+                  │  📄 Documents │ 🔍 Search │ 📚 Collections │
+                  └─────────────────────┬─────────────────────┘
+                            ┌───────────┴───────────┐
+                            ▼                       ▼
+        ┌───────────────────────────┐   ┌───────────────────────────┐
+        │         llm_store         │   │     Vector Store          │
+        │   (Vector Store API)      │   │ pgvector/qdrant/chroma    │
+        └───────────────────────────┘   └───────────────────────────┘
+                            │
+                            ▼
+                  ┌───────────────────────────────────────────┐
+                  │                   llm                     │
+                  │            (Core Base Module)             │
+                  └───────────────────────────────────────────┘
+
+Installation
+============
+
+What to Install
+---------------
+
+**For RAG capabilities:**
+
+.. code-block:: bash
+
+    # Install with a vector store (choose one)
+    odoo-bin -d your_db -i llm_knowledge,llm_pgvector
+
+    # Or with Qdrant
+    odoo-bin -d your_db -i llm_knowledge,llm_qdrant
+
+Auto-Installed Dependencies
+---------------------------
+
+- ``llm`` (core infrastructure)
+- ``llm_store`` (vector store abstraction)
+
+Why Use This Module?
+--------------------
+
++----------------+--------------------------------+
+| Feature        | llm_knowledge                  |
++================+================================+
+| **RAG**        | 📚 Ground AI in your documents |
++----------------+--------------------------------+
+| **Search**     | 🔍 Semantic similarity search  |
++----------------+--------------------------------+
+| **Sources**    | 📄 Cite document sources       |
++----------------+--------------------------------+
+| **Flexible**   | 🔌 Multiple vector backends    |
++----------------+--------------------------------+
+
+Common Setups
+-------------
+
++----------------+-------------------------------------------------------------------+
+| I want to...   | Install                                                           |
++================+===================================================================+
+| Basic RAG      | ``llm_knowledge`` + ``llm_pgvector``                              |
++----------------+-------------------------------------------------------------------+
+| Chat + RAG     | ``llm_assistant`` + ``llm_openai`` + ``llm_knowledge`` +          |
+|                | ``llm_pgvector``                                                  |
++----------------+-------------------------------------------------------------------+
+| Advanced RAG   | Above + ``llm_knowledge_llama``                                   |
++----------------+-------------------------------------------------------------------+
+| Image OCR      | Above + ``llm_knowledge_mistral``                                 |
++----------------+-------------------------------------------------------------------+
+| Auto-sync      | Above + ``llm_knowledge_automation``                              |
++----------------+-------------------------------------------------------------------+
+
 What is RAG?
 ============
 
