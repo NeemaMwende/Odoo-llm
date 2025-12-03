@@ -130,8 +130,10 @@ class LLMThread(models.Model):
         # Check if already generating
         if self.is_generating:
             raise UserError(
-                _("A response is already being generated. Please wait for it to complete, "
-                  "or cancel the current generation first.")
+                _(
+                    "A response is already being generated. Please wait for it to complete, "
+                    "or cancel the current generation first."
+                )
             )
 
         # Determine whether to use queue or direct generation
@@ -322,8 +324,10 @@ class LLMThread(models.Model):
 
         if not self.is_generating:
             raise UserError(
-                _("There is no generation in progress to cancel. "
-                  "The AI may have already finished responding.")
+                _(
+                    "There is no generation in progress to cancel. "
+                    "The AI may have already finished responding."
+                )
             )
 
         current_job = self.current_generation_job_id
@@ -343,7 +347,9 @@ class LLMThread(models.Model):
 
         if not failed_job:
             raise UserError(
-                _("There are no failed responses to retry. All previous requests completed successfully.")
+                _(
+                    "There are no failed responses to retry. All previous requests completed successfully."
+                )
             )
 
         if failed_job.can_retry:
@@ -351,8 +357,10 @@ class LLMThread(models.Model):
             return True
         else:
             raise UserError(
-                _("This failed request cannot be retried because it has exceeded the maximum retry limit. "
-                  "Please send a new message instead.")
+                _(
+                    "This failed request cannot be retried because it has exceeded the maximum retry limit. "
+                    "Please send a new message instead."
+                )
             )
 
     def get_generation_history(self):

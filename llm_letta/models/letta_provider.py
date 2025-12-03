@@ -19,7 +19,9 @@ class LLMProvider(models.Model):
         """Get Letta client instance"""
         if not self.api_base:
             raise UserError(
-                _("Please configure the API base URL in the provider settings to connect to Letta.")
+                _(
+                    "Please configure the API base URL in the provider settings to connect to Letta."
+                )
             )
 
         # Simple unified initialization for both local and cloud
@@ -157,7 +159,9 @@ class LLMProvider(models.Model):
 
         if not thread_id:
             raise UserError(
-                _("Unable to start chat. Please try again from an active conversation thread.")
+                _(
+                    "Unable to start chat. Please try again from an active conversation thread."
+                )
             )
 
         # Get thread record and ensure it has a Letta agent
@@ -178,7 +182,9 @@ class LLMProvider(models.Model):
         formatted_message = self._dispatch("format_message", record=latest_message)
         if not formatted_message or not formatted_message.get("content"):
             raise UserError(
-                _("Your message could not be processed. Please try rephrasing and sending again.")
+                _(
+                    "Your message could not be processed. Please try rephrasing and sending again."
+                )
             )
 
         user_content = formatted_message["content"]
@@ -262,7 +268,9 @@ class LLMProvider(models.Model):
 
         if not tool_exists:
             raise UserError(
-                _("The tool '%s' is not available. Please contact your administrator to configure it.")
+                _(
+                    "The tool '%s' is not available. Please contact your administrator to configure it."
+                )
                 % tool_name
             )
 
@@ -279,7 +287,9 @@ class LLMProvider(models.Model):
 
         if not tool_id:
             raise UserError(
-                _("The tool '%s' could not be activated. Please try again or contact your administrator.")
+                _(
+                    "The tool '%s' could not be activated. Please try again or contact your administrator."
+                )
                 % tool_name
             )
 
@@ -307,7 +317,9 @@ class LLMProvider(models.Model):
         # Get tool ID from the Tool object
         if not tool_to_detach.id:
             raise UserError(
-                _("Could not deactivate the tool '%s'. Please try again or contact your administrator.")
+                _(
+                    "Could not deactivate the tool '%s'. Please try again or contact your administrator."
+                )
                 % tool_name
             )
 

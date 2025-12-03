@@ -34,31 +34,33 @@ Extract text from images and PDFs using Mistral AI vision models. Standalone OCR
 ### What to Install
 
 **For OCR tool access:**
+
 ```bash
 odoo-bin -d your_db -i llm_tool_ocr_mistral
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_tool` (tool framework)
 - `llm_mistral` (Mistral AI provider)
 
 ### Why Use This Module?
 
-| Feature | llm_tool_ocr_mistral |
-|---------|---------------------|
-| **OCR** | 👁️ Mistral vision models |
-| **Formats** | 📄 PDF, PNG, JPG, WEBP |
-| **Standalone** | 🔧 Tool for any assistant |
-| **MCP Ready** | 🔌 Works with external clients |
+| Feature        | llm_tool_ocr_mistral           |
+| -------------- | ------------------------------ |
+| **OCR**        | 👁️ Mistral vision models       |
+| **Formats**    | 📄 PDF, PNG, JPG, WEBP         |
+| **Standalone** | 🔧 Tool for any assistant      |
+| **MCP Ready**  | 🔌 Works with external clients |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Invoice OCR | `llm_assistant_account_invoice` (includes this) |
-| Chat + OCR | `llm_assistant` + `llm_openai` + `llm_tool_ocr_mistral` |
-| Claude + OCR | `llm_mcp_server` + `llm_tool_ocr_mistral` |
+| I want to... | Install                                                 |
+| ------------ | ------------------------------------------------------- |
+| Invoice OCR  | `llm_assistant_account_invoice` (includes this)         |
+| Chat + OCR   | `llm_assistant` + `llm_openai` + `llm_tool_ocr_mistral` |
+| Claude + OCR | `llm_mcp_server` + `llm_tool_ocr_mistral`               |
 
 ## What is OCR?
 

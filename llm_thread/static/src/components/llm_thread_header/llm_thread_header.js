@@ -185,9 +185,12 @@ export class LLMThreadHeader extends Component {
       this.state.isEditingName = false;
       this.state.pendingName = "";
     } catch (error) {
-      this.notification.add(_t("Could not save the conversation name. Please try again."), {
-        type: "danger",
-      });
+      this.notification.add(
+        _t("Could not save the conversation name. Please try again."),
+        {
+          type: "danger",
+        }
+      );
       console.error("Error updating thread name:", error);
     } finally {
       this.state.isLoadingUpdate = false;
@@ -248,9 +251,12 @@ export class LLMThreadHeader extends Component {
       // Reload thread data using proper fetchData pattern
       await this.activeThread.fetchData(["provider_id", "model_id"]);
     } catch (error) {
-      this.notification.add(_t("Could not change the AI provider. Please try again."), {
-        type: "danger",
-      });
+      this.notification.add(
+        _t("Could not change the AI provider. Please try again."),
+        {
+          type: "danger",
+        }
+      );
       console.error("Error updating provider:", error);
     } finally {
       this.state.isLoadingUpdate = false;
@@ -280,9 +286,12 @@ export class LLMThreadHeader extends Component {
       // Clear search
       this.state.modelSearchQuery = "";
     } catch (error) {
-      this.notification.add(_t("Could not change the AI model. Please try again."), {
-        type: "danger",
-      });
+      this.notification.add(
+        _t("Could not change the AI model. Please try again."),
+        {
+          type: "danger",
+        }
+      );
       console.error("Error updating model:", error);
     } finally {
       this.state.isLoadingUpdate = false;
@@ -334,9 +343,12 @@ export class LLMThreadHeader extends Component {
       // Reload thread data using proper fetchData pattern
       await this.activeThread.fetchData(["tool_ids"]);
     } catch (error) {
-      this.notification.add(_t("Could not update the enabled tools. Please try again."), {
-        type: "danger",
-      });
+      this.notification.add(
+        _t("Could not update the enabled tools. Please try again."),
+        {
+          type: "danger",
+        }
+      );
       console.error("Error updating tools:", error);
     } finally {
       this.state.isLoadingUpdate = false;

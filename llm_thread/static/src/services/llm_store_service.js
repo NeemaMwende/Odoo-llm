@@ -77,7 +77,12 @@ export const llmStoreService = {
           await this.startLLMStreaming(threadId, content);
         } catch (error) {
           console.error("Error sending LLM message:", error);
-          notification.add(_t("Could not send your message. Please check your connection and try again."), { type: "danger" });
+          notification.add(
+            _t(
+              "Could not send your message. Please check your connection and try again."
+            ),
+            { type: "danger" }
+          );
         }
       },
 
@@ -107,14 +112,24 @@ export const llmStoreService = {
           eventSource.onerror = (error) => {
             console.error("EventSource error:", error);
             this.stopStreaming(threadId);
-            notification.add(_t("Lost connection to AI service. Please try sending your message again."), {
-              type: "danger",
-            });
+            notification.add(
+              _t(
+                "Lost connection to AI service. Please try sending your message again."
+              ),
+              {
+                type: "danger",
+              }
+            );
           };
         } catch (error) {
           console.error("Error starting stream:", error);
           this.stopStreaming(threadId);
-          notification.add(_t("Could not start AI response. Please check your connection and try again."), { type: "danger" });
+          notification.add(
+            _t(
+              "Could not start AI response. Please check your connection and try again."
+            ),
+            { type: "danger" }
+          );
         }
       },
 
@@ -258,7 +273,12 @@ export const llmStoreService = {
           thread.setAsDiscussThread();
         } catch (error) {
           console.error("Error selecting thread:", error);
-          notification.add(_t("Could not load this conversation. It may have been deleted or you may not have access."), { type: "danger" });
+          notification.add(
+            _t(
+              "Could not load this conversation. It may have been deleted or you may not have access."
+            ),
+            { type: "danger" }
+          );
         }
       },
 
@@ -271,7 +291,9 @@ export const llmStoreService = {
         // Check for null values and show notifications
         if (!firstProvider) {
           notification.add(
-            _t("No AI providers are configured. Please contact your administrator to set up an AI provider."),
+            _t(
+              "No AI providers are configured. Please contact your administrator to set up an AI provider."
+            ),
             { type: "danger" }
           );
           return;
@@ -279,7 +301,9 @@ export const llmStoreService = {
 
         if (!firstModel) {
           notification.add(
-            _t("No AI models are available. Please contact your administrator to configure AI models."),
+            _t(
+              "No AI models are available. Please contact your administrator to configure AI models."
+            ),
             { type: "danger" }
           );
           return;
@@ -355,11 +379,18 @@ export const llmStoreService = {
             });
           }
 
-          notification.add(_t("Record linked to conversation successfully."), { type: "success" });
+          notification.add(_t("Record linked to conversation successfully."), {
+            type: "success",
+          });
           return true;
         } catch (error) {
           console.error("Error linking record:", error);
-          notification.add(_t("Could not link the record to this conversation. Please try again."), { type: "danger" });
+          notification.add(
+            _t(
+              "Could not link the record to this conversation. Please try again."
+            ),
+            { type: "danger" }
+          );
           return false;
         }
       },
@@ -386,13 +417,21 @@ export const llmStoreService = {
             });
           }
 
-          notification.add(_t("Record unlinked from conversation successfully."), {
-            type: "success",
-          });
+          notification.add(
+            _t("Record unlinked from conversation successfully."),
+            {
+              type: "success",
+            }
+          );
           return true;
         } catch (error) {
           console.error("Error unlinking record:", error);
-          notification.add(_t("Could not unlink the record from this conversation. Please try again."), { type: "danger" });
+          notification.add(
+            _t(
+              "Could not unlink the record from this conversation. Please try again."
+            ),
+            { type: "danger" }
+          );
           return false;
         }
       },

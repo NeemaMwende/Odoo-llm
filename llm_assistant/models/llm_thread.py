@@ -214,8 +214,10 @@ class LLMThread(models.Model):
                 # Continue without prompt messages rather than failing completely
                 # Post a user-friendly warning to the thread
                 self.message_post(
-                    body=_("Note: The prompt '%s' could not be loaded. "
-                           "Continuing without it. (Error: %s)")
+                    body=_(
+                        "Note: The prompt '%s' could not be loaded. "
+                        "Continuing without it. (Error: %s)"
+                    )
                     % (self.prompt_id.name, str(e))
                 )
 

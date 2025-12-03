@@ -34,28 +34,30 @@ Integrate LLM capabilities with Odoo Document Pages for intelligent document ass
 ### What to Install
 
 **For AI-assisted document pages:**
+
 ```bash
 odoo-bin -d your_db -i llm_document_page
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `knowledge_document_page` (OCA document pages)
 
 ### Why Use This Module?
 
-| Feature | llm_document_page |
-|---------|-------------------|
-| **Suggestions** | 🤖 AI-powered content suggestions |
+| Feature         | llm_document_page                   |
+| --------------- | ----------------------------------- |
+| **Suggestions** | 🤖 AI-powered content suggestions   |
 | **Integration** | 📄 Native document page integration |
-| **Generation** | ✍️ Smart content generation |
+| **Generation**  | ✍️ Smart content generation         |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| AI document pages | `llm_document_page` + `llm_openai` |
-| Chat + doc pages | `llm_assistant` + `llm_openai` + `llm_document_page` |
+| I want to...      | Install                                              |
+| ----------------- | ---------------------------------------------------- |
+| AI document pages | `llm_document_page` + `llm_openai`                   |
+| Chat + doc pages  | `llm_assistant` + `llm_openai` + `llm_document_page` |
 
 ## Features
 

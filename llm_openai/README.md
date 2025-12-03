@@ -34,28 +34,30 @@ This module integrates OpenAI's API with the Odoo LLM framework, providing acces
 ### What to Install
 
 **For AI chat with OpenAI:**
+
 ```bash
 odoo-bin -d your_db -i llm_assistant,llm_openai
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 
 ### Alternative Providers
 
-| Instead of OpenAI | Use | Best For |
-|-------------------|-----|----------|
-| `llm_ollama` | Local AI | Privacy, no API costs |
-| `llm_mistral` | Mistral AI | European, fast |
-| `llm_replicate` | Replicate | Image generation |
+| Instead of OpenAI | Use        | Best For              |
+| ----------------- | ---------- | --------------------- |
+| `llm_ollama`      | Local AI   | Privacy, no API costs |
+| `llm_mistral`     | Mistral AI | European, fast        |
+| `llm_replicate`   | Replicate  | Image generation      |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Chat with GPT-4 | `llm_assistant` + `llm_openai` |
+| I want to...          | Install                                  |
+| --------------------- | ---------------------------------------- |
+| Chat with GPT-4       | `llm_assistant` + `llm_openai`           |
 | GPT + document search | Above + `llm_knowledge` + `llm_pgvector` |
-| GPT + external tools | Above + `llm_mcp_server` |
+| GPT + external tools  | Above + `llm_mcp_server`                 |
 
 ## Features
 

@@ -34,27 +34,29 @@ Manage LLM fine-tuning jobs across different providers directly from Odoo.
 ### What to Install
 
 **For model fine-tuning:**
+
 ```bash
 odoo-bin -d your_db -i llm_training
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 
 ### Why Use Training?
 
-| Feature | llm_training |
-|---------|--------------|
-| **Management** | 📊 Manage jobs from Odoo |
-| **Datasets** | 📁 Dataset organization |
-| **Monitoring** | 📈 Track job progress |
+| Feature            | llm_training               |
+| ------------------ | -------------------------- |
+| **Management**     | 📊 Manage jobs from Odoo   |
+| **Datasets**       | 📁 Dataset organization    |
+| **Monitoring**     | 📈 Track job progress      |
 | **Multi-provider** | 🔄 Works with OpenAI, etc. |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Fine-tune models | `llm_training` + `llm_openai` |
+| I want to...      | Install                                         |
+| ----------------- | ----------------------------------------------- |
+| Fine-tune models  | `llm_training` + `llm_openai`                   |
 | Full LLM workflow | `llm_assistant` + `llm_openai` + `llm_training` |
 
 This module provides functionality for managing LLM fine-tuning jobs across different providers. It allows users to create, monitor, and manage fine-tuning jobs directly from the Odoo interface.

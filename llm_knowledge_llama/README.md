@@ -41,6 +41,7 @@ LlamaIndex integration for advanced knowledge processing and RAG capabilities.
 ### What to Install
 
 **For advanced RAG with LlamaIndex:**
+
 ```bash
 # Install Python dependencies
 pip install llama_index nltk
@@ -50,23 +51,24 @@ odoo-bin -d your_db -i llm_knowledge_llama
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_knowledge` (RAG infrastructure)
 
 ### Why Choose LlamaIndex?
 
-| Feature | LlamaIndex |
-|---------|------------|
-| **Chunking** | 📚 Advanced document chunking |
+| Feature        | LlamaIndex                    |
+| -------------- | ----------------------------- |
+| **Chunking**   | 📚 Advanced document chunking |
 | **Embeddings** | 🎯 Enhanced embedding support |
-| **Queries** | ⚡ Query optimization |
-| **Processing** | 🔄 Smart document processing |
+| **Queries**    | ⚡ Query optimization         |
+| **Processing** | 🔄 Smart document processing  |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Advanced RAG | `llm_knowledge_llama` + `llm_pgvector` |
+| I want to...        | Install                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| Advanced RAG        | `llm_knowledge_llama` + `llm_pgvector`                                  |
 | Chat + advanced RAG | `llm_assistant` + `llm_openai` + `llm_knowledge_llama` + `llm_pgvector` |
 
 ## Features

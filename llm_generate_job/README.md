@@ -17,7 +17,9 @@ odoo-bin -d your_db -i llm_generate_job
 ```
 
 ### Auto-Installed Dependencies
+
 These are pulled in automatically:
+
 - `llm_generate` (generation API)
 - `llm_thread` (chat interface)
 - `llm_tool` (tool framework)
@@ -25,20 +27,20 @@ These are pulled in automatically:
 
 ### When to Use This Module
 
-| Scenario | Recommendation |
-|----------|---------------|
-| Quick chat responses | Not needed - use direct generation |
-| Long document generation | **Install this** |
-| Batch image generation | **Install this** |
-| API rate limit management | **Install this** |
+| Scenario                  | Recommendation                     |
+| ------------------------- | ---------------------------------- |
+| Quick chat responses      | Not needed - use direct generation |
+| Long document generation  | **Install this**                   |
+| Batch image generation    | **Install this**                   |
+| API rate limit management | **Install this**                   |
 
 ### Common Setups Using This Module
 
-| I want to... | Install |
-|--------------|---------|
+| I want to...               | Install                                             |
+| -------------------------- | --------------------------------------------------- |
 | Background text generation | `llm_assistant` + `llm_openai` + `llm_generate_job` |
-| Batch image processing | `llm_assistant` + `llm_fal_ai` + `llm_generate_job` |
-| Queue management dashboard | `llm_generate_job` (adds admin views) |
+| Batch image processing     | `llm_assistant` + `llm_fal_ai` + `llm_generate_job` |
+| Queue management dashboard | `llm_generate_job` (adds admin views)               |
 
 ## Features
 

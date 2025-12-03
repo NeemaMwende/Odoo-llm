@@ -50,16 +50,19 @@ class LLMStoreQdrant(models.Model):
         except Exception as err:
             _logger.error(
                 "Failed to connect to Qdrant server at %s: %s",
-                kwargs.get('url') or kwargs.get('host'),
-                err
+                kwargs.get("url") or kwargs.get("host"),
+                err,
             )
             raise UserError(
-                _("Could not connect to the Qdrant vector database server.\n\n"
-                  "Please check:\n"
-                  "• The server is running at the configured address\n"
-                  "• The API key (if required) is correct\n"
-                  "• Network/firewall allows the connection\n\n"
-                  "Technical details: %s") % str(err)
+                _(
+                    "Could not connect to the Qdrant vector database server.\n\n"
+                    "Please check:\n"
+                    "• The server is running at the configured address\n"
+                    "• The API key (if required) is correct\n"
+                    "• Network/firewall allows the connection\n\n"
+                    "Technical details: %s"
+                )
+                % str(err)
             ) from err
 
     # -------------------------------------------------------------------------

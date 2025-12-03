@@ -35,8 +35,7 @@ class LLMToolGenerate(models.Model):
             "success": True,
             "output_data": output_data,
             "urls": [
-                {"url": att.url, "content_type": att.mimetype}
-                for att in attachments
+                {"url": att.url, "content_type": att.mimetype} for att in attachments
             ],
             "markdown": markdown_content,
             "content_count": len(urls),

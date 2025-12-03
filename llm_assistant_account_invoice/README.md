@@ -41,11 +41,13 @@ AI-powered invoice analysis assistant with OCR document parsing for Odoo 18.
 ### What to Install
 
 **For AI-powered invoice processing:**
+
 ```bash
 odoo-bin -d your_db -i llm_assistant_account_invoice
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_assistant` (AI assistant framework)
 - `llm_tool_ocr_mistral` (OCR tool)
@@ -54,19 +56,19 @@ odoo-bin -d your_db -i llm_assistant_account_invoice
 
 ### Why Use This Module?
 
-| Feature | llm_assistant_account_invoice |
-|---------|-------------------------------|
-| **OCR** | 📄 Extract text from PDFs/images |
-| **Auto-Fill** | ✅ Populate invoice fields |
-| **Validation** | 🔍 Check for errors |
-| **Zero Code** | 📝 Pure XML configuration |
+| Feature        | llm_assistant_account_invoice    |
+| -------------- | -------------------------------- |
+| **OCR**        | 📄 Extract text from PDFs/images |
+| **Auto-Fill**  | ✅ Populate invoice fields       |
+| **Validation** | 🔍 Check for errors              |
+| **Zero Code**  | 📝 Pure XML configuration        |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Process invoices with AI | `llm_assistant_account_invoice` |
-| Add chat provider | Above + `llm_openai` (for GPT-4) |
+| I want to...             | Install                          |
+| ------------------------ | -------------------------------- |
+| Process invoices with AI | `llm_assistant_account_invoice`  |
+| Add chat provider        | Above + `llm_openai` (for GPT-4) |
 
 ## Features
 
@@ -95,31 +97,37 @@ odoo-bin -d your_db -i llm_assistant_account_invoice
 ## Screenshots
 
 ### 1. Configure Mistral Provider
+
 Add your Mistral API key and sync models. Mistral OCR is essential for parsing invoice attachments.
 
 ![Mistral Provider Configuration](static/description/screenshot-mistral-provider.png)
 
 ### 2. OCR Models Available
+
 After syncing, the `mistral-ocr-latest` model is automatically available for parsing invoice attachments.
 
 ![OCR Models](static/description/screenshot-ocr-models.png)
 
 ### 3. ChatGPT/Gemini for Intelligent Assistant
+
 Configure ChatGPT or Gemini models for the intelligent assistant experience - they provide natural conversation and answer your questions.
 
 ![ChatGPT Provider](static/description/screenshot-chatgpt-provider.png)
 
 ### 4. Click "Process with AI" on Draft Invoice
+
 Open any draft vendor bill and click the "Process with AI" button.
 
 ![Process with AI Button](static/description/screenshot-press-process.png)
 
 ### 5. Chat with AI Assistant
+
 The AI assistant opens in the chatter. It reads the invoice PDF using OCR and starts extracting data.
 
 ![Chat with AI Assistant](static/description/screenshot-chat-with-assistant.png)
 
 ### 6. Invoice Automatically Filled
+
 After AI processing, the invoice is automatically filled with extracted data: vendor, date, amounts, line items.
 
 ![Filled Invoice](static/description/screenshot-filled-up-invoice.png)

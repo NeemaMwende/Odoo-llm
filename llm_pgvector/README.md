@@ -40,6 +40,7 @@ PostgreSQL-native vector storage using pgvector extension.
 ### What to Install
 
 **For RAG with PostgreSQL vectors:**
+
 ```bash
 # 1. Install pgvector extension on PostgreSQL
 # See: https://github.com/pgvector/pgvector
@@ -49,33 +50,34 @@ odoo-bin -d your_db -i llm_knowledge,llm_pgvector
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_store` (vector store abstraction)
 
 ### Why Choose pgvector?
 
-| Feature | pgvector |
-|---------|----------|
-| **Integration** | 🐘 Uses your Odoo PostgreSQL |
-| **Extra Server** | ❌ Not needed |
-| **Simplicity** | ✅ No external dependencies |
-| **Scale** | 📊 Good for moderate datasets |
+| Feature          | pgvector                      |
+| ---------------- | ----------------------------- |
+| **Integration**  | 🐘 Uses your Odoo PostgreSQL  |
+| **Extra Server** | ❌ Not needed                 |
+| **Simplicity**   | ✅ No external dependencies   |
+| **Scale**        | 📊 Good for moderate datasets |
 
 ### Vector Store Comparison
 
-| Feature | llm_pgvector | llm_qdrant | llm_chroma |
-|---------|--------------|------------|------------|
-| **Server** | 🐘 PostgreSQL | 🔷 Qdrant server | 🌈 Chroma server |
-| **Setup** | Easy | Moderate | Moderate |
-| **Scale** | Medium | High | Medium |
-| **Best For** | Simple RAG | Large scale | Development |
+| Feature      | llm_pgvector  | llm_qdrant       | llm_chroma       |
+| ------------ | ------------- | ---------------- | ---------------- |
+| **Server**   | 🐘 PostgreSQL | 🔷 Qdrant server | 🌈 Chroma server |
+| **Setup**    | Easy          | Moderate         | Moderate         |
+| **Scale**    | Medium        | High             | Medium           |
+| **Best For** | Simple RAG    | Large scale      | Development      |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Simple RAG | `llm_knowledge` + `llm_pgvector` |
-| Chat + RAG | `llm_assistant` + `llm_openai` + `llm_knowledge` + `llm_pgvector` |
+| I want to... | Install                                                           |
+| ------------ | ----------------------------------------------------------------- |
+| Simple RAG   | `llm_knowledge` + `llm_pgvector`                                  |
+| Chat + RAG   | `llm_assistant` + `llm_openai` + `llm_knowledge` + `llm_pgvector` |
 
 ## Features
 

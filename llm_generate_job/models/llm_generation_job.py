@@ -236,7 +236,9 @@ class LLMGenerationJob(models.Model):
         self.ensure_one()
         if self.state != "draft":
             raise UserError(
-                _("This generation request has already been submitted and cannot be queued again.")
+                _(
+                    "This generation request has already been submitted and cannot be queued again."
+                )
             )
 
         self.write(
@@ -256,8 +258,10 @@ class LLMGenerationJob(models.Model):
         self.ensure_one()
         if self.state != "queued":
             raise UserError(
-                _("This generation request is not ready to start. "
-                  "It may have already completed or been cancelled.")
+                _(
+                    "This generation request is not ready to start. "
+                    "It may have already completed or been cancelled."
+                )
             )
 
         self.write(
@@ -286,7 +290,9 @@ class LLMGenerationJob(models.Model):
         self.ensure_one()
         if not self.can_cancel:
             raise UserError(
-                _("This request cannot be cancelled because it has already completed or finished processing.")
+                _(
+                    "This request cannot be cancelled because it has already completed or finished processing."
+                )
             )
 
         # Try to cancel with provider if running
@@ -308,8 +314,10 @@ class LLMGenerationJob(models.Model):
         self.ensure_one()
         if not self.can_retry:
             raise UserError(
-                _("This request cannot be retried. It may have exceeded the maximum retry "
-                  "limit or is not in a failed state.")
+                _(
+                    "This request cannot be retried. It may have exceeded the maximum retry "
+                    "limit or is not in a failed state."
+                )
             )
 
         # Reset job state for retry
@@ -336,7 +344,9 @@ class LLMGenerationJob(models.Model):
         self.ensure_one()
         if self.state != "running":
             raise UserError(
-                _("Cannot mark this request as complete because it is not currently processing.")
+                _(
+                    "Cannot mark this request as complete because it is not currently processing."
+                )
             )
 
         vals = {
@@ -354,7 +364,9 @@ class LLMGenerationJob(models.Model):
         self.ensure_one()
         if self.state not in ["queued", "running"]:
             raise UserError(
-                _("Cannot mark this request as failed because it has already finished processing.")
+                _(
+                    "Cannot mark this request as failed because it has already finished processing."
+                )
             )
 
         vals = {

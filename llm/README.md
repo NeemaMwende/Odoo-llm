@@ -40,11 +40,13 @@ The foundational module for integrating Large Language Models into Odoo. This ba
 This module is **auto-installed** as a dependency. You typically don't install it directly.
 
 **For AI chat features, install:**
+
 ```bash
 odoo-bin -d your_db -i llm_assistant,llm_openai
 ```
 
 ### This Module Provides
+
 - Provider abstraction framework
 - Model and publisher management
 - Enhanced `mail.message` with `llm_role` field
@@ -53,18 +55,18 @@ odoo-bin -d your_db -i llm_assistant,llm_openai
 
 ### Modules That Depend on This
 
-| Category | Modules |
-|----------|---------|
-| **Interfaces** | `llm_assistant`, `llm_thread`, `llm_mcp_server` |
-| **Providers** | `llm_openai`, `llm_ollama`, `llm_mistral`, `llm_replicate`, `llm_fal_ai` |
-| **Infrastructure** | `llm_tool`, `llm_store`, `llm_generate` |
+| Category           | Modules                                                                  |
+| ------------------ | ------------------------------------------------------------------------ |
+| **Interfaces**     | `llm_assistant`, `llm_thread`, `llm_mcp_server`                          |
+| **Providers**      | `llm_openai`, `llm_ollama`, `llm_mistral`, `llm_replicate`, `llm_fal_ai` |
+| **Infrastructure** | `llm_tool`, `llm_store`, `llm_generate`                                  |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Chat with AI in Odoo | `llm_assistant` + `llm_openai` |
-| Use local AI (privacy) | `llm_assistant` + `llm_ollama` |
+| I want to...           | Install                                  |
+| ---------------------- | ---------------------------------------- |
+| Chat with AI in Odoo   | `llm_assistant` + `llm_openai`           |
+| Use local AI (privacy) | `llm_assistant` + `llm_ollama`           |
 | Add RAG/knowledge base | Above + `llm_knowledge` + `llm_pgvector` |
 
 ## Overview

@@ -34,30 +34,32 @@
 ### What to Install
 
 **For automated knowledge sync:**
+
 ```bash
 odoo-bin -d your_db -i llm_knowledge_automation
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_knowledge` (RAG infrastructure)
 - `base_automation` (Odoo automation)
 
 ### Why Use This Module?
 
-| Feature | llm_knowledge_automation |
-|---------|--------------------------|
+| Feature         | llm_knowledge_automation        |
+| --------------- | ------------------------------- |
 | **Auto-Create** | ➕ New records → knowledge base |
-| **Auto-Update** | 🔄 Changes sync in real-time |
-| **Auto-Remove** | ➖ Deleted records cleaned up |
-| **Zero Manual** | 🤖 No manual sync needed |
+| **Auto-Update** | 🔄 Changes sync in real-time    |
+| **Auto-Remove** | ➖ Deleted records cleaned up   |
+| **Zero Manual** | 🤖 No manual sync needed        |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Auto-sync products | `llm_knowledge_automation` + `llm_pgvector` |
-| Auto-sync + chat | `llm_assistant` + `llm_openai` + `llm_knowledge_automation` + `llm_pgvector` |
+| I want to...       | Install                                                                      |
+| ------------------ | ---------------------------------------------------------------------------- |
+| Auto-sync products | `llm_knowledge_automation` + `llm_pgvector`                                  |
+| Auto-sync + chat   | `llm_assistant` + `llm_openai` + `llm_knowledge_automation` + `llm_pgvector` |
 
 Automated knowledge synchronization for Odoo LLM. No manual sync required. Domain filters automatically create, update, and remove documents from knowledge collections when records change. RAG pipeline runs automatically.
 

@@ -40,6 +40,7 @@ RAG (Retrieval-Augmented Generation) system for Odoo. Document processing, vecto
 ### What to Install
 
 **For RAG capabilities:**
+
 ```bash
 # Install with a vector store (choose one)
 odoo-bin -d your_db -i llm_knowledge,llm_pgvector
@@ -49,27 +50,28 @@ odoo-bin -d your_db -i llm_knowledge,llm_qdrant
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_store` (vector store abstraction)
 
 ### Why Use This Module?
 
-| Feature | llm_knowledge |
-|---------|---------------|
-| **RAG** | 📚 Ground AI in your documents |
-| **Search** | 🔍 Semantic similarity search |
-| **Sources** | 📄 Cite document sources |
-| **Flexible** | 🔌 Multiple vector backends |
+| Feature      | llm_knowledge                  |
+| ------------ | ------------------------------ |
+| **RAG**      | 📚 Ground AI in your documents |
+| **Search**   | 🔍 Semantic similarity search  |
+| **Sources**  | 📄 Cite document sources       |
+| **Flexible** | 🔌 Multiple vector backends    |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Basic RAG | `llm_knowledge` + `llm_pgvector` |
-| Chat + RAG | `llm_assistant` + `llm_openai` + `llm_knowledge` + `llm_pgvector` |
-| Advanced RAG | Above + `llm_knowledge_llama` |
-| Image OCR | Above + `llm_knowledge_mistral` |
-| Auto-sync | Above + `llm_knowledge_automation` |
+| I want to... | Install                                                           |
+| ------------ | ----------------------------------------------------------------- |
+| Basic RAG    | `llm_knowledge` + `llm_pgvector`                                  |
+| Chat + RAG   | `llm_assistant` + `llm_openai` + `llm_knowledge` + `llm_pgvector` |
+| Advanced RAG | Above + `llm_knowledge_llama`                                     |
+| Image OCR    | Above + `llm_knowledge_mistral`                                   |
+| Auto-sync    | Above + `llm_knowledge_automation`                                |
 
 ## What is RAG?
 

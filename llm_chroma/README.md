@@ -40,6 +40,7 @@ Chroma vector store integration for development and lightweight production use.
 ### What to Install
 
 **For development RAG:**
+
 ```bash
 # 1. Start Chroma server
 docker run -p 8000:8000 chromadb/chroma:1.0.0
@@ -52,32 +53,33 @@ odoo-bin -d your_db -i llm_knowledge,llm_chroma
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_store` (vector store abstraction)
 
 ### Why Choose Chroma?
 
-| Feature | Chroma |
-|---------|--------|
-| **Setup** | 🚀 Very easy |
+| Feature         | Chroma                   |
+| --------------- | ------------------------ |
+| **Setup**       | 🚀 Very easy             |
 | **Development** | 🛠️ Great for prototyping |
-| **API** | 📡 Simple HTTP API |
-| **Cost** | 💰 Free & open source |
+| **API**         | 📡 Simple HTTP API       |
+| **Cost**        | 💰 Free & open source    |
 
 ### Vector Store Comparison
 
-| Feature | llm_pgvector | llm_qdrant | llm_chroma |
-|---------|--------------|------------|------------|
-| **Server** | 🐘 PostgreSQL | 🔷 Qdrant server | 🌈 Chroma server |
-| **Setup** | Easy | Moderate | Easy |
-| **Scale** | Medium | High | Medium |
-| **Best For** | Simple RAG | Large scale | Development |
+| Feature      | llm_pgvector  | llm_qdrant       | llm_chroma       |
+| ------------ | ------------- | ---------------- | ---------------- |
+| **Server**   | 🐘 PostgreSQL | 🔷 Qdrant server | 🌈 Chroma server |
+| **Setup**    | Easy          | Moderate         | Easy             |
+| **Scale**    | Medium        | High             | Medium           |
+| **Best For** | Simple RAG    | Large scale      | Development      |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Development RAG | `llm_knowledge` + `llm_chroma` |
+| I want to...     | Install                                                         |
+| ---------------- | --------------------------------------------------------------- |
+| Development RAG  | `llm_knowledge` + `llm_chroma`                                  |
 | Chat + RAG (dev) | `llm_assistant` + `llm_openai` + `llm_knowledge` + `llm_chroma` |
 
 ## Features

@@ -7,7 +7,15 @@ from functools import wraps
 _logger = logging.getLogger(__name__)
 
 
-def llm_tool(func=None, *, name=None, description=None, xml_managed=False, schema=None, **metadata):
+def llm_tool(
+    func=None,
+    *,
+    name=None,
+    description=None,
+    xml_managed=False,
+    schema=None,
+    **metadata,
+):
     """
     Decorator to mark a method as an LLM tool.
 

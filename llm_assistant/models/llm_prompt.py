@@ -266,10 +266,12 @@ class LLMPrompt(models.Model):
             # Text format doesn't need validation
         except (json.JSONDecodeError, yaml.YAMLError) as e:
             raise ValidationError(
-                _("The rendered template is not valid %s.\n\n"
-                  "Please check your template syntax and ensure it produces valid %s "
-                  "output after variable substitution.\n\n"
-                  "Error: %s")
+                _(
+                    "The rendered template is not valid %s.\n\n"
+                    "Please check your template syntax and ensure it produces valid %s "
+                    "output after variable substitution.\n\n"
+                    "Error: %s"
+                )
                 % (self.format.upper(), self.format.upper(), str(e))
             ) from e
 
@@ -365,8 +367,11 @@ class LLMPrompt(models.Model):
                 messages = list(self._parse_dict_messages(json.loads(rendered_content)))
             else:
                 raise ValidationError(
-                    _("The template format '%s' is not supported. "
-                      "Please use Text, YAML, or JSON format.") % self.format
+                    _(
+                        "The template format '%s' is not supported. "
+                        "Please use Text, YAML, or JSON format."
+                    )
+                    % self.format
                 )
         except ValidationError:
             raise
@@ -378,12 +383,14 @@ class LLMPrompt(models.Model):
                 str(e),
             )
             raise ValidationError(
-                _("Could not parse the rendered %s content. The template may have "
-                  "syntax errors or produce invalid output.\n\n"
-                  "Tips:\n"
-                  "• For YAML: Check indentation and special characters\n"
-                  "• For JSON: Ensure quotes and brackets are balanced\n\n"
-                  "Details: %s")
+                _(
+                    "Could not parse the rendered %s content. The template may have "
+                    "syntax errors or produce invalid output.\n\n"
+                    "Tips:\n"
+                    "• For YAML: Check indentation and special characters\n"
+                    "• For JSON: Ensure quotes and brackets are balanced\n\n"
+                    "Details: %s"
+                )
                 % (self.format.upper(), str(e))
             ) from e
 
@@ -495,8 +502,10 @@ class LLMPrompt(models.Model):
         for arg_name, arg_schema in schema.items():
             if arg_schema.get("required", False) and arg_name not in arguments:
                 raise ValidationError(
-                    _("The required argument '%s' is missing. "
-                      "Please provide a value for this argument before running the prompt.")
+                    _(
+                        "The required argument '%s' is missing. "
+                        "Please provide a value for this argument before running the prompt."
+                    )
                     % arg_name
                 )
 

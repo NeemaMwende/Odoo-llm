@@ -112,7 +112,9 @@ patch(Composer.prototype, {
    */
   get placeholder() {
     if (this.isLLMThread) {
-      return this.isStreaming ? _t("AI is responding...") : _t("Ask anything...");
+      return this.isStreaming
+        ? _t("AI is responding...")
+        : _t("Ask anything...");
     }
 
     // Use original placeholder for regular mail

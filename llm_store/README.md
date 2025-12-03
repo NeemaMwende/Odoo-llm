@@ -13,30 +13,33 @@ Comprehensive vector database abstraction layer providing unified interfaces for
 This module is typically **auto-installed** as a dependency. You rarely need to install it directly.
 
 **For RAG/Knowledge Base features:**
+
 ```
 llm_knowledge + llm_pgvector (or llm_qdrant/llm_chroma)
 ```
 
 ### Auto-Installed Dependencies
+
 These are pulled in automatically:
+
 - `llm` (core infrastructure)
 - `mail` (Odoo messaging)
 
 ### Choose a Vector Store Implementation
 
-| Module | Best For | Requirements |
-|--------|----------|--------------|
+| Module         | Best For                 | Requirements                 |
+| -------------- | ------------------------ | ---------------------------- |
 | `llm_pgvector` | Production (recommended) | PostgreSQL 14+ with pgvector |
-| `llm_qdrant` | Large-scale deployments | Qdrant server |
-| `llm_chroma` | Development/testing | None (embedded) |
+| `llm_qdrant`   | Large-scale deployments  | Qdrant server                |
+| `llm_chroma`   | Development/testing      | None (embedded)              |
 
 ### Common Setups Using This Module
 
-| I want to... | Install |
-|--------------|---------|
-| Add RAG to my AI assistant | `llm_knowledge` + `llm_pgvector` + `llm_assistant` + provider |
-| Simple document search | `llm_knowledge` + `llm_chroma` |
-| High-performance vector search | `llm_knowledge` + `llm_qdrant` |
+| I want to...                   | Install                                                       |
+| ------------------------------ | ------------------------------------------------------------- |
+| Add RAG to my AI assistant     | `llm_knowledge` + `llm_pgvector` + `llm_assistant` + provider |
+| Simple document search         | `llm_knowledge` + `llm_chroma`                                |
+| High-performance vector search | `llm_knowledge` + `llm_qdrant`                                |
 
 ## Overview
 

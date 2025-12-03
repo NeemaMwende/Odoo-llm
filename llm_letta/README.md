@@ -32,6 +32,7 @@
 ### What to Install
 
 **For stateful AI agents:**
+
 ```bash
 # Install Python client
 pip install git+https://github.com/apexive/letta-python.git@main
@@ -44,24 +45,25 @@ odoo-bin -d your_db -i llm_letta,llm_mcp_server
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_thread` (conversation management)
 
 ### Why Choose Letta?
 
-| Feature | Letta |
-|---------|-------|
-| **Memory** | 🧠 Persistent across sessions |
-| **State** | 💾 Stateful agents per thread |
-| **Tools** | 🔧 MCP tool integration |
+| Feature     | Letta                          |
+| ----------- | ------------------------------ |
+| **Memory**  | 🧠 Persistent across sessions  |
+| **State**   | 💾 Stateful agents per thread  |
+| **Tools**   | 🔧 MCP tool integration        |
 | **Context** | 📚 Long-term context awareness |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Stateful agents | `llm_letta` + `llm_mcp_server` |
-| Memory + tools | `llm_assistant` + `llm_letta` + `llm_mcp_server` |
+| I want to...    | Install                                          |
+| --------------- | ------------------------------------------------ |
+| Stateful agents | `llm_letta` + `llm_mcp_server`                   |
+| Memory + tools  | `llm_assistant` + `llm_letta` + `llm_mcp_server` |
 
 ## Overview
 

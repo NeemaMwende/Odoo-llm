@@ -39,24 +39,26 @@ Demonstration module showing how to create LLM tools using the `@llm_tool` decor
 ### What to Install
 
 **For learning tool development:**
+
 ```bash
 odoo-bin -d your_db -i llm_tool_demo
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_tool` (tool framework)
 
 ### What You'll Learn
 
-| Feature | Example |
-|---------|---------|
-| **Read-only tools** | `get_system_info` |
-| **Utility tools** | `calculate_business_days` |
-| **CRM tools** | `create_lead_from_description` |
-| **Reporting** | `generate_sales_report` |
-| **Legacy code** | `get_record_info` (manual schema) |
-| **Notifications** | `send_notification_to_user` |
+| Feature             | Example                           |
+| ------------------- | --------------------------------- |
+| **Read-only tools** | `get_system_info`                 |
+| **Utility tools**   | `calculate_business_days`         |
+| **CRM tools**       | `create_lead_from_description`    |
+| **Reporting**       | `generate_sales_report`           |
+| **Legacy code**     | `get_record_info` (manual schema) |
+| **Notifications**   | `send_notification_to_user`       |
 
 ## Overview
 

@@ -13,30 +13,33 @@
 This module is typically **auto-installed** as a dependency of `llm_assistant` or `llm_thread`.
 
 **For AI with function calling:**
+
 ```
 llm_assistant + llm_openai (or other provider)
 ```
 
 ### Auto-Installed Dependencies
+
 These are pulled in automatically:
+
 - `llm` (core infrastructure)
 
 ### Optional Enhancements
 
-| Module | Adds |
-|--------|------|
-| `llm_tool_demo` | 6 example tools to learn from |
-| `llm_tool_knowledge` | RAG search tool for LLMs |
-| `llm_tool_ocr_mistral` | OCR tool using Mistral |
+| Module                 | Adds                          |
+| ---------------------- | ----------------------------- |
+| `llm_tool_demo`        | 6 example tools to learn from |
+| `llm_tool_knowledge`   | RAG search tool for LLMs      |
+| `llm_tool_ocr_mistral` | OCR tool using Mistral        |
 
 ### Common Setups Using This Module
 
-| I want to... | Install |
-|--------------|---------|
+| I want to...                    | Install                                         |
+| ------------------------------- | ----------------------------------------------- |
 | AI that can search Odoo records | `llm_assistant` + `llm_openai` (tools included) |
-| AI that can search documents | Above + `llm_knowledge` + `llm_tool_knowledge` |
-| Expose tools to Claude Desktop | Above + `llm_mcp_server` |
-| Learn to build custom tools | `llm_tool_demo` |
+| AI that can search documents    | Above + `llm_knowledge` + `llm_tool_knowledge`  |
+| Expose tools to Claude Desktop  | Above + `llm_mcp_server`                        |
+| Learn to build custom tools     | `llm_tool_demo`                                 |
 
 ## Quick Start for Developers
 

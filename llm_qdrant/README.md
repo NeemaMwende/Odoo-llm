@@ -40,6 +40,7 @@ Qdrant vector database integration for high-performance semantic search at scale
 ### What to Install
 
 **For high-performance RAG:**
+
 ```bash
 # 1. Start Qdrant server
 docker run -p 6333:6333 qdrant/qdrant
@@ -49,33 +50,34 @@ odoo-bin -d your_db -i llm_knowledge,llm_qdrant
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 - `llm_store` (vector store abstraction)
 
 ### Why Choose Qdrant?
 
-| Feature | Qdrant |
-|---------|--------|
-| **Performance** | ⚡ Very fast search |
-| **Scale** | 📈 Handles millions of vectors |
-| **Filtering** | 🔍 Advanced payload filtering |
-| **Production** | ✅ Built for production |
+| Feature         | Qdrant                         |
+| --------------- | ------------------------------ |
+| **Performance** | ⚡ Very fast search            |
+| **Scale**       | 📈 Handles millions of vectors |
+| **Filtering**   | 🔍 Advanced payload filtering  |
+| **Production**  | ✅ Built for production        |
 
 ### Vector Store Comparison
 
-| Feature | llm_pgvector | llm_qdrant | llm_chroma |
-|---------|--------------|------------|------------|
-| **Server** | 🐘 PostgreSQL | 🔷 Qdrant server | 🌈 Chroma server |
-| **Setup** | Easy | Moderate | Moderate |
-| **Scale** | Medium | High | Medium |
-| **Best For** | Simple RAG | Large scale | Development |
+| Feature      | llm_pgvector  | llm_qdrant       | llm_chroma       |
+| ------------ | ------------- | ---------------- | ---------------- |
+| **Server**   | 🐘 PostgreSQL | 🔷 Qdrant server | 🌈 Chroma server |
+| **Setup**    | Easy          | Moderate         | Moderate         |
+| **Scale**    | Medium        | High             | Medium           |
+| **Best For** | Simple RAG    | Large scale      | Development      |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| High-performance RAG | `llm_knowledge` + `llm_qdrant` |
-| Chat + scalable RAG | `llm_assistant` + `llm_openai` + `llm_knowledge` + `llm_qdrant` |
+| I want to...         | Install                                                         |
+| -------------------- | --------------------------------------------------------------- |
+| High-performance RAG | `llm_knowledge` + `llm_qdrant`                                  |
+| Chat + scalable RAG  | `llm_assistant` + `llm_openai` + `llm_knowledge` + `llm_qdrant` |
 
 ## Features
 

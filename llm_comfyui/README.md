@@ -34,6 +34,7 @@ This module integrates Odoo with the ComfyUI API for AI image generation. It pro
 ### What to Install
 
 **For self-hosted image generation:**
+
 ```bash
 # 1. Install ComfyUI on your server with GPU
 # See: https://github.com/comfyanonymous/ComfyUI
@@ -43,22 +44,23 @@ odoo-bin -d your_db -i llm_comfyui
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 
 ### Why Choose ComfyUI?
 
-| Feature | ComfyUI |
-|---------|---------|
-| **Control** | 🎛️ Custom workflows |
-| **Cost** | 💰 Your hardware (no API fees) |
-| **Privacy** | 🔒 Data stays local |
-| **Flexibility** | ✅ Any model/workflow |
+| Feature         | ComfyUI                        |
+| --------------- | ------------------------------ |
+| **Control**     | 🎛️ Custom workflows            |
+| **Cost**        | 💰 Your hardware (no API fees) |
+| **Privacy**     | 🔒 Data stays local            |
+| **Flexibility** | ✅ Any model/workflow          |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Self-hosted images | `llm_comfyui` (+ ComfyUI server) |
+| I want to...        | Install                                        |
+| ------------------- | ---------------------------------------------- |
+| Self-hosted images  | `llm_comfyui` (+ ComfyUI server)               |
 | Chat + local images | `llm_assistant` + `llm_openai` + `llm_comfyui` |
 
 ## Features

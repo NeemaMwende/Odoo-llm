@@ -58,7 +58,10 @@ export class LLMChatClientAction extends Component {
       }
     } catch (error) {
       console.error("Error initializing LLM chat:", error);
-      this.notification.add(_t("Could not start AI chat. Please refresh the page and try again."), { type: "danger" });
+      this.notification.add(
+        _t("Could not start AI chat. Please refresh the page and try again."),
+        { type: "danger" }
+      );
     }
   }
 
@@ -94,7 +97,9 @@ export class LLMChatClientAction extends Component {
       });
       if (!threadAfterLoad) {
         this.notification.add(
-          _t("The requested conversation could not be found. Showing your recent conversations instead."),
+          _t(
+            "The requested conversation could not be found. Showing your recent conversations instead."
+          ),
           { type: "warning" }
         );
         return;
@@ -138,9 +143,12 @@ export class LLMChatClientAction extends Component {
       });
     } catch (error) {
       console.error("Error opening create thread form:", error);
-      this.notification.add(_t("Could not open the new conversation form. Please try again."), {
-        type: "danger",
-      });
+      this.notification.add(
+        _t("Could not open the new conversation form. Please try again."),
+        {
+          type: "danger",
+        }
+      );
     }
   }
 
@@ -159,7 +167,12 @@ export class LLMChatClientAction extends Component {
       // No auto-creation - let user create threads via form
     } catch (error) {
       console.error("Error loading user threads:", error);
-      this.notification.add(_t("Could not load your conversations. Please refresh the page and try again."), { type: "danger" });
+      this.notification.add(
+        _t(
+          "Could not load your conversations. Please refresh the page and try again."
+        ),
+        { type: "danger" }
+      );
     }
   }
 

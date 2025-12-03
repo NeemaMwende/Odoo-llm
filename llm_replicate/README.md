@@ -33,27 +33,29 @@ This module integrates Replicate's API with the Odoo LLM framework, providing ac
 ### What to Install
 
 **For image generation:**
+
 ```bash
 odoo-bin -d your_db -i llm_assistant,llm_replicate
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 
 ### When to Use Replicate
 
-| Use Case | Replicate |
-|----------|-----------|
-| **Model Variety** | 🎯 Huge marketplace |
-| **Image Gen** | ✅ SDXL, Flux, etc. |
-| **Pay-per-use** | 💳 Pay only what you use |
+| Use Case          | Replicate                |
+| ----------------- | ------------------------ |
+| **Model Variety** | 🎯 Huge marketplace      |
+| **Image Gen**     | ✅ SDXL, Flux, etc.      |
+| **Pay-per-use**   | 💳 Pay only what you use |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Generate images | `llm_assistant` + `llm_replicate` |
-| Chat + images | `llm_assistant` + `llm_openai` + `llm_replicate` |
+| I want to...    | Install                                          |
+| --------------- | ------------------------------------------------ |
+| Generate images | `llm_assistant` + `llm_replicate`                |
+| Chat + images   | `llm_assistant` + `llm_openai` + `llm_replicate` |
 
 ## Features
 

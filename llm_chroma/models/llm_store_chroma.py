@@ -55,12 +55,15 @@ class LLMStoreChroma(models.Model):
         except Exception as err:
             _logger.error("Failed to connect to Chroma server: %s", err)
             raise UserError(
-                _("Could not connect to the Chroma vector database server.\n\n"
-                  "Please check:\n"
-                  "• The server is running\n"
-                  "• The connection URL is correct in provider settings\n"
-                  "• Network/firewall allows the connection\n\n"
-                  "Technical details: %s") % str(err)
+                _(
+                    "Could not connect to the Chroma vector database server.\n\n"
+                    "Please check:\n"
+                    "• The server is running\n"
+                    "• The connection URL is correct in provider settings\n"
+                    "• Network/firewall allows the connection\n\n"
+                    "Technical details: %s"
+                )
+                % str(err)
             ) from err
 
     # -------------------------------------------------------------------------
@@ -97,8 +100,10 @@ class LLMStoreChroma(models.Model):
         collection = self.env["llm.knowledge.collection"].browse(collection_id)
         if not collection.exists():
             raise UserError(
-                _("The knowledge collection could not be found. "
-                  "It may have been deleted or you may not have access to it.")
+                _(
+                    "The knowledge collection could not be found. "
+                    "It may have been deleted or you may not have access to it."
+                )
             )
 
         # Check if collection already exists in Chroma

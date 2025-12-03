@@ -516,9 +516,12 @@ class LLMPromptTest(models.TransientModel):
                 user_context = json.loads(self.test_context or "{}")
             except json.JSONDecodeError as e:
                 raise ValidationError(
-                    _("The test context contains invalid JSON. Please check the format "
-                      "and ensure all brackets and quotes are properly matched.\n\n"
-                      "Details: %s") % str(e)
+                    _(
+                        "The test context contains invalid JSON. Please check the format "
+                        "and ensure all brackets and quotes are properly matched.\n\n"
+                        "Details: %s"
+                    )
+                    % str(e)
                 ) from e
 
             # Use our test method - this uses mock thread's get_context

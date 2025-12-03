@@ -34,29 +34,31 @@ Mistral AI provider integration for Odoo LLM modules.
 ### What to Install
 
 **For AI chat with Mistral:**
+
 ```bash
 odoo-bin -d your_db -i llm_assistant,llm_mistral
 ```
 
 ### Auto-Installed Dependencies
+
 - `llm` (core infrastructure)
 
 ### Why Choose Mistral?
 
-| Feature | Mistral |
-|---------|---------|
-| **Location** | 🇪🇺 European (GDPR friendly) |
-| **Speed** | ⚡ Very fast inference |
-| **Cost** | 💰 Competitive pricing |
-| **Embeddings** | ✅ High-quality embeddings |
+| Feature        | Mistral                     |
+| -------------- | --------------------------- |
+| **Location**   | 🇪🇺 European (GDPR friendly) |
+| **Speed**      | ⚡ Very fast inference      |
+| **Cost**       | 💰 Competitive pricing      |
+| **Embeddings** | ✅ High-quality embeddings  |
 
 ### Common Setups
 
-| I want to... | Install |
-|--------------|---------|
-| Chat with Mistral | `llm_assistant` + `llm_mistral` |
-| Mistral + RAG | Above + `llm_knowledge` + `llm_pgvector` |
-| Mistral OCR | `llm_knowledge_mistral` (image text extraction) |
+| I want to...      | Install                                         |
+| ----------------- | ----------------------------------------------- |
+| Chat with Mistral | `llm_assistant` + `llm_mistral`                 |
+| Mistral + RAG     | Above + `llm_knowledge` + `llm_pgvector`        |
+| Mistral OCR       | `llm_knowledge_mistral` (image text extraction) |
 
 ## Features
 

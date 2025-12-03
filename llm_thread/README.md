@@ -13,24 +13,27 @@ Real-time AI chat interface for Odoo with streaming responses, tool execution, a
 This module is typically **auto-installed** as a dependency of `llm_assistant`.
 
 **For a complete AI chat experience:**
+
 ```
 llm_assistant + llm_openai (or other provider)
 ```
 
 ### Auto-Installed Dependencies
+
 These are pulled in automatically:
+
 - `llm` (core infrastructure)
 - `llm_tool` (function calling)
 - `mail`, `web` (Odoo base)
 
 ### Common Setups Using This Module
 
-| I want to... | Install |
-|--------------|---------|
-| Chat with AI in Odoo | `llm_assistant` + `llm_openai` |
-| Chat with local AI | `llm_assistant` + `llm_ollama` |
-| Add RAG to chat | Above + `llm_knowledge` + `llm_pgvector` |
-| Connect external tools | Above + `llm_mcp_server` |
+| I want to...           | Install                                  |
+| ---------------------- | ---------------------------------------- |
+| Chat with AI in Odoo   | `llm_assistant` + `llm_openai`           |
+| Chat with local AI     | `llm_assistant` + `llm_ollama`           |
+| Add RAG to chat        | Above + `llm_knowledge` + `llm_pgvector` |
+| Connect external tools | Above + `llm_mcp_server`                 |
 
 ## What is LLM Thread?
 
@@ -56,6 +59,7 @@ odoo-bin -d your_db -i llm_thread
 ### 2. Configure Provider
 
 Navigate to **LLM → Configuration → Providers**:
+
 - Create a new provider (e.g., OpenAI)
 - Enter your API key
 - Click **Fetch Models** to import available models
@@ -63,12 +67,14 @@ Navigate to **LLM → Configuration → Providers**:
 ### 3. Start Chatting
 
 **Option A - Dedicated Chat Interface:**
+
 - Go to **LLM → Chat**
 - Click **New** to create a conversation
 - Select provider and model
 - Start chatting!
 
 **Option B - From Any Record:**
+
 - Open any record (Sale Order, Contact, etc.)
 - Click the **AI** button in the chatter
 - Chat with AI in context of that record
@@ -76,6 +82,7 @@ Navigate to **LLM → Configuration → Providers**:
 ### 4. Enable Tools (Optional)
 
 To let AI execute actions in Odoo:
+
 - Install `llm_assistant` module for full functionality
 - In your thread, select available tools
 - AI can now search records, create data, and more
@@ -288,9 +295,9 @@ import { Thread } from "@mail/core/common/thread";
 import { Composer } from "@mail/core/common/composer";
 
 export class LlmChatContainer extends Component {
-    static template = "llm_thread.LlmChatContainer";
-    static components = { Thread, Composer };
-    // ...
+  static template = "llm_thread.LlmChatContainer";
+  static components = { Thread, Composer };
+  // ...
 }
 ```
 
@@ -370,26 +377,31 @@ print(response)
 ## Troubleshooting
 
 **Chat not responding?**
+
 - Check provider API key is valid
 - Verify model is active and supports chat
 - Check Odoo logs for API errors
 
 **Streaming not working?**
+
 - Ensure nginx has `X-Accel-Buffering: no` header
 - Check browser console for SSE connection errors
 - Verify `/llm/thread/generate` endpoint is accessible
 
 **"Currently generating" error?**
+
 - Previous generation may have failed without releasing lock
 - Wait a moment or refresh the page
 - Check if another tab is generating for same thread
 
 **Tools not executing?**
+
 - Verify `llm_generate` and `llm_assistant` modules are installed
 - Check tool is active and assigned to thread
 - Ensure user has permission to execute tool actions
 
 **Messages not appearing?**
+
 - Check browser console for JavaScript errors
 - Verify bus notifications are working
 - Ensure user has access to `llm.thread` records

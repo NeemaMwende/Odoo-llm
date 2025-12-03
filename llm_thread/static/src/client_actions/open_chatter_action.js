@@ -18,9 +18,12 @@ registry.category("actions").add("llm_open_chatter", async (env, action) => {
 
   if (!thread_id || !model || !res_id) {
     console.error("[llm_open_chatter] Missing required params:", action.params);
-    env.services.notification.add(_t("Could not open AI chat. Required information is missing."), {
-      type: "danger",
-    });
+    env.services.notification.add(
+      _t("Could not open AI chat. Required information is missing."),
+      {
+        type: "danger",
+      }
+    );
     return;
   }
 
@@ -28,9 +31,12 @@ registry.category("actions").add("llm_open_chatter", async (env, action) => {
   const llmStore = env.services["llm.store"];
   if (!llmStore) {
     console.error("[llm_open_chatter] llm.store service not found");
-    env.services.notification.add(_t("AI chat is not available. Please refresh the page and try again."), {
-      type: "danger",
-    });
+    env.services.notification.add(
+      _t("AI chat is not available. Please refresh the page and try again."),
+      {
+        type: "danger",
+      }
+    );
     return;
   }
 

@@ -23,13 +23,15 @@ class TestLLMToolSavepoint(common.TransactionCase):
         self.LLMTool = self.env["llm.tool"]
 
         # Create a test tool
-        self.tool = self.LLMTool.create({
-            "name": "test_savepoint_tool",
-            "description": "Test tool for savepoint testing",
-            "implementation": "function",
-            "decorator_model": "res.partner",
-            "decorator_method": "test_savepoint_method",
-        })
+        self.tool = self.LLMTool.create(
+            {
+                "name": "test_savepoint_tool",
+                "description": "Test tool for savepoint testing",
+                "implementation": "function",
+                "decorator_model": "res.partner",
+                "decorator_method": "test_savepoint_method",
+            }
+        )
 
     @mute_logger("odoo.sql_db")
     def test_savepoint_catches_exception_and_continues(self):
@@ -71,9 +73,7 @@ class TestLLMToolSavepoint(common.TransactionCase):
 
         # First registration should succeed
         self.LLMTool._register_function_tool(
-            "res.partner",
-            "mock_concurrent_tool",
-            mock_tool_method
+            "res.partner", "mock_concurrent_tool", mock_tool_method
         )
 
         # Verify tool was created
@@ -83,9 +83,7 @@ class TestLLMToolSavepoint(common.TransactionCase):
         # Second registration (simulating concurrent worker) should also succeed
         # (it will just update the existing tool)
         self.LLMTool._register_function_tool(
-            "res.partner",
-            "mock_concurrent_tool",
-            mock_tool_method
+            "res.partner", "mock_concurrent_tool", mock_tool_method
         )
 
         # Tool should still exist
@@ -115,12 +113,10 @@ class TestLLMToolSavepoint(common.TransactionCase):
                 "could not serialize access due to concurrent update"
             )
 
-        with patch.object(self.LLMTool.__class__, 'create', mock_create):
+        with patch.object(self.LLMTool.__class__, "create", mock_create):
             # This should NOT raise - exception should be caught by savepoint and logged
             self.LLMTool._register_function_tool(
-                "res.partner",
-                "mock_exception_tool",
-                mock_tool_method
+                "res.partner", "mock_exception_tool", mock_tool_method
             )
 
         # Tool should NOT be created (create failed due to concurrent access)
@@ -145,12 +141,11 @@ class TestLLMToolSavepoint(common.TransactionCase):
 
         # Registration should be skipped
         self.LLMTool._register_function_tool(
-            "res.partner",
-            "xml_managed_test_method",
-            mock_xml_managed_method
+            "res.partner", "xml_managed_test_method", mock_xml_managed_method
         )
 
         # Count should be same (no new tool created)
         count_after = self.LLMTool.search_count([])
-        self.assertEqual(count_before, count_after,
-            "XML-managed tool should not be auto-created")
+        self.assertEqual(
+            count_before, count_after, "XML-managed tool should not be auto-created"
+        )

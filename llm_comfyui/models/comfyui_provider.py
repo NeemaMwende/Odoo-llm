@@ -148,8 +148,10 @@ class LLMProvider(models.Model):
             prompt_id = response.get("prompt_id")
             if not prompt_id:
                 raise UserError(
-                    _("The ComfyUI server did not acknowledge the workflow submission. "
-                      "Please check that the server is running and try again.")
+                    _(
+                        "The ComfyUI server did not acknowledge the workflow submission. "
+                        "Please check that the server is running and try again."
+                    )
                 )
 
             # Check for node errors
@@ -158,9 +160,12 @@ class LLMProvider(models.Model):
                 error_msg = json.dumps(node_errors, indent=2)
                 _logger.error("ComfyUI workflow validation failed: %s", error_msg)
                 raise UserError(
-                    _("The workflow contains errors and could not be executed. "
-                      "Please verify your workflow configuration in ComfyUI.\n\n"
-                      "Validation errors: %s") % error_msg
+                    _(
+                        "The workflow contains errors and could not be executed. "
+                        "Please verify your workflow configuration in ComfyUI.\n\n"
+                        "Validation errors: %s"
+                    )
+                    % error_msg
                 )
 
             # Poll for completion
@@ -189,9 +194,12 @@ class LLMProvider(models.Model):
         except Exception as e:
             _logger.error("Error in ComfyUI workflow execution: %s", e)
             raise UserError(
-                _("The image generation failed. This could be due to an invalid workflow "
-                  "or server issues. Please check your workflow and try again.\n\n"
-                  "Error: %s") % str(e)
+                _(
+                    "The image generation failed. This could be due to an invalid workflow "
+                    "or server issues. Please check your workflow and try again.\n\n"
+                    "Error: %s"
+                )
+                % str(e)
             ) from e
 
     def comfyui_format_generation_response(self, raw_response, output_schema):
@@ -244,9 +252,12 @@ class LLMProvider(models.Model):
                 return json.loads(param)
             except json.JSONDecodeError as e:
                 raise UserError(
-                    _("The workflow configuration contains invalid JSON in the '%s' field. "
-                      "Please check the format.\n\n"
-                      "Details: %s") % (param_name, str(e))
+                    _(
+                        "The workflow configuration contains invalid JSON in the '%s' field. "
+                        "Please check the format.\n\n"
+                        "Details: %s"
+                    )
+                    % (param_name, str(e))
                 ) from e
         return param
 
@@ -264,16 +275,20 @@ class LLMProvider(models.Model):
         # Extract prompt_id and outputs
         if not result or not isinstance(result, dict):
             raise UserError(
-                _("Received an unexpected response from the ComfyUI server. "
-                  "The server may need to be restarted or there may be a version mismatch.")
+                _(
+                    "Received an unexpected response from the ComfyUI server. "
+                    "The server may need to be restarted or there may be a version mismatch."
+                )
             )
 
         # Get the outputs from the result
         outputs = result.get("outputs", {})
         if not outputs:
             raise UserError(
-                _("The workflow completed but did not produce any output. "
-                  "Please ensure your workflow has at least one output node configured.")
+                _(
+                    "The workflow completed but did not produce any output. "
+                    "Please ensure your workflow has at least one output node configured."
+                )
             )
         _logger.info(f"ComfyUI: outputs: {outputs}")
 
@@ -333,8 +348,10 @@ class LLMProvider(models.Model):
         _logger.info("ComfyUI: Extracted %d output URLs", len(urls))
         if not urls:
             raise UserError(
-                _("No images were generated. Please check that your workflow includes "
-                  "a 'Save Image' or 'Preview Image' node.")
+                _(
+                    "No images were generated. Please check that your workflow includes "
+                    "a 'Save Image' or 'Preview Image' node."
+                )
             )
 
         return urls

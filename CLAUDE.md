@@ -47,6 +47,7 @@ llm (base) → llm_thread (chat) → llm_tool (actions) → llm_assistant (AI as
 ### Provider Modules
 
 All inherit from `llm.provider` and implement provider-specific API calls:
+
 - **Text/Chat**: `llm_openai`, `llm_ollama`, `llm_mistral`
 - **Image**: `llm_replicate`, `llm_fal_ai`, `llm_comfyui`, `llm_comfy_icu`
 
@@ -71,7 +72,7 @@ All inherit from `llm.provider` and implement provider-specific API calls:
 
 ```javascript
 // ❌ OLD (doesn't exist in 18.0)
-import { registerModel, registerPatch } from '@mail/model/model_core';
+import { registerModel, registerPatch } from "@mail/model/model_core";
 
 // ✅ NEW - ES6 classes extending Record
 import { Record } from "@mail/core/common/record";
@@ -80,10 +81,10 @@ import { rpc } from "@web/core/network/rpc";
 
 // Patch existing components
 patch(SomeComponent.prototype, {
-    setup() {
-        super.setup();
-        // ...
-    }
+  setup() {
+    super.setup();
+    // ...
+  },
 });
 ```
 
@@ -95,8 +96,8 @@ mailStore.Thread.get({ model: "llm.thread", id: threadId });
 
 // Message insertion (must also add to thread.messages for UI)
 mailStore.insert({ "mail.message": [messageData] }, { html: true });
-if (!thread.messages.some(m => m.id === message.id)) {
-    thread.messages.push(message);
+if (!thread.messages.some((m) => m.id === message.id)) {
+  thread.messages.push(message);
 }
 ```
 
@@ -133,7 +134,7 @@ When editing `static/description/index.html` files:
 - No rgba() colors - hex only
 - No CSS transitions, transforms, animations, or linear-gradients
 - No inline JavaScript
-- Use Bootstrap 5 grid (container, row, col-*)
+- Use Bootstrap 5 grid (container, row, col-\*)
 - Use inline styles for colors/typography
 
 See [ODOO_APP_STORE_HTML_GUIDE.md](./ODOO_APP_STORE_HTML_GUIDE.md) for details.
@@ -198,16 +199,16 @@ class LlmProviderOpenAI(models.Model):
 
 ## External Dependencies by Module
 
-| Module | Python Dependencies |
-|--------|-------------------|
-| `llm_knowledge` | requests, markdownify, PyMuPDF, numpy |
-| `llm_pgvector` | pgvector, numpy |
-| `llm_chroma` | chromadb-client, numpy |
-| `llm_qdrant` | qdrant-client |
-| `llm_knowledge_llama` | llama_index, nltk |
-| `llm_openai` | openai |
-| `llm_ollama` | ollama |
-| `llm_mistral` | mistralai |
+| Module                | Python Dependencies                   |
+| --------------------- | ------------------------------------- |
+| `llm_knowledge`       | requests, markdownify, PyMuPDF, numpy |
+| `llm_pgvector`        | pgvector, numpy                       |
+| `llm_chroma`          | chromadb-client, numpy                |
+| `llm_qdrant`          | qdrant-client                         |
+| `llm_knowledge_llama` | llama_index, nltk                     |
+| `llm_openai`          | openai                                |
+| `llm_ollama`          | ollama                                |
+| `llm_mistral`         | mistralai                             |
 
 ## Code Style
 

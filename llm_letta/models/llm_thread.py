@@ -254,11 +254,13 @@ class LLMThread(models.Model):
         embedding = thread.provider_id.letta_get_embedding_model()
         if not embedding:
             raise UserError(
-                _("No embedding models are configured for the Letta provider '%s'.\n\n"
-                  "To fix this:\n"
-                  "1. Go to LLM → Configuration → Providers\n"
-                  "2. Select the '%s' provider\n"
-                  "3. Click 'Fetch Models' to import available models")
+                _(
+                    "No embedding models are configured for the Letta provider '%s'.\n\n"
+                    "To fix this:\n"
+                    "1. Go to LLM → Configuration → Providers\n"
+                    "2. Select the '%s' provider\n"
+                    "3. Click 'Fetch Models' to import available models"
+                )
                 % (thread.provider_id.name, thread.provider_id.name)
             )
 
@@ -355,7 +357,9 @@ class LLMThread(models.Model):
         self.ensure_one()
 
         if self.provider_id.service != "letta":
-            raise UserError(_("This action is only available for Letta-powered conversations."))
+            raise UserError(
+                _("This action is only available for Letta-powered conversations.")
+            )
 
         agent_id = self.external_id
 
@@ -372,8 +376,10 @@ class LLMThread(models.Model):
                 self.external_id = agent_id
             else:
                 raise UserError(
-                    _("Could not initialize the AI assistant for this conversation. "
-                      "Please check the provider configuration or contact your administrator.")
+                    _(
+                        "Could not initialize the AI assistant for this conversation. "
+                        "Please check the provider configuration or contact your administrator."
+                    )
                 )
 
         return agent_id
@@ -383,12 +389,16 @@ class LLMThread(models.Model):
         self.ensure_one()
 
         if self.provider_id.service != "letta":
-            raise UserError(_("This action is only available for Letta-powered conversations."))
+            raise UserError(
+                _("This action is only available for Letta-powered conversations.")
+            )
 
         if not self.external_id:
             raise UserError(
-                _("The AI assistant for this conversation is not available. "
-                  "Please refresh or start a new conversation.")
+                _(
+                    "The AI assistant for this conversation is not available. "
+                    "Please refresh or start a new conversation."
+                )
             )
 
         self.provider_id.letta_sync_agent_tools(self.external_id, self.tool_ids)
