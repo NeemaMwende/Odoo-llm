@@ -37,7 +37,9 @@ Use this module as a reference when creating your own LLM tools.
         "sale",  # For sales report example
         "mail",  # For notification example
     ],
-    "data": [],
+    "data": [
+        "security/ir.model.access.csv",
+    ],
     "demo": [],
     "images": ["static/description/banner.jpeg"],
     "installable": True,
