@@ -2,6 +2,62 @@
 
 This module integrates Fal.ai's API with the Odoo LLM framework, enabling high-performance access to a wide variety of generative AI models including image, video, and audio generation.
 
+**Module Type:** 🔧 Provider (Fast Image/Video Generation)
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────┐
+│             Used By (Generation Modules)              │
+│     ┌─────────────┐           ┌───────────┐          │
+│     │llm_assistant│           │llm_generate│          │
+│     └──────┬──────┘           └─────┬─────┘          │
+└────────────┼────────────────────────┼────────────────┘
+             └────────────┬───────────┘
+                          ▼
+          ┌───────────────────────────────────────────┐
+          │        ★ llm_fal_ai (This Module) ★       │
+          │            FAL.ai Provider                │
+          │  ⚡ Fast │ Flux │ Video │ Real-time       │
+          └─────────────────────┬─────────────────────┘
+                                │
+                                ▼
+          ┌───────────────────────────────────────────┐
+          │                   llm                     │
+          │            (Core Base Module)             │
+          └───────────────────────────────────────────┘
+```
+
+## Installation
+
+### What to Install
+
+**For fast image generation:**
+
+```bash
+odoo-bin -d your_db -i llm_assistant,llm_fal_ai
+```
+
+### Auto-Installed Dependencies
+
+- `llm` (core infrastructure)
+
+### Why Choose FAL.ai?
+
+| Feature         | FAL.ai                  |
+| --------------- | ----------------------- |
+| **Speed**       | ⚡ Very fast inference  |
+| **Flux Models** | ✅ Best Flux support    |
+| **Video**       | ✅ Video generation     |
+| **Real-time**   | ✅ Real-time generation |
+
+### Common Setups
+
+| I want to...          | Install                                       |
+| --------------------- | --------------------------------------------- |
+| Fast image generation | `llm_assistant` + `llm_fal_ai`                |
+| Chat + fast images    | `llm_assistant` + `llm_openai` + `llm_fal_ai` |
+
 ## Features
 
 - Connect to Fal.ai API with proper authentication

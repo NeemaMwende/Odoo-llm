@@ -129,7 +129,12 @@ class LLMThread(models.Model):
 
         # Check if already generating
         if self.is_generating:
-            raise UserError(_("Thread is already generating a response."))
+            raise UserError(
+                _(
+                    "A response is already being generated. Please wait for it to complete, "
+                    "or cancel the current generation first."
+                )
+            )
 
         # Determine whether to use queue or direct generation
         # Auto-detect based on model having a queue
@@ -318,7 +323,12 @@ class LLMThread(models.Model):
         self.ensure_one()
 
         if not self.is_generating:
-            raise UserError(_("No active generation to cancel"))
+            raise UserError(
+                _(
+                    "There is no generation in progress to cancel. "
+                    "The AI may have already finished responding."
+                )
+            )
 
         current_job = self.current_generation_job_id
         if current_job:
@@ -336,13 +346,22 @@ class LLMThread(models.Model):
         ).sorted("create_date", reverse=True)[:1]
 
         if not failed_job:
-            raise UserError(_("No failed generation jobs to retry"))
+            raise UserError(
+                _(
+                    "There are no failed responses to retry. All previous requests completed successfully."
+                )
+            )
 
         if failed_job.can_retry:
             failed_job.action_retry()
             return True
         else:
-            raise UserError(_("Cannot retry this failed job"))
+            raise UserError(
+                _(
+                    "This failed request cannot be retried because it has exceeded the maximum retry limit. "
+                    "Please send a new message instead."
+                )
+            )
 
     def get_generation_history(self):
         """Get generation history for this thread"""

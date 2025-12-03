@@ -2,6 +2,66 @@
 
 Extract text from images and PDFs using Mistral AI vision models. Standalone OCR tool that any LLM assistant can use.
 
+**Module Type:** 🔌 Extension (OCR Tool)
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                    AI Consumers                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐   │
+│  │llm_assistant│  │  llm_letta  │  │   llm_mcp_server    │   │
+│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘   │
+└─────────┼────────────────┼────────────────────┼──────────────┘
+          └────────────────┼────────────────────┘
+                           ▼
+              ┌───────────────────────────────────────────┐
+              │   ★ llm_tool_ocr_mistral (This Module) ★  │
+              │      Extract Text from Attachment Tool    │
+              │  👁️ Vision OCR │ 📄 PDF │ 🖼️ Images       │
+              └─────────────────────┬─────────────────────┘
+                                    │
+                        ┌───────────┴───────────┐
+                        ▼                       ▼
+    ┌───────────────────────────┐   ┌───────────────────────────┐
+    │         llm_tool          │   │        llm_mistral        │
+    │    (Tool Framework)       │   │    (Mistral Provider)     │
+    └───────────────────────────┘   └───────────────────────────┘
+```
+
+## Installation
+
+### What to Install
+
+**For OCR tool access:**
+
+```bash
+odoo-bin -d your_db -i llm_tool_ocr_mistral
+```
+
+### Auto-Installed Dependencies
+
+- `llm` (core infrastructure)
+- `llm_tool` (tool framework)
+- `llm_mistral` (Mistral AI provider)
+
+### Why Use This Module?
+
+| Feature        | llm_tool_ocr_mistral           |
+| -------------- | ------------------------------ |
+| **OCR**        | 👁️ Mistral vision models       |
+| **Formats**    | 📄 PDF, PNG, JPG, WEBP         |
+| **Standalone** | 🔧 Tool for any assistant      |
+| **MCP Ready**  | 🔌 Works with external clients |
+
+### Common Setups
+
+| I want to... | Install                                                 |
+| ------------ | ------------------------------------------------------- |
+| Invoice OCR  | `llm_assistant_account_invoice` (includes this)         |
+| Chat + OCR   | `llm_assistant` + `llm_openai` + `llm_tool_ocr_mistral` |
+| Claude + OCR | `llm_mcp_server` + `llm_tool_ocr_mistral`               |
+
 ## What is OCR?
 
 Optical Character Recognition (OCR) converts images and scanned documents into machine-readable text. This module provides an LLM tool that:

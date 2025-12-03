@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Process with AI Button Reliability**: Replaced unreliable bus notification with client action pattern (2025-12-02)
+
   - Bus/WebSocket notifications failed on cloud deployments with code 1006 connection issues
   - New approach uses `ir.actions.client` to navigate and open AI chat reliably
   - Added `pendingOpenInChatter` state to `llm.store` service for cross-navigation state

@@ -279,90 +279,115 @@ class LLMTool(models.Model):
         self._deactivate_missing_tools(found_tools)
 
     def _register_function_tool(self, model_name, method_name, method):
-        """Create or update tool record for decorated method"""
-        try:
-            # Search for existing tool record (including inactive ones)
-            existing = self.with_context(active_test=False).search(
-                [
-                    ("decorator_model", "=", model_name),
-                    ("decorator_method", "=", method_name),
-                ]
+        """Create or update tool record for decorated method.
+
+        Handles concurrent registration from multiple workers using Odoo's
+        savepoint context manager pattern (same as ir_cron uses).
+
+        If xml_managed=True in the decorator, this method completely skips the tool.
+        XML data files have full control over XML-managed tools.
+        """
+        # Check if tool is XML-managed - if so, skip entirely
+        xml_managed = getattr(method, "_llm_tool_xml_managed", False)
+        if xml_managed:
+            _logger.info(
+                "Skipping XML-managed tool %s.%s (controlled by XML data file)",
+                model_name,
+                method_name,
             )
+            return
 
-            # Prepare values from decorator metadata
-            values = {
-                "name": getattr(method, "_llm_tool_name", method_name),
-                "implementation": "function",
-                "decorator_model": model_name,
-                "decorator_method": method_name,
-                "description": getattr(method, "_llm_tool_description", ""),
-                "active": True,  # Ensure tool is active (reactivate if previously deactivated)
-            }
+        # Prepare values from decorator metadata
+        tool_name = getattr(method, "_llm_tool_name", method_name)
+        values = {
+            "name": tool_name,
+            "implementation": "function",
+            "decorator_model": model_name,
+            "decorator_method": method_name,
+            "description": getattr(method, "_llm_tool_description", ""),
+            "active": True,  # Ensure tool is active (reactivate if previously deactivated)
+        }
 
-            # Add metadata if present
-            metadata = getattr(method, "_llm_tool_metadata", {})
-            if "read_only_hint" in metadata:
-                values["read_only_hint"] = metadata["read_only_hint"]
-            if "idempotent_hint" in metadata:
-                values["idempotent_hint"] = metadata["idempotent_hint"]
-            if "destructive_hint" in metadata:
-                values["destructive_hint"] = metadata["destructive_hint"]
-            if "open_world_hint" in metadata:
-                values["open_world_hint"] = metadata["open_world_hint"]
+        # Add metadata if present
+        metadata = getattr(method, "_llm_tool_metadata", {})
+        if "read_only_hint" in metadata:
+            values["read_only_hint"] = metadata["read_only_hint"]
+        if "idempotent_hint" in metadata:
+            values["idempotent_hint"] = metadata["idempotent_hint"]
+        if "destructive_hint" in metadata:
+            values["destructive_hint"] = metadata["destructive_hint"]
+        if "open_world_hint" in metadata:
+            values["open_world_hint"] = metadata["open_world_hint"]
 
-            # Store manual schema if provided via decorator
-            if hasattr(method, "_llm_tool_schema"):
-                values["input_schema"] = json.dumps(method._llm_tool_schema, indent=2)
+        # Store manual schema if provided via decorator
+        if hasattr(method, "_llm_tool_schema"):
+            values["input_schema"] = json.dumps(method._llm_tool_schema, indent=2)
 
-            if existing:
-                # Only update if auto_update is enabled
-                # Use getattr with default True for upgrade compatibility
-                auto_update = getattr(existing, "auto_update", True)
-                if auto_update:
-                    was_inactive = not existing.active
-                    existing.write(values)
-                    if was_inactive:
-                        _logger.info(
-                            "Reactivated function tool '%s' from %s.%s",
-                            values["name"],
-                            model_name,
-                            method_name,
-                        )
+        # Use Odoo's savepoint pattern (same as demo data loading in loading.py)
+        # If concurrent access fails, savepoint rolls back and we skip gracefully
+        try:
+            with self.env.cr.savepoint(flush=False):
+                # Search for existing tool record (including inactive ones)
+                existing = self.with_context(active_test=False).search(
+                    [
+                        ("decorator_model", "=", model_name),
+                        ("decorator_method", "=", method_name),
+                    ],
+                    limit=1,
+                )
+
+                if existing:
+                    # Only update if auto_update is enabled
+                    auto_update = getattr(existing, "auto_update", True)
+                    if auto_update:
+                        was_inactive = not existing.active
+                        existing.write(values)
+                        if was_inactive:
+                            _logger.info(
+                                "Reactivated function tool '%s' from %s.%s",
+                                values["name"],
+                                model_name,
+                                method_name,
+                            )
+                        else:
+                            _logger.debug(
+                                "Updated function tool '%s' from %s.%s",
+                                values["name"],
+                                model_name,
+                                method_name,
+                            )
                     else:
-                        _logger.info(
-                            "Updated function tool '%s' from %s.%s",
-                            values["name"],
-                            model_name,
-                            method_name,
+                        _logger.debug(
+                            "Skipped update for function tool '%s' (auto_update=False)",
+                            existing.name,
                         )
                 else:
+                    # Auto-create the tool
+                    self.create(values)
                     _logger.info(
-                        "Skipped update for function tool '%s' (auto_update=False)",
-                        existing.name,
+                        "Registered function tool '%s' from %s.%s",
+                        values["name"],
+                        model_name,
+                        method_name,
                     )
-            else:
-                self.create(values)
-                _logger.info(
-                    "Registered function tool '%s' from %s.%s",
-                    values["name"],
-                    model_name,
-                    method_name,
-                )
+
         except Exception as e:
-            # Log error but don't break batch registration
-            _logger.error(
-                "Failed to register function tool %s.%s: %s",
+            # Concurrent access or other error - skip gracefully (same as Odoo demo data)
+            # Tool either already exists or will be registered on next single-worker restart
+            _logger.info(
+                "Skipped tool registration for %s.%s (concurrent access or already exists): %s",
                 model_name,
                 method_name,
                 e,
-                exc_info=True,
             )
 
     def _deactivate_missing_tools(self, found_tools):
-        """Deactivate function tools that no longer exist in code
+        """Deactivate function tools that no longer exist in code.
 
         Args:
             found_tools: Set of (model_name, method_name) tuples for tools found during scan
+
+        Uses Odoo's savepoint pattern to handle concurrent deactivation gracefully.
         """
         try:
             # Get all active function tools
@@ -371,20 +396,28 @@ class LLMTool(models.Model):
             )
         except Exception as e:
             # During module upgrade, database might not be ready yet
-            _logger.info("Skipping tool deactivation during upgrade: %s", e)
+            _logger.debug("Skipping tool deactivation during upgrade: %s", e)
             return
 
         for tool in all_function_tools:
             key = (tool.decorator_model, tool.decorator_method)
             if key not in found_tools:
                 # Tool no longer exists in code - deactivate it
-                tool.active = False
-                _logger.info(
-                    "Deactivated missing function tool '%s' from %s.%s",
-                    tool.name,
-                    tool.decorator_model,
-                    tool.decorator_method,
-                )
+                try:
+                    with self.env.cr.savepoint(flush=False):
+                        tool.active = False
+                    _logger.info(
+                        "Deactivated missing function tool '%s' from %s.%s",
+                        tool.name,
+                        tool.decorator_model,
+                        tool.decorator_method,
+                    )
+                except Exception:
+                    # Concurrent access - skip gracefully
+                    _logger.info(
+                        "Skipped deactivation for tool '%s' (concurrent access)",
+                        tool.name,
+                    )
 
     # API methods for the Tool schema
     def get_tool_definition(self):

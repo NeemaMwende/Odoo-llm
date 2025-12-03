@@ -3,7 +3,7 @@
 from letta_client import Letta
 from letta_client.types import MessageCreate, StreamableHttpServerConfig
 
-from odoo import api, models
+from odoo import _, api, models
 from odoo.exceptions import UserError
 
 
@@ -18,7 +18,11 @@ class LLMProvider(models.Model):
     def letta_get_client(self):
         """Get Letta client instance"""
         if not self.api_base:
-            raise UserError("API base URL is required for Letta connection")
+            raise UserError(
+                _(
+                    "Please configure the API base URL in the provider settings to connect to Letta."
+                )
+            )
 
         # Simple unified initialization for both local and cloud
         return Letta(
@@ -154,24 +158,34 @@ class LLMProvider(models.Model):
         thread_id = thread_context.get("id")
 
         if not thread_id:
-            raise UserError("Thread ID is required for Letta chat")
+            raise UserError(
+                _(
+                    "Unable to start chat. Please try again from an active conversation thread."
+                )
+            )
 
         # Get thread record and ensure it has a Letta agent
         thread_record = self.env["llm.thread"].browse(thread_id)
         if not thread_record.exists():
-            raise UserError(f"Thread {thread_id} not found")
+            raise UserError(
+                _("The conversation could not be found. It may have been deleted.")
+            )
 
         agent_id = thread_record.ensure_letta_agent()
 
         # Extract latest user message - Letta agents maintain their own history
         latest_message = messages[-1] if messages else None
         if not latest_message:
-            raise UserError("No messages provided")
+            raise UserError(_("Please enter a message before sending."))
 
         # Use the standard dispatch to format the message
         formatted_message = self._dispatch("format_message", record=latest_message)
         if not formatted_message or not formatted_message.get("content"):
-            raise UserError("Could not format message content")
+            raise UserError(
+                _(
+                    "Your message could not be processed. Please try rephrasing and sending again."
+                )
+            )
 
         user_content = formatted_message["content"]
 
@@ -253,7 +267,12 @@ class LLMProvider(models.Model):
                 break
 
         if not tool_exists:
-            raise UserError(f"Tool '{tool_name}' not found in Odoo MCP server")
+            raise UserError(
+                _(
+                    "The tool '%s' is not available. Please contact your administrator to configure it."
+                )
+                % tool_name
+            )
 
         # Register the tool with Letta from the MCP server using correct API
         client.tools.add_mcp_tool(mcp_server_name=server_name, mcp_tool_name=tool_name)
@@ -267,7 +286,12 @@ class LLMProvider(models.Model):
                 break
 
         if not tool_id:
-            raise UserError(f"Could not find registered tool '{tool_name}' ID")
+            raise UserError(
+                _(
+                    "The tool '%s' could not be activated. Please try again or contact your administrator."
+                )
+                % tool_name
+            )
 
         # Attach tool to agent
         attach_response = client.agents.tools.attach(agent_id, tool_id)
@@ -292,7 +316,12 @@ class LLMProvider(models.Model):
 
         # Get tool ID from the Tool object
         if not tool_to_detach.id:
-            raise UserError(f"Could not get tool ID for '{tool_name}'")
+            raise UserError(
+                _(
+                    "Could not deactivate the tool '%s'. Please try again or contact your administrator."
+                )
+                % tool_name
+            )
 
         # Detach tool from agent
         detach_response = client.agents.tools.detach(agent_id, tool_to_detach.id)

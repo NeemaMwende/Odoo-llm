@@ -1,5 +1,6 @@
 /** @odoo-module **/
 
+import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
 
 /**
@@ -15,13 +16,14 @@ import { registry } from "@web/core/registry";
 registry.category("actions").add("llm_open_chatter", async (env, action) => {
   const { thread_id, model, res_id } = action.params || {};
 
-  console.log("[llm_open_chatter] Action received:", action.params);
-
   if (!thread_id || !model || !res_id) {
     console.error("[llm_open_chatter] Missing required params:", action.params);
-    env.services.notification.add("Missing parameters for AI chat", {
-      type: "danger",
-    });
+    env.services.notification.add(
+      _t("Could not open AI chat. Required information is missing."),
+      {
+        type: "danger",
+      }
+    );
     return;
   }
 
@@ -29,9 +31,12 @@ registry.category("actions").add("llm_open_chatter", async (env, action) => {
   const llmStore = env.services["llm.store"];
   if (!llmStore) {
     console.error("[llm_open_chatter] llm.store service not found");
-    env.services.notification.add("AI chat service not available", {
-      type: "danger",
-    });
+    env.services.notification.add(
+      _t("AI chat is not available. Please refresh the page and try again."),
+      {
+        type: "danger",
+      }
+    );
     return;
   }
 
@@ -41,8 +46,6 @@ registry.category("actions").add("llm_open_chatter", async (env, action) => {
     resId: res_id,
     autoGenerate: true, // Auto-trigger AI generation with prepended messages
   });
-
-  console.log("[llm_open_chatter] Pending state set, navigating to form view");
 
   // Navigate to the record's form view
   // Chatter will pick up the pending state on mount

@@ -393,7 +393,10 @@ class LLMThread(models.Model):
 
             if not result or not result[0]:
                 raise UserError(
-                    _("Thread is currently generating a response. Please wait.")
+                    _(
+                        "This conversation is currently generating a response. "
+                        "Please wait for it to complete before sending another message."
+                    )
                 )
 
             _logger.info(f"Acquired advisory lock for thread {self.id}")
@@ -401,11 +404,22 @@ class LLMThread(models.Model):
         except UserError:
             raise
         except OperationalError as e:
-            _logger.error(f"Database error acquiring lock for thread {self.id}: {e}")
-            raise UserError(_("Database error acquiring thread lock.")) from e
+            _logger.error("Database error acquiring lock for thread %s: %s", self.id, e)
+            raise UserError(
+                _(
+                    "Unable to process your request due to a system conflict. "
+                    "Please wait a moment and try again."
+                )
+            ) from e
         except Exception as e:
-            _logger.error(f"Unexpected error acquiring lock for thread {self.id}: {e}")
-            raise UserError(_("Failed to acquire thread lock.")) from e
+            _logger.error(
+                "Unexpected error acquiring lock for thread %s: %s", self.id, e
+            )
+            raise UserError(
+                _(
+                    "Your request could not be processed. Please refresh the page and try again."
+                )
+            ) from e
 
     def _release_thread_lock(self):
         """Release PostgreSQL advisory lock for this thread."""

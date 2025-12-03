@@ -15,7 +15,7 @@ class IrAttachment(models.Model):
 
     @llm_tool(
         name="llm_tool_ocr_mistral",
-        description="Extract text and structured data from PDF or image attachments using Mistral OCR vision model",
+        xml_managed=True,  # Tool defined in XML data file, skip auto-registration
     )
     def llm_tool_ocr_mistral(self, attachment_ids: List[int]) -> List[dict]:
         """

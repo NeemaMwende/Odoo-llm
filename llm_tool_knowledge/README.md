@@ -2,6 +2,66 @@
 
 **Give your AI assistants instant access to your knowledge base** with semantic search and source citation capabilities.
 
+**Module Type:** 🔌 Extension (RAG Tool)
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                    AI Consumers                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐   │
+│  │llm_assistant│  │  llm_letta  │  │   llm_mcp_server    │   │
+│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘   │
+└─────────┼────────────────┼────────────────────┼──────────────┘
+          └────────────────┼────────────────────┘
+                           ▼
+              ┌───────────────────────────────────────────┐
+              │    ★ llm_tool_knowledge (This Module) ★   │
+              │         Knowledge Retriever Tool          │
+              │  🔍 Semantic Search │ 📚 Source Citations │
+              └─────────────────────┬─────────────────────┘
+                                    │
+                        ┌───────────┴───────────┐
+                        ▼                       ▼
+    ┌───────────────────────────┐   ┌───────────────────────────┐
+    │         llm_tool          │   │       llm_knowledge       │
+    │    (Tool Framework)       │   │      (RAG Pipeline)       │
+    └───────────────────────────┘   └───────────────────────────┘
+```
+
+## Installation
+
+### What to Install
+
+**For RAG tool access:**
+
+```bash
+odoo-bin -d your_db -i llm_tool_knowledge
+```
+
+### Auto-Installed Dependencies
+
+- `llm` (core infrastructure)
+- `llm_tool` (tool framework)
+- `llm_knowledge` (RAG infrastructure)
+- `llm_assistant` (AI assistant framework)
+
+### Why Use This Module?
+
+| Feature       | llm_tool_knowledge               |
+| ------------- | -------------------------------- |
+| **Search**    | 🔍 Semantic similarity search    |
+| **Citations** | 📚 Source document references    |
+| **Hybrid**    | 🔄 Semantic + keyword search     |
+| **Dual Use**  | 🤖 Odoo assistants + MCP clients |
+
+### Common Setups
+
+| I want to... | Install                                                                |
+| ------------ | ---------------------------------------------------------------------- |
+| Chat + RAG   | `llm_assistant` + `llm_openai` + `llm_tool_knowledge` + `llm_pgvector` |
+| Claude + RAG | `llm_mcp_server` + `llm_tool_knowledge` + `llm_pgvector`               |
+
 This module provides RAG (Retrieval-Augmented Generation) tools that enable AI assistants to search documents, cite sources, and answer questions using your actual company data instead of just their training.
 
 ## Overview

@@ -1,5 +1,6 @@
 /** @odoo-module **/
 
+import { _t } from "@web/core/l10n/translation";
 import { Component, useRef, useState } from "@odoo/owl";
 import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
@@ -164,7 +165,7 @@ export class LLMThreadHeader extends Component {
    */
   async saveThreadName() {
     if (!this.state.pendingName.trim()) {
-      this.notification.add("Thread name cannot be empty", {
+      this.notification.add(_t("Please enter a name for this conversation."), {
         type: "warning",
       });
       return;
@@ -184,9 +185,12 @@ export class LLMThreadHeader extends Component {
       this.state.isEditingName = false;
       this.state.pendingName = "";
     } catch (error) {
-      this.notification.add("Failed to update thread name", {
-        type: "danger",
-      });
+      this.notification.add(
+        _t("Could not save the conversation name. Please try again."),
+        {
+          type: "danger",
+        }
+      );
       console.error("Error updating thread name:", error);
     } finally {
       this.state.isLoadingUpdate = false;
@@ -247,9 +251,12 @@ export class LLMThreadHeader extends Component {
       // Reload thread data using proper fetchData pattern
       await this.activeThread.fetchData(["provider_id", "model_id"]);
     } catch (error) {
-      this.notification.add("Failed to update provider", {
-        type: "danger",
-      });
+      this.notification.add(
+        _t("Could not change the AI provider. Please try again."),
+        {
+          type: "danger",
+        }
+      );
       console.error("Error updating provider:", error);
     } finally {
       this.state.isLoadingUpdate = false;
@@ -279,9 +286,12 @@ export class LLMThreadHeader extends Component {
       // Clear search
       this.state.modelSearchQuery = "";
     } catch (error) {
-      this.notification.add("Failed to update model", {
-        type: "danger",
-      });
+      this.notification.add(
+        _t("Could not change the AI model. Please try again."),
+        {
+          type: "danger",
+        }
+      );
       console.error("Error updating model:", error);
     } finally {
       this.state.isLoadingUpdate = false;
@@ -333,9 +343,12 @@ export class LLMThreadHeader extends Component {
       // Reload thread data using proper fetchData pattern
       await this.activeThread.fetchData(["tool_ids"]);
     } catch (error) {
-      this.notification.add("Failed to update tools", {
-        type: "danger",
-      });
+      this.notification.add(
+        _t("Could not update the enabled tools. Please try again."),
+        {
+          type: "danger",
+        }
+      );
       console.error("Error updating tools:", error);
     } finally {
       this.state.isLoadingUpdate = false;
