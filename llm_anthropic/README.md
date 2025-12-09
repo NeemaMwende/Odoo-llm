@@ -46,19 +46,19 @@ odoo-bin -d your_db -i llm_assistant,llm_anthropic
 
 ### Alternative Providers
 
-| Instead of Anthropic | Use           | Best For              |
-| -------------------- | ------------- | --------------------- |
-| `llm_openai`         | OpenAI        | GPT models, DALL-E    |
-| `llm_ollama`         | Local AI      | Privacy, no API costs |
-| `llm_mistral`        | Mistral AI    | European, fast        |
+| Instead of Anthropic | Use        | Best For              |
+| -------------------- | ---------- | --------------------- |
+| `llm_openai`         | OpenAI     | GPT models, DALL-E    |
+| `llm_ollama`         | Local AI   | Privacy, no API costs |
+| `llm_mistral`        | Mistral AI | European, fast        |
 
 ### Common Setups
 
-| I want to...               | Install                                     |
-| -------------------------- | ------------------------------------------- |
-| Chat with Claude           | `llm_assistant` + `llm_anthropic`           |
-| Claude + document search   | Above + `llm_knowledge` + `llm_pgvector`    |
-| Claude + external tools    | Above + `llm_mcp_server`                    |
+| I want to...             | Install                                  |
+| ------------------------ | ---------------------------------------- |
+| Chat with Claude         | `llm_assistant` + `llm_anthropic`        |
+| Claude + document search | Above + `llm_knowledge` + `llm_pgvector` |
+| Claude + external tools  | Above + `llm_mcp_server`                 |
 
 ## Features
 
@@ -80,11 +80,11 @@ odoo-bin -d your_db -i llm_assistant,llm_anthropic
 
 ## Supported Models
 
-| Model Family | Models | Capabilities |
-| ------------ | ------ | ------------ |
+| Model Family | Models              | Capabilities                           |
+| ------------ | ------------------- | -------------------------------------- |
 | Claude 4.5   | Opus, Sonnet, Haiku | Chat, Vision, Tools, Extended Thinking |
-| Claude 4     | Opus, Sonnet | Chat, Vision, Tools |
-| Claude 3.x   | Opus, Sonnet, Haiku | Chat, Vision, Tools |
+| Claude 4     | Opus, Sonnet        | Chat, Vision, Tools                    |
+| Claude 3.x   | Opus, Sonnet, Haiku | Chat, Vision, Tools                    |
 
 ## Technical Details
 
@@ -92,12 +92,12 @@ This module extends the base LLM integration framework with Anthropic-specific i
 
 ### Key Differences from OpenAI
 
-| Aspect | OpenAI | Anthropic |
-| ------ | ------ | --------- |
-| System message | In messages array | Separate `system` parameter |
-| Tool format | `{"type": "function", "function": {...}}` | `{"name", "description", "input_schema"}` |
-| Response content | Single string | Array of content blocks |
-| Tool results | `role: "tool"` | `role: "user"` + `type: "tool_result"` |
+| Aspect           | OpenAI                                    | Anthropic                                 |
+| ---------------- | ----------------------------------------- | ----------------------------------------- |
+| System message   | In messages array                         | Separate `system` parameter               |
+| Tool format      | `{"type": "function", "function": {...}}` | `{"name", "description", "input_schema"}` |
+| Response content | Single string                             | Array of content blocks                   |
+| Tool results     | `role: "tool"`                            | `role: "user"` + `type: "tool_result"`    |
 
 ### Extended Thinking
 

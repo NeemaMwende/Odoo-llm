@@ -1,5 +1,6 @@
 # generated from manifests external_dependencies
 PyMuPDF
+anthropic
 chromadb-client
 emoji
 fal_client
