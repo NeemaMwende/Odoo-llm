@@ -28,16 +28,14 @@ class LLMProvider(models.Model):
     def anthropic_normalize_prepend_messages(self, prepend_messages):
         """Normalize prepend messages for Anthropic format.
 
-        Anthropic requires system messages to be passed separately,
-        so we filter them out here and handle them in chat().
+        System messages are kept in the list and extracted later in chat().
+        This ensures proper handling of all message types.
         """
         if not prepend_messages:
             return []
 
         normalized = []
         for msg in prepend_messages:
-            if msg.get("role") == "system":
-                continue
             content = msg.get("content", "")
             if isinstance(content, str):
                 normalized.append({"role": msg["role"], "content": content})
