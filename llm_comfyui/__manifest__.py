@@ -18,8 +18,6 @@
         "data/llm_publisher.xml",
         "data/llm_prompt_category_data.xml",
         "data/llm_prompt_data.xml",
-        "data/llm_provider.xml",
-        "data/llm_model.xml",
     ],
     "images": [
         "static/description/banner.png",

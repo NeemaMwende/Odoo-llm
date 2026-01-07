@@ -12,7 +12,7 @@
     "version": "18.0.2.0.0",
     "depends": ["llm", "llm_generate_job"],
     "external_dependencies": {"python": ["fal_client"]},
-    "data": ["data/llm_publisher.xml", "data/llm_provider.xml", "data/llm_model.xml"],
+    "data": ["data/llm_publisher.xml"],
     "images": ["static/description/banner.jpeg"],
     "license": "LGPL-3",
     "installable": True,
