@@ -1,3 +1,9 @@
+18.0.1.6.0 (2026-01-07)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [IMP] LLM Manager role now auto-implied for admin users (base.group_system)
+* [IMP] Removed manual user assignment in favor of group implication
+
 18.0.1.5.0 (2025-11-28)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
