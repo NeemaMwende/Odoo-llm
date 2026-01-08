@@ -263,9 +263,7 @@ class LLMProvider(models.Model):
 
         if not mcp_server_id:
             raise UserError(
-                _(
-                    "MCP server '%s' not found. Please ensure it is properly configured."
-                )
+                _("MCP server '%s' not found. Please ensure it is properly configured.")
                 % server_name
             )
 
@@ -275,7 +273,7 @@ class LLMProvider(models.Model):
         all_tools = client.tools.list()
         tool_id = None
         for tool in all_tools:
-            if hasattr(tool, 'name') and tool.name == tool_name:
+            if hasattr(tool, "name") and tool.name == tool_name:
                 tool_id = tool.id
                 break
 
@@ -318,7 +316,9 @@ class LLMProvider(models.Model):
             )
 
         # Detach tool from agent (tool_id is positional, agent_id is keyword-only)
-        detach_response = client.agents.tools.detach(tool_to_detach.id, agent_id=agent_id)
+        detach_response = client.agents.tools.detach(
+            tool_to_detach.id, agent_id=agent_id
+        )
         return detach_response
 
     def letta_sync_agent_tools(self, agent_id, tool_records):

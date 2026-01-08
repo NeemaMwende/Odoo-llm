@@ -321,6 +321,7 @@ INVALID_ARGUMENT: Bad request to OpenAI: Error code: 400 -
 ```
 
 **Solution:** Don't use these tools with Letta agents:
+
 - `odoo_record_creator`
 - `odoo_record_updater`
 - `odoo_model_method_executor`
