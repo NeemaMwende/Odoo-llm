@@ -4,6 +4,7 @@
 * [REQ] Now requires Letta server v0.16.0+ (for official Stainless SDK compatibility)
 * [IMP] Now uses official letta-client SDK from PyPI (no longer requires forked version)
 * [IMP] Install with: pip install letta-client
+* [FIX] Fixed streaming not working - now properly streams tokens in real-time (stream_tokens=True)
 * [KNOWN ISSUE] Three tools incompatible with Letta due to OpenAI strict mode requirements:
   - odoo_record_creator, odoo_record_updater, odoo_model_method_executor
   - These tools work with other LLM providers but not Letta

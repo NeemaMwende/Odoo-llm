@@ -387,6 +387,7 @@ class LLMProvider(models.Model):
             agent_id=agent_id,
             messages=[MessageCreateParam(role="user", content=user_content)],
             streaming=True,
+            stream_tokens=True,  # Enable token-level streaming for real-time updates
         )
 
         response_content = ""
@@ -395,12 +396,24 @@ class LLMProvider(models.Model):
             # Check if chunk has message_type attribute (Letta's streaming format)
             if hasattr(chunk, "message_type"):
                 message_type = getattr(chunk, "message_type", None)
+                content = getattr(chunk, "content", None)
+
+                # Extract text content from content attribute (could be string or list)
+                content_text = ""
+                if isinstance(content, str):
+                    content_text = content
+                elif isinstance(content, list) and len(content) > 0:
+                    # Content is a list of content parts, extract text from each
+                    for part in content:
+                        if isinstance(part, dict) and "text" in part:
+                            content_text += part["text"]
+                        elif hasattr(part, "text"):
+                            content_text += part.text
 
                 # Handle assistant message chunks
-                if message_type == "assistant_message" and hasattr(chunk, "content"):
-                    if chunk.content:
-                        response_content += chunk.content
-                        yield {"content": chunk.content}
+                if message_type == "assistant_message" and content_text:
+                    response_content += content_text
+                    yield {"content": content_text}
 
         # Yield final response
         yield {"content": "", "finish_reason": "stop"}
