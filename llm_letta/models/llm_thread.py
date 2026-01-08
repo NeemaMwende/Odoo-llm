@@ -144,13 +144,12 @@ class LLMThread(models.Model):
                 )
 
             modify_params = {
-                "agent_id": thread.external_id,
                 "model": thread.model_id.name,
             }
             if system_instruction:
                 modify_params["system"] = system_instruction
 
-            client.agents.modify(**modify_params)
+            client.agents.update(thread.external_id, **modify_params)
         else:
             # No agent exists - create one
             agent_id = self._create_letta_agent(thread)
@@ -366,7 +365,7 @@ class LLMThread(models.Model):
         # Verify agent exists in Letta
         if agent_id:
             client = self.provider_id.letta_get_client()
-            client.agents.retrieve(agent_id=agent_id)
+            client.agents.retrieve(agent_id)
             return agent_id
 
         # Create new agent if needed
