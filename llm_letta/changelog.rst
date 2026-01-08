@@ -1,8 +1,13 @@
 18.0.1.0.4 (2026-01-09)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+* [REQ] Now requires Letta server v0.16.0+ (for official Stainless SDK compatibility)
 * [IMP] Now uses official letta-client SDK from PyPI (no longer requires forked version)
 * [IMP] Install with: pip install letta-client
+* [KNOWN ISSUE] Three tools incompatible with Letta due to OpenAI strict mode requirements:
+  - odoo_record_creator, odoo_record_updater, odoo_model_method_executor
+  - These tools work with other LLM providers but not Letta
+  - All other tools are fully compatible
 
 18.0.1.0.3 (2026-01-08)
 ~~~~~~~~~~~~~~~~~~~~~~~

@@ -35,7 +35,7 @@
 
 ```bash
 # Install Python client
-pip install git+https://github.com/apexive/letta-python.git@main
+pip install letta-client
 
 # Start Letta server (Docker)
 docker compose up letta -d
@@ -90,7 +90,7 @@ This is a **foundational module** that integrates [Letta](https://www.letta.com/
 
 ### Server Requirements
 
-- **Letta Server**: Version 0.11.7+ (earlier versions have MCP bugs)
+- **Letta Server**: Version 0.16.0+ (required for official Stainless SDK compatibility)
   - Self-hosted via Docker (recommended)
   - Or Letta Cloud account
 - **PostgreSQL**: With `pgvector` extension enabled
@@ -100,11 +100,10 @@ This is a **foundational module** that integrates [Letta](https://www.letta.com/
 
 ### Python Requirements
 
-- **Letta Python Client**: Custom fork required (fixes model fetching bug)
+- **Letta Python Client**: Official SDK from PyPI
   ```bash
-  pip install git+https://github.com/apexive/letta-python.git@main
+  pip install letta-client
   ```
-  _Note: Forked version needed due to [`listembeddingmodels()` bug](https://github.com/letta-ai/letta-python/issues/25) in official client_
 
 ### Optional
 
@@ -116,7 +115,7 @@ This is a **foundational module** that integrates [Letta](https://www.letta.com/
 ### Step 1: Install Python Client
 
 ```bash
-pip install git+https://github.com/apexive/letta-python.git@main
+pip install letta-client
 ```
 
 ### Step 2: Set Up Letta Server (Docker)
@@ -243,6 +242,16 @@ Through MCP integration, agents can:
 - **Method execution**: Call model methods with parameters
 - **Model inspection**: Explore available models and fields
 
+> **⚠️ Tool Compatibility Note**
+>
+> Letta enforces OpenAI's strict mode for tool schemas, which requires all objects to have `additionalProperties: false`. The following tools are **not compatible** with Letta:
+>
+> - `odoo_record_creator` - Uses free-form field objects
+> - `odoo_record_updater` - Uses free-form values objects
+> - `odoo_model_method_executor` - Uses free-form kwargs objects
+>
+> These tools work with other LLM providers (OpenAI, Anthropic, etc.) but cannot be used with Letta agents. All other tools in your Odoo instance will work normally.
+
 For technical details, see `TECHNICAL_GUIDE.md`.
 
 ## Usage Examples
@@ -302,6 +311,22 @@ curl http://localhost:8283/v1/health
 3. Ensure External URL is correctly set to `http://host.docker.internal:8069`
 4. Check that tools are active in LLM → Tools
 
+### Tool execution fails with "Invalid schema" or "additionalProperties" error
+
+This occurs when using incompatible tools with Letta. The error message looks like:
+
+```
+INVALID_ARGUMENT: Bad request to OpenAI: Error code: 400 -
+'additionalProperties' is required to be supplied and to be false
+```
+
+**Solution:** Don't use these tools with Letta agents:
+- `odoo_record_creator`
+- `odoo_record_updater`
+- `odoo_model_method_executor`
+
+These tools work with other LLM providers but are incompatible with Letta's strict mode requirements. Use alternative tools like `odoo_record_retriever` and `odoo_model_inspector` instead.
+
 ### Agent not remembering context
 
 - Verify PostgreSQL `pgvector` extension is installed in Letta database
@@ -310,7 +335,7 @@ curl http://localhost:8283/v1/health
 
 ### Streaming not working
 
-- Ensure you're using the forked Letta client (from apexive/letta-python)
+- Ensure you're using the official letta-client SDK (`pip install letta-client`)
 - Check browser console for errors
 - Verify Odoo is in development mode for detailed error logs
 
@@ -358,9 +383,8 @@ Contributions and feature requests are welcome!
 
 - [Letta Official Documentation](https://docs.letta.com/)
 - [Letta GitHub Repository](https://github.com/letta-ai/letta)
+- [Letta Python Client (PyPI)](https://pypi.org/project/letta-client/)
 - [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
-- [Forked Letta Python Client](https://github.com/apexive/letta-python)
-- [Model Fetching Bug Issue](https://github.com/letta-ai/letta-python/issues/25)
 
 ## Support
 

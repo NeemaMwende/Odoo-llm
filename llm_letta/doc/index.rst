@@ -43,7 +43,7 @@ What to Install
 .. code-block:: bash
 
     # Install Python client
-    pip install git+https://github.com/apexive/letta-python.git@main
+    pip install letta-client
 
     # Start Letta server (Docker)
     docker compose up letta -d

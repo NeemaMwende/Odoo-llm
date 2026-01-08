@@ -11,7 +11,7 @@
         • Support for both Letta Cloud and self-hosted servers
         • Real-time streaming responses
 
-        Requires Letta server v0.11.7+ and llm_mcp_server module.
+        Requires Letta server v0.16.0+ and llm_mcp_server module.
     """,
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",

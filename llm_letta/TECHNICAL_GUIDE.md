@@ -13,12 +13,11 @@ The `llm_letta` module integrates Letta AI agents with Odoo's LLM framework. Let
 
 **Requirements:**
 
-- **Letta Server**: Version 0.11.7+ (earlier versions have MCP bugs)
-- **Letta Client**: Forked version required (fixes `listembeddingmodels()` bug)
+- **Letta Server**: Version 0.16.0+ (required for official Stainless SDK compatibility)
+- **Letta Client**: Official SDK from PyPI
   ```bash
-  pip install git+https://github.com/apexive/letta-python.git@main
+  pip install letta-client
   ```
-  _See [Issue #25](https://github.com/letta-ai/letta-python/issues/25)_
 
 ## Architecture Components
 
@@ -121,7 +120,7 @@ thread.create() / thread.write({'provider_id': letta_provider})
 ```python
 thread.write({'model_id': new_model})
   → _update_or_create_agent()
-    → client.agents.modify(agent_id, model=new_model, system=system_prompt)
+    → client.agents.update(agent_id, model=new_model, system=system_prompt)
 ```
 
 **Cleanup (on thread delete or provider change):**
@@ -211,11 +210,25 @@ letta_chat(messages, stream=True)
 All active `llm.tool` records are exposed via MCP. Common tools:
 
 - `odoo_record_retriever` - Search and retrieve Odoo records
-- `odoo_record_creator` - Create new Odoo records
-- `odoo_record_updater` - Update existing Odoo records
+- `odoo_record_creator` - Create new Odoo records ⚠️
+- `odoo_record_updater` - Update existing Odoo records ⚠️
 - `odoo_record_unlinker` - Delete Odoo records
-- `odoo_model_method_executor` - Execute Odoo model methods
+- `odoo_model_method_executor` - Execute Odoo model methods ⚠️
 - `odoo_model_inspector` - Inspect Odoo model structure
+
+**⚠️ Tool Compatibility Limitation:**
+
+Letta enforces OpenAI's strict mode (`additionalProperties: false`) for all tool schemas. The following tools are **incompatible** with Letta because they use free-form objects:
+
+- `odoo_record_creator` - Uses `dict[str, Any]` for fields/records parameters
+- `odoo_record_updater` - Uses `dict[str, Any]` for values parameter
+- `odoo_model_method_executor` - Uses `dict[str, Any]` for kwargs parameter
+
+These tools work with other LLM providers (OpenAI, Anthropic, etc.) but will cause `INVALID_ARGUMENT` errors with Letta agents. All other tools are fully compatible.
+
+**Technical Reason:**
+
+OpenAI's strict mode requires schemas where all objects explicitly define their properties with `additionalProperties: false`. Free-form dictionaries violate this constraint. The official solution (array of `{name, value}` pairs) would be a breaking API change to these tools.
 
 ### Tool Execution Flow
 
