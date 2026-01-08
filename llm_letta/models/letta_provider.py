@@ -1,7 +1,6 @@
-# Note: Using forked letta-client until listembeddingmodels() bug is fixed
-# See: https://github.com/letta-ai/letta-python/issues/25
+# Note: Using letta-client SDK (Stainless-generated)
 from letta_client import Letta
-from letta_client.types import MessageCreate, StreamableHttpServerConfig
+from letta_client.types import CreateStreamableHTTPMcpServerParam, MessageCreateParam
 
 from odoo import _, api, models
 from odoo.exceptions import UserError
@@ -27,7 +26,7 @@ class LLMProvider(models.Model):
         # Simple unified initialization for both local and cloud
         return Letta(
             base_url=self.api_base,
-            token=self.api_key,  # Will be None for local, which is fine
+            api_key=self.api_key,
         )
 
     def letta_normalize_prepend_messages(self, prepend_messages):
@@ -42,7 +41,7 @@ class LLMProvider(models.Model):
         """List available models from Letta"""
         client = self.letta_get_client()
         models_response = client.models.list()
-        embedding_models_response = client.models.listembeddingmodels()
+        embedding_models_response = client.models.embeddings.list()
 
         models = []
 
@@ -208,20 +207,19 @@ class LLMProvider(models.Model):
         server_name = mcp_config.name
 
         # Check if server already exists
-        servers = client.tools.list_mcp_servers()
+        servers = client.mcp_servers.list()
 
         # Check if our server is already registered
         server_exists = False
         for server in servers:
-            if isinstance(server, str):
-                if server == server_name:
+            # Server list returns dict with server_name as key
+            if isinstance(server, dict):
+                if server_name in server:
                     server_exists = True
                     break
-            else:
-                # Server object has server_name attribute
-                if hasattr(server, "server_name") and server.server_name == server_name:
-                    server_exists = True
-                    break
+            elif hasattr(server, "server_name") and server.server_name == server_name:
+                server_exists = True
+                break
 
         if server_exists:
             return True
@@ -230,10 +228,9 @@ class LLMProvider(models.Model):
         server_url = mcp_config.get_mcp_server_url()
 
         # Create the proper MCP server config using Letta client types
-        mcp_config = StreamableHttpServerConfig(
-            server_name=server_name,
+        config_param = CreateStreamableHTTPMcpServerParam(
             server_url=server_url,
-            type="streamable_http",
+            mcp_server_type="streamable_http",
             custom_headers={
                 # Letta will replace this template with API key from environment variables
                 "Authorization": "Bearer {{ ODOO_API_KEY | system-api-key }}",
@@ -241,7 +238,7 @@ class LLMProvider(models.Model):
         )
 
         # Register the MCP server using the correct API
-        client.tools.add_mcp_server(request=mcp_config)
+        client.mcp_servers.create(config=config_param, server_name=server_name)
         return True
 
     def letta_attach_tool(self, agent_id, tool_name):
@@ -256,45 +253,40 @@ class LLMProvider(models.Model):
         mcp_config = mcp_config_model.get_active_config()
         server_name = mcp_config.name
 
-        # Get available MCP tools to verify tool exists
-        mcp_tools = client.tools.list_mcp_tools_by_server(mcp_server_name=server_name)
-
-        # Check if tool exists in MCP server
-        tool_exists = False
-        for tool in mcp_tools:
-            if tool.name == tool_name:
-                tool_exists = True
+        # Get MCP server ID from server name
+        servers = client.mcp_servers.list()
+        mcp_server_id = None
+        for server in servers:
+            if hasattr(server, "server_name") and server.server_name == server_name:
+                mcp_server_id = server.id
                 break
 
-        if not tool_exists:
+        if not mcp_server_id:
             raise UserError(
-                _(
-                    "The tool '%s' is not available. Please contact your administrator to configure it."
-                )
-                % tool_name
+                _("MCP server '%s' not found. Please ensure it is properly configured.")
+                % server_name
             )
 
-        # Register the tool with Letta from the MCP server using correct API
-        client.tools.add_mcp_tool(mcp_server_name=server_name, mcp_tool_name=tool_name)
-
-        # Get the registered tool ID
-        registered_tools = client.tools.list()
+        # In the new SDK, MCP tools are auto-synced to the global tools registry
+        # We don't need to check the MCP server endpoint as it's just a view
+        # Instead, we look directly in the global tools list
+        all_tools = client.tools.list()
         tool_id = None
-        for tool in registered_tools:
-            if tool.name == tool_name:
+        for tool in all_tools:
+            if hasattr(tool, "name") and tool.name == tool_name:
                 tool_id = tool.id
                 break
 
         if not tool_id:
             raise UserError(
                 _(
-                    "The tool '%s' could not be activated. Please try again or contact your administrator."
+                    "The tool '%s' could not be found in the tools registry. Please try refreshing the MCP server."
                 )
                 % tool_name
             )
 
-        # Attach tool to agent
-        attach_response = client.agents.tools.attach(agent_id, tool_id)
+        # Attach tool to agent (tool_id is positional, agent_id is keyword-only)
+        attach_response = client.agents.tools.attach(tool_id, agent_id=agent_id)
         return attach_response
 
     def letta_detach_tool(self, agent_id, tool_name):
@@ -323,8 +315,10 @@ class LLMProvider(models.Model):
                 % tool_name
             )
 
-        # Detach tool from agent
-        detach_response = client.agents.tools.detach(agent_id, tool_to_detach.id)
+        # Detach tool from agent (tool_id is positional, agent_id is keyword-only)
+        detach_response = client.agents.tools.detach(
+            tool_to_detach.id, agent_id=agent_id
+        )
         return detach_response
 
     def letta_sync_agent_tools(self, agent_id, tool_records):
@@ -389,10 +383,10 @@ class LLMProvider(models.Model):
     def _letta_stream_agent_response(self, client, agent_id, user_content):
         """Stream response from Letta agent."""
 
-        stream = client.agents.messages.create_stream(
+        stream = client.agents.messages.create(
             agent_id=agent_id,
-            messages=[MessageCreate(role="user", content=user_content)],
-            stream_tokens=True,
+            messages=[MessageCreateParam(role="user", content=user_content)],
+            streaming=True,
         )
 
         response_content = ""
@@ -417,10 +411,10 @@ class LLMProvider(models.Model):
         # For non-streaming, we'll collect the full response
         response_content = ""
 
-        stream = client.agents.messages.create_stream(
+        stream = client.agents.messages.create(
             agent_id=agent_id,
-            messages=[MessageCreate(role="user", content=user_content)],
-            stream_tokens=False,  # Even non-streaming uses the stream API
+            messages=[MessageCreateParam(role="user", content=user_content)],
+            streaming=False,
         )
 
         for chunk in stream:
