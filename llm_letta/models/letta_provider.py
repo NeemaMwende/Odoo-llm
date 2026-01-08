@@ -269,27 +269,9 @@ class LLMProvider(models.Model):
                 % server_name
             )
 
-        # Get available MCP tools from the server
-        mcp_tools_response = client.mcp_servers.tools.list(mcp_server_id)
-        mcp_tools = mcp_tools_response if isinstance(mcp_tools_response, list) else getattr(mcp_tools_response, 'tools', [])
-
-        # Check if tool exists in MCP server
-        tool_exists = False
-        for tool in mcp_tools:
-            if hasattr(tool, 'name') and tool.name == tool_name:
-                tool_exists = True
-                break
-
-        if not tool_exists:
-            raise UserError(
-                _(
-                    "The tool '%s' is not available in MCP server '%s'. Please contact your administrator."
-                )
-                % (tool_name, server_name)
-            )
-
-        # In the new SDK, tools are auto-discovered from MCP servers
-        # We need to find the tool in the global tools list
+        # In the new SDK, MCP tools are auto-synced to the global tools registry
+        # We don't need to check the MCP server endpoint as it's just a view
+        # Instead, we look directly in the global tools list
         all_tools = client.tools.list()
         tool_id = None
         for tool in all_tools:
@@ -305,8 +287,8 @@ class LLMProvider(models.Model):
                 % tool_name
             )
 
-        # Attach tool to agent
-        attach_response = client.agents.tools.attach(agent_id, tool_id)
+        # Attach tool to agent (tool_id is positional, agent_id is keyword-only)
+        attach_response = client.agents.tools.attach(tool_id, agent_id=agent_id)
         return attach_response
 
     def letta_detach_tool(self, agent_id, tool_name):
@@ -335,8 +317,8 @@ class LLMProvider(models.Model):
                 % tool_name
             )
 
-        # Detach tool from agent
-        detach_response = client.agents.tools.detach(agent_id, tool_to_detach.id)
+        # Detach tool from agent (tool_id is positional, agent_id is keyword-only)
+        detach_response = client.agents.tools.detach(tool_to_detach.id, agent_id=agent_id)
         return detach_response
 
     def letta_sync_agent_tools(self, agent_id, tool_records):
