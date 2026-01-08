@@ -4,6 +4,7 @@ import { _t } from "@web/core/l10n/translation";
 import { Composer } from "@mail/core/common/composer";
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
+import { useState } from "@odoo/owl";
 
 /**
  * Patch Composer to handle LLM threads
@@ -14,9 +15,9 @@ patch(Composer.prototype, {
   setup() {
     super.setup();
 
-    // Initialize LLM store in setup - safe to access services here
+    // Initialize LLM store in setup - wrap with useState for reactivity (like Odoo does)
     try {
-      this.llmStore = useService("llm.store");
+      this.llmStore = useState(useService("llm.store"));
     } catch (error) {
       // LLM service might not be available, that's ok
       console.warn("LLM store service not available:", error.message);
@@ -41,6 +42,14 @@ patch(Composer.prototype, {
       return false;
     }
     return this.llmStore.getStreamingStatus() || false;
+  },
+
+  get showStop(){
+    if (this.isLLMThread) {
+      return this.isStreaming
+    }
+
+    return false
   },
 
   /**

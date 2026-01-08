@@ -67,6 +67,7 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_tool_message/llm_tool_message.scss",
             # Patches - Safe extensions of mail components with conditional LLM logic
             "llm_thread/static/src/patches/composer_patch.js",
+            "llm_thread/static/src/patches/composer_patch.xml",
             "llm_thread/static/src/patches/thread_patch.js",
             "llm_thread/static/src/patches/thread_model_patch.js",
             "llm_thread/static/src/patches/chatter_patch.js",
