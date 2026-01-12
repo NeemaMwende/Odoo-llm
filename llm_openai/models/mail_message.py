@@ -16,27 +16,55 @@ class MailMessage(models.Model):
             body = tools.html2plaintext(body)
 
         if self.is_llm_user_message()[self]:
-            if is_multimodal:
-                images = self._get_image_attachments()
-                if images:
-                    content = []
-                    if body:
-                        content.append({"type": "text", "text": body})
-                    for img in images:
-                        content.append(
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:{img['mimetype']};base64,{img['data']}",
-                                },
-                            },
-                        )
-                    return {"role": "user", "content": content}
+            images = self._get_image_attachments()
+            pdfs = self._get_pdf_attachments()
+            texts = self._get_text_attachments()
 
-            formatted_message = {"role": "user"}
-            if body:
-                formatted_message["content"] = body
-            return formatted_message
+            has_attachments = images or pdfs or texts
+
+            if has_attachments:
+                content = []
+
+                text_parts = []
+                if body and body.strip():
+                    text_parts.append(body.strip())
+
+                for txt in texts:
+                    text_parts.append(f"--- {txt['name']} ---\n{txt['content']}")
+
+                if text_parts:
+                    content.append({"type": "text", "text": "\n\n".join(text_parts)})
+                elif images or pdfs:
+                    content.append(
+                        {"type": "text", "text": "Please analyze these files."},
+                    )
+
+                for img in images:
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{img['mimetype']};base64,{img['data']}",
+                            },
+                        },
+                    )
+
+                for pdf in pdfs:
+                    content.append(
+                        {
+                            "type": "file",
+                            "file": {
+                                "filename": pdf["name"],
+                                "file_data": f"data:{pdf['mimetype']};base64,{pdf['data']}",
+                            },
+                        },
+                    )
+
+                return {"role": "user", "content": content}
+
+            if not body or not body.strip():
+                return None
+            return {"role": "user", "content": body}
 
         if self.is_llm_assistant_message()[self]:
             formatted_message = {"role": "assistant"}

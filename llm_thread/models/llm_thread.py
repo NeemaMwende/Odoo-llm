@@ -43,23 +43,25 @@ class RelatedRecordProxy:
                 # Handle different field types
                 if value is None:
                     return default
-                elif isinstance(value, bool):
+                if isinstance(value, bool):
                     return value  # Keep as boolean for Jinja
-                elif hasattr(value, "name"):  # Many2one field
+                if hasattr(value, "name"):  # Many2one field
                     return value.name
-                elif hasattr(value, "mapped"):  # Many2many/One2many field
+                if hasattr(value, "mapped"):  # Many2many/One2many field
                     return value.mapped("name")
-                else:
-                    return value
-            else:
-                _logger.debug(
-                    "Field '%s' not found on record %s", field_name, self._record
-                )
-                return default
+                return value
+            _logger.debug(
+                "Field '%s' not found on record %s",
+                field_name,
+                self._record,
+            )
+            return default
 
         except Exception as e:
             _logger.error(
-                "Error getting field '%s' from record: %s", field_name, str(e)
+                "Error getting field '%s' from record: %s",
+                field_name,
+                e,
             )
             return default
 
@@ -81,9 +83,11 @@ class RelatedRecordProxy:
                 "model": self._record._name,
                 "id": self._record.id,
                 "display_name": getattr(
-                    self._record, "display_name", str(self._record)
+                    self._record,
+                    "display_name",
+                    str(self._record),
                 ),
-            }
+            },
         )
 
     def __repr__(self):
@@ -125,7 +129,8 @@ class LLMThread(models.Model):
 
     # Updated fields for related record reference
     model = fields.Char(
-        string="Related Document Model", help="Technical name of the related model"
+        string="Related Document Model",
+        help="Technical name of the related model",
     )
     res_id = fields.Many2oneReference(
         string="Related Document ID",
@@ -209,7 +214,12 @@ class LLMThread(models.Model):
 
     @api.returns("mail.message", lambda value: value.id)
     def message_post(
-        self, *, llm_role=None, message_type="comment", body_json=None, **kwargs
+        self,
+        *,
+        llm_role=None,
+        message_type="comment",
+        body_json=None,
+        **kwargs,
     ):
         """Override to handle LLM-specific message types and metadata.
 
@@ -230,7 +240,9 @@ class LLMThread(models.Model):
         # Handle LLM-specific subtypes and email_from generation
         if not kwargs.get("author_id") and not kwargs.get("email_from"):
             kwargs["email_from"] = self._get_llm_email_from(
-                kwargs.get("subtype_xmlid"), kwargs.get("author_id"), llm_role
+                kwargs.get("subtype_xmlid"),
+                kwargs.get("author_id"),
+                llm_role,
             )
 
         # Convert markdown to HTML if needed (only for assistant messages)
@@ -257,7 +269,7 @@ class LLMThread(models.Model):
 
         if subtype_xmlid == "llm.mt_tool" or llm_role == "tool":
             return f"Tool <tool@{provider_name.lower().replace(' ', '')}.ai>"
-        elif subtype_xmlid == "llm.mt_assistant" or llm_role == "assistant":
+        if subtype_xmlid == "llm.mt_assistant" or llm_role == "assistant":
             return f"{model_name} <ai@{provider_name.lower().replace(' ', '')}.ai>"
 
         return None
@@ -273,7 +285,11 @@ class LLMThread(models.Model):
     # ============================================================================
 
     def message_post_from_stream(
-        self, stream, llm_role, placeholder_text="…", **kwargs
+        self,
+        stream,
+        llm_role,
+        placeholder_text="…",
+        **kwargs,
     ):
         """Create and update a message from a streaming response.
 
@@ -292,7 +308,10 @@ class LLMThread(models.Model):
             # Initialize message on first content
             if message is None and chunk.get("content"):
                 message = self.message_post(
-                    body=placeholder_text, llm_role=llm_role, author_id=False, **kwargs
+                    body=placeholder_text,
+                    llm_role=llm_role,
+                    author_id=False,
+                    **kwargs,
                 )
                 yield {"type": "message_create", "message": message.to_store_format()}
 
@@ -318,38 +337,39 @@ class LLMThread(models.Model):
     # GENERATION FLOW - Refactored to use message_post with roles
     # ============================================================================
 
-    def generate(self, user_message_body=None, **kwargs):
+    def generate(self, user_message_body=None, attachment_ids=None, **kwargs):
         """Main generation method with PostgreSQL advisory locking.
 
         Args:
             user_message_body: Optional message body. If not provided, will use
                               the latest message in the thread to start generation.
+            attachment_ids: Optional list of ir.attachment IDs to attach to user message.
         """
         self.ensure_one()
 
         with self._generation_lock():
             last_message = False
-            # Post user message if provided
-            if user_message_body:
-                last_message = self.message_post(
-                    body=user_message_body,
-                    llm_role="user",
-                    author_id=self.env.user.partner_id.id,
-                    **kwargs,
-                )
+            if user_message_body or attachment_ids:
+                post_kwargs = {
+                    "body": user_message_body or "",
+                    "llm_role": "user",
+                    "author_id": self.env.user.partner_id.id,
+                }
+                if attachment_ids:
+                    post_kwargs["attachment_ids"] = attachment_ids
+                last_message = self.message_post(**post_kwargs)
                 yield {
                     "type": "message_create",
                     "message": last_message.to_store_format(),
                 }
 
-            # Call the actual generation implementation
             last_message = yield from self.generate_messages(last_message)
             return last_message
 
     def generate_messages(self, last_message=None):
         """Generate messages - to be overridden by llm_assistant module."""
         raise UserError(
-            _("Please install the llm_assistant module for actual AI generation.")
+            _("Please install the llm_assistant module for actual AI generation."),
         )
 
     def get_context(self, base_context=None):
@@ -373,7 +393,10 @@ class LLMThread(models.Model):
                 context["related_res_id"] = None
         except Exception as e:
             _logger.warning(
-                "Error accessing related record %s,%s: %s", self.model, self.res_id, e
+                "Error accessing related record %s,%s: %s",
+                self.model,
+                self.res_id,
+                e,
             )
 
         return context
@@ -395,8 +418,8 @@ class LLMThread(models.Model):
                 raise UserError(
                     _(
                         "This conversation is currently generating a response. "
-                        "Please wait for it to complete before sending another message."
-                    )
+                        "Please wait for it to complete before sending another message.",
+                    ),
                 )
 
             _logger.info(f"Acquired advisory lock for thread {self.id}")
@@ -408,17 +431,19 @@ class LLMThread(models.Model):
             raise UserError(
                 _(
                     "Unable to process your request due to a system conflict. "
-                    "Please wait a moment and try again."
-                )
+                    "Please wait a moment and try again.",
+                ),
             ) from e
         except Exception as e:
             _logger.error(
-                "Unexpected error acquiring lock for thread %s: %s", self.id, e
+                "Unexpected error acquiring lock for thread %s: %s",
+                self.id,
+                e,
             )
             raise UserError(
                 _(
-                    "Your request could not be processed. Please refresh the page and try again."
-                )
+                    "Your request could not be processed. Please refresh the page and try again.",
+                ),
             ) from e
 
     def _release_thread_lock(self):
@@ -517,5 +542,7 @@ class LLMThread(models.Model):
     def _unlink_llm_thread(self):
         unlink_ids = [record.id for record in self]
         self.env["bus.bus"]._sendone(
-            self.env.user.partner_id, "llm.thread/delete", {"ids": unlink_ids}
+            self.env.user.partner_id,
+            "llm.thread/delete",
+            {"ids": unlink_ids},
         )

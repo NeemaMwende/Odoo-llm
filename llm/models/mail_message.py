@@ -1,11 +1,35 @@
+import base64
+import logging
+
 from odoo import api, fields, models, tools
 
-SUPPORTED_IMAGE_MIMETYPES = (
+_logger = logging.getLogger(__name__)
+
+IMAGE_MIMETYPES = (
     "image/jpeg",
     "image/png",
     "image/gif",
     "image/webp",
 )
+
+PDF_MIMETYPES = ("application/pdf",)
+
+TEXT_MIMETYPES = (
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "text/html",
+    "text/css",
+    "text/javascript",
+    "text/xml",
+    "text/x-python",
+    "application/json",
+    "application/xml",
+    "application/javascript",
+    "application/x-python-code",
+)
+
+SUPPORTED_IMAGE_MIMETYPES = IMAGE_MIMETYPES
 
 
 class MailMessage(models.Model):
@@ -131,3 +155,42 @@ class MailMessage(models.Model):
                         },
                     )
         return images
+
+    def _get_pdf_attachments(self):
+        self.ensure_one()
+        pdfs = []
+        for att in self.attachment_ids:
+            if att.mimetype and att.mimetype in PDF_MIMETYPES:
+                if att.datas:
+                    pdfs.append(
+                        {
+                            "mimetype": att.mimetype,
+                            "data": att.datas.decode("utf-8"),
+                            "name": att.name or "document.pdf",
+                        },
+                    )
+        return pdfs
+
+    def _get_text_attachments(self):
+        self.ensure_one()
+        texts = []
+        for att in self.attachment_ids:
+            if att.mimetype and att.mimetype in TEXT_MIMETYPES:
+                if att.datas:
+                    try:
+                        raw_data = base64.b64decode(att.datas)
+                        content = raw_data.decode("utf-8")
+                        texts.append(
+                            {
+                                "mimetype": att.mimetype,
+                                "content": content,
+                                "name": att.name or "file.txt",
+                            },
+                        )
+                    except (UnicodeDecodeError, ValueError) as e:
+                        _logger.warning(
+                            "Failed to decode text attachment %s: %s",
+                            att.name,
+                            e,
+                        )
+        return texts
