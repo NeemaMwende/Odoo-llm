@@ -1,9 +1,14 @@
 from odoo import api, fields, models, tools
 
+SUPPORTED_IMAGE_MIMETYPES = (
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+)
+
 
 class MailMessage(models.Model):
-    """Extension of mail.message to handle LLM-specific message subtypes."""
-
     _inherit = "mail.message"
 
     LLM_XMLIDS = (
@@ -51,7 +56,8 @@ class MailMessage(models.Model):
 
         for xmlid in self.LLM_XMLIDS:
             subtype_id = self.env["ir.model.data"]._xmlid_to_res_id(
-                xmlid, raise_if_not_found=False
+                xmlid,
+                raise_if_not_found=False,
             )
             if subtype_id:
                 # Extract clean role name (e.g., 'user' from 'llm.mt_user')
@@ -110,3 +116,18 @@ class MailMessage(models.Model):
         result = store.get_result()
 
         return result["mail.message"][0]
+
+    def _get_image_attachments(self):
+        self.ensure_one()
+        images = []
+        for att in self.attachment_ids:
+            if att.mimetype and att.mimetype in SUPPORTED_IMAGE_MIMETYPES:
+                if att.datas:
+                    images.append(
+                        {
+                            "mimetype": att.mimetype,
+                            "data": att.datas.decode("utf-8"),
+                            "name": att.name or "image",
+                        },
+                    )
+        return images

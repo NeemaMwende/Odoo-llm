@@ -76,13 +76,13 @@ class LLMProvider(models.Model):
                 return self._create_openai_tool_from_schema(schema, tool)
 
             _logger.warning(
-                f"Could not get schema for tool {tool.name}, using fallback"
+                f"Could not get schema for tool {tool.name}, using fallback",
             )
             schema = {"type": "object", "properties": {}, "required": []}
             return self._create_openai_tool_from_schema(schema, tool)
 
         except Exception as e:
-            _logger.error(f"Error formatting tool {tool.name}: {str(e)}", exc_info=True)
+            _logger.error(f"Error formatting tool {tool.name}: {e!s}", exc_info=True)
             schema = {
                 "title": tool.name,
                 "description": tool.description,
@@ -123,7 +123,7 @@ class LLMProvider(models.Model):
         """
         if not schema:
             _logger.warning(
-                f"Could not generate schema for tool {tool.name}, skipping."
+                f"Could not generate schema for tool {tool.name}, skipping.",
             )
             return None
 
@@ -171,8 +171,7 @@ class LLMProvider(models.Model):
         """
         model = self.get_model(model, "chat")
 
-        # Format mail.message records for OpenAI
-        formatted_messages = self.format_messages(messages)
+        formatted_messages = self.format_messages(messages, model=model)
 
         # Prepend messages (system prompts, etc.) if provided
         if prepend_messages:
@@ -199,8 +198,7 @@ class LLMProvider(models.Model):
         # Process the response based on streaming mode
         if not stream:
             return self._openai_process_non_streaming_response(response)
-        else:
-            return self._openai_process_streaming_response(response)
+        return self._openai_process_streaming_response(response)
 
     def _openai_process_non_streaming_response(self, response):
         """Processes OpenAI non-streamed response and returns ONE standardized dict."""
@@ -228,11 +226,10 @@ class LLMProvider(models.Model):
 
             if "content" in result or "tool_calls" in result:
                 return result
-            else:
-                _logger.warning(
-                    "OpenAI non-streaming response had no content or tool calls."
-                )
-                return {}  # Return empty dict if nothing to process
+            _logger.warning(
+                "OpenAI non-streaming response had no content or tool calls.",
+            )
+            return {}  # Return empty dict if nothing to process
 
         except (AttributeError, IndexError, Exception) as e:
             _logger.exception("Error processing OpenAI non-streaming response")
@@ -269,7 +266,9 @@ class LLMProvider(models.Model):
                     for tool_call_chunk in delta.tool_calls:
                         index = tool_call_chunk.index or call_counter
                         assembled_tool_calls = self._update_openai_tool_call_chunk(
-                            assembled_tool_calls, tool_call_chunk, index
+                            assembled_tool_calls,
+                            tool_call_chunk,
+                            index,
                         )
                         call_counter += 1
             if stream_has_tools:
@@ -279,36 +278,37 @@ class LLMProvider(models.Model):
                     for index, call_data in sorted(assembled_tool_calls.items()):
                         if call_data.get("_complete"):
                             tool_call_id = call_data.get("id").strip() or str(
-                                uuid.uuid4()
+                                uuid.uuid4(),
                             )
                             final_tool_calls_list.append(
                                 {
                                     # Generate a UUID for id if it's empty, google apis don't give tool call id for example
                                     "id": tool_call_id,
                                     "type": call_data.get(
-                                        "type", "function"
+                                        "type",
+                                        "function",
                                     ),  # Default type
                                     "function": {
                                         "name": call_data["function"]["name"],
                                         "arguments": call_data["function"]["arguments"],
                                     },
-                                }
+                                },
                             )
                         else:
                             yield {
-                                "error": f"Received incomplete tool call data from provider for tool index {index}."
+                                "error": f"Received incomplete tool call data from provider for tool index {index}.",
                             }
 
                     if final_tool_calls_list:
                         yield {"tool_calls": final_tool_calls_list}
                     elif assembled_tool_calls:
                         _logger.warning(
-                            "Stream indicated tool calls, but none were successfully assembled."
+                            "Stream indicated tool calls, but none were successfully assembled.",
                         )
 
                 elif finish_reason != "error":
                     _logger.warning(
-                        f"OpenAI stream had tool chunks but finished with reason '{finish_reason}'. Not yielding tool calls."
+                        f"OpenAI stream had tool chunks but finished with reason '{finish_reason}'. Not yielding tool calls.",
                     )
 
         except Exception as e:
@@ -343,7 +343,8 @@ class LLMProvider(models.Model):
 
         # Use the common helper to determine completeness for OpenAI
         current_call["_complete"] = self._is_tool_call_complete(
-            current_call["function"], expected_endings=("]", "}")
+            current_call["function"],
+            expected_endings=("]", "}"),
         )
 
         return tool_call_chunks
@@ -365,11 +366,24 @@ class LLMProvider(models.Model):
             for model in models.data:
                 yield self._openai_parse_model(model)
 
+    # OpenAI API doesn't expose capabilities - use pattern matching
+    OPENAI_VISION_PATTERNS = (
+        "gpt-4o",
+        "gpt-4-turbo",
+        "gpt-4.1",
+        "gpt-4-vision",
+        "gpt-5",
+        "o1",
+        "o3",
+    )
+
     def _openai_parse_model(self, model):
-        capabilities = ["chat"]  # default
-        if "text-embedding" in model.id:
+        capabilities = ["chat"]
+        model_id_lower = model.id.lower()
+
+        if "text-embedding" in model_id_lower or "embedding" in model_id_lower:
             capabilities = ["embedding"]
-        elif "gpt-4-vision" in model.id:
+        elif any(p in model_id_lower for p in self.OPENAI_VISION_PATTERNS):
             capabilities = ["chat", "multimodal"]
 
         return {
@@ -399,34 +413,38 @@ class LLMProvider(models.Model):
         verbose_logging = False
 
         validator = OpenAIMessageValidator(
-            messages, logger=_logger, verbose_logging=verbose_logging
+            messages,
+            logger=_logger,
+            verbose_logging=verbose_logging,
         )
         return validator.validate_and_clean()
 
-    def openai_format_messages(self, messages, system_prompt=None):
+    def openai_format_messages(self, messages, system_prompt=None, model=None):
         """Format messages for OpenAI API
 
         Args:
             messages: mail.message recordset to format
             system_prompt: Optional system prompt (deprecated, use prepend_messages)
+            model: llm.model record (to determine if multimodal)
 
         Returns:
             List of formatted messages in OpenAI-compatible format
         """
-        # Format the messages
+        is_multimodal = model and model.model_use == "multimodal"
         formatted_messages = []
 
-        # Add system prompt if provided (for backward compatibility)
         if system_prompt:
             formatted_messages.append({"role": "system", "content": system_prompt})
 
-        # Format the rest of the messages
         for message in messages:
-            formatted_message = self._dispatch("format_message", record=message)
+            formatted_message = self._dispatch(
+                "format_message",
+                record=message,
+                is_multimodal=is_multimodal,
+            )
             if formatted_message:
                 formatted_messages.append(formatted_message)
 
-        # Then validate and clean the messages for OpenAI
         result_messages = self._validate_and_clean_messages(formatted_messages)
 
         return result_messages
@@ -437,7 +455,10 @@ class LLMProvider(models.Model):
         return response
 
     def openai_create_training_job(
-        self, training_file_id, model_name, hyperparameters=None
+        self,
+        training_file_id,
+        model_name,
+        hyperparameters=None,
     ):
         """Create an OpenAI fine-tuning job."""
         self.ensure_one()
@@ -454,7 +475,7 @@ class LLMProvider(models.Model):
             hyperparameters=hyperparams_cleaned if hyperparams_cleaned else None,
         )
         _logger.info(
-            f"Fine-tuning job created successfully for provider '{self.name}'. Job ID: {response.id}"
+            f"Fine-tuning job created successfully for provider '{self.name}'. Job ID: {response.id}",
         )
         return response
 
@@ -474,14 +495,14 @@ class LLMProvider(models.Model):
         """Validate datasets for training"""
         if not job.dataset_ids:
             raise UserError(
-                f"Job '{job.name}': Please select at least one dataset before validating."
+                f"Job '{job.name}': Please select at least one dataset before validating.",
             )
 
         for dataset in job.dataset_ids:
             result = dataset.validate_dataset()
             if not result["valid"]:
                 raise UserError(
-                    f"Validation failed for job '{job.name}':\nDataset '{dataset.name}': {result['message']}"
+                    f"Validation failed for job '{job.name}':\nDataset '{dataset.name}': {result['message']}",
                 )
 
         return True
@@ -497,7 +518,7 @@ class LLMProvider(models.Model):
 
         if not final_combined_bytes:
             raise UserError(
-                f"Job '{job.name}': Combined content from all datasets is empty after processing."
+                f"Job '{job.name}': Combined content from all datasets is empty after processing.",
             )
 
         # Create a filename for the upload (e.g., based on job name or dataset name)
@@ -507,7 +528,8 @@ class LLMProvider(models.Model):
         file_tuple = (upload_filename, file_obj)
 
         file_upload_response = job.provider_id.upload_file(
-            file_tuple, purpose="fine-tune"
+            file_tuple,
+            purpose="fine-tune",
         )
         training_file_id = file_upload_response.id
 
@@ -536,19 +558,19 @@ class LLMProvider(models.Model):
                 dataset_names.append(dataset.name)
             else:
                 _logger.warning(
-                    f"Dataset '{dataset.name}' for job '{job.name}' resulted in empty content, skipping."
+                    f"Dataset '{dataset.name}' for job '{job.name}' resulted in empty content, skipping.",
                 )
 
         if not all_datasets_bytes:
             raise UserError(
-                f"Job '{job.name}': No valid content found in any linked dataset."
+                f"Job '{job.name}': No valid content found in any linked dataset.",
             )
 
         final_combined_bytes = b"".join(all_datasets_bytes)
 
         if not final_combined_bytes:
             raise UserError(
-                f"Job '{self.name}': Combined content from all datasets is empty after processing."
+                f"Job '{self.name}': Combined content from all datasets is empty after processing.",
             )
 
         return final_combined_bytes
@@ -561,7 +583,7 @@ class LLMProvider(models.Model):
         model_dump = response.model_dump()
         if response.status == "succeeded":
             models_data = job.provider_id.list_models(
-                model_id=response.fine_tuned_model
+                model_id=response.fine_tuned_model,
             )
             for model_data in models_data:
                 details = model_data.get("details", {})
