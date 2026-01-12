@@ -16,9 +16,23 @@ class MailMessage(models.Model):
             body = tools.html2plaintext(body)
 
         if self.is_llm_user_message()[self]:
-            images = self._get_image_attachments()
-            pdfs = self._get_pdf_attachments()
             texts = self._get_text_attachments()
+
+            # Only include images/PDFs if model supports multimodal
+            if is_multimodal:
+                images = self._get_image_attachments()
+                pdfs = self._get_pdf_attachments()
+            else:
+                images = []
+                pdfs = []
+                skipped_images = self._get_image_attachments()
+                skipped_pdfs = self._get_pdf_attachments()
+                if skipped_images or skipped_pdfs:
+                    _logger.debug(
+                        "Skipping %d images and %d PDFs for non-multimodal model",
+                        len(skipped_images),
+                        len(skipped_pdfs),
+                    )
 
             has_attachments = images or pdfs or texts
 
