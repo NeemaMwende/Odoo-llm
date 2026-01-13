@@ -225,7 +225,9 @@ class AccountInvoiceImportOCR(models.AbstractModel):
                 json_str = json_match.group(0)
             else:
                 raise UserError(
-                    _("No JSON found in LLM response. The model may have returned an unexpected format.")
+                    _(
+                        "No JSON found in LLM response. The model may have returned an unexpected format."
+                    )
                 )
 
         try:
