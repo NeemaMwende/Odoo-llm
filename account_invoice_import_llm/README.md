@@ -24,10 +24,10 @@ AI-powered invoice data extraction with OCR for Odoo 18 - integrates with OCA's 
    odoo-bin -d your_database -i account_invoice_import_llm
    ```
 
-3. Configure Mistral provider in **Settings → LLM → Providers** (for OCR)
+3. Configure Mistral provider in **LLM → Configuration → Providers** (for OCR)
 
 4. Configure the Invoice Extraction Assistant:
-   - Go to **Settings → LLM → Assistants**
+   - Go to **LLM → Configuration → Assistants**
    - Open **"Invoice Data Extraction (Automatic)"**
    - Select a **Provider** (e.g., OpenAI, Anthropic, Google)
    - Select a **Model** (e.g., gpt-4o, claude-3-sonnet, gemini-pro)
@@ -255,7 +255,7 @@ Handles module rename from `llm_assistant_account_invoice` → `account_invoice_
 
 ### Invoice Extraction Assistant
 
-**Location**: Settings → LLM → Assistants → Invoice Data Extraction (Automatic)
+**Location**: LLM → Configuration → Assistants → Invoice Data Extraction (Automatic)
 
 The assistant is pre-configured with:
 
@@ -268,7 +268,7 @@ The assistant is pre-configured with:
 
 To customize extraction behavior:
 
-1. Go to **Settings → LLM → Prompts → Invoice Data Extraction (One-Shot)**
+1. Go to **LLM → Configuration → Prompts → Invoice Data Extraction (One-Shot)**
 2. Edit the `instructions` argument to add/remove fields
 3. Update the JSON structure in `default_values`
 4. Modify `_convert_llm_data_to_pivot()` if adding new fields
