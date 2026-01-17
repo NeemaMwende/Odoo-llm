@@ -70,6 +70,39 @@ odoo-bin -d your_db -i llm_assistant,llm_anthropic
 - Multimodal (vision) capabilities for supported models
 - Automatic model discovery
 
+## Multimodal Support
+
+Claude models support sending images and PDFs along with text messages.
+
+### How to Use
+
+1. Attach files (images, PDFs, text files) to your chat message
+2. The module automatically:
+    - Converts images to base64 for Claude's vision API
+    - Sends PDFs as document blocks
+    - Includes text file contents in the message
+
+### Supported Formats
+
+| Type   | Formats                           | Claude Format                         |
+| ------ | --------------------------------- | ------------------------------------- |
+| Images | JPEG, PNG, GIF, WebP              | `type: "image"` with base64 source    |
+| PDFs   | application/pdf                   | `type: "document"` with base64 source |
+| Text   | .txt, .md, .csv, .py, .json, etc. | Appended to message text              |
+
+### Example
+
+```python
+# Attach an image to the chat thread
+thread.message_post(
+    body="What's in this image?",
+    attachment_ids=[(4, image_attachment.id)]
+)
+# Claude will analyze the image and respond
+```
+
+**Note:** Non-multimodal models (like older Claude versions) will skip images/PDFs automatically.
+
 ## Configuration
 
 1. Install the module

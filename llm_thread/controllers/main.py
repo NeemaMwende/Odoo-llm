@@ -94,7 +94,7 @@ class LLMThreadController(http.Controller):
         headers = {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
         }
         parsed_attachment_ids = []
         if attachment_ids:

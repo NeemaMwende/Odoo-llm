@@ -1,3 +1,11 @@
+18.0.1.7.0 (2026-01-17)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] Multimodal file support for images, PDFs, and text files
+* [ADD] New _get_attachments_by_type() method for DRY attachment handling
+* [ADD] New _prepare_multimodal_attachments() method for provider-agnostic attachment preparation
+* [IMP] Refactored attachment methods to use generic base implementation
+
 18.0.1.6.0 (2026-01-07)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

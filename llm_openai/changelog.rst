@@ -1,3 +1,10 @@
+18.0.1.4.0 (2026-01-17)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] Multimodal file support for images, PDFs, and text files
+* [IMP] Refactored to use base module's _prepare_multimodal_attachments() method
+* [IMP] Removed duplicate attachment handling code
+
 18.0.1.3.0 (2026-01-07)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

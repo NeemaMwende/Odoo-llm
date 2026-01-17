@@ -12,6 +12,15 @@ IMAGE_MIMETYPES = (
     "image/webp",
 )
 
+# Magic bytes for image type detection
+IMAGE_MAGIC_BYTES = {
+    b"\x89PNG\r\n\x1a\n": "image/png",
+    b"\xff\xd8\xff": "image/jpeg",
+    b"GIF87a": "image/gif",
+    b"GIF89a": "image/gif",
+    b"RIFF": "image/webp",  # RIFF....WEBP
+}
+
 PDF_MIMETYPES = ("application/pdf",)
 
 TEXT_MIMETYPES = (
@@ -30,6 +39,25 @@ TEXT_MIMETYPES = (
 )
 
 SUPPORTED_IMAGE_MIMETYPES = IMAGE_MIMETYPES
+
+
+def _detect_image_mimetype(raw_bytes):
+    """Detect the real image mimetype from magic bytes.
+
+    Args:
+        raw_bytes: The raw image bytes
+
+    Returns:
+        The detected mimetype or None if not recognized
+    """
+    for magic, mimetype in IMAGE_MAGIC_BYTES.items():
+        if raw_bytes.startswith(magic):
+            # Special check for WebP: must have WEBP after RIFF header
+            if magic == b"RIFF" and len(raw_bytes) >= 12:
+                if raw_bytes[8:12] != b"WEBP":
+                    continue
+            return mimetype
+    return None
 
 
 class MailMessage(models.Model):
@@ -142,18 +170,59 @@ class MailMessage(models.Model):
         return result["mail.message"][0]
 
     def _get_image_attachments(self):
+        """Get image attachments with validated mimetype from magic bytes.
+
+        Returns list of dicts with mimetype (validated), data (base64), and name.
+        The mimetype is detected from the actual image content, not from Odoo's
+        stored mimetype, to ensure compatibility with strict API validators
+        like Anthropic Claude.
+        """
         self.ensure_one()
         images = []
         for att in self.attachment_ids:
             if att.mimetype and att.mimetype in SUPPORTED_IMAGE_MIMETYPES:
                 if att.datas:
-                    images.append(
-                        {
-                            "mimetype": att.mimetype,
-                            "data": att.datas.decode("utf-8"),
-                            "name": att.name or "image",
-                        },
-                    )
+                    # Decode base64 to get raw bytes for magic byte detection
+                    try:
+                        raw_bytes = base64.b64decode(att.datas)
+                        real_mimetype = _detect_image_mimetype(raw_bytes)
+
+                        if real_mimetype:
+                            # Use detected mimetype instead of stored one
+                            if real_mimetype != att.mimetype:
+                                _logger.debug(
+                                    "Image %s: correcting mimetype from %s to %s",
+                                    att.name,
+                                    att.mimetype,
+                                    real_mimetype,
+                                )
+                            images.append(
+                                {
+                                    "mimetype": real_mimetype,
+                                    "data": att.datas.decode("utf-8"),
+                                    "name": att.name or "image",
+                                },
+                            )
+                        else:
+                            # Fallback to stored mimetype if detection fails
+                            _logger.warning(
+                                "Could not detect image type for %s, using stored mimetype %s",
+                                att.name,
+                                att.mimetype,
+                            )
+                            images.append(
+                                {
+                                    "mimetype": att.mimetype,
+                                    "data": att.datas.decode("utf-8"),
+                                    "name": att.name or "image",
+                                },
+                            )
+                    except (ValueError, TypeError) as e:
+                        _logger.warning(
+                            "Failed to process image attachment %s: %s",
+                            att.name,
+                            e,
+                        )
         return images
 
     def _get_pdf_attachments(self):

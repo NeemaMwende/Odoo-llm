@@ -1,3 +1,9 @@
+18.0.1.4.4 (2026-01-17)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] Multimodal file attachment support in chat interface
+* [FIX] Restored nginx buffering comment for SSE streaming documentation
+
 18.0.1.4.3 (2025-12-02)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

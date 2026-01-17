@@ -169,26 +169,26 @@ The new `llm_role` field provides dramatic performance improvements:
 
 1. **Set up AI Provider:**
 
-   ```
-   Navigate to: LLM → Configuration → Providers
-   Create new provider with API credentials
-   Click "Fetch Models" to import available models
-   ```
+    ```
+    Navigate to: LLM → Configuration → Providers
+    Create new provider with API credentials
+    Click "Fetch Models" to import available models
+    ```
 
 2. **Configure Models:**
 
-   ```
-   Go to: LLM → Configuration → Models
-   Set default models for chat, embedding, etc.
-   Configure model parameters and capabilities
-   ```
+    ```
+    Go to: LLM → Configuration → Models
+    Set default models for chat, embedding, etc.
+    Configure model parameters and capabilities
+    ```
 
 3. **Security Setup:**
-   ```
-   Assign users to LLM User or LLM Manager groups
-   Configure API key access permissions
-   Set up tool consent requirements
-   ```
+    ```
+    Assign users to LLM User or LLM Manager groups
+    Configure API key access permissions
+    Set up tool consent requirements
+    ```
 
 ## Technical Specifications
 
@@ -238,6 +238,33 @@ Enhanced with LLM-specific fields:
 - `body_json`: Structured data for tool messages
 - Computed role from message subtypes
 - AI-specific email handling
+
+### Multimodal Attachments
+
+The module supports sending file attachments to LLM providers via enhanced mail.message:
+
+#### Supported File Types
+
+| Category      | Mimetypes                                                           |
+| ------------- | ------------------------------------------------------------------- |
+| **Images**    | JPEG, PNG, GIF, WebP                                                |
+| **Documents** | PDF                                                                 |
+| **Text**      | Plain text, Markdown, CSV, HTML, CSS, JavaScript, XML, Python, JSON |
+
+#### API Methods
+
+```python
+# Get formatted attachments from a message
+images = message._get_image_attachments()  # Returns list of base64 images
+pdfs = message._get_pdf_attachments()      # Returns list of base64 PDFs
+texts = message._get_text_attachments()    # Returns decoded text content
+
+# Prepare all attachments for multimodal LLM call
+attachments = message._prepare_multimodal_attachments(is_multimodal=True)
+# Returns: {"images": [...], "pdfs": [...], "texts": [...], "has_attachments": bool}
+```
+
+Non-multimodal models automatically skip images/PDFs while still processing text files.
 
 ### Database Schema
 
@@ -303,28 +330,28 @@ thread.message_post(
 
 1. **Create Provider Module:**
 
-   ```python
-   class LLMProvider(models.Model):
-       _inherit = "llm.provider"
+    ```python
+    class LLMProvider(models.Model):
+        _inherit = "llm.provider"
 
-       @api.model
-       def _get_available_services(self):
-           return super()._get_available_services() + [
-               ('my_service', 'My AI Service')
-           ]
-   ```
+        @api.model
+        def _get_available_services(self):
+            return super()._get_available_services() + [
+                ('my_service', 'My AI Service')
+            ]
+    ```
 
 2. **Implement Service Methods:**
 
-   ```python
-   def my_service_chat(self, messages, model=None, **kwargs):
-       """Service-specific chat implementation"""
-       # Implementation details
+    ```python
+    def my_service_chat(self, messages, model=None, **kwargs):
+        """Service-specific chat implementation"""
+        # Implementation details
 
-   def my_service_embedding(self, text, model=None, **kwargs):
-       """Service-specific embedding implementation"""
-       # Implementation details
-   ```
+    def my_service_embedding(self, text, model=None, **kwargs):
+        """Service-specific embedding implementation"""
+        # Implementation details
+    ```
 
 ### Custom Message Handling
 
