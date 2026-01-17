@@ -32,14 +32,6 @@ class MailMessage(models.Model):
             else:
                 images = []
                 pdfs = []
-                skipped_images = self._get_image_attachments()
-                skipped_pdfs = self._get_pdf_attachments()
-                if skipped_images or skipped_pdfs:
-                    _logger.debug(
-                        "Skipping %d images and %d PDFs for non-multimodal model",
-                        len(skipped_images),
-                        len(skipped_pdfs),
-                    )
 
             has_attachments = images or pdfs or texts
 

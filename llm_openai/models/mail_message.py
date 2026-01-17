@@ -31,26 +31,12 @@ class MailMessage(models.Model):
             else:
                 images = []
                 pdfs = []
-                skipped_images = self._get_image_attachments()
-                skipped_pdfs = self._get_pdf_attachments()
-                if skipped_images or skipped_pdfs:
-                    _logger.debug(
-                        "Skipping %d images and %d PDFs for non-multimodal model",
-                        len(skipped_images),
-                        len(skipped_pdfs),
-                    )
 
             # Only include audio if model supports it
             if is_audio_model:
                 audios = self._get_audio_attachments()
             else:
                 audios = []
-                skipped_audios = self._get_audio_attachments()
-                if skipped_audios:
-                    _logger.debug(
-                        "Skipping %d audio files for non-audio model",
-                        len(skipped_audios),
-                    )
 
             has_attachments = images or pdfs or texts or audios
 

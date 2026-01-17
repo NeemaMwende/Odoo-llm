@@ -1,4 +1,14 @@
-18.0.1.4.4 (2026-01-17)
+18.0.1.4.5 (2026-01-17)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] Unsupported file detection with is_error message exclusion
+* [ADD] New _post_error_message() for displaying API errors in thread
+* [ADD] New _check_unsupported_attachments() for file compatibility validation
+* [ADD] is_error parameter to message_post() for error message tracking
+* [IMP] Error messages excluded from LLM context via is_error=False filter
+* [IMP] Skip markdown processing for pre-formatted Markup content
+
+18.0.1.4.4 (2026-01-16)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 * [ADD] Multimodal file attachment support in chat interface

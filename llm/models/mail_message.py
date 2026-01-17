@@ -238,6 +238,23 @@ class MailMessage(models.Model):
 
         return result["mail.message"][0]
 
+    def _get_attachments_by_mimetype(self, mimetypes):
+        """Get attachments filtered by mimetype.
+
+        Base method for DRY attachment extraction. Returns raw attachment records
+        filtered by the given mimetypes and having data.
+
+        Args:
+            mimetypes: Tuple of mimetype strings to filter by
+
+        Returns:
+            Filtered ir.attachment recordset
+        """
+        self.ensure_one()
+        return self.attachment_ids.filtered(
+            lambda att: att.mimetype and att.mimetype in mimetypes and att.datas,
+        )
+
     def _get_image_attachments(self):
         """Get image attachments with validated mimetype from magic bytes.
 
@@ -246,91 +263,75 @@ class MailMessage(models.Model):
         stored mimetype, to ensure compatibility with strict API validators
         like Anthropic Claude.
         """
-        self.ensure_one()
         images = []
-        for att in self.attachment_ids:
-            if att.mimetype and att.mimetype in SUPPORTED_IMAGE_MIMETYPES:
-                if att.datas:
-                    # Decode base64 to get raw bytes for magic byte detection
-                    try:
-                        raw_bytes = base64.b64decode(att.datas)
-                        real_mimetype = _detect_image_mimetype(raw_bytes)
+        for att in self._get_attachments_by_mimetype(SUPPORTED_IMAGE_MIMETYPES):
+            try:
+                raw_bytes = base64.b64decode(att.datas)
+                real_mimetype = _detect_image_mimetype(raw_bytes)
 
-                        if real_mimetype:
-                            # Use detected mimetype instead of stored one
-                            if real_mimetype != att.mimetype:
-                                _logger.debug(
-                                    "Image %s: correcting mimetype from %s to %s",
-                                    att.name,
-                                    att.mimetype,
-                                    real_mimetype,
-                                )
-                            images.append(
-                                {
-                                    "mimetype": real_mimetype,
-                                    "data": att.datas.decode("utf-8"),
-                                    "name": att.name or "image",
-                                },
-                            )
-                        else:
-                            # Fallback to stored mimetype if detection fails
-                            _logger.warning(
-                                "Could not detect image type for %s, using stored mimetype %s",
-                                att.name,
-                                att.mimetype,
-                            )
-                            images.append(
-                                {
-                                    "mimetype": att.mimetype,
-                                    "data": att.datas.decode("utf-8"),
-                                    "name": att.name or "image",
-                                },
-                            )
-                    except (ValueError, TypeError) as e:
-                        _logger.warning(
-                            "Failed to process image attachment %s: %s",
+                if real_mimetype:
+                    if real_mimetype != att.mimetype:
+                        _logger.debug(
+                            "Image %s: correcting mimetype from %s to %s",
                             att.name,
-                            e,
+                            att.mimetype,
+                            real_mimetype,
                         )
-        return images
-
-    def _get_pdf_attachments(self):
-        self.ensure_one()
-        pdfs = []
-        for att in self.attachment_ids:
-            if att.mimetype and att.mimetype in PDF_MIMETYPES:
-                if att.datas:
-                    pdfs.append(
+                    images.append(
+                        {
+                            "mimetype": real_mimetype,
+                            "data": att.datas.decode("utf-8"),
+                            "name": att.name or "image",
+                        },
+                    )
+                else:
+                    _logger.warning(
+                        "Could not detect image type for %s, using stored mimetype %s",
+                        att.name,
+                        att.mimetype,
+                    )
+                    images.append(
                         {
                             "mimetype": att.mimetype,
                             "data": att.datas.decode("utf-8"),
-                            "name": att.name or "document.pdf",
+                            "name": att.name or "image",
                         },
                     )
-        return pdfs
+            except (ValueError, TypeError) as e:
+                _logger.warning(
+                    "Failed to process image attachment %s: %s",
+                    att.name,
+                    e,
+                )
+        return images
+
+    def _get_pdf_attachments(self):
+        """Get PDF attachments as base64 data."""
+        return [
+            {
+                "mimetype": att.mimetype,
+                "data": att.datas.decode("utf-8"),
+                "name": att.name or "document.pdf",
+            }
+            for att in self._get_attachments_by_mimetype(PDF_MIMETYPES)
+        ]
 
     def _get_text_attachments(self):
-        self.ensure_one()
+        """Get text attachments with decoded content."""
         texts = []
-        for att in self.attachment_ids:
-            if att.mimetype and att.mimetype in TEXT_MIMETYPES:
-                if att.datas:
-                    try:
-                        raw_data = base64.b64decode(att.datas)
-                        content = raw_data.decode("utf-8")
-                        texts.append(
-                            {
-                                "mimetype": att.mimetype,
-                                "content": content,
-                                "name": att.name or "file.txt",
-                            },
-                        )
-                    except (UnicodeDecodeError, ValueError) as e:
-                        _logger.warning(
-                            "Failed to decode text attachment %s: %s",
-                            att.name,
-                            e,
-                        )
+        for att in self._get_attachments_by_mimetype(TEXT_MIMETYPES):
+            try:
+                raw_data = base64.b64decode(att.datas)
+                content = raw_data.decode("utf-8")
+                texts.append(
+                    {
+                        "mimetype": att.mimetype,
+                        "content": content,
+                        "name": att.name or "file.txt",
+                    },
+                )
+            except (UnicodeDecodeError, ValueError) as e:
+                _logger.warning("Failed to decode text attachment %s: %s", att.name, e)
         return texts
 
     def _get_audio_attachments(self):
@@ -339,33 +340,27 @@ class MailMessage(models.Model):
         Returns list of dicts with format (wav, mp3, etc.), data (base64), and name.
         Only for use with OpenAI gpt-4o-audio-preview models.
         """
-        self.ensure_one()
         audios = []
-        for att in self.attachment_ids:
-            if att.mimetype and att.mimetype in AUDIO_MIMETYPES:
-                if att.datas:
-                    try:
-                        raw_bytes = base64.b64decode(att.datas)
-                        audio_format = _detect_audio_format(raw_bytes)
-                        if audio_format:
-                            audios.append(
-                                {
-                                    "format": audio_format,
-                                    "data": att.datas.decode("utf-8"),
-                                    "name": att.name or "audio",
-                                },
-                            )
-                        else:
-                            _logger.warning(
-                                "Could not detect audio format for %s",
-                                att.name,
-                            )
-                    except (ValueError, TypeError) as e:
-                        _logger.warning(
-                            "Failed to process audio attachment %s: %s",
-                            att.name,
-                            e,
-                        )
+        for att in self._get_attachments_by_mimetype(AUDIO_MIMETYPES):
+            try:
+                raw_bytes = base64.b64decode(att.datas)
+                audio_format = _detect_audio_format(raw_bytes)
+                if audio_format:
+                    audios.append(
+                        {
+                            "format": audio_format,
+                            "data": att.datas.decode("utf-8"),
+                            "name": att.name or "audio",
+                        },
+                    )
+                else:
+                    _logger.warning("Could not detect audio format for %s", att.name)
+            except (ValueError, TypeError) as e:
+                _logger.warning(
+                    "Failed to process audio attachment %s: %s",
+                    att.name,
+                    e,
+                )
         return audios
 
     def _get_unsupported_attachments(
