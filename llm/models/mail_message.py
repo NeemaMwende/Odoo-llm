@@ -1,7 +1,7 @@
 import base64
 import logging
 
-from odoo import api, fields, models, tools
+from odoo import _, api, fields, models, tools
 
 _logger = logging.getLogger(__name__)
 
@@ -22,6 +22,40 @@ IMAGE_MAGIC_BYTES = {
 }
 
 PDF_MIMETYPES = ("application/pdf",)
+
+# Audio mimetypes - only supported by OpenAI gpt-4o-audio-preview models
+AUDIO_MIMETYPES = (
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/ogg",
+    "audio/flac",
+    "audio/webm",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/x-m4a",
+)
+
+# Video mimetypes - NOT supported by any LLM provider
+VIDEO_MIMETYPES = (
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "video/x-msvideo",
+    "video/x-matroska",
+    "video/ogg",
+)
+
+# Office document mimetypes - NOT supported via chat API
+OFFICE_MIMETYPES = (
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+)
 
 TEXT_MIMETYPES = (
     "text/plain",
@@ -60,6 +94,34 @@ def _detect_image_mimetype(raw_bytes):
     return None
 
 
+def _detect_audio_format(raw_bytes):
+    """Detect audio format from magic bytes for OpenAI API.
+
+    Args:
+        raw_bytes: The raw audio bytes
+
+    Returns:
+        The format string for OpenAI API (wav, mp3, flac, ogg) or None
+    """
+    # WAV: RIFF....WAVE
+    if raw_bytes[:4] == b"RIFF" and len(raw_bytes) >= 12:
+        if raw_bytes[8:12] == b"WAVE":
+            return "wav"
+    # MP3: ID3 tag or sync bytes
+    if raw_bytes[:3] == b"ID3" or raw_bytes[:2] == b"\xff\xfb":
+        return "mp3"
+    # FLAC
+    if raw_bytes[:4] == b"fLaC":
+        return "flac"
+    # OGG
+    if raw_bytes[:4] == b"OggS":
+        return "ogg"
+    # M4A/MP4 audio
+    if raw_bytes[4:8] == b"ftyp":
+        return "mp4"
+    return None
+
+
 class MailMessage(models.Model):
     _inherit = "mail.message"
 
@@ -76,6 +138,13 @@ class MailMessage(models.Model):
         store=True,
         index=True,  # Add index for better query performance
         help="The LLM role for this message (user, assistant, tool, system)",
+    )
+
+    is_error = fields.Boolean(
+        string="Is Error Message",
+        default=False,
+        index=True,
+        help="Error messages are shown to users but excluded from LLM context",
     )
 
     body_json = fields.Json(
@@ -263,3 +332,115 @@ class MailMessage(models.Model):
                             e,
                         )
         return texts
+
+    def _get_audio_attachments(self):
+        """Get audio attachments with detected format for OpenAI API.
+
+        Returns list of dicts with format (wav, mp3, etc.), data (base64), and name.
+        Only for use with OpenAI gpt-4o-audio-preview models.
+        """
+        self.ensure_one()
+        audios = []
+        for att in self.attachment_ids:
+            if att.mimetype and att.mimetype in AUDIO_MIMETYPES:
+                if att.datas:
+                    try:
+                        raw_bytes = base64.b64decode(att.datas)
+                        audio_format = _detect_audio_format(raw_bytes)
+                        if audio_format:
+                            audios.append(
+                                {
+                                    "format": audio_format,
+                                    "data": att.datas.decode("utf-8"),
+                                    "name": att.name or "audio",
+                                },
+                            )
+                        else:
+                            _logger.warning(
+                                "Could not detect audio format for %s",
+                                att.name,
+                            )
+                    except (ValueError, TypeError) as e:
+                        _logger.warning(
+                            "Failed to process audio attachment %s: %s",
+                            att.name,
+                            e,
+                        )
+        return audios
+
+    def _get_unsupported_attachments(
+        self,
+        provider_service,
+        is_multimodal=False,
+    ):
+        """Get list of attachments not supported by the current provider/model.
+
+        This method supports both single messages and recordsets, which is essential
+        for validating the ENTIRE conversation context before sending to the LLM.
+
+        Why check the full context?
+        ---------------------------
+        When a user switches LLM models mid-conversation, previously valid attachments
+        may become incompatible. For example:
+        - User sends image to multimodal model → works
+        - User switches to text-only model → images in context unsupported
+
+        Supported file types:
+        - Images (JPEG, PNG, GIF, WebP) - requires multimodal model
+        - PDFs - requires multimodal model
+        - Text files (plain text, markdown, code) - always supported
+
+        Unsupported (user is notified, file skipped):
+        - Audio files - not yet implemented
+        - Video files - not supported by any LLM
+        - Office documents (Word, Excel, PPT) - must convert to PDF first
+
+        The notification message has is_error=True so it's excluded from
+        future LLM context, allowing the conversation to continue normally.
+
+        Args:
+            provider_service: The provider service name (e.g., 'anthropic', 'openai')
+            is_multimodal: Whether the model supports images/PDFs
+
+        Returns:
+            List of dicts with name, mimetype, and reason for each unsupported attachment
+        """
+        unsupported = []
+
+        for message in self:
+            for att in message.attachment_ids:
+                if not att.mimetype or not att.datas:
+                    continue
+
+                mimetype = att.mimetype
+                reason = None
+
+                # Video - never supported by any LLM
+                if mimetype in VIDEO_MIMETYPES:
+                    reason = _("Video files are not supported")
+
+                # Office documents - must convert to PDF
+                elif mimetype in OFFICE_MIMETYPES:
+                    reason = _("Office documents must be converted to PDF first")
+
+                # Audio - not yet implemented
+                elif mimetype in AUDIO_MIMETYPES:
+                    reason = _("Audio files are not yet supported")
+
+                # Images/PDFs - only with multimodal models
+                elif mimetype in IMAGE_MIMETYPES and not is_multimodal:
+                    reason = _("This model does not support images")
+
+                elif mimetype in PDF_MIMETYPES and not is_multimodal:
+                    reason = _("This model does not support PDFs")
+
+                if reason:
+                    unsupported.append(
+                        {
+                            "name": att.name,
+                            "mimetype": mimetype,
+                            "reason": reason,
+                        },
+                    )
+
+        return unsupported

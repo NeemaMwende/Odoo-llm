@@ -9,7 +9,13 @@ _logger = logging.getLogger(__name__)
 class MailMessage(models.Model):
     _inherit = "mail.message"
 
-    def openai_format_message(self, is_multimodal=False):
+    def openai_format_message(self, is_multimodal=False, is_audio_model=False):
+        """Format message for OpenAI API.
+
+        Args:
+            is_multimodal: Whether the model supports images/PDFs
+            is_audio_model: Whether the model supports audio (gpt-4o-audio-preview)
+        """
         self.ensure_one()
         body = self.body
         if body:
@@ -34,7 +40,19 @@ class MailMessage(models.Model):
                         len(skipped_pdfs),
                     )
 
-            has_attachments = images or pdfs or texts
+            # Only include audio if model supports it
+            if is_audio_model:
+                audios = self._get_audio_attachments()
+            else:
+                audios = []
+                skipped_audios = self._get_audio_attachments()
+                if skipped_audios:
+                    _logger.debug(
+                        "Skipping %d audio files for non-audio model",
+                        len(skipped_audios),
+                    )
+
+            has_attachments = images or pdfs or texts or audios
 
             if has_attachments:
                 content = []
@@ -48,7 +66,7 @@ class MailMessage(models.Model):
 
                 if text_parts:
                     content.append({"type": "text", "text": "\n\n".join(text_parts)})
-                elif images or pdfs:
+                elif images or pdfs or audios:
                     content.append(
                         {"type": "text", "text": "Please analyze these files."},
                     )
@@ -70,6 +88,17 @@ class MailMessage(models.Model):
                             "file": {
                                 "filename": pdf["name"],
                                 "file_data": f"data:{pdf['mimetype']};base64,{pdf['data']}",
+                            },
+                        },
+                    )
+
+                for audio in audios:
+                    content.append(
+                        {
+                            "type": "input_audio",
+                            "input_audio": {
+                                "data": audio["data"],
+                                "format": audio["format"],
                             },
                         },
                     )

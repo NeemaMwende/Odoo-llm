@@ -4,6 +4,7 @@ import logging
 
 import emoji
 import markdown2
+from markupsafe import Markup
 from psycopg2 import OperationalError
 
 from odoo import _, api, fields, models
@@ -219,6 +220,7 @@ class LLMThread(models.Model):
         llm_role=None,
         message_type="comment",
         body_json=None,
+        is_error=False,
         **kwargs,
     ):
         """Override to handle LLM-specific message types and metadata.
@@ -227,6 +229,7 @@ class LLMThread(models.Model):
             llm_role (str): The LLM role ('user', 'assistant', 'tool', 'system')
                            If provided, will automatically set the appropriate subtype
             body_json (dict): JSON body for tool calls - will be set after message creation
+            is_error (bool): If True, marks message as error (excluded from LLM context)
         """
 
         # Convert LLM role to subtype_xmlid if provided
@@ -253,9 +256,14 @@ class LLMThread(models.Model):
         # Create the message using standard mail.thread flow (without body_json)
         message = super().message_post(message_type=message_type, **kwargs)
 
-        # Set body_json after message creation if provided
+        # Set additional fields after message creation
+        write_vals = {}
         if body_json:
-            message.write({"body_json": body_json})
+            write_vals["body_json"] = body_json
+        if is_error:
+            write_vals["is_error"] = True
+        if write_vals:
+            message.write(write_vals)
 
         return message
 
@@ -275,8 +283,11 @@ class LLMThread(models.Model):
         return None
 
     def _process_llm_body(self, body):
-        """Process body content for LLM messages (markdown to HTML conversion)."""
-        if not body:
+        """Process body content for LLM messages (markdown to HTML conversion).
+
+        Skips processing if body is already Markup (pre-formatted HTML).
+        """
+        if not body or isinstance(body, Markup):
             return body
         return markdown2.markdown(emoji.demojize(body))
 
@@ -363,8 +374,149 @@ class LLMThread(models.Model):
                     "message": last_message.to_store_format(),
                 }
 
+                # Check for unsupported attachments in the new message
+                if last_message.attachment_ids:
+                    unsupported = self._check_unsupported_attachments(last_message)
+                    if unsupported:
+                        # Mark the user message as error (excluded from LLM context)
+                        last_message.write({"is_error": True})
+                        # Show warning and return - don't call LLM
+                        yield from self._handle_unsupported_attachments(unsupported)
+                        return last_message
+
             last_message = yield from self.generate_messages(last_message)
             return last_message
+
+    def _get_context_messages(self, limit=25):
+        """Get recent LLM messages that will be sent as context.
+
+        This is used to validate attachments in the ENTIRE context before
+        sending to the LLM, not just the new message.
+
+        Note: Error messages (is_error=True) are excluded from context.
+
+        Args:
+            limit: Maximum number of messages to retrieve (default: 25)
+
+        Returns:
+            mail.message recordset of recent LLM messages
+        """
+        self.ensure_one()
+        domain = [
+            ("model", "=", self._name),
+            ("res_id", "=", self.id),
+            ("llm_role", "!=", False),
+            ("is_error", "=", False),  # Exclude error messages from context
+        ]
+        return self.env["mail.message"].search(
+            domain,
+            order="create_date DESC, id DESC",
+            limit=limit,
+        )
+
+    def _check_unsupported_attachments(self, message=None):
+        """Check a message for unsupported attachments.
+
+        Args:
+            message: Specific message to check. If None, checks entire context.
+
+        Returns:
+            List of unsupported attachments or empty list
+        """
+        self.ensure_one()
+
+        if message:
+            # Check only the specific message
+            messages_to_check = message
+        else:
+            # Check all context messages (for model switch scenarios)
+            context_messages = self._get_context_messages()
+            messages_to_check = context_messages.filtered(
+                lambda m: m.attachment_ids,
+            )
+
+        if not messages_to_check:
+            return []
+
+        provider_service = self.provider_id.service
+        is_multimodal = self.model_id.model_use == "multimodal"
+
+        return messages_to_check._get_unsupported_attachments(
+            provider_service=provider_service,
+            is_multimodal=is_multimodal,
+        )
+
+    def _handle_unsupported_attachments(self, unsupported):
+        """Create an info message for unsupported attachments.
+
+        The message has is_error=True so it's excluded from LLM context,
+        allowing the conversation to continue normally.
+
+        Args:
+            unsupported: List of dicts with name, mimetype, reason
+
+        Yields:
+            Message events for the info message
+        """
+        # Build file list items
+        file_items = "".join(
+            f"<li><strong>{att['name']}</strong>: {att['reason']}</li>"
+            for att in unsupported
+        )
+
+        # Build HTML message
+        error_html = (
+            f"<p>⚠️ <strong>{_('Unsupported file(s)')}</strong></p>"
+            f"<ul>{file_items}</ul>"
+            f"<p><em>{_('These files will be skipped.')}</em></p>"
+        )
+
+        # Post as info message (excluded from LLM context)
+        error_message = self.message_post(
+            body=Markup(error_html),
+            llm_role="assistant",
+            author_id=False,
+            is_error=True,
+        )
+        yield {
+            "type": "message_create",
+            "message": error_message.to_store_format(),
+        }
+        return error_message
+
+    def _post_error_message(self, error, title=None):
+        """Post an error message to the thread (excluded from LLM context).
+
+        This allows users to see API errors directly in the chat instead of
+        only in server logs.
+
+        Args:
+            error: The exception or error string
+            title: Optional title for the error message
+
+        Returns:
+            tuple: (error_message, event_dict) for yielding to the client
+        """
+        title = title or _("Error")
+        error_str = str(error)
+
+        # Build HTML error message
+        error_html = (
+            f"<p>❌ <strong>{title}</strong></p><p><code>{error_str}</code></p>"
+        )
+
+        error_message = self.message_post(
+            body=Markup(error_html),
+            llm_role="assistant",
+            author_id=False,
+            is_error=True,
+        )
+
+        event = {
+            "type": "message_create",
+            "message": error_message.to_store_format(),
+        }
+        return error_message, event
 
     def generate_messages(self, last_message=None):
         """Generate messages - to be overridden by llm_assistant module."""
