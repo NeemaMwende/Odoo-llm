@@ -99,32 +99,8 @@ class IrAttachment(models.Model):
                 "Mistral provider not found. Please configure Mistral AI provider in LLM settings."
             )
 
-        # Find OCR model with priority:
-        # 1. Prefer mistral-ocr-latest
-        # 2. Fallback to any OCR model
-        ocr_model = self.env["llm.model"].search(
-            [
-                ("provider_id", "=", provider.id),
-                ("name", "=", "mistral-ocr-latest"),
-                ("model_use", "=", "ocr"),
-            ],
-            limit=1,
-        )
-
-        if not ocr_model:
-            # Fallback: Any OCR model
-            ocr_model = self.env["llm.model"].search(
-                [
-                    ("provider_id", "=", provider.id),
-                    ("model_use", "=", "ocr"),
-                ],
-                limit=1,
-            )
-
-        if not ocr_model:
-            raise UserError(
-                "No OCR model found. Please sync models from Mistral provider settings."
-            )
+        # Delegate to provider's method - single source of truth for OCR model selection
+        ocr_model = provider.mistral_get_default_ocr_model()
 
         return provider, ocr_model
 
