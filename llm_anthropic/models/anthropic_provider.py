@@ -37,9 +37,7 @@ class LLMProvider(models.Model):
         normalized = []
         for msg in prepend_messages:
             content = msg.get("content", "")
-            if isinstance(content, str):
-                normalized.append({"role": msg["role"], "content": content})
-            elif isinstance(content, list):
+            if isinstance(content, str) or isinstance(content, list):
                 normalized.append({"role": msg["role"], "content": content})
             else:
                 normalized.append(msg)
@@ -75,7 +73,7 @@ class LLMProvider(models.Model):
             Generator if streaming, else dict with 'content' and/or 'tool_calls'
         """
         model = self.get_model(model, "chat")
-        formatted_messages = self.format_messages(messages)
+        formatted_messages = self.format_messages(messages, model=model)
 
         system_content = None
         if prepend_messages:
@@ -111,8 +109,7 @@ class LLMProvider(models.Model):
 
         if stream:
             return self._anthropic_stream_response(params)
-        else:
-            return self._anthropic_process_response(params)
+        return self._anthropic_process_response(params)
 
     def _anthropic_process_response(self, params):
         """Process non-streaming response from Anthropic.
@@ -140,7 +137,7 @@ class LLMProvider(models.Model):
                             "name": block.name,
                             "arguments": json.dumps(block.input),
                         },
-                    }
+                    },
                 )
 
         if thinking_content:
@@ -198,8 +195,8 @@ class LLMProvider(models.Model):
                                         "name": tc["name"],
                                         "arguments": json.dumps(parsed_input),
                                     },
-                                }
-                            ]
+                                },
+                            ],
                         }
                         del tool_calls[event.index]
 
@@ -240,12 +237,12 @@ class LLMProvider(models.Model):
                         "properties": schema.get("properties", {}),
                         "required": schema.get("required", []),
                     },
-                }
+                },
             )
 
         return formatted
 
-    def anthropic_format_messages(self, messages, system_prompt=None):
+    def anthropic_format_messages(self, messages, system_prompt=None, model=None):
         """Format mail.message records for Anthropic API.
 
         Note: System prompts are handled separately in anthropic_chat(),
@@ -254,19 +251,25 @@ class LLMProvider(models.Model):
         Args:
             messages: mail.message recordset
             system_prompt: Optional system prompt (handled separately)
+            model: llm.model record (to determine if multimodal)
 
         Returns:
             List of formatted messages for Anthropic
         """
+        is_multimodal = model and model.model_use == "multimodal"
         formatted_messages = []
 
         for message in messages:
-            formatted_message = self._dispatch("format_message", record=message)
+            formatted_message = self._dispatch(
+                "format_message",
+                record=message,
+                is_multimodal=is_multimodal,
+            )
             if formatted_message:
                 formatted_messages.append(formatted_message)
 
         formatted_messages = self._anthropic_merge_consecutive_user_messages(
-            formatted_messages
+            formatted_messages,
         )
 
         return formatted_messages
@@ -291,11 +294,11 @@ class LLMProvider(models.Model):
                     merged[-1]["content"] = prev_content + curr_content
                 elif isinstance(prev_content, str) and isinstance(curr_content, list):
                     merged[-1]["content"] = [
-                        {"type": "text", "text": prev_content}
+                        {"type": "text", "text": prev_content},
                     ] + curr_content
                 elif isinstance(prev_content, list) and isinstance(curr_content, str):
                     merged[-1]["content"] = prev_content + [
-                        {"type": "text", "text": curr_content}
+                        {"type": "text", "text": curr_content},
                     ]
             else:
                 merged.append(msg)

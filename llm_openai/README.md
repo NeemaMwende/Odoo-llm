@@ -65,7 +65,38 @@ odoo-bin -d your_db -i llm_assistant,llm_openai
 - Support for all OpenAI models (GPT-4o, GPT-4, GPT-3.5, etc.)
 - Text embeddings support
 - Function calling capabilities
+- Multimodal (vision) capabilities for GPT-4o and GPT-4 Vision
 - Automatic model discovery
+
+## Multimodal Support (Vision)
+
+GPT-4o and GPT-4 Vision models support image and PDF analysis.
+
+### How to Use
+
+Attach files to your chat message - they're automatically processed:
+
+| Type   | OpenAI Format                     |
+| ------ | --------------------------------- |
+| Images | `type: "image_url"` with data URL |
+| PDFs   | `type: "file"` with file_data     |
+| Text   | Appended to message content       |
+
+### Supported Image Formats
+
+- JPEG, PNG, GIF, WebP
+
+### Example
+
+```python
+# Analyze an image
+thread.message_post(
+    body="Describe this image",
+    attachment_ids=[(4, image_id)]
+)
+```
+
+**Note:** Requires a multimodal-capable model (GPT-4o, GPT-4 Vision).
 
 ## Configuration
 

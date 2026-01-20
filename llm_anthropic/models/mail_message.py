@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 class MailMessage(models.Model):
     _inherit = "mail.message"
 
-    def anthropic_format_message(self):
+    def anthropic_format_message(self, is_multimodal=False):
         """Provider-specific formatting for Anthropic Claude.
 
         Key differences from OpenAI:
@@ -23,14 +23,66 @@ class MailMessage(models.Model):
             body = tools.html2plaintext(body)
 
         if self.is_llm_user_message()[self]:
-            formatted_message = {"role": "user"}
-            if body:
-                formatted_message["content"] = body
-            else:
-                formatted_message["content"] = ""
-            return formatted_message
+            texts = self._get_text_attachments()
 
-        elif self.is_llm_assistant_message()[self]:
+            # Only include images/PDFs if model supports multimodal
+            if is_multimodal:
+                images = self._get_image_attachments()
+                pdfs = self._get_pdf_attachments()
+            else:
+                images = []
+                pdfs = []
+
+            has_attachments = images or pdfs or texts
+
+            if has_attachments:
+                content = []
+
+                for img in images:
+                    content.append(
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": img["mimetype"],
+                                "data": img["data"],
+                            },
+                        },
+                    )
+
+                for pdf in pdfs:
+                    content.append(
+                        {
+                            "type": "document",
+                            "source": {
+                                "type": "base64",
+                                "media_type": pdf["mimetype"],
+                                "data": pdf["data"],
+                            },
+                        },
+                    )
+
+                text_parts = []
+                if body and body.strip():
+                    text_parts.append(body.strip())
+
+                for txt in texts:
+                    text_parts.append(f"--- {txt['name']} ---\n{txt['content']}")
+
+                if text_parts:
+                    content.append({"type": "text", "text": "\n\n".join(text_parts)})
+                elif images or pdfs:
+                    content.append(
+                        {"type": "text", "text": "Please analyze these files."},
+                    )
+
+                return {"role": "user", "content": content}
+
+            if not body or not body.strip():
+                return None
+            return {"role": "user", "content": body}
+
+        if self.is_llm_assistant_message()[self]:
             content_blocks = []
 
             if body:
@@ -50,26 +102,25 @@ class MailMessage(models.Model):
                             "id": tc["id"],
                             "name": tc["function"]["name"],
                             "input": tool_input,
-                        }
+                        },
                     )
 
             if content_blocks:
                 return {"role": "assistant", "content": content_blocks}
-            else:
-                return {"role": "assistant", "content": ""}
+            return None
 
-        elif self.is_llm_tool_message()[self]:
+        if self.is_llm_tool_message()[self]:
             tool_data = self.body_json
             if not tool_data:
                 _logger.warning(
-                    f"Anthropic Format: Skipping tool message {self.id}: no tool data found."
+                    f"Anthropic Format: Skipping tool message {self.id}: no tool data found.",
                 )
                 return None
 
             tool_call_id = tool_data.get("tool_call_id")
             if not tool_call_id:
                 _logger.warning(
-                    f"Anthropic Format: Skipping tool message {self.id}: missing tool_call_id."
+                    f"Anthropic Format: Skipping tool message {self.id}: missing tool_call_id.",
                 )
                 return None
 
@@ -87,7 +138,7 @@ class MailMessage(models.Model):
                         "type": "tool_result",
                         "tool_use_id": tool_call_id,
                         "content": content,
-                    }
+                    },
                 ],
             }
 
