@@ -59,6 +59,9 @@
     "data": [
         "security/ir.model.access.csv",
     ],
+    "images": [
+        "static/description/banner.jpeg",
+    ],
     "installable": True,
     "application": False,
     "auto_install": False,
