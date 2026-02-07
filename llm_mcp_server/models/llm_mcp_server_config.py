@@ -71,7 +71,6 @@ class LLMMCPServerConfig(models.Model):
         string="Supported Protocol Versions",
         required=False,
         help="List of additional MCP protocol versions this server supports (excluding latest) in json array[str]",
-        tracking=True,
     )
     all_supported_protocol_versions = fields.Json(
         string="All Supported Protocol Versions",
