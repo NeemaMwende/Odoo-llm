@@ -42,7 +42,7 @@ All tools follow proper consent requirements for data modification operations.
     """,
     "author": "Apexive",
     "website": "https://github.com/apexive/odoo-llm",
-    "license": "LGPL-3",
+    "license": "AGPL-3",
     "depends": [
         "llm_tool",
         "mis_builder",
