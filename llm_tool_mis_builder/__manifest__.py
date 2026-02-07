@@ -2,45 +2,54 @@
     "name": "LLM Tool MIS Builder",
     "version": "18.0.1.0.0",
     "category": "Productivity/LLM",
-    "summary": "MCP tools for MIS Builder report management and exploration",
+    "summary": "44 AI-powered tools for MIS Builder: create KPIs, configure periods, "
+    "compute reports, drill down, and analyze variances through natural language",
     "description": """
-LLM Tool MIS Builder
-====================
+        LLM Tool MIS Builder - AI-Powered Financial Reporting for Odoo
 
-This module provides MCP tools for managing and exploring MIS Builder reports
-through LLM interactions.
+        Provides 44 purpose-built tools for managing and analyzing MIS Builder
+        reports through AI assistants and MCP servers. Full lifecycle coverage
+        from template creation to variance analysis.
 
-Features
---------
+        Report Templates (6 tools):
+        • List, get, create, update, delete, and duplicate report templates
 
-**Template Management:**
-- List, create, update, delete, and duplicate MIS report templates
-- Manage KPIs (Key Performance Indicators) with expressions
-- Configure custom data queries
+        KPI Management (6 tools):
+        • List, get, create, update, delete, and reorder KPIs
+        • Supports MIS Builder accounting expressions (bale[], balp[], etc.)
 
-**Instance Management:**
-- Create and configure report instances with periods
-- Support for fixed dates, relative periods, and comparisons
-- Multi-company support
+        Custom Queries (4 tools):
+        • List, create, update, and delete custom data queries
 
-**Report Execution:**
-- Compute reports and retrieve results
-- Quick preview with ad-hoc parameters
-- Drill-down into cell details
-- Export to JSON format
+        Report Instances (6 tools):
+        • List, get, create, update, delete, and duplicate instances
+        • Multi-company support with configurable templates
 
-**Analysis Tools:**
-- Period comparisons (YoY, MoM, QoQ)
-- KPI trend analysis
-- Account-level breakdown
-- Variance analysis
+        Periods & Columns (6 tools):
+        • List, create, update, and delete period columns
+        • Add comparison columns between periods
+        • Add sum columns combining multiple periods
 
-**Annotations:**
-- List, create, update, and delete cell annotations
+        Execution & Analysis (8 tools):
+        • Compute reports and get full KPI results
+        • Quick preview with ad-hoc date range
+        • Drill down into specific cells for underlying records
+        • Export to structured JSON format
+        • Compare periods (YoY, MoM, QoQ)
+        • KPI trend analysis over time
+        • Account-level breakdown for any KPI
+        • Variance analysis between two periods
 
-All tools follow proper consent requirements for data modification operations.
+        Annotations (4 tools):
+        • List, get, set, and delete cell annotations
+
+        Styles (4 tools):
+        • List, create, update, and delete report styles
+
+        All tools use MCP destructive/read-only hint conventions and respect
+        Odoo's access control rules.
     """,
-    "author": "Apexive",
+    "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "license": "AGPL-3",
     "depends": [
@@ -50,8 +59,6 @@ All tools follow proper consent requirements for data modification operations.
     "data": [
         "security/ir.model.access.csv",
     ],
-    "demo": [],
-    "images": ["static/description/banner.jpeg"],
     "installable": True,
     "application": False,
     "auto_install": False,
