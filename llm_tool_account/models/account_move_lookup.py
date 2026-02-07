@@ -17,7 +17,7 @@ class AccountMoveLookup(models.Model):
     _description = "LLM tools for accounting lookups"
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def find_moves(
+    def account_find_moves(
         self,
         reference: Optional[str] = None,
         partner: Optional[str] = None,
@@ -113,7 +113,7 @@ class AccountMoveLookup(models.Model):
         }
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def find_accounts(
+    def account_find_accounts(
         self,
         code: Optional[str] = None,
         name: Optional[str] = None,
@@ -199,7 +199,7 @@ class AccountMoveLookup(models.Model):
         }
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def find_journals(
+    def account_find_journals(
         self,
         code: Optional[str] = None,
         name: Optional[str] = None,

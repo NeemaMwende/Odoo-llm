@@ -68,7 +68,7 @@ class TestLedgerTools(TransactionCase):
         if not self.receivable:
             self.skipTest("Receivable account not found")
 
-        result = self.ledger_tools.get_ledger(
+        result = self.ledger_tools.account_get_ledger(
             accounts=self.receivable.code,
             date_from="2025-01-01",
             date_to="2025-12-31",
@@ -82,7 +82,7 @@ class TestLedgerTools(TransactionCase):
         if not self.receivable:
             self.skipTest("Receivable account not found")
 
-        result = self.ledger_tools.get_ledger(
+        result = self.ledger_tools.account_get_ledger(
             accounts=self.receivable.code,
             date_from="2025-01-01",
             date_to="2025-12-31",
@@ -95,7 +95,7 @@ class TestLedgerTools(TransactionCase):
     def test_get_ledger_not_found(self):
         """Test ledger with non-existent account"""
         with self.assertRaises(UserError):
-            self.ledger_tools.get_ledger(
+            self.ledger_tools.account_get_ledger(
                 accounts="ZZZNOTEXIST999",
                 date_from="2025-01-01",
                 date_to="2025-12-31",
@@ -105,7 +105,7 @@ class TestLedgerTools(TransactionCase):
 
     def test_find_moves(self):
         """Test finding moves"""
-        result = self.lookup_tools.find_moves(
+        result = self.lookup_tools.account_find_moves(
             state="posted",
             date_from="2025-01-01",
             date_to="2025-12-31",
@@ -116,7 +116,7 @@ class TestLedgerTools(TransactionCase):
 
     def test_find_accounts(self):
         """Test finding accounts"""
-        result = self.lookup_tools.find_accounts(
+        result = self.lookup_tools.account_find_accounts(
             account_type="receivable",
         )
         self.assertIn("accounts", result)
@@ -124,7 +124,7 @@ class TestLedgerTools(TransactionCase):
 
     def test_find_accounts_with_balance(self):
         """Test finding accounts with balance"""
-        result = self.lookup_tools.find_accounts(
+        result = self.lookup_tools.account_find_accounts(
             account_type="receivable",
             include_balance=True,
         )
@@ -134,7 +134,7 @@ class TestLedgerTools(TransactionCase):
 
     def test_find_journals(self):
         """Test finding journals"""
-        result = self.lookup_tools.find_journals(
+        result = self.lookup_tools.account_find_journals(
             journal_type="bank",
         )
         self.assertIn("journals", result)
@@ -145,13 +145,13 @@ class TestLedgerTools(TransactionCase):
 
     def test_get_unreconciled(self):
         """Test listing unreconciled items"""
-        result = self.reconcile_tools.get_unreconciled(type="all")
+        result = self.reconcile_tools.account_get_unreconciled(type="all")
         self.assertIn("items", result)
         self.assertIn("count", result)
 
     def test_get_unreconciled_by_type(self):
         """Test listing unreconciled bank items"""
-        result = self.reconcile_tools.get_unreconciled(type="bank")
+        result = self.reconcile_tools.account_get_unreconciled(type="bank")
         self.assertIn("items", result)
 
     def test_suggest_matches(self):
@@ -159,7 +159,7 @@ class TestLedgerTools(TransactionCase):
         if not self.receivable:
             self.skipTest("Receivable account not found")
 
-        result = self.reconcile_tools.suggest_matches(
+        result = self.reconcile_tools.account_suggest_matches(
             account=self.receivable.code,
         )
         self.assertIn("suggestions", result)
@@ -168,13 +168,13 @@ class TestLedgerTools(TransactionCase):
     def test_reconcile_too_few_lines(self):
         """Test that reconciling with <2 lines raises error"""
         with self.assertRaises(UserError):
-            self.reconcile_tools.reconcile(line_ids=[1])
+            self.reconcile_tools.account_reconcile(line_ids=[1])
 
     # -- Period close tests --
 
     def test_check_period(self):
         """Test period close checklist"""
-        result = self.period_tools.check_period(
+        result = self.period_tools.account_check_period(
             date_from="2025-01-01",
             date_to="2025-12-31",
         )

@@ -47,7 +47,7 @@ class TestEntryTools(TransactionCase):
         if not (self.receivable and self.income and self.misc_journal):
             self.skipTest("Required accounts or journal not found")
 
-        result = self.entry_tools.create_move(
+        result = self.entry_tools.account_create_move(
             move_type="entry",
             journal=self.misc_journal.code,
             date="2025-01-15",
@@ -77,7 +77,7 @@ class TestEntryTools(TransactionCase):
         if not (self.income and self.sale_journal):
             self.skipTest("Required accounts or journal not found")
 
-        result = self.entry_tools.create_move(
+        result = self.entry_tools.account_create_move(
             move_type="invoice",
             partner="Entry Test Partner",
             journal=self.sale_journal.code,
@@ -102,7 +102,7 @@ class TestEntryTools(TransactionCase):
             self.skipTest("Income account not found")
 
         with self.assertRaises(UserError):
-            self.entry_tools.create_move(
+            self.entry_tools.account_create_move(
                 move_type="invoice",
                 lines=[
                     {
@@ -117,7 +117,7 @@ class TestEntryTools(TransactionCase):
     def test_create_move_invalid_type(self):
         """Test that invalid move_type raises error"""
         with self.assertRaises(UserError):
-            self.entry_tools.create_move(
+            self.entry_tools.account_create_move(
                 move_type="invalid_type",
                 lines=[],
             )
@@ -128,7 +128,7 @@ class TestEntryTools(TransactionCase):
             self.skipTest("Required accounts or journal not found")
 
         # Create entry
-        result = self.entry_tools.create_move(
+        result = self.entry_tools.account_create_move(
             move_type="entry",
             journal=self.misc_journal.code,
             date="2025-01-15",
@@ -151,12 +151,12 @@ class TestEntryTools(TransactionCase):
         move = self.env["account.move"].browse(result["id"])
 
         # Post
-        post_result = self.entry_tools.post_moves(references=[move.name])
+        post_result = self.entry_tools.account_post_moves(references=[move.name])
         self.assertEqual(post_result["posted_count"], 1)
         self.assertEqual(move.state, "posted")
 
         # Unpost
-        unpost_result = self.entry_tools.unpost_moves(references=[move.name])
+        unpost_result = self.entry_tools.account_unpost_moves(references=[move.name])
         self.assertEqual(unpost_result["unposted_count"], 1)
         self.assertEqual(move.state, "draft")
 
@@ -166,7 +166,7 @@ class TestEntryTools(TransactionCase):
             self.skipTest("Required accounts or journal not found")
 
         # Create and post entry
-        result = self.entry_tools.create_move(
+        result = self.entry_tools.account_create_move(
             move_type="entry",
             journal=self.misc_journal.code,
             date="2025-01-15",
@@ -189,7 +189,7 @@ class TestEntryTools(TransactionCase):
         move.action_post()
 
         # Reverse
-        rev_result = self.entry_tools.reverse_move(
+        rev_result = self.entry_tools.account_reverse_move(
             reference=move.name,
             date="2025-01-31",
             reason="Correction",
@@ -204,7 +204,7 @@ class TestEntryTools(TransactionCase):
         if not (self.receivable and self.income and self.misc_journal):
             self.skipTest("Required accounts or journal not found")
 
-        result = self.entry_tools.create_move(
+        result = self.entry_tools.account_create_move(
             move_type="entry",
             journal=self.misc_journal.code,
             date="2025-01-15",
@@ -226,4 +226,4 @@ class TestEntryTools(TransactionCase):
         move = self.env["account.move"].browse(result["id"])
 
         with self.assertRaises(UserError):
-            self.entry_tools.reverse_move(reference=move.name)
+            self.entry_tools.account_reverse_move(reference=move.name)

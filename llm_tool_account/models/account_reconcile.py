@@ -18,7 +18,7 @@ class AccountReconcile(models.Model):
     _description = "LLM tools for reconciliation"
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def get_unreconciled(
+    def account_get_unreconciled(
         self,
         type: str = "all",
         partner: Optional[str] = None,
@@ -119,7 +119,7 @@ class AccountReconcile(models.Model):
         }
 
     @llm_tool(destructive_hint=True)
-    def reconcile(
+    def account_reconcile(
         self,
         line_ids: list,
         write_off_account: Optional[str] = None,
@@ -215,7 +215,7 @@ class AccountReconcile(models.Model):
         }
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def suggest_matches(
+    def account_suggest_matches(
         self,
         account: str,
         partner: Optional[str] = None,

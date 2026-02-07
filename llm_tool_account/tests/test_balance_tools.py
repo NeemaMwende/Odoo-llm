@@ -59,7 +59,7 @@ class TestBalanceTools(TransactionCase):
 
     def test_get_balances_all(self):
         """Test trial balance for all accounts"""
-        result = self.balance_tools.get_balances(
+        result = self.balance_tools.account_get_balances(
             date_from="2025-01-01",
             date_to="2025-12-31",
         )
@@ -69,7 +69,7 @@ class TestBalanceTools(TransactionCase):
 
     def test_get_balances_by_account_type(self):
         """Test trial balance filtered by account type"""
-        result = self.balance_tools.get_balances(
+        result = self.balance_tools.account_get_balances(
             date_from="2025-01-01",
             date_to="2025-12-31",
             accounts="receivable",
@@ -84,7 +84,7 @@ class TestBalanceTools(TransactionCase):
 
     def test_get_balances_group_by_partner(self):
         """Test trial balance grouped by partner"""
-        result = self.balance_tools.get_balances(
+        result = self.balance_tools.account_get_balances(
             date_from="2025-01-01",
             date_to="2025-12-31",
             accounts="receivable",
@@ -95,7 +95,7 @@ class TestBalanceTools(TransactionCase):
 
     def test_get_balances_hide_zero(self):
         """Test that zero balance rows are hidden by default"""
-        result = self.balance_tools.get_balances(
+        result = self.balance_tools.account_get_balances(
             date_from="2025-01-01",
             date_to="2025-12-31",
             hide_zero=True,
@@ -111,7 +111,7 @@ class TestBalanceTools(TransactionCase):
 
     def test_get_profit_and_loss(self):
         """Test P&L report"""
-        result = self.report_tools.get_profit_and_loss(
+        result = self.report_tools.account_get_profit_and_loss(
             date_from="2025-01-01",
             date_to="2025-12-31",
         )
@@ -123,7 +123,7 @@ class TestBalanceTools(TransactionCase):
 
     def test_get_profit_and_loss_with_comparison(self):
         """Test P&L with comparison period"""
-        result = self.report_tools.get_profit_and_loss(
+        result = self.report_tools.account_get_profit_and_loss(
             date_from="2025-01-01",
             date_to="2025-12-31",
             compare_date_from="2024-01-01",
@@ -134,7 +134,7 @@ class TestBalanceTools(TransactionCase):
 
     def test_get_cash_position(self):
         """Test cash position snapshot"""
-        result = self.report_tools.get_cash_position()
+        result = self.report_tools.account_get_cash_position()
         self.assertIn("bank_accounts", result)
         self.assertIn("total_cash", result)
         self.assertIn("outstanding_incoming", result)
@@ -143,7 +143,7 @@ class TestBalanceTools(TransactionCase):
 
     def test_get_tax_balances(self):
         """Test tax balance summary"""
-        result = self.tax_tools.get_tax_balances(
+        result = self.tax_tools.account_get_tax_balances(
             date_from="2025-01-01",
             date_to="2025-12-31",
         )

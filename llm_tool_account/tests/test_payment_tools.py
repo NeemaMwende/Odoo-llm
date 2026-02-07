@@ -69,7 +69,7 @@ class TestPaymentTools(TransactionCase):
 
         invoice = self._create_posted_invoice()
 
-        result = self.payment_tools.register_payment(
+        result = self.payment_tools.account_register_payment(
             move_references=[invoice.name],
             journal=self.bank_journal.code,
             date="2025-06-20",
@@ -85,7 +85,7 @@ class TestPaymentTools(TransactionCase):
         if not self.bank_journal:
             self.skipTest("Bank journal not found")
 
-        result = self.payment_tools.register_payment(
+        result = self.payment_tools.account_register_payment(
             partner="Payment Test Partner",
             amount=500.0,
             journal=self.bank_journal.code,
@@ -100,11 +100,11 @@ class TestPaymentTools(TransactionCase):
     def test_register_payment_missing_params(self):
         """Test that missing required params raises error"""
         with self.assertRaises(UserError):
-            self.payment_tools.register_payment()
+            self.payment_tools.account_register_payment()
 
     def test_register_payment_nonexistent_invoice(self):
         """Test paying a non-existent invoice"""
         with self.assertRaises(UserError):
-            self.payment_tools.register_payment(
+            self.payment_tools.account_register_payment(
                 move_references=["NONEXISTENT/2025/9999"],
             )

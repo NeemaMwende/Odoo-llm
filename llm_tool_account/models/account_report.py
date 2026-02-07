@@ -19,7 +19,7 @@ class AccountReport(models.Model):
     _description = "LLM tools for financial reports"
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def get_profit_and_loss(
+    def account_get_profit_and_loss(
         self,
         date_from: str,
         date_to: str,
@@ -142,7 +142,7 @@ class AccountReport(models.Model):
         return result
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def get_cash_position(self) -> dict:
+    def account_get_cash_position(self) -> dict:
         """Get current cash position snapshot
 
         Returns current balances of all bank and cash accounts, plus

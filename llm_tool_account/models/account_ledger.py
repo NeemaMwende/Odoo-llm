@@ -17,7 +17,7 @@ class AccountLedger(models.Model):
     _description = "LLM tools for general ledger"
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def get_ledger(
+    def account_get_ledger(
         self,
         accounts: str,
         date_from: str,

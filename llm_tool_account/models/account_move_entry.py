@@ -25,7 +25,7 @@ class AccountMoveEntry(models.Model):
     _description = "LLM tools for journal entry data entry"
 
     @llm_tool(destructive_hint=True)
-    def create_move(
+    def account_create_move(
         self,
         move_type: str,
         lines: list,
@@ -153,7 +153,7 @@ class AccountMoveEntry(models.Model):
         }
 
     @llm_tool(destructive_hint=True)
-    def post_moves(
+    def account_post_moves(
         self,
         references: Optional[list] = None,
         partner: Optional[str] = None,
@@ -197,7 +197,7 @@ class AccountMoveEntry(models.Model):
         }
 
     @llm_tool(destructive_hint=True)
-    def unpost_moves(
+    def account_unpost_moves(
         self,
         references: list,
     ) -> dict:
@@ -229,7 +229,7 @@ class AccountMoveEntry(models.Model):
         }
 
     @llm_tool(destructive_hint=True)
-    def reverse_move(
+    def account_reverse_move(
         self,
         reference: str,
         date: Optional[str] = None,

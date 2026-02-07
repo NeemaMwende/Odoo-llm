@@ -17,7 +17,7 @@ class AccountPayment(models.Model):
     _description = "LLM tools for payment registration"
 
     @llm_tool(destructive_hint=True)
-    def register_payment(
+    def account_register_payment(
         self,
         move_references: Optional[list] = None,
         partner: Optional[str] = None,

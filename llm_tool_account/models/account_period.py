@@ -16,7 +16,7 @@ class AccountPeriod(models.Model):
     _description = "LLM tools for period close operations"
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def check_period(
+    def account_check_period(
         self,
         date_from: str,
         date_to: str,
@@ -128,7 +128,7 @@ class AccountPeriod(models.Model):
         }
 
     @llm_tool(destructive_hint=True)
-    def set_lock_date(
+    def account_set_lock_date(
         self,
         lock_date: str,
         lock_type: str = "all_users",

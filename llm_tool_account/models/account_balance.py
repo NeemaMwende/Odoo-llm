@@ -29,7 +29,7 @@ class AccountBalance(models.Model):
     _description = "LLM tools for trial balance"
 
     @llm_tool(read_only_hint=True, idempotent_hint=True)
-    def get_balances(
+    def account_get_balances(
         self,
         date_from: str,
         date_to: str,
