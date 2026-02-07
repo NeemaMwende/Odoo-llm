@@ -10,7 +10,7 @@ This repository provides a comprehensive framework for integrating Large Languag
 
 The Odoo-LLM modules are organized in three layers:
 
-**Layer 1: User Space & Applications** - Business-specific implementations that configure AI assistants for particular workflows (e.g., `llm_assistant_account_invoice` provides an accountant assistant with invoice-specific tools and prompts).
+**Layer 1: User Space & Applications** - Domain-specific tool modules that expose business logic to AI assistants (e.g., `llm_tool_account` provides 18 accounting tools, `llm_tool_mis_builder` provides 44 MIS Builder reporting tools).
 
 **Layer 2: Utility & Interface** - Core functionality accessible through two interfaces:
 - **Internal Interface** (`llm_assistant`): Chat with AI directly in Odoo's UI
@@ -40,17 +40,17 @@ Both interfaces share:
 
 **✅ Available in 18.0:**
 - Core: llm, llm_thread, llm_tool, llm_assistant
-- Text/Chat Providers: llm_openai, llm_ollama, llm_mistral
+- Text/Chat Providers: llm_openai, llm_ollama, llm_mistral, llm_anthropic
 - Image Providers: llm_replicate, llm_fal_ai, llm_comfyui, llm_comfy_icu
 - Knowledge System: llm_knowledge, llm_pgvector, llm_chroma, llm_qdrant
 - Knowledge Extensions: llm_knowledge_automation, llm_knowledge_llama, llm_knowledge_mistral, llm_tool_knowledge
 - Generation: llm_generate, llm_generate_job, llm_training
+- Domain Tools: llm_tool_account, llm_tool_mis_builder, llm_tool_ocr_mistral, llm_tool_demo
 - Integrations: llm_letta, llm_mcp_server, llm_document_page, llm_store
 
 **⏳ Available in 16.0 branch only:**
-- llm_anthropic - Anthropic Claude integration
 - llm_litellm - LiteLLM proxy integration
-- llm_mcp - Model Context Protocol
+- llm_mcp - Model Context Protocol (client)
 
 **Migration Highlights:**
 - Updated UI components with modern mail.store architecture
@@ -59,14 +59,16 @@ Both interfaces share:
 
 ## 🚀 Features
 
-- **Multiple LLM Provider Support**: Connect to OpenAI, Ollama, Mistral, Replicate, FAL.ai, ComfyUI, and more. *(Anthropic and LiteLLM available in 16.0 branch)*
+- **Multiple LLM Provider Support**: Connect to OpenAI, Anthropic, Ollama, Mistral, Replicate, FAL.ai, ComfyUI, and more.
 - **Unified API**: Consistent interface for all LLM operations regardless of the provider.
 - **Modern Chat UI**: Responsive interface with real-time streaming, tool execution display, and assistant switching.
 - **Thread Management**: Organize and manage AI conversations with context and related record linking.
 - **Model Management**: Configure and utilize different models for chat, embeddings, and content generation.
 - **Knowledge Base (RAG)**: Store, index, and retrieve documents for Retrieval-Augmented Generation.
 - **Vector Store Integrations**: Supports ChromaDB, pgvector, and Qdrant for efficient similarity searches.
-- **Advanced Tool Framework**: Allows LLMs to interact with Odoo data, execute actions, and use custom tools.
+- **Advanced Tool Framework**: Allows LLMs to interact with Odoo data, execute actions, and use custom tools via `@llm_tool` decorator.
+- **MCP Server**: Connect Claude Desktop, Claude Code, Codex CLI, Cursor, and other MCP clients directly to Odoo.
+- **Domain-Specific Tools**: 18 accounting tools (trial balance, tax reports, reconciliation) and 44 MIS Builder tools (KPIs, variance analysis, drilldown).
 - **AI Assistants with Prompts**: Build specialized AI assistants with custom instructions, prompt templates, and tool access.
 - **Content Generation**: Generate images, text, and other content types using specialized models.
 - **Security**: Role-based access control, secure API key management, and permission-based tool access.
@@ -77,10 +79,10 @@ The architecture centers around five core modules that provide the foundation fo
 
 | Module | Version | Purpose |
 |--------|---------|---------|
-| **`llm`** | 18.0.1.4.0 | **Foundation** - Base infrastructure, providers, models, and enhanced messaging system |
-| **`llm_assistant`** | 18.0.1.5.0 | **Intelligence** - AI assistants with integrated prompt templates and testing |
+| **`llm`** | 18.0.1.7.0 | **Foundation** - Base infrastructure, providers, models, and enhanced messaging system |
+| **`llm_assistant`** | 18.0.1.5.4 | **Intelligence** - AI assistants with integrated prompt templates and testing |
 | **`llm_generate`** | 18.0.2.0.0 | **Generation** - Unified content generation API for text, images, and more |
-| **`llm_tool`** | 18.0.3.0.0 | **Actions** - Tool framework for LLM-Odoo interactions and function calling |
+| **`llm_tool`** | 18.0.4.1.1 | **Actions** - Tool framework for LLM-Odoo interactions and function calling |
 | **`llm_store`** | 18.0.1.0.0 | **Storage** - Vector store abstraction for embeddings and similarity search |
 
 ## 📦 All Available Modules
@@ -88,36 +90,42 @@ The architecture centers around five core modules that provide the foundation fo
 | Module | Version | Description |
 |--------|---------|-------------|
 | **Core Infrastructure** | | |
-| `llm` | 18.0.1.4.0 | Base module with providers, models, and enhanced messaging |
-| `llm_assistant` | 18.0.1.5.0 | AI assistants with integrated prompt templates |
+| `llm` | 18.0.1.7.0 | Base module with providers, models, and enhanced messaging |
+| `llm_assistant` | 18.0.1.5.4 | AI assistants with integrated prompt templates |
 | `llm_generate` | 18.0.2.0.0 | Unified content generation with dynamic forms |
-| `llm_tool` | 18.0.3.0.0 | Enhanced tool framework with structured data storage |
+| `llm_tool` | 18.0.4.1.1 | Tool framework with @llm_tool decorator and auto-registration |
 | `llm_store` | 18.0.1.0.0 | Vector store abstraction layer |
 | **Chat & Threading** | | |
-| `llm_thread` | 18.0.1.4.0 | Chat threads with PostgreSQL locking and related record linking |
+| `llm_thread` | 18.0.1.4.5 | Chat threads with PostgreSQL locking and related record linking |
 | **AI Providers - Text/Chat** | | |
-| `llm_openai` | 18.0.1.1.3 | OpenAI (GPT) provider integration with enhanced tool support |
-| `llm_ollama` | 18.0.1.1.0 | Ollama provider for local model deployment |
-| `llm_mistral` | 18.0.1.0.0 | Mistral AI provider integration |
+| `llm_openai` | 18.0.1.4.0 | OpenAI (GPT) provider integration with enhanced tool support |
+| `llm_anthropic` | 18.0.1.1.0 | Anthropic Claude provider integration |
+| `llm_ollama` | 18.0.1.2.0 | Ollama provider for local model deployment |
+| `llm_mistral` | 18.0.1.0.3 | Mistral AI provider integration |
 | **AI Providers - Image Generation** | | |
 | `llm_replicate` | 18.0.1.1.1 | Replicate.com provider integration |
-| `llm_fal_ai` | 18.0.2.0.0 | FAL.ai provider with unified generate endpoint |
-| `llm_comfyui` | 18.0.1.0.1 | ComfyUI integration for advanced image workflows |
+| `llm_fal_ai` | 18.0.2.0.1 | FAL.ai provider with unified generate endpoint |
+| `llm_comfyui` | 18.0.1.0.2 | ComfyUI integration for advanced image workflows |
 | `llm_comfy_icu` | 18.0.1.0.0 | ComfyICU integration for image generation |
 | **Knowledge & RAG** | | |
-| `llm_knowledge` | 18.0.1.1.0 | **Consolidated** - RAG functionality with document management |
+| `llm_knowledge` | 18.0.1.1.0 | RAG functionality with document management and semantic search |
 | `llm_knowledge_automation` | 18.0.1.0.0 | Automation rules for knowledge processing |
 | `llm_knowledge_llama` | 18.0.1.0.0 | LlamaIndex integration for advanced knowledge processing |
-| `llm_knowledge_mistral` | 18.0.1.0.0 | Mistral AI embeddings and processing for knowledge base |
+| `llm_knowledge_mistral` | 18.0.1.0.0 | OCR vision AI using Mistral vision models |
 | `llm_tool_knowledge` | 18.0.1.0.1 | Tool for LLMs to query the knowledge base |
 | **Vector Stores** | | |
 | `llm_chroma` | 18.0.1.0.0 | ChromaDB vector store integration |
 | `llm_pgvector` | 18.0.1.0.0 | pgvector (PostgreSQL) vector store integration |
 | `llm_qdrant` | 18.0.1.0.0 | Qdrant vector store integration |
-| **Specialized Features** | | |
-| `llm_mcp_server` | 18.0.1.0.0 | Model Context Protocol server support |
-| `llm_letta` | 18.0.1.0.0 | Letta SDK integration for memory management |
-| `llm_training` | 18.0.1.0.0 | Fine-tuning and model training capabilities |
+| **Domain-Specific Tools** | | |
+| `llm_tool_account` | 18.0.1.0.0 | 18 accounting tools: trial balance, tax reports, journal entries, reconciliation, payments, period close |
+| `llm_tool_mis_builder` | 18.0.1.0.0 | 44 MIS Builder tools: KPIs, periods, report execution, drilldown, variance analysis |
+| `llm_tool_ocr_mistral` | 18.0.1.0.1 | Extract text from images and PDFs using Mistral AI vision models |
+| `llm_tool_demo` | 18.0.1.0.0 | Demonstration of @llm_tool decorator usage |
+| **Integrations & Specialized Features** | | |
+| `llm_mcp_server` | 18.0.1.3.1 | MCP server exposing Odoo tools to Claude Desktop, Claude Code, Codex CLI |
+| `llm_letta` | 18.0.1.0.4 | Letta agent-based AI with persistent memory and MCP tools |
+| `llm_training` | 18.0.1.0.0 | Fine-tuning dataset and training job management |
 | `llm_generate_job` | 18.0.1.0.0 | Job queue management for content generation |
 | `llm_document_page` | 18.0.1.0.0 | Integration with document pages and knowledge articles |
 
@@ -189,7 +197,19 @@ Install: llm_generate + llm_fal_ai (for images)
 - ✅ Streaming generation responses
 - ✅ Multi-format content support
 
-### 4. **Local AI Deployment**
+### 4. **MCP Server + Accounting Tools** (for Claude Desktop / Claude Code)
+```
+Install: llm_mcp_server + llm_tool_account
+```
+**What you get:**
+- ✅ Connect Claude Desktop, Claude Code, or Codex CLI to Odoo
+- ✅ 18 accounting tools: trial balance, tax reports, journal entries, reconciliation
+- ✅ Natural language access to all Odoo data via generic CRUD tools
+- ✅ User-scoped API keys with full permission enforcement
+
+**Optional add-on:** `llm_tool_mis_builder` for 44 MIS Builder reporting tools
+
+### 5. **Local AI Deployment**
 ```
 Install: llm_ollama + llm_assistant
 ```
@@ -280,8 +300,10 @@ We're committed to building an open AI layer for Odoo that benefits everyone. Ar
 - [x] **Module consolidation** ✅ *Architecture simplified*
 - [x] **Multi-modal content** ✅ *Image + text generation fully working*
 - [x] **Odoo 18.0 migration** ✅ *Core modules and integrations migrated*
+- [x] **MCP Server** ✅ *Connect Claude Desktop, Claude Code, Codex CLI to Odoo*
+- [x] **Domain-specific tools** ✅ *Accounting (18 tools) and MIS Builder (44 tools)*
 - [ ] **Advanced workflow automation** 🔄 *Business process AI*
-- [ ] **Integration with CRM/HR/Manufacturing** 🔄 *Domain-specific assistants*
+- [ ] **More domain tools** 🔄 *CRM, HR, Manufacturing, Inventory*
 - [ ] **Model fine-tuning workflows** 🔄 *Custom model training*
 
 ## 📈 Performance & Migration
