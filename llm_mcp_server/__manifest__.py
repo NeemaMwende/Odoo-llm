@@ -48,6 +48,7 @@
         "static/description/client_windsurf.png",
         "static/description/client_vscode.png",
         "static/description/client_codex.png",
+        "static/description/client_claude_cowork.png",
     ],
     "auto_install": False,
     "application": False,
