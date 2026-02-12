@@ -323,8 +323,9 @@ class LLMTool(models.Model):
         if hasattr(method, "_llm_tool_schema"):
             values["input_schema"] = json.dumps(method._llm_tool_schema, indent=2)
 
-        # Use Odoo's savepoint pattern (same as demo data loading in loading.py)
-        # If concurrent access fails, savepoint rolls back and we skip gracefully
+        # Use savepoint + flush_recordset so any DB conflict (SerializationFailure,
+        # unique constraint) is caught HERE instead of at the unprotected flush_all()
+        # at the end of load_modules (loading.py:622) which crashes registry loading.
         try:
             with self.env.cr.savepoint(flush=False):
                 # Search for existing tool record (including inactive ones)
@@ -340,38 +341,32 @@ class LLMTool(models.Model):
                     # Only update if auto_update is enabled
                     auto_update = getattr(existing, "auto_update", True)
                     if auto_update:
-                        # Only write if values actually changed to avoid
-                        # concurrent update errors on multi-worker restarts
-                        changed = {
-                            k: v
-                            for k, v in values.items()
-                            if existing[k] != v
-                        }
-                        if changed:
-                            was_inactive = not existing.active
-                            existing.write(changed)
-                            if was_inactive:
-                                _logger.info(
-                                    "Reactivated function tool '%s' from %s.%s",
-                                    values["name"],
-                                    model_name,
-                                    method_name,
-                                )
-                            else:
-                                _logger.debug(
-                                    "Updated function tool '%s' from %s.%s",
-                                    values["name"],
-                                    model_name,
-                                    method_name,
-                                )
+                        was_inactive = not existing.active
+                        existing.write(values)
+                        existing.flush_recordset()
+                        if was_inactive:
+                            _logger.info(
+                                "Reactivated function tool '%s' from %s.%s",
+                                values["name"],
+                                model_name,
+                                method_name,
+                            )
+                        else:
+                            _logger.debug(
+                                "Updated function tool '%s' from %s.%s",
+                                values["name"],
+                                model_name,
+                                method_name,
+                            )
                     else:
                         _logger.debug(
                             "Skipped update for function tool '%s' (auto_update=False)",
                             existing.name,
                         )
                 else:
-                    # Auto-create the tool
-                    self.create(values)
+                    # Auto-create the tool — flush the NEW record (not self)
+                    new_tool = self.create(values)
+                    new_tool.flush_recordset()
                     _logger.info(
                         "Registered function tool '%s' from %s.%s",
                         values["name"],
@@ -414,6 +409,7 @@ class LLMTool(models.Model):
                 try:
                     with self.env.cr.savepoint(flush=False):
                         tool.active = False
+                        tool.flush_recordset()
                     _logger.info(
                         "Deactivated missing function tool '%s' from %s.%s",
                         tool.name,
