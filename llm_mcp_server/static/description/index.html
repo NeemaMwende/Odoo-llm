@@ -289,7 +289,7 @@
                         <span style="color:white; font-size:2rem; font-weight:700">1</span>
                     </div>
                     <h3 style="font-size:1.25rem; font-weight:700; color:#212529; margin-bottom:1rem">Install LLM MCP Server</h3>
-                    <p style="color:#6c757d; font-size:1rem; line-height:1.6">Search in Apps and click Install. That's it!</p>
+                    <p style="color:#6c757d; font-size:1rem; line-height:1.6">Search in Apps and click Install. That's it - the MCP server is now running inside Odoo.</p>
                 </div>
             </div>
 
@@ -298,8 +298,8 @@
                     <div class="bg-primary d-flex align-items-center justify-content-center" style="width:80px; height:80px; border-radius:50%; margin:0 auto 1.5rem">
                         <span style="color:white; font-size:2rem; font-weight:700">2</span>
                     </div>
-                    <h3 style="font-size:1.25rem; font-weight:700; color:#212529; margin-bottom:1rem">Generate API Key</h3>
-                    <p style="color:#6c757d; font-size:1rem; line-height:1.6">Click <strong>"New MCP Key"</strong> in Preferences or MCP Server Config. Ready-to-copy configs included!</p>
+                    <h3 style="font-size:1.25rem; font-weight:700; color:#212529; margin-bottom:1rem">Generate Your MCP Key</h3>
+                    <p style="color:#6c757d; font-size:1rem; line-height:1.6">Open <strong>My Profile</strong> (click your avatar, top-right), scroll to <strong>Account Security</strong>, and click <strong>"New MCP Key"</strong>.</p>
                 </div>
             </div>
 
@@ -308,8 +308,72 @@
                     <div class="bg-primary d-flex align-items-center justify-content-center" style="width:80px; height:80px; border-radius:50%; margin:0 auto 1.5rem">
                         <span style="color:white; font-size:2rem; font-weight:700">3</span>
                     </div>
-                    <h3 style="font-size:1.25rem; font-weight:700; color:#212529; margin-bottom:1rem">Connect Your Client</h3>
-                    <p style="color:#6c757d; font-size:1rem; line-height:1.6">Check our documentation for client configs at:<br><code style="font-size:0.85rem">github.com/apexive/odoo-llm</code></p>
+                    <h3 style="font-size:1.25rem; font-weight:700; color:#212529; margin-bottom:1rem">Paste the Config</h3>
+                    <p style="color:#6c757d; font-size:1rem; line-height:1.6">The wizard gives you <strong>ready-to-paste</strong> configurations for Claude Desktop, Claude Code, and Codex CLI. Just copy and paste!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed step-by-step -->
+        <div class="row g-4 mb-5">
+            <div class="col-lg-10 mx-auto">
+                <div class="card border-0 shadow-sm" style="border-radius:16px; padding:2rem">
+                    <h3 style="font-size:1.5rem; font-weight:700; color:#212529; margin-bottom:1.5rem; text-align:center">
+                        <i class="fa fa-map-signs" style="color:#71639e; margin-right:0.5rem"></i>
+                        Step-by-Step: Generate Your MCP Key
+                    </h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="bg-light" style="padding:1.25rem; border-radius:12px; height:100%">
+                                <div class="d-flex align-items-center" style="margin-bottom:0.75rem">
+                                    <div class="bg-primary d-flex align-items-center justify-content-center" style="width:32px; height:32px; border-radius:50%; margin-right:0.75rem; flex-shrink:0">
+                                        <span style="color:white; font-weight:700; font-size:0.9rem">1</span>
+                                    </div>
+                                    <strong style="color:#212529">Open My Profile</strong>
+                                </div>
+                                <p style="color:#6c757d; margin:0; padding-left:2.75rem; font-size:0.95rem">Click your <strong>avatar</strong> in the top-right corner, then select <strong>My Profile</strong> (or Preferences).</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light" style="padding:1.25rem; border-radius:12px; height:100%">
+                                <div class="d-flex align-items-center" style="margin-bottom:0.75rem">
+                                    <div class="bg-primary d-flex align-items-center justify-content-center" style="width:32px; height:32px; border-radius:50%; margin-right:0.75rem; flex-shrink:0">
+                                        <span style="color:white; font-weight:700; font-size:0.9rem">2</span>
+                                    </div>
+                                    <strong style="color:#212529">Find Account Security</strong>
+                                </div>
+                                <p style="color:#6c757d; margin:0; padding-left:2.75rem; font-size:0.95rem">Scroll down to the <strong>Account Security</strong> section where you manage your API keys.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light" style="padding:1.25rem; border-radius:12px; height:100%">
+                                <div class="d-flex align-items-center" style="margin-bottom:0.75rem">
+                                    <div class="bg-primary d-flex align-items-center justify-content-center" style="width:32px; height:32px; border-radius:50%; margin-right:0.75rem; flex-shrink:0">
+                                        <span style="color:white; font-weight:700; font-size:0.9rem">3</span>
+                                    </div>
+                                    <strong style="color:#212529">Click "New MCP Key"</strong>
+                                </div>
+                                <p style="color:#6c757d; margin:0; padding-left:2.75rem; font-size:0.95rem">Enter a description (e.g. "Claude Desktop") and confirm your password.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light" style="padding:1.25rem; border-radius:12px; height:100%">
+                                <div class="d-flex align-items-center" style="margin-bottom:0.75rem">
+                                    <div class="bg-primary d-flex align-items-center justify-content-center" style="width:32px; height:32px; border-radius:50%; margin-right:0.75rem; flex-shrink:0">
+                                        <span style="color:white; font-weight:700; font-size:0.9rem">4</span>
+                                    </div>
+                                    <strong style="color:#212529">Copy Your Configuration</strong>
+                                </div>
+                                <p style="color:#6c757d; margin:0; padding-left:2.75rem; font-size:0.95rem">The wizard shows your API key <strong>and</strong> ready-to-paste configs for each AI client. Copy and paste!</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-light" style="padding:1rem 1.25rem; border-radius:10px; margin-top:1.25rem">
+                        <p style="margin:0; color:#495057; font-size:0.95rem">
+                            <i class="fa fa-info-circle" style="color:#71639e; margin-right:0.5rem"></i>
+                            <strong>Every user</strong> generates their own key from their profile. The AI client inherits that user's Odoo permissions - they can only see and do what that user is allowed to.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
