@@ -7,43 +7,77 @@ The foundational module for integrating Large Language Models into Odoo. This ba
 ## Architecture
 
 ```
-                        ┌─────────────────────────────────────────────────────────┐
-                        │              Layer 2: Interfaces                        │
-                        │  ┌─────────────┐ ┌───────────┐ ┌──────────────────────┐ │
-                        │  │llm_assistant│ │llm_thread │ │    llm_mcp_server    │ │
-                        │  └──────┬──────┘ └─────┬─────┘ └──────────┬───────────┘ │
-                        └─────────┼──────────────┼──────────────────┼─────────────┘
-                                  │              │                  │
-                                  ▼              ▼                  ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              ★ llm (This Module) ★                              │
-│                              Core Odoo-LLM Base                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │ • Provider Abstraction  • Model Management  • Enhanced mail.message     │   │
-│  │ • Publisher Tracking    • Security Framework • API Key Management       │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                  ▲              ▲
-          ┌───────────────────────┼──────────────┼───────────────────────┐
-          │                       │              │                       │
-    ┌─────┴─────┐          ┌──────┴─────┐  ┌─────┴──────┐         ┌──────┴─────┐
-    │llm_openai │          │ llm_ollama │  │llm_mistral │         │llm_replicate│
-    │ (GPT-4)   │          │  (Local)   │  │ (Mistral)  │         │  (Images)  │
-    └───────────┘          └────────────┘  └────────────┘         └────────────┘
-         Providers extend this module
+  External AI Clients                          Odoo AI Chat
+  ┌─────────────┐ ┌──────────┐               ┌─────────────┐ ┌───────────┐
+  │Claude Desktop│ │Claude Code│               │llm_assistant│ │llm_thread │
+  │  Cursor      │ │Codex CLI  │               └──────┬──────┘ └─────┬─────┘
+  └──────┬───────┘ └─────┬────┘                       │              │
+         └───────┬───────┘                            │              │
+                 │ MCP Protocol                       │              │
+                 ▼                                    ▼              ▼
+  ┌──────────────────────┐      ┌───────────────────────────────────────────────┐
+  │   llm_mcp_server     │      │              ★ llm (This Module) ★            │
+  │  MCP Server for Odoo │─────▶│  Provider Abstraction · Model Management     │
+  └──────────────────────┘      │  Enhanced mail.message · Security Framework   │
+                                └──────────────────────┬────────────────────────┘
+                                                       │
+                ┌──────────────────────────────────────┼──────────────┐
+                │                                      │              │
+    ┌───────────┴──────────┐      ┌────────────────────┴──┐  ┌───────┴────────┐
+    │      llm_tool        │      │   AI Providers         │  │ Infrastructure │
+    │  Tool Framework      │      │ llm_openai, llm_ollama │  │ llm_store      │
+    │  + Generic CRUD Tools│      │ llm_mistral, ...       │  │ llm_generate   │
+    └──────────┬───────────┘      └───────────────────────┘  └────────────────┘
+               │
+    ┌──────────┴────────────────────────────────────┐
+    │          Domain-Specific Tool Packs            │
+    │ llm_tool_account    · 18 accounting tools     │
+    │ llm_tool_mis_builder· 44 MIS reporting tools  │
+    │ llm_tool_knowledge  · RAG search tools        │
+    │ llm_tool_ocr_mistral· OCR via Mistral vision  │
+    └───────────────────────────────────────────────┘
 ```
 
 ## Installation
 
 ### What to Install
 
-This module is **auto-installed** as a dependency. You typically don't install it directly.
+This module is **auto-installed** as a dependency. You typically don't install it directly. **Choose a setup below based on your use case.**
 
-**For AI chat features, install:**
+### Common Setups
+
+| I want to...                                  | Install                                                 |
+| --------------------------------------------- | ------------------------------------------------------- |
+| **Use Claude/Cursor/Codex with Odoo (MCP)**   | `llm_mcp_server` (+ tool packs below)                   |
+| Chat with AI inside Odoo                      | `llm_assistant` + `llm_openai`                          |
+| Use local AI (privacy)                        | `llm_assistant` + `llm_ollama`                          |
+| Add RAG/knowledge base                        | Above + `llm_knowledge` + `llm_pgvector`                |
+| AI-powered accounting via MCP or chat         | `llm_tool_account` (+ `llm_mcp_server` for external AI) |
+| AI-powered financial reporting (MIS Builder)  | `llm_tool_mis_builder` (+ `llm_mcp_server`)             |
+
+### MCP Server — Connect External AI Clients
+
+The **`llm_mcp_server`** module exposes all your Odoo tools to external AI clients via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). This lets you use **Claude Desktop**, **Claude Code**, **Cursor**, **Windsurf**, **VS Code**, and **Codex CLI** to interact directly with your Odoo data.
 
 ```bash
-odoo-bin -d your_db -i llm_assistant,llm_openai
+odoo-bin -d your_db -i llm_mcp_server
 ```
+
+After installing, each user generates their own API key from **My Profile → Account Security → New MCP Key**. The wizard provides ready-to-paste configurations for each client. See the [llm_mcp_server README](../llm_mcp_server/README.md) for full setup instructions.
+
+### Domain-Specific Tool Packs
+
+Install tool packs to give AI assistants (both in-Odoo and external MCP clients) specialized capabilities:
+
+| Module                 | Tools | Description                                                                    |
+| ---------------------- | ----- | ------------------------------------------------------------------------------ |
+| **`llm_tool_account`** | 18    | Trial balance, journal entries, reconciliation, payments, tax reports, P&L     |
+| **`llm_tool_mis_builder`** | 44 | KPI management, report computation, drill-down, variance analysis, trends      |
+| **`llm_tool_knowledge`** | —   | RAG search, semantic retrieval, source citations from your knowledge base      |
+| **`llm_tool_ocr_mistral`** | 1  | Extract text from images and PDFs using Mistral AI vision models               |
+| **`llm_tool_demo`**    | 6     | Example tools showing `@llm_tool` decorator patterns for developers            |
+
+The base `llm_tool` module also includes 6 **generic CRUD tools** out of the box: `odoo_record_retriever`, `odoo_record_creator`, `odoo_record_updater`, `odoo_record_unlinker`, `odoo_model_method_executor`, and `odoo_model_inspector` — enabling AI to read, create, update, and delete records in any Odoo model.
 
 ### This Module Provides
 
@@ -55,19 +89,13 @@ odoo-bin -d your_db -i llm_assistant,llm_openai
 
 ### Modules That Depend on This
 
-| Category           | Modules                                                                  |
-| ------------------ | ------------------------------------------------------------------------ |
-| **Interfaces**     | `llm_assistant`, `llm_thread`, `llm_mcp_server`                          |
+| Category           | Modules                                                                   |
+| ------------------ | ------------------------------------------------------------------------- |
+| **MCP Server**     | `llm_mcp_server`                                                          |
+| **Interfaces**     | `llm_assistant`, `llm_thread`                                             |
+| **Tool Framework** | `llm_tool` → `llm_tool_account`, `llm_tool_mis_builder`, `llm_tool_knowledge`, `llm_tool_ocr_mistral` |
 | **Providers**      | `llm_openai`, `llm_ollama`, `llm_mistral`, `llm_replicate`, `llm_fal_ai` |
-| **Infrastructure** | `llm_tool`, `llm_store`, `llm_generate`                                  |
-
-### Common Setups
-
-| I want to...           | Install                                  |
-| ---------------------- | ---------------------------------------- |
-| Chat with AI in Odoo   | `llm_assistant` + `llm_openai`           |
-| Use local AI (privacy) | `llm_assistant` + `llm_ollama`           |
-| Add RAG/knowledge base | Above + `llm_knowledge` + `llm_pgvector` |
+| **Infrastructure** | `llm_store`, `llm_generate`                                               |
 
 ## Overview
 
@@ -372,9 +400,25 @@ class CustomThread(models.Model):
 
 Build complete AI solutions by combining with specialized modules:
 
-- **`llm_assistant`**: AI assistants with prompt management
+### External AI Integration
+
+- **`llm_mcp_server`**: MCP server exposing all Odoo tools to Claude Desktop, Claude Code, Cursor, Codex CLI, and any MCP-compatible client
+
+### Tool Packs
+
+- **`llm_tool`**: Tool framework with generic CRUD tools (retrieve, create, update, delete, inspect, execute)
+- **`llm_tool_account`**: 18 AI-powered accounting tools — trial balance, journal entries, reconciliation, payments, tax reports, P&L, period close
+- **`llm_tool_mis_builder`**: 44 tools for MIS Builder financial reporting — KPIs, periods, report computation, drill-down, variance analysis
+- **`llm_tool_knowledge`**: RAG tools for semantic search, knowledge retrieval, and source citations
+- **`llm_tool_ocr_mistral`**: OCR tool using Mistral vision models for invoices, receipts, scanned documents
+
+### Chat & Assistants
+
+- **`llm_assistant`**: AI assistants with custom prompts and personalities
 - **`llm_thread`**: Chat interfaces and conversation management
-- **`llm_tool`**: Function calling and Odoo integration
+
+### Infrastructure
+
 - **`llm_generate`**: Unified content generation API
 - **`llm_knowledge`**: RAG and knowledge base functionality
 - **`llm_store`**: Vector storage and similarity search
