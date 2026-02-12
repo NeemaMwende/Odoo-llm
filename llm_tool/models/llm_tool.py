@@ -340,22 +340,30 @@ class LLMTool(models.Model):
                     # Only update if auto_update is enabled
                     auto_update = getattr(existing, "auto_update", True)
                     if auto_update:
-                        was_inactive = not existing.active
-                        existing.write(values)
-                        if was_inactive:
-                            _logger.info(
-                                "Reactivated function tool '%s' from %s.%s",
-                                values["name"],
-                                model_name,
-                                method_name,
-                            )
-                        else:
-                            _logger.debug(
-                                "Updated function tool '%s' from %s.%s",
-                                values["name"],
-                                model_name,
-                                method_name,
-                            )
+                        # Only write if values actually changed to avoid
+                        # concurrent update errors on multi-worker restarts
+                        changed = {
+                            k: v
+                            for k, v in values.items()
+                            if existing[k] != v
+                        }
+                        if changed:
+                            was_inactive = not existing.active
+                            existing.write(changed)
+                            if was_inactive:
+                                _logger.info(
+                                    "Reactivated function tool '%s' from %s.%s",
+                                    values["name"],
+                                    model_name,
+                                    method_name,
+                                )
+                            else:
+                                _logger.debug(
+                                    "Updated function tool '%s' from %s.%s",
+                                    values["name"],
+                                    model_name,
+                                    method_name,
+                                )
                     else:
                         _logger.debug(
                             "Skipped update for function tool '%s' (auto_update=False)",
